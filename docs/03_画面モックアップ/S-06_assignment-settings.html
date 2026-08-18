@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S-06 配信設定 | e-learning 画面モックアップ</title>
+<link rel="stylesheet" href="mock.css">
+</head>
+<body>
+
+<div class="app">
+
+  <!-- サイドバー（管理者: 千田 太郎） -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-mark">e</div>
+      <div>
+        <div class="brand-name">e-learning</div>
+        <div class="brand-sub">社内学習管理システム</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-label">メニュー</div>
+      <a class="nav-item" href="S-02_my-learning.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h3.5v-6h5v6H18a1 1 0 0 0 1-1V9.5"/></svg></span>
+        マイ学習
+      </a>
+      <a class="nav-item" href="S-03_materials-list.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></span>
+        教材一覧・検索
+      </a>
+      <a class="nav-item" href="S-05_material-edit.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></span>
+        教材編集
+      </a>
+      <a class="nav-item" href="S-09_my-report.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
+        個人学習レポート
+      </a>
+      <div class="nav-label">管理者メニュー</div>
+      <a class="nav-item" href="S-08_dashboard.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg></span>
+        受講状況ダッシュボード
+      </a>
+      <a class="nav-item active" href="S-06_assignment-settings.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></span>
+        配信設定
+      </a>
+      <a class="nav-item" href="S-07_org-management.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+        組織管理
+      </a>
+      <a class="nav-item" href="S-10_admin.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
+        管理
+      </a>
+      <div class="nav-note">※ 管理者メニューは admin のみ表示（受講状況ダッシュボードは manager にも担当範囲で表示）</div>
+    </nav>
+    <div class="sidebar-user">
+      <div class="sidebar-user-row">
+        <span class="avatar">千</span>
+        <div>
+          <div class="user-name">千田 太郎 <span class="badge badge-role role-admin">admin</span></div>
+          <div class="user-mail">t.chida@kogasoftware.com</div>
+        </div>
+      </div>
+      <a class="sidebar-logout" href="S-01_login.html">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        ログアウト
+      </a>
+    </div>
+  </aside>
+
+  <!-- メインエリア -->
+  <div class="main">
+    <header class="page-header">
+      <div class="page-title-group">
+        <h1>配信設定</h1>
+        <span class="screen-id">S-06</span>
+      </div>
+    </header>
+
+    <div class="page-body">
+
+      <div class="toolbar">
+        <div class="search-box">
+          <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="search" placeholder="教材名で検索">
+        </div>
+        <select style="width:140px">
+          <option selected>すべての状態</option>
+          <option>公開中</option>
+          <option>下書き</option>
+        </select>
+        <span class="result-count"><strong>6件</strong> 表示中</span>
+      </div>
+
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>教材</th>
+              <th>配信対象</th>
+              <th style="width:80px">区分</th>
+              <th style="width:110px">期限</th>
+              <th style="width:90px">状態</th>
+              <th style="width:90px">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="cell-main">AI開発研修 基礎編 — Claude Codeの使い方</td>
+              <td>全社</td>
+              <td><span class="badge badge-required">必修</span></td>
+              <td>2026-08-20</td>
+              <td><span class="badge badge-status-on">公開中</span></td>
+              <td><button class="btn btn-ghost btn-sm" type="button">編集</button></td>
+            </tr>
+            <tr>
+              <td class="cell-main">情報セキュリティ研修 2026</td>
+              <td>全社</td>
+              <td><span class="badge badge-required">必修</span></td>
+              <td>2026-09-30</td>
+              <td><span class="badge badge-status-on">公開中</span></td>
+              <td><button class="btn btn-ghost btn-sm" type="button">編集</button></td>
+            </tr>
+            <tr style="outline:2px solid var(--accent-500);outline-offset:-2px">
+              <td class="cell-main">新人向けGit入門</td>
+              <td>プロジェクト: LCC CRM刷新, 部署: 開発部</td>
+              <td><span class="badge badge-optional">任意</span></td>
+              <td>—</td>
+              <td><span class="badge badge-status-on">公開中</span></td>
+              <td><button class="btn btn-secondary btn-sm" type="button">編集中</button></td>
+            </tr>
+            <tr>
+              <td class="cell-main">データベース設計入門</td>
+              <td>個人: 高橋 大輔 ほか2名</td>
+              <td><span class="badge badge-optional">任意</span></td>
+              <td>—</td>
+              <td><span class="badge badge-status-on">公開中</span></td>
+              <td><button class="btn btn-ghost btn-sm" type="button">編集</button></td>
+            </tr>
+            <tr>
+              <td class="cell-main">TypeScript入門</td>
+              <td>部署: 開発部</td>
+              <td><span class="badge badge-optional">任意</span></td>
+              <td>—</td>
+              <td><span class="badge badge-status-on">公開中</span></td>
+              <td><button class="btn btn-ghost btn-sm" type="button">編集</button></td>
+            </tr>
+            <tr>
+              <td class="cell-main">React入門（改訂版）</td>
+              <td>未設定</td>
+              <td><span class="badge badge-optional">任意</span></td>
+              <td>—</td>
+              <td><span class="badge badge-status-off">下書き</span></td>
+              <td><button class="btn btn-ghost btn-sm" type="button">編集</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 選択中の教材の配信設定 編集パネル -->
+      <section class="panel" style="margin-top:20px">
+        <div class="panel-header">
+          <div class="panel-title">配信設定を編集 — 新人向けGit入門</div>
+        </div>
+        <div class="panel-body">
+
+          <div class="field">
+            <label>配信対象</label>
+            <div class="radio-group">
+              <label class="radio-line"><input type="radio" name="target-scope"> 全社</label>
+              <label class="radio-line"><input type="radio" name="target-scope" checked> 部署</label>
+              <label class="radio-line"><input type="radio" name="target-scope" checked> プロジェクト</label>
+              <label class="radio-line"><input type="radio" name="target-scope"> 個人</label>
+            </div>
+            <span class="field-help">複数の単位を組み合わせて指定できます（例: 部署「開発部」かつプロジェクト「LCC CRM刷新」）</span>
+          </div>
+
+          <div class="field-row">
+            <div class="field">
+              <label>部署を選択</label>
+              <div class="checkbox-group" style="flex-direction:column;align-items:flex-start">
+                <label class="checkbox-line"><input type="checkbox" checked> 開発部</label>
+                <label class="checkbox-line"><input type="checkbox"> 営業部</label>
+                <label class="checkbox-line"><input type="checkbox"> 管理部</label>
+              </div>
+            </div>
+            <div class="field">
+              <label>プロジェクトを選択</label>
+              <div class="checkbox-group" style="flex-direction:column;align-items:flex-start">
+                <label class="checkbox-line"><input type="checkbox" checked> LCC CRM刷新</label>
+                <label class="checkbox-line"><input type="checkbox"> Keireki保守</label>
+                <label class="checkbox-line"><input type="checkbox"> e-learning新規構築</label>
+              </div>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>個人を追加指定（任意）</label>
+            <select style="max-width:280px">
+              <option selected disabled>社員を検索して追加…</option>
+              <option>山田 花子</option>
+              <option>佐藤 健一</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>必修・任意</label>
+            <div class="radio-group">
+              <label class="radio-line"><input type="radio" name="required"> 必修</label>
+              <label class="radio-line"><input type="radio" name="required" checked> 任意</label>
+            </div>
+          </div>
+
+          <div class="field" style="max-width:220px">
+            <label>受講期限（必修の場合のみ）</label>
+            <input type="date" disabled>
+            <span class="field-help">「任意」の場合は期限を設定できません</span>
+          </div>
+
+          <div class="search-actions">
+            <button class="btn btn-primary" type="button">保存</button>
+            <button class="btn btn-secondary" type="button">キャンセル</button>
+            <span class="actions-note" style="margin-left:auto">対象者プレビュー: <strong style="color:var(--text)">開発部 かつ LCC CRM刷新 所属 24名</strong></span>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<div class="mock-note">画面モックアップ（S-06）/ 研修サンプル</div>
+
+</body>
+</html>

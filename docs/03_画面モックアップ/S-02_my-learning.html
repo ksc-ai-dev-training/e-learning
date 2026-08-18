@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S-02 マイ学習 | e-learning 画面モックアップ</title>
+<link rel="stylesheet" href="mock.css">
+</head>
+<body>
+
+<div class="app">
+
+  <!-- サイドバー（受講者: 佐藤 健一） -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-mark">e</div>
+      <div>
+        <div class="brand-name">e-learning</div>
+        <div class="brand-sub">社内学習管理システム</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-label">メニュー</div>
+      <a class="nav-item active" href="S-02_my-learning.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h3.5v-6h5v6H18a1 1 0 0 0 1-1V9.5"/></svg></span>
+        マイ学習
+      </a>
+      <a class="nav-item" href="S-03_materials-list.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></span>
+        教材一覧・検索
+      </a>
+      <a class="nav-item" href="S-05_material-edit.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></span>
+        教材編集
+      </a>
+      <div class="nav-note">※ 自分がオーナー・共同編集者の教材（例:「AWS基礎メモ」）がある場合のみ表示</div>
+      <a class="nav-item" href="S-09_my-report.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
+        個人学習レポート
+      </a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="sidebar-user-row">
+        <span class="avatar">佐</span>
+        <div>
+          <div class="user-name">佐藤 健一 <span class="badge badge-role role-learner">learner</span></div>
+          <div class="user-mail">k.sato@kogasoftware.com</div>
+        </div>
+      </div>
+      <a class="sidebar-logout" href="S-01_login.html">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        ログアウト
+      </a>
+    </div>
+  </aside>
+
+  <!-- メインエリア -->
+  <div class="main">
+    <header class="page-header">
+      <div class="page-title-group">
+        <h1>マイ学習</h1>
+        <span class="screen-id">S-02</span>
+      </div>
+      <div class="header-actions">
+        <a class="btn btn-secondary" href="S-03_materials-list.html">教材を探す</a>
+      </div>
+    </header>
+
+    <div class="page-body">
+
+      <div class="stat-row">
+        <div class="stat">
+          <div class="stat-label">必修教材 受講率</div>
+          <div class="stat-value">67<span class="stat-unit">%</span></div>
+        </div>
+        <div class="stat stat-warn">
+          <div class="stat-label">期限が近い必修教材</div>
+          <div class="stat-value">1<span class="stat-unit">件</span></div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">任意教材 受講済み</div>
+          <div class="stat-value">2<span class="stat-unit">件</span></div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">直近の受講</div>
+          <div class="stat-value" style="font-size:14px">2026-08-16</div>
+        </div>
+      </div>
+
+      <!-- 期限が近い必修教材（強調表示） -->
+      <section class="panel" style="border-color:#fca5a5">
+        <div class="panel-header" style="background:#fff5f5">
+          <div class="panel-title">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#b91c1c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            期限が近い必修教材
+          </div>
+          <span class="panel-count">受講しないと期限超過になります</span>
+        </div>
+        <div class="panel-body">
+          <div class="material-card urgent">
+            <div class="material-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+            </div>
+            <div class="material-body">
+              <div class="material-title">AI開発研修 基礎編 — Claude Codeの使い方</div>
+              <div class="material-meta">
+                <span class="badge badge-required">必修</span>
+                <span class="badge badge-overdue">期限まであと2日（2026-08-20）</span>
+                <span>単元3/5 完了</span>
+              </div>
+            </div>
+            <div class="material-progress">
+              <div class="progress">
+                <div class="progress-track"><div class="progress-fill warn" style="width:60%"></div></div>
+                <span class="progress-label">60%</span>
+              </div>
+            </div>
+            <div class="material-actions">
+              <a class="btn btn-primary btn-sm" href="S-04_material-view.html">続きから受講</a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 必修教材 一覧 -->
+      <section class="panel">
+        <div class="panel-header">
+          <div class="panel-title">必修教材</div>
+          <span class="panel-count">3件中 2件 未完了</span>
+        </div>
+        <div class="panel-body">
+          <div class="material-card">
+            <div class="material-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+            </div>
+            <div class="material-body">
+              <div class="material-title">AI開発研修 基礎編 — Claude Codeの使い方</div>
+              <div class="material-meta">
+                <span class="badge badge-required">必修</span>
+                <span>期限: 2026-08-20</span>
+                <span>コース: 新人研修2026</span>
+              </div>
+            </div>
+            <div class="material-progress">
+              <div class="progress">
+                <div class="progress-track"><div class="progress-fill warn" style="width:60%"></div></div>
+                <span class="progress-label">60%</span>
+              </div>
+            </div>
+            <div class="material-actions">
+              <a class="btn btn-secondary btn-sm" href="S-04_material-view.html">続きから受講</a>
+            </div>
+          </div>
+
+          <div class="material-card">
+            <div class="material-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+            </div>
+            <div class="material-body">
+              <div class="material-title">情報セキュリティ研修 2026</div>
+              <div class="material-meta">
+                <span class="badge badge-required">必修</span>
+                <span>期限: 2026-09-30</span>
+                <span>コース: 全社必修研修</span>
+              </div>
+            </div>
+            <div class="material-progress">
+              <div class="progress">
+                <div class="progress-track"><div class="progress-fill" style="width:0%"></div></div>
+                <span class="progress-label">未受講</span>
+              </div>
+            </div>
+            <div class="material-actions">
+              <a class="btn btn-secondary btn-sm" href="S-04_material-view.html">受講を開始</a>
+            </div>
+          </div>
+
+          <div class="material-card">
+            <div class="material-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+            </div>
+            <div class="material-body">
+              <div class="material-title">ハラスメント防止研修</div>
+              <div class="material-meta">
+                <span class="badge badge-required">必修</span>
+                <span>期限: 2026-08-31</span>
+                <span class="badge badge-complete">合格済み（2026-08-05）</span>
+              </div>
+            </div>
+            <div class="material-progress">
+              <div class="progress">
+                <div class="progress-track"><div class="progress-fill complete" style="width:100%"></div></div>
+                <span class="progress-label">100%</span>
+              </div>
+            </div>
+            <div class="material-actions">
+              <a class="btn btn-ghost btn-sm" href="S-04_material-view.html">復習する</a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 任意教材 一覧 -->
+      <section class="panel">
+        <div class="panel-header">
+          <div class="panel-title">任意教材</div>
+          <span class="panel-count">おすすめ・自由選択の教材</span>
+        </div>
+        <div class="panel-body">
+          <div class="material-card">
+            <div class="material-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+            </div>
+            <div class="material-body">
+              <div class="material-title">TypeScript入門</div>
+              <div class="material-meta">
+                <span class="badge badge-optional">任意</span>
+                <span>コース: フロントエンド基礎</span>
+              </div>
+            </div>
+            <div class="material-progress">
+              <div class="progress">
+                <div class="progress-track"><div class="progress-fill" style="width:30%"></div></div>
+                <span class="progress-label">30%</span>
+              </div>
+            </div>
+            <div class="material-actions">
+              <a class="btn btn-secondary btn-sm" href="S-04_material-view.html">続きから受講</a>
+            </div>
+          </div>
+
+          <div class="material-card">
+            <div class="material-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+            </div>
+            <div class="material-body">
+              <div class="material-title">新人向けGit入門</div>
+              <div class="material-meta">
+                <span class="badge badge-optional">任意</span>
+                <span class="badge badge-complete">合格済み（2026-07-10）</span>
+                <span>コース: エンジニア基礎</span>
+              </div>
+            </div>
+            <div class="material-progress">
+              <div class="progress">
+                <div class="progress-track"><div class="progress-fill complete" style="width:100%"></div></div>
+                <span class="progress-label">100%</span>
+              </div>
+            </div>
+            <div class="material-actions">
+              <a class="btn btn-ghost btn-sm" href="S-04_material-view.html">反復演習する</a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<div class="mock-note">画面モックアップ（S-02）/ 研修サンプル</div>
+
+</body>
+</html>

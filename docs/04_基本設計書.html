@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>基本設計書 | 社内学習管理システム（e-learning）</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="doc">
+
+  <!-- ============ 表紙 ============ -->
+  <div class="cover">
+    <span class="doc-type">基本設計書</span>
+    <h1>社内学習管理システム（e-learning）基本設計書</h1>
+    <p class="subtitle">社内学習管理システム（e-learning）</p>
+    <div class="meta">
+      <span>作成日: 2026-08-18</span>
+      <span>版数: 1.0</span>
+      <span>作成: コガソフトウェア株式会社</span>
+    </div>
+    <p class="note">本ドキュメントは新人社員向けAI開発研修のサンプル成果物です</p>
+  </div>
+
+  <!-- ============ 改訂履歴 ============ -->
+  <h2>改訂履歴</h2>
+  <table>
+    <thead><tr><th>版数</th><th>日付</th><th>改訂内容</th></tr></thead>
+    <tbody>
+      <tr><td>1.0</td><td>2026-08-18</td><td>初版</td></tr>
+    </tbody>
+  </table>
+
+  <!-- ============ 目次 ============ -->
+  <nav class="toc">
+    <strong>目次</strong>
+    <ol>
+      <li><a href="#sec1">はじめに</a></li>
+      <li><a href="#sec2">システム構成</a></li>
+      <li><a href="#sec3">認証・認可設計</a></li>
+      <li><a href="#sec4">画面設計</a></li>
+      <li><a href="#sec5">機能設計</a></li>
+      <li><a href="#sec6">データベース設計</a></li>
+      <li><a href="#sec7">API設計</a></li>
+      <li><a href="#sec8">教材連携設計（Claude Code連携）</a></li>
+      <li><a href="#sec9">AI機能設計</a></li>
+      <li><a href="#sec10">非機能設計</a></li>
+      <li><a href="#sec11">前提・制約</a></li>
+    </ol>
+  </nav>
+
+  <!-- ============ 1. はじめに ============ -->
+  <h2 id="sec1">1. はじめに</h2>
+
+  <h3>1.1 本書の位置づけ</h3>
+  <p>本書は、社内学習管理システム（e-learning）の基本設計書である。要求定義書（v1.3）で定義された要求事項（REQ-F-01〜REQ-F-19、REQ-N-01〜REQ-N-06）を実現するためのシステム構成・認証認可方式・画面・機能・データベース・API・教材連携・AI連携の設計方針を定める。実装レベルの詳細（カラム単位の入出力仕様、リクエスト/レスポンスのフィールド定義、バリデーション規則、フロントマターの完全な文法など）は後続の詳細設計書で定義する。</p>
+  <p>本システムは、社員経歴書管理システム「Keireki」と同じ研修シリーズの一部であり、デザインシステム・ドキュメント形式・ID体系（REQ-xx=要求 / F-xx=機能 / S-xx=画面 / T-xx=テーブル / A-xx=API）・技術スタックの多くをKeirekiから踏襲する。画面の詳細レイアウトは、実際に作り込まれた画面モックアップ「<a href="03_画面モックアップ/index.html">03_画面モックアップ/</a>」を参照する。</p>
+  <div class="callout warn">
+    <strong>教材作成者（author）ロールの権限論点について:</strong> 「author ロールが受講者（learner）と権限的にほぼ同一で、実質的な追加権限が何かという設計論点」は、本書執筆時点でユーザーとの議論が保留中である。本書では要求定義書v1.3に記載された現状の権限モデル（4ロール制＋教材ごとのオーナー・共同編集者による追加の認可レイヤー）をそのまま前提として設計しており、この論点を先取りして解決したり独自の結論を出したりはしていない。後日 author ロールの結論が出た場合、本書の3章・7.3節・権限マトリクスを別途改訂する。
+  </div>
+
+  <h3>1.2 要求定義書との対応表</h3>
+  <p>本書の各設計は、要求定義書の要求事項ID・機能要件IDと以下のように対応する。</p>
+  <table>
+    <thead><tr><th>要求ID</th><th>要求概要</th><th>本書での対応</th></tr></thead>
+    <tbody>
+      <tr><td>REQ-F-01</td><td>教材と問題を登録・修正できること</td><td>F-04（5.4節）、S-05（4章）、T-06・T-10（6章）</td></tr>
+      <tr><td>REQ-F-02</td><td>Claude Codeから教材・問題を登録・修正できること</td><td>F-05（5.5節）、8章 教材連携設計</td></tr>
+      <tr><td>REQ-F-03</td><td>動画・スライド等のファイルを教材として扱えること</td><td>F-06（5.6節）、T-09（6章）</td></tr>
+      <tr><td>REQ-F-04</td><td>社員が自分で教材を作成・共有できること</td><td>F-07（5.7節）、3.4節（オーナー・共同編集者の認可レイヤー）</td></tr>
+      <tr><td>REQ-F-05</td><td>公開前にAIが教材をレビューできること</td><td>F-08（5.8節）、9章 AI機能設計</td></tr>
+      <tr><td>REQ-F-06</td><td>会社全体・プロジェクト・部署・個人を単位として教材を割り当てられること</td><td>F-03・F-09（5.3・5.9節）、T-04・T-11（6章）</td></tr>
+      <tr><td>REQ-F-07</td><td>必修と任意を区別して扱えること</td><td>F-10（5.10節）</td></tr>
+      <tr><td>REQ-F-08</td><td>必修教材の期限を設定し、未受講者を把握・催促できること</td><td>F-11・F-12（5.11・5.12節）、T-20（6章）</td></tr>
+      <tr><td>REQ-F-09</td><td>合否判定と再受験ができること</td><td>F-14（5.14節）、T-13（6章）</td></tr>
+      <tr><td>REQ-F-10</td><td>選択式・記述式の問題に回答できること</td><td>F-13（5.13節）、T-10・T-14（6章）</td></tr>
+      <tr><td>REQ-F-11</td><td>中断・再開ができること</td><td>F-15（5.15節）、T-12（6章）</td></tr>
+      <tr><td>REQ-F-12</td><td>問題を何度でも繰り返し解けること</td><td>F-16（5.16節）</td></tr>
+      <tr><td>REQ-F-13</td><td>間違えた問題だけを集めて出題できること</td><td>F-17（5.17節）</td></tr>
+      <tr><td>REQ-F-14</td><td>学習状況と回答内容を記録できること</td><td>F-18（5.18節）、T-12・T-13・T-14（6章）</td></tr>
+      <tr><td>REQ-F-15</td><td>受講状況を組織単位で確認できること</td><td>F-19（5.19節）、S-08（4章）</td></tr>
+      <tr><td>REQ-F-16</td><td>AIが記述式の回答を採点し講評できること</td><td>F-20（5.20節）、9章 AI機能設計</td></tr>
+      <tr><td>REQ-F-17</td><td>AIがつまずきを分析し、教材の改善点を提案できること</td><td>F-21（5.21節）、9章 AI機能設計</td></tr>
+      <tr><td>REQ-F-18</td><td>AIが受講者個人にフィードバックできること</td><td>F-22（5.22節）、9章 AI機能設計</td></tr>
+      <tr><td>REQ-F-19</td><td>AIが組織単位のレポートを作成できること</td><td>F-23（5.23節）、9章 AI機能設計</td></tr>
+      <tr><td>REQ-N-01</td><td>Google認証により当社のGoogleアカウント保有者しか利用できないこと</td><td>F-01、3.1節</td></tr>
+      <tr><td>REQ-N-02</td><td>役割により操作範囲を制御できること</td><td>F-02、3.3節（権限マトリクス）</td></tr>
+      <tr><td>REQ-N-03</td><td>学習記録が本人の不利益に使われない扱いとすること</td><td>10.3節（セキュリティ）、7章（権限列）</td></tr>
+      <tr><td>REQ-N-04</td><td>スマートフォンからも学習できること</td><td>10.1節（性能・レスポンシブ方針）</td></tr>
+      <tr><td>REQ-N-05</td><td>AIの応答待ちで学習が妨げられないこと</td><td>9.2節（非同期ジョブの実現方式）</td></tr>
+      <tr><td>REQ-N-06</td><td>既存システム（LCC CRM）の技術構成を踏襲すること</td><td>2章 システム構成</td></tr>
+    </tbody>
+  </table>
+
+  <h3>1.3 対象読者</h3>
+  <ul>
+    <li>本システムの開発を担当する開発者（詳細設計・実装の入力として利用）</li>
+    <li>プロジェクトの発注側担当者・レビュー担当者（設計方針の妥当性確認）</li>
+    <li>AI開発研修の受講者（設計ドキュメントのサンプルとして参照）</li>
+  </ul>
+
+  <!-- ============ 2. システム構成 ============ -->
+  <h2 id="sec2">2. システム構成</h2>
+
+  <h3>2.1 システム構成図</h3>
+  <p>本システムは、React製SPAをフロントエンドとし、Koyeb上でホスティングするFastAPIがAPIを提供、データストアにSupabaseのPostgreSQLを用いる3層構成である。既存システムLCC CRM・Keirekiの構成を踏襲する（REQ-N-06）。これに加え、教材添付ファイルの保存にSupabase Storage、AI機能の実現にAnthropic Claude API、受講催促通知にSlack Incoming Webhookを利用する。</p>
+
+  <div class="diagram">
+    <svg width="860" height="380" viewBox="0 0 860 380" font-family="'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif">
+      <defs>
+        <marker id="arw" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+          <path d="M0,0 L9,4.5 L0,9 z" fill="#1e40af"/>
+        </marker>
+        <marker id="arwg" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+          <path d="M0,0 L9,4.5 L0,9 z" fill="#8a8f98"/>
+        </marker>
+      </defs>
+
+      <!-- ブラウザ -->
+      <rect x="20" y="110" width="150" height="90" rx="8" fill="#eff6ff" stroke="#1e40af" stroke-width="1.5"/>
+      <text x="95" y="138" text-anchor="middle" font-size="13" font-weight="600" fill="#1e3a8a">ブラウザ</text>
+      <text x="95" y="158" text-anchor="middle" font-size="12" fill="#1a1d21">React SPA</text>
+      <text x="95" y="176" text-anchor="middle" font-size="11" fill="#60656d">React 19 / Vite 6</text>
+
+      <!-- Koyeb 枠 -->
+      <rect x="255" y="70" width="200" height="170" rx="8" fill="#ffffff" stroke="#d9dde3" stroke-width="1.5" stroke-dasharray="5 4"/>
+      <text x="355" y="92" text-anchor="middle" font-size="11.5" font-weight="600" fill="#8a8f98">Koyeb（main / staging）</text>
+      <rect x="275" y="105" width="160" height="90" rx="8" fill="#eff6ff" stroke="#1e40af" stroke-width="1.5"/>
+      <text x="355" y="133" text-anchor="middle" font-size="13" font-weight="600" fill="#1e3a8a">FastAPI</text>
+      <text x="355" y="153" text-anchor="middle" font-size="12" fill="#1a1d21">Uvicorn + asyncpg</text>
+      <text x="355" y="171" text-anchor="middle" font-size="11" fill="#60656d">API提供 / SPA静的配信</text>
+      <text x="355" y="222" text-anchor="middle" font-size="10.5" fill="#8a8f98">非同期AIジョブもこのプロセス内で実行</text>
+
+      <!-- Supabase -->
+      <rect x="530" y="60" width="150" height="80" rx="8" fill="#f5f7f9" stroke="#60656d" stroke-width="1.5"/>
+      <text x="605" y="86" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1a1d21">Supabase</text>
+      <text x="605" y="104" text-anchor="middle" font-size="11.5" fill="#1a1d21">PostgreSQL</text>
+      <text x="605" y="121" text-anchor="middle" font-size="10.5" fill="#60656d">全テーブルRLS有効</text>
+
+      <!-- Supabase Storage -->
+      <rect x="530" y="160" width="150" height="70" rx="8" fill="#f5f7f9" stroke="#60656d" stroke-width="1.5"/>
+      <text x="605" y="184" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1a1d21">Supabase Storage</text>
+      <text x="605" y="202" text-anchor="middle" font-size="10.5" fill="#60656d">教材添付ファイル</text>
+      <text x="605" y="217" text-anchor="middle" font-size="10.5" fill="#60656d">（動画・スライド・PDF）</text>
+
+      <!-- Claude API -->
+      <rect x="720" y="60" width="120" height="70" rx="8" fill="#fdf4ff" stroke="#9333ea" stroke-width="1.5"/>
+      <text x="780" y="84" text-anchor="middle" font-size="12" font-weight="600" fill="#6d28d9">Anthropic</text>
+      <text x="780" y="101" text-anchor="middle" font-size="11.5" fill="#6d28d9">Claude API</text>
+      <text x="780" y="117" text-anchor="middle" font-size="10" fill="#8a8f98">教材レビュー・採点等</text>
+
+      <!-- Slack -->
+      <rect x="720" y="150" width="120" height="70" rx="8" fill="#f0fdf4" stroke="#15803d" stroke-width="1.5"/>
+      <text x="780" y="174" text-anchor="middle" font-size="12" font-weight="600" fill="#15803d">Slack</text>
+      <text x="780" y="191" text-anchor="middle" font-size="11.5" fill="#15803d">Incoming Webhook</text>
+      <text x="780" y="207" text-anchor="middle" font-size="10" fill="#8a8f98">受講催促通知</text>
+
+      <!-- Google OAuth -->
+      <rect x="170" y="285" width="200" height="55" rx="8" fill="#fafbfc" stroke="#8a8f98" stroke-width="1.5"/>
+      <text x="270" y="308" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1a1d21">Google OAuth 2.0</text>
+      <text x="270" y="326" text-anchor="middle" font-size="10.5" fill="#60656d">Google Workspace 認証基盤</text>
+
+      <!-- 矢印: ブラウザ ↔ FastAPI -->
+      <line x1="170" y1="140" x2="272" y2="140" stroke="#1e40af" stroke-width="1.5" marker-end="url(#arw)"/>
+      <line x1="272" y1="165" x2="170" y2="165" stroke="#1e40af" stroke-width="1.5" marker-end="url(#arw)"/>
+      <text x="221" y="131" text-anchor="middle" font-size="10.5" fill="#1e40af">HTTPS /api（JWT Cookie）</text>
+
+      <!-- FastAPI ↔ Supabase -->
+      <line x1="435" y1="120" x2="527" y2="100" stroke="#1e40af" stroke-width="1.5" marker-end="url(#arw)"/>
+      <text x="480" y="103" text-anchor="middle" font-size="10" fill="#1e40af">asyncpg</text>
+
+      <!-- FastAPI ↔ Storage -->
+      <line x1="435" y1="165" x2="527" y2="190" stroke="#1e40af" stroke-width="1.5" marker-end="url(#arw)"/>
+      <text x="480" y="204" text-anchor="middle" font-size="10" fill="#1e40af">S3互換API</text>
+
+      <!-- FastAPI ↔ Claude API -->
+      <line x1="455" y1="110" x2="717" y2="95" stroke="#6d28d9" stroke-width="1.5" marker-end="url(#arw)"/>
+      <text x="590" y="90" text-anchor="middle" font-size="10" fill="#6d28d9">Messages API</text>
+
+      <!-- FastAPI ↔ Slack -->
+      <line x1="455" y1="185" x2="717" y2="185" stroke="#15803d" stroke-width="1.5" marker-end="url(#arw)"/>
+      <text x="590" y="178" text-anchor="middle" font-size="10" fill="#15803d">Webhook POST</text>
+
+      <!-- ブラウザ → Google -->
+      <line x1="120" y1="200" x2="200" y2="282" stroke="#8a8f98" stroke-width="1.5" marker-end="url(#arwg)"/>
+      <text x="115" y="248" text-anchor="middle" font-size="10.5" fill="#8a8f98">認可リダイレクト</text>
+
+      <!-- FastAPI ↔ Google -->
+      <line x1="330" y1="240" x2="300" y2="282" stroke="#8a8f98" stroke-width="1.5" marker-end="url(#arwg)"/>
+      <text x="400" y="270" text-anchor="middle" font-size="10.5" fill="#8a8f98">トークン交換・検証</text>
+
+      <!-- タイトル -->
+      <text x="430" y="30" text-anchor="middle" font-size="14" font-weight="600" fill="#1e3a8a">e-learning システム構成（本番）</text>
+    </svg>
+  </div>
+
+  <h3>2.2 技術スタック</h3>
+  <p>技術スタックは要求定義書9.1節の一覧に基づき、LCC CRM・Keirekiの構成を踏襲する（REQ-N-06）。</p>
+  <table>
+    <thead><tr><th>レイヤー</th><th>技術</th></tr></thead>
+    <tbody>
+      <tr><td>Frontend</td><td>React 19 + TypeScript + Vite 6 + Tailwind CSS 4 + react-router 7 + SWR + Lucide React</td></tr>
+      <tr><td>Backend</td><td>FastAPI (Python 3.10+) + Uvicorn + asyncpg</td></tr>
+      <tr><td>Database</td><td>PostgreSQL (Supabase)、全テーブルRLS有効</td></tr>
+      <tr><td>認証</td><td>Google OAuth 2.0 + セッションJWT（HttpOnly Cookie）、ALLOWED_DOMAINS による制限</td></tr>
+      <tr><td>AI連携</td><td>Anthropic Claude API（Messages API）。既定モデルは Claude Sonnet 5（<code>claude-sonnet-5</code>）。管理画面から Claude Opus 5（<code>claude-opus-5</code>）・Claude Haiku 4.5（<code>claude-haiku-4-5</code>）に切替可（9章）</td></tr>
+      <tr><td>通知</td><td>Slack Incoming Webhook（HTTPS POSTによるメッセージ送信）</td></tr>
+      <tr><td>ファイルストレージ</td><td>Supabase Storage（S3互換オブジェクトストレージ）。教材添付ファイル（動画・スライド・PDF）を保存</td></tr>
+      <tr><td>ホスティング</td><td>Koyeb（main=本番 / staging=ステージング）。本番はフロントをビルドしFastAPIが静的配信するSPA構成</td></tr>
+      <tr><td>開発</td><td>Vite devサーバー(3000)→FastAPI(8001)へ /api プロキシ</td></tr>
+    </tbody>
+  </table>
+  <div class="callout">
+    <strong>AI連携先の選定（なぜ Claude API か）:</strong> 要求定義書9.1は「外部AI API（Chat Completions相当。Keirekiと同一方式）」とのみ規定し、具体的な連携先はAPI設計フェーズ（本書）で定めるとしていた。画面モックアップ（S-10 管理画面）で利用モデル選択肢を「Claude Sonnet／Claude Opus／Claude Haiku」として先行して具体化していたため、本書ではこれを正式に採用し、Anthropic Claude API（Messages API）による連携として設計する。Keirekiの「AIサポート」機能はOpenAI APIを採用しているが、本システムは開発チームがすでにClaude Code運用に習熟していること、8章のClaude Code連携（教材の取得・書き戻し）とAI機能（9章）を同一ベンダーのSDKで統一できることを踏まえ、Claude APIを選定した。</p>
+  </div>
+
+  <h3>2.3 開発時と本番時の構成差</h3>
+  <table>
+    <thead><tr><th>項目</th><th>開発時</th><th>本番時（Koyeb）</th></tr></thead>
+    <tbody>
+      <tr><td>フロント配信</td><td>Vite devサーバー（ポート3000）がHMR付きで配信</td><td><code>vite build</code> の成果物（静的ファイル）をFastAPIが静的配信</td></tr>
+      <tr><td>API呼び出し</td><td>Viteのプロキシ設定で <code>/api</code> をFastAPI（ポート8001）へ転送。同一オリジン扱いのためCORS設定不要</td><td>同一オリジン（FastAPIが静的配信とAPIを兼ねる）。<code>/api</code> 以外のパスはSPAの <code>index.html</code> にフォールバック</td></tr>
+      <tr><td>プロセス</td><td>Vite と Uvicorn を個別に起動（2プロセス）</td><td>Uvicorn 1プロセス</td></tr>
+      <tr><td>通信</td><td>http（localhost）</td><td>HTTPS必須</td></tr>
+      <tr><td>AI連携・Slack通知</td><td>開発用のテスト用Webhook URL・開発用APIキーを使用</td><td>本番用のキー・Webhook URLを環境変数で分離</td></tr>
+      <tr><td>環境識別</td><td colspan="2">環境変数 <code>APP_ENV</code> で識別。主要環境変数: <code>DATABASE_URL</code>, <code>GOOGLE_CLIENT_ID</code>, <code>GOOGLE_CLIENT_SECRET</code>, <code>GOOGLE_REDIRECT_URI</code>, <code>JWT_SECRET</code>, <code>ALLOWED_DOMAINS</code>, <code>ANTHROPIC_API_KEY</code>, <code>ANTHROPIC_MODEL</code>（既定モデル）, <code>SUPABASE_STORAGE_BUCKET</code>, <code>SLACK_WEBHOOK_URL</code>（既定値。管理画面設定が優先。9章参照）</td></tr>
+    </tbody>
+  </table>
+
+  <h3>2.4 アプリケーション内部構成</h3>
+  <p>ソースコード構成はLCC CRM・Keirekiの規約に準拠する。</p>
+  <table>
+    <thead><tr><th>区分</th><th>構成</th></tr></thead>
+    <tbody>
+      <tr><td>バックエンド</td><td><code>backend/main.py</code>, <code>database.py</code>（SCHEMA定義）, <code>models.py</code>, <code>google_auth.py</code>, <code>auth_helpers.py</code>（RBAC権限デコレーター＋教材オーナー・共同編集者判定の依存関数）, <code>ai_client.py</code>（Claude API呼び出し共通処理）, <code>storage_client.py</code>（Supabase Storage連携）, <code>markdown_render.py</code> / <code>html_sanitize.py</code>（8章）, <code>routers/</code>（auth.py, organization.py, materials.py, assignments.py, learning.py, dashboard.py, reports.py, users.py, settings.py）</td></tr>
+      <tr><td>フロントエンド</td><td><code>frontend/src/App.tsx</code>（ルーティング・認証ガード）, <code>pages/</code>, <code>components/</code>（レイアウト・モーダル・トースト）, <code>components/ui/</code>（共通フォーム部品）, <code>hooks/</code>, <code>lib/</code>, <code>types/</code></td></tr>
+    </tbody>
+  </table>
+
+  <!-- ============ 3. 認証・認可設計 ============ -->
+  <h2 id="sec3">3. 認証・認可設計</h2>
+
+  <h3>3.1 Google OAuth 2.0 認証フロー（F-01）</h3>
+  <p>認証はGoogle OAuth 2.0（認可コードフロー）による。基本的な流れはKeirekiと同一である。</p>
+  <ol>
+    <li>未認証ユーザーが S-01（ログイン画面）で「Googleでログイン」を押下すると、ブラウザは A-01 <code>GET /api/auth/login</code> にアクセスする。</li>
+    <li>バックエンドは state を生成し、Google の OAuth 認可URLへリダイレクトする。</li>
+    <li>ユーザーがGoogleアカウントで認証・同意すると、Googleは認可コード付きで A-02 <code>GET /api/auth/callback</code> にリダイレクトする。</li>
+    <li>バックエンドは認可コードをアクセストークン・IDトークンに交換し、ユーザーのメールアドレス・氏名・プロフィール画像を取得する。</li>
+    <li>メールアドレスのドメインを <code>ALLOWED_DOMAINS</code>（既定: kogasoftware.com）と照合する。許可ドメイン外は認証を拒否する（REQ-N-01）。</li>
+    <li>T-01 users をメールアドレスで検索する。未登録なら <strong>role='learner'</strong> で自動登録する（初回ログイン）。登録済みで <code>is_active=false</code> の場合はログインを拒否する。</li>
+    <li>ユーザーID・ロールを含むセッションJWTを発行し、HttpOnly Cookie にセットして <code>/</code> へリダイレクトする。</li>
+    <li>SPAは起動時に A-04 <code>GET /api/auth/me</code> でログイン中ユーザー情報（id, email, name, role, picture_url, department_id）を取得し、ロールに応じた画面制御を行う。</li>
+    <li>ログアウトは A-03 <code>POST /api/auth/logout</code> でセッションCookieを破棄する。</li>
+  </ol>
+
+  <h3>3.2 セッション管理</h3>
+  <table>
+    <thead><tr><th>項目</th><th>設計</th></tr></thead>
+    <tbody>
+      <tr><td>セッション方式</td><td>セッションJWT。署名鍵は環境変数 <code>JWT_SECRET</code> で管理</td></tr>
+      <tr><td>格納先</td><td>HttpOnly Cookie（JavaScriptから読み取り不可とし、XSSによるトークン窃取を防止）。本番は Secure 属性・SameSite 属性を付与</td></tr>
+      <tr><td>JWTペイロード</td><td>ユーザー識別子・ロール・有効期限。詳細なクレーム構成は詳細設計書で定義</td></tr>
+      <tr><td>検証</td><td>A-01〜A-03 を除く全APIでリクエスト毎にJWTを検証。無効・期限切れは 401 を返却しSPAは S-01 へ誘導</td></tr>
+    </tbody>
+  </table>
+
+  <h3>3.3 認可（ロールベースアクセス制御）</h3>
+  <p>ロールは learner / author / manager / admin の4ロール制とする（REQ-N-02）。認可判定はすべてサーバー側（<code>auth_helpers.py</code> の権限デコレーター）で行い、フロントエンドの表示制御はあくまで利便性のための補助とする。初回ログイン時は learner が付与され、ロールの変更は管理者（F-02）が行う。</p>
+  <table>
+    <thead><tr><th>ロール</th><th>コード</th><th>想定利用者</th><th>できること</th></tr></thead>
+    <tbody>
+      <tr><td>受講者</td><td><span class="badge badge-learner">learner</span></td><td>全社員</td><td>必修・任意教材の受講、反復演習・誤答抽出出題、自分の学習記録・AIフィードバックの閲覧、教材の作成・共有</td></tr>
+      <tr><td>教材作成者</td><td><span class="badge badge-author">author</span></td><td>教材を作成する社員（教育担当に限らない）</td><td>learner権限＋自分がオーナー・共同編集者である教材・問題の作成・修正、AIレビュー結果の確認、改訂履歴の確認</td></tr>
+      <tr><td>部署長/PM</td><td><span class="badge badge-manager">manager</span></td><td>部署長・プロジェクトマネージャー</td><td>learner権限＋担当範囲（部署/プロジェクト）の受講状況・未受講者の確認、AI組織レポート（担当範囲）の閲覧</td></tr>
+      <tr><td>管理者</td><td><span class="badge badge-admin">admin</span></td><td>システム管理者・教育担当</td><td>manager権限＋全社の受講状況確認、配信対象・必修/任意/期限の設定、組織マスタ管理、ユーザー・ロール管理、他者教材の編集（保守目的）</td></tr>
+    </tbody>
+  </table>
+
+  <p>権限マトリクス（○=可、×=不可）:</p>
+  <table>
+    <thead><tr><th>操作</th><th>learner</th><th>author</th><th>manager</th><th>admin</th></tr></thead>
+    <tbody>
+      <tr><td>教材の受講（必修・任意）</td><td>○</td><td>○</td><td>○</td><td>○</td></tr>
+      <tr><td>反復演習・誤答抽出出題</td><td>○</td><td>○</td><td>○</td><td>○</td></tr>
+      <tr><td>自分の学習記録・AIフィードバック閲覧</td><td>○</td><td>○</td><td>○</td><td>○</td></tr>
+      <tr><td>教材の作成・共有</td><td>○</td><td>○</td><td>○</td><td>○</td></tr>
+      <tr><td>教材の改訂（オーナー・共同編集者）</td><td>○（該当教材のみ・3.4節）</td><td>○（該当教材のみ）</td><td>○（該当教材のみ）</td><td>○（全教材）</td></tr>
+      <tr><td>教材への共同編集者の追加・削除</td><td>○（オーナーの教材のみ）</td><td>○（オーナーの教材のみ）</td><td>○（オーナーの教材のみ）</td><td>○</td></tr>
+      <tr><td>オーナーでも共同編集者でもない教材の編集</td><td>×</td><td>×</td><td>×</td><td>○（保守目的）</td></tr>
+      <tr><td>配信対象・必修/任意・期限の設定（S-06）</td><td>×</td><td>×</td><td>×</td><td>○</td></tr>
+      <tr><td>担当範囲の受講状況・未受講者の確認（S-08）</td><td>×</td><td>×</td><td>○（担当範囲）</td><td>○（全社）</td></tr>
+      <tr><td>Slackでの受講催促</td><td>×</td><td>×</td><td>○（担当範囲）</td><td>○（全社）</td></tr>
+      <tr><td>担当範囲メンバーの学習記録・個人レポート閲覧（S-09）</td><td>×</td><td>×</td><td>○（担当範囲）</td><td>○（全社）</td></tr>
+      <tr><td>AI組織レポートの生成・閲覧</td><td>×</td><td>×</td><td>○（担当範囲）</td><td>○（全社）</td></tr>
+      <tr><td>組織マスタ管理（部署・プロジェクト登録、S-07）</td><td>×</td><td>×</td><td>×</td><td>○</td></tr>
+      <tr><td>プロジェクト所属の自己申告（参加・離任）</td><td>○（自分のみ）</td><td>○（自分のみ）</td><td>○（自分のみ）</td><td>○（自分のみ）</td></tr>
+      <tr><td>ユーザー・ロール管理、システム設定（S-10）</td><td>×</td><td>×</td><td>×</td><td>○</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout">
+    <strong>初回ログインとアカウント無効化:</strong> 許可ドメインのGoogleアカウントであれば初回ログイン時に自動でユーザー登録され、ロールは learner となる（管理者による事前登録は不要）。無効化されたユーザー（<code>is_active=false</code>）はログイン不可であり、既存セッションでのAPIアクセスも拒否する。自分自身のadmin降格・無効化は400で拒否する（管理者不在を防ぐため）。</p>
+  </div>
+
+  <h3>3.4 教材ごとのオーナー・共同編集者による追加の認可レイヤー</h3>
+  <p>要求定義書7章が定める「教材の改訂（オーナー・共同編集者）」は、3.3節のロールベース権限（RBAC）とは独立した、<strong>教材1件ごとの行レベル認可</strong>である。「受講者が自分で作成・共有した教材でも、オーナーであれば編集できる」（S-05の設計方針）を成立させるため、ロールでは判定できない。</p>
+  <ul>
+    <li><strong>判定ロジック:</strong> <code>auth_helpers.py</code> に <code>require_material_editor(material_id, user)</code> 依存関数を設け、S-05（教材編集）・教材更新系API（7章 A-17, A-19〜A-31 等）すべてで共通利用する。判定は次の優先順で行う。
+      <ol>
+        <li><code>user.role == 'admin'</code> なら許可（保守目的の全教材編集権）</li>
+        <li><code>materials.owner_id == user.id</code> なら許可</li>
+        <li><code>material_co_editors</code> に <code>(material_id, user.id)</code> の行が存在すれば許可</li>
+        <li>いずれにも該当しなければ 403</li>
+      </ol>
+    </li>
+    <li><strong>共同編集者の追加・削除・オーナー引き継ぎ:</strong> オーナー本人または admin のみが行える（共同編集者自身は不可）。プロジェクト単位の教材はオーナーの異動・離任後も、admin または既存の共同編集者がオーナーを引き継げるようにするため、オーナー引き継ぎ操作は「オーナー本人 or admin」に限定する（共同編集者からの一方的なオーナー交代は認めない）。</li>
+    <li><strong>RBACとの関係:</strong> ロール（learner/author/manager/admin）は「そもそも教材編集機能にアクセスできるか」を判定せず、S-05・関連APIへのアクセス可否は本節の行レベル判定のみで決まる（サイドバーの「教材編集」メニュー表示・非表示は、ログインユーザーがオーナー・共同編集者である教材が1件以上存在するかどうかで判定する利便性のための補助表示であり、認可そのものはAPI側の行レベル判定で担保する）。</li>
+  </ul>
+  <div class="callout">
+    <strong>なぜロールと独立させたか:</strong> 要求定義書7章は「教材作成者（author）ロールは、自身が作成した教材のオーナーとしての操作範囲を明確にするためのロールであり、教材の作成・共有自体は全ロール共通の操作」と明記している。したがって教材編集の可否をロールに紐付けると、learner が自作教材を編集できなくなり要求と矛盾する。オーナー・共同編集者という教材単位の行レベル認可をRBACとは別レイヤーとして持つことで、「誰でも教材を作れる」という要求と「教材ごとに編集者を絞る」という要求を両立させている。
+  </div>
+
+  <!-- ============ 4. 画面設計 ============ -->
+  <h2 id="sec4">4. 画面設計</h2>
+
+  <h3>4.1 画面一覧</h3>
+  <table>
+    <thead><tr><th>画面ID</th><th>画面名</th><th>パス</th><th>アクセス可能ロール</th><th>概要</th></tr></thead>
+    <tbody>
+      <tr><td>S-01</td><td>ログイン</td><td><code>/login</code></td><td>全員（未認証）</td><td>Googleでログインボタンのみのシンプルな画面</td></tr>
+      <tr><td>S-02</td><td>マイ学習</td><td><code>/</code>（ログイン後の初期画面）</td><td>全ロール</td><td>自分が受けるべき必修・任意教材の一覧と進捗状況。期限が近い必修教材を強調表示</td></tr>
+      <tr><td>S-03</td><td>教材一覧・検索</td><td><code>/materials</code></td><td>全ロール</td><td>公開されている教材の一覧・検索。単元・コース単位で表示</td></tr>
+      <tr><td>S-04</td><td>教材受講</td><td><code>/materials/:materialId</code></td><td>対象者（全ロール）</td><td>教材本文の閲覧、選択式・記述式問題への回答。通常受講／反復演習／誤答のみ抽出の3タブ</td></tr>
+      <tr><td>S-05</td><td>教材編集</td><td><code>/materials/:materialId/edit</code></td><td>対象教材のオーナー・共同編集者、<span class="badge badge-admin">admin</span></td><td>本文・問題編集、単元/コース構成、ファイル・リンク添付、共同編集者管理、AIレビュー結果・改訂履歴の確認</td></tr>
+      <tr><td>S-06</td><td>配信設定</td><td><code>/admin/assignments</code></td><td><span class="badge badge-admin">admin</span></td><td>教材の配信対象（全社/部署/プロジェクト/個人）、必修/任意、受講期限の設定</td></tr>
+      <tr><td>S-07</td><td>組織管理</td><td><code>/admin/organization</code></td><td><span class="badge badge-admin">admin</span></td><td>部署・プロジェクトの登録（タブ構成）、社員所属の閲覧。プロジェクト所属は社員本人の自己申告制</td></tr>
+      <tr><td>S-08</td><td>受講状況ダッシュボード</td><td><code>/dashboard</code></td><td><span class="badge badge-manager">manager</span> <span class="badge badge-admin">admin</span></td><td>担当範囲（部署/プロジェクト/全社）の受講率・合格率・未受講者の確認。AI組織レポートの表示</td></tr>
+      <tr><td>S-09</td><td>個人学習レポート</td><td><code>/reports/:userId</code></td><td>本人, <span class="badge badge-manager">manager</span> <span class="badge badge-admin">admin</span></td><td>AIによる個人フィードバック（理解不足点・推奨教材）と学習履歴の表示</td></tr>
+      <tr><td>S-10</td><td>管理</td><td><code>/admin/settings</code></td><td><span class="badge badge-admin">admin</span></td><td>タブ構成: 「ユーザー管理」（ロール変更・有効/無効）、「システム設定」（AI利用設定・Slack通知・猶予期間）</td></tr>
+    </tbody>
+  </table>
+
+  <h3>4.2 画面遷移図</h3>
+  <div class="diagram">
+    <svg width="820" height="330" viewBox="0 0 820 330" font-family="'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif">
+      <defs>
+        <marker id="arw3" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+          <path d="M0,0 L9,4.5 L0,9 z" fill="#1e40af"/>
+        </marker>
+        <marker id="arw3g" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+          <path d="M0,0 L9,4.5 L0,9 z" fill="#8a8f98"/>
+        </marker>
+      </defs>
+
+      <rect x="20" y="120" width="120" height="56" rx="8" fill="#eff6ff" stroke="#1e40af" stroke-width="1.5"/>
+      <text x="80" y="143" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1e3a8a">S-01 ログイン</text>
+      <text x="80" y="161" text-anchor="middle" font-size="10.5" fill="#60656d">/login</text>
+
+      <rect x="200" y="120" width="130" height="56" rx="8" fill="#eff6ff" stroke="#1e40af" stroke-width="1.5"/>
+      <text x="265" y="143" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1e3a8a">S-02 マイ学習</text>
+      <text x="265" y="161" text-anchor="middle" font-size="10.5" fill="#60656d">/（初期画面）</text>
+
+      <rect x="390" y="120" width="150" height="56" rx="8" fill="#eff6ff" stroke="#1e40af" stroke-width="1.5"/>
+      <text x="465" y="143" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1e3a8a">S-03 教材一覧・検索</text>
+      <text x="465" y="161" text-anchor="middle" font-size="10.5" fill="#60656d">/materials</text>
+
+      <rect x="600" y="120" width="150" height="56" rx="8" fill="#eff6ff" stroke="#1e40af" stroke-width="1.5"/>
+      <text x="675" y="143" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1e3a8a">S-04 教材受講</text>
+      <text x="675" y="161" text-anchor="middle" font-size="10.5" fill="#60656d">/materials/:id</text>
+
+      <rect x="200" y="30" width="130" height="50" rx="8" fill="#ffffff" stroke="#1e40af" stroke-width="1.5"/>
+      <text x="265" y="52" text-anchor="middle" font-size="12" font-weight="600" fill="#1e3a8a">S-09 個人学習</text>
+      <text x="265" y="68" text-anchor="middle" font-size="11" fill="#1e3a8a">レポート</text>
+
+      <rect x="20" y="220" width="130" height="56" rx="8" fill="#ffffff" stroke="#1e40af" stroke-width="1.5"/>
+      <text x="85" y="243" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1e3a8a">S-05 教材編集</text>
+      <text x="85" y="261" text-anchor="middle" font-size="10.5" fill="#60656d">オーナー・共同編集者</text>
+
+      <rect x="200" y="220" width="130" height="56" rx="8" fill="#fafbfc" stroke="#8a8f98" stroke-width="1.5"/>
+      <text x="265" y="243" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1a1d21">S-06 配信設定</text>
+      <text x="265" y="261" text-anchor="middle" font-size="10.5" fill="#60656d">adminのみ</text>
+
+      <rect x="390" y="220" width="130" height="56" rx="8" fill="#fafbfc" stroke="#8a8f98" stroke-width="1.5"/>
+      <text x="455" y="243" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1a1d21">S-07 組織管理</text>
+      <text x="455" y="261" text-anchor="middle" font-size="10.5" fill="#60656d">adminのみ</text>
+
+      <rect x="580" y="220" width="130" height="56" rx="8" fill="#fafbfc" stroke="#8a8f98" stroke-width="1.5"/>
+      <text x="645" y="243" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1a1d21">S-08 ダッシュボード</text>
+      <text x="645" y="261" text-anchor="middle" font-size="10.5" fill="#60656d">manager/admin</text>
+
+      <rect x="720" y="220" width="90" height="56" rx="8" fill="#fafbfc" stroke="#8a8f98" stroke-width="1.5"/>
+      <text x="765" y="243" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1a1d21">S-10 管理</text>
+      <text x="765" y="261" text-anchor="middle" font-size="10.5" fill="#60656d">adminのみ</text>
+
+      <line x1="140" y1="148" x2="197" y2="148" stroke="#1e40af" stroke-width="1.5" marker-end="url(#arw3)"/>
+      <text x="168" y="140" text-anchor="middle" font-size="10" fill="#1e40af">ログイン成功</text>
+
+      <line x1="330" y1="148" x2="387" y2="148" stroke="#1e40af" stroke-width="1.5" marker-end="url(#arw3)"/>
+      <text x="358" y="140" text-anchor="middle" font-size="10" fill="#1e40af">教材を探す</text>
+
+      <line x1="540" y1="148" x2="597" y2="148" stroke="#1e40af" stroke-width="1.5" marker-end="url(#arw3)"/>
+      <text x="568" y="140" text-anchor="middle" font-size="10" fill="#1e40af">受講する</text>
+
+      <line x1="265" y1="120" x2="265" y2="82" stroke="#8a8f98" stroke-width="1.5" marker-end="url(#arw3g)"/>
+      <text x="330" y="102" text-anchor="middle" font-size="10" fill="#8a8f98">学習記録確認</text>
+
+      <line x1="85" y1="176" x2="85" y2="217" stroke="#8a8f98" stroke-width="1.5" marker-end="url(#arw3g)"/>
+      <text x="60" y="200" text-anchor="middle" font-size="9.5" fill="#8a8f98">サイドバー</text>
+
+      <line x1="265" y1="176" x2="265" y2="217" stroke="#8a8f98" stroke-width="1.5" marker-end="url(#arw3g)"/>
+      <line x1="455" y1="176" x2="455" y2="217" stroke="#8a8f98" stroke-width="1.5" marker-end="url(#arw3g)"/>
+      <line x1="645" y1="176" x2="645" y2="217" stroke="#8a8f98" stroke-width="1.5" marker-end="url(#arw3g)"/>
+      <line x1="765" y1="176" x2="765" y2="217" stroke="#8a8f98" stroke-width="1.5" marker-end="url(#arw3g)"/>
+      <text x="605" y="200" text-anchor="middle" font-size="9.5" fill="#8a8f98">管理者メニュー（adminのみ表示。S-08はmanagerにも表示）</text>
+
+      <text x="410" y="18" text-anchor="middle" font-size="13" font-weight="600" fill="#1e3a8a">e-learning 画面遷移</text>
+    </svg>
+  </div>
+
+  <div class="callout">
+    <strong>共通レイアウト:</strong> 左サイドバー（メニュー: マイ学習、教材一覧・検索、教材編集[オーナー・共同編集者を持つ教材がある場合のみ表示]、個人学習レポート／管理者メニュー: 受講状況ダッシュボード、配信設定、組織管理、管理[adminのみ表示]）＋ ヘッダー（システム名、ユーザー名/アバター/ロールバッジ、ログアウト）。認証ガードは <code>frontend/src/App.tsx</code> で行い、未認証時は S-01 へ、権限外パスへのアクセス時は S-02 へ誘導する。フォーム部品はKeirekiと同様に自作の共通UIコンポーネント（<code>frontend/src/components/ui/</code>）に統一する。
+  </div>
+
+  <p>各画面の具体的なレイアウト・UI項目は画面モックアップ「<a href="03_画面モックアップ/index.html">03_画面モックアップ/</a>」を参照のこと。以下では各画面の設計概要のみ記す。</p>
+
+  <h3>4.3 S-01 ログイン</h3>
+  <ul>
+    <li><strong>表示項目:</strong> システム名（社内学習管理システム e-learning）、「Googleでログイン」ボタン、@kogasoftware.com アカウントのみ利用可の旨、研修サンプルである旨の注記。</li>
+    <li><strong>操作:</strong> ボタン押下で A-01 へ遷移しGoogle OAuth 2.0フローを開始する。認証エラー時は本画面にエラーメッセージを表示する。</li>
+  </ul>
+
+  <h3>4.4 S-02 マイ学習</h3>
+  <ul>
+    <li><strong>表示項目:</strong> サマリー（必修教材受講率、期限が近い必修教材件数、任意教材受講済み件数、直近の受講日）、「期限が近い必修教材」の強調表示パネル、必修教材一覧、任意教材一覧。各教材カードに進捗バー・必修/任意バッジ・期限を表示。</li>
+    <li><strong>操作:</strong> A-39（マイ学習一覧取得）で必修・任意それぞれの進捗付き一覧を取得。「続きから受講」「受講を開始」「復習する」「反復演習する」等のボタンから S-04 へ遷移する。</li>
+  </ul>
+
+  <h3>4.5 S-03 教材一覧・検索</h3>
+  <ul>
+    <li><strong>検索パネル（開閉式）:</strong> キーワード（教材名・単元名・コース名）／コース／区分（必修/任意）のプルダウン、「未受講のみ表示」「自分が受講対象の教材のみ表示」チェックボックス。</li>
+    <li><strong>一覧テーブル列:</strong> 教材（タイトル＋単元数・問題種別・問題数）／コース／区分／所要時間（目安）／更新日／操作（受講する・続きから受講・復習する・反復演習）。表示件数選択とページネーションを備える。</li>
+    <li><strong>操作:</strong> A-14（一覧・検索）を呼び出す。行選択・操作ボタンで S-04 へ遷移する。</li>
+  </ul>
+
+  <h3>4.6 S-04 教材受講</h3>
+  <ul>
+    <li><strong>タブ構成:</strong> 「通常受講」「反復演習」「誤答のみ抽出」の3タブ（4.1節ヘッダーに必修/任意バッジ・期限・単元位置を表示）。</li>
+    <li><strong>通常受講タブ:</strong> 前回の受験結果（不合格時は再受験可否・残り回数を表示）、記述式回答のAI採点結果（採点中/採点済みの状態表示）、進捗バー、単元本文、設問カード（回答済み・回答中・未解放の状態を視覚的に区別）。「一時中断する」「回答して次へ」ボタン。</li>
+    <li><strong>反復演習タブ:</strong> 実施履歴（正答数・所要時間）と「反復演習を開始」ボタン。合否には影響しない旨を明示。</li>
+    <li><strong>誤答のみ抽出タブ:</strong> 出題範囲（この教材内の誤答のみ／全教材の誤答から出題）をラジオボタンで選択し「誤答問題を解く」ボタンで開始。</li>
+    <li><strong>操作:</strong> A-40（受験開始）→ A-41（回答保存、都度呼び出しで中断・再開を実現）→ A-42（提出、AI採点トリガーを含む）→ A-43（結果取得）。反復演習・誤答抽出は A-40 の <code>mode</code> パラメータ、A-44（誤答抽出出題取得）で実現する。</li>
+  </ul>
+
+  <h3>4.7 S-05 教材編集</h3>
+  <ul>
+    <li><strong>ヘッダー:</strong> 教材タイトル・公開状態バッジ、オーナー・共同編集者のアバター表示、「プレビュー」「下書き保存」「公開する」ボタン。</li>
+    <li><strong>タブ構成:</strong> 「本文編集」（Markdown/HTML切替、エディタ＋プレビュー分割表示）、「問題編集」（単元ごとに単一選択/複数選択/記述式の設問を追加・編集・削除、記述式は模範解答・採点基準を入力）、「構成（単元/コース）」（所属コース選択、単元の追加・並び替え・削除、合否判定・再受験設定）、「ファイル・リンク」（添付済み一覧、ファイル選択・外部リンク追加フォーム）、「共同編集者」（一覧・追加・削除・オーナー引き継ぎ）、「AIレビュー結果」（実行ボタン・指摘/提案の一覧）、「改訂履歴」（日時・変更者・変更内容・経路の一覧）。</li>
+    <li><strong>操作:</strong> A-17/A-19/A-20（本文更新、画面用・Claude Code連携共通）、A-31（問題一括更新）、A-28/A-29（添付ファイル・リンク）、A-23〜A-26（共同編集者・オーナー引き継ぎ）、A-32/A-33（AIレビュー）、A-22（改訂履歴取得）。</li>
+    <li><strong>アクセス制御:</strong> 対象教材のオーナー・共同編集者、または admin（3.4節）。ロールは問わない。</li>
+  </ul>
+
+  <h3>4.8 S-06 配信設定</h3>
+  <ul>
+    <li><strong>一覧テーブル:</strong> 教材／配信対象（部署・プロジェクト・個人名を要約表示）／区分（必修/任意）／期限／状態（公開中/下書き）／操作。検索・状態フィルタを備える。</li>
+    <li><strong>編集パネル:</strong> 配信対象（全社/部署/プロジェクト/個人。複数選択可）、必修・任意の切替（任意選択時は期限入力を無効化）、対象者プレビュー人数表示。</li>
+    <li><strong>操作:</strong> A-37（特定教材の配信設定取得）、A-38（配信設定の更新）。</li>
+    <li><strong>アクセス制御:</strong> admin のみ。</li>
+  </ul>
+
+  <h3>4.9 S-07 組織管理</h3>
+  <ul>
+    <li><strong>タブ構成:</strong> 「部署」（部署名・所属人数・部署長の一覧、追加・編集）、「プロジェクト」（プロジェクト名・状態・参加人数・PMの一覧、追加・編集）、「社員所属」（氏名・部署・参加プロジェクト［自己申告］・最終更新日の一覧。離任後の猶予期間中は残り日数を注記表示）。</li>
+    <li><strong>操作:</strong> A-05〜A-10（部署・プロジェクトのCRUD）、A-11（社員所属一覧の閲覧）。プロジェクト所属自体の登録・解除は社員本人が S-07 以外の導線（ヘッダー等）から A-12/A-13 を呼び出して行う自己申告制であり、本画面では閲覧のみとする。</li>
+    <li><strong>アクセス制御:</strong> admin のみ。</li>
+  </ul>
+
+  <h3>4.10 S-08 受講状況ダッシュボード</h3>
+  <ul>
+    <li><strong>表示項目:</strong> 担当範囲選択（manager は自分が部署長・PMを務める部署/プロジェクトのみ選択可、admin はさらに「全社」を選択可）、サマリー（対象教材数・必修受講率・合格率・未受講者数）、教材別受講率の棒グラフ、未受講者一覧（Slack催促ボタン付き）、AI組織レポート（要約・示唆タグ・再生成ボタン）。</li>
+    <li><strong>操作:</strong> A-45（ダッシュボード取得、scope指定）、A-46（未受講者一覧）、A-47（Slack催促送信）、A-48/A-49（AI組織レポート生成・取得）。</li>
+    <li><strong>アクセス制御:</strong> manager（担当範囲に限定）、admin（全社）。</li>
+  </ul>
+
+  <h3>4.11 S-09 個人学習レポート</h3>
+  <ul>
+    <li><strong>表示項目:</strong> 対象者情報（氏名・部署・プロジェクト）、サマリー（受講済み教材数・未受講必修数・平均正答率・直近受講日）、AIによる個人フィードバック（コメント・理解不足分野タグ・おすすめ教材）、学習履歴テーブル（教材・受講日・結果・スコア）。</li>
+    <li><strong>操作:</strong> A-50（個人学習レポート取得）、A-51/A-52（AI個人フィードバック生成・取得）。</li>
+    <li><strong>アクセス制御:</strong> 本人、担当範囲の manager、admin。学習記録は人事評価に用いない旨を画面に注記する。</li>
+  </ul>
+
+  <h3>4.12 S-10 管理</h3>
+  <ul>
+    <li><strong>タブ構成:</strong> 「ユーザー管理」（氏名・メール・ロール・有効/無効の一覧。ロール変更・有効/無効切替。自分自身の降格・無効化は不可）、「システム設定」（AI利用モデル選択・今月のAI利用状況概算、Slack Webhook URL・通知先チャンネル・テスト送信、プロジェクト所属の猶予期間日数）。</li>
+    <li><strong>操作:</strong> A-53/A-54（ユーザー一覧・更新）、A-55/A-56（設定取得・更新）、A-57（Slackテスト送信）、A-58（AI利用状況取得）。</li>
+    <li><strong>アクセス制御:</strong> admin のみ。</li>
+  </ul>
+
+  <p>本改訂で画面IDは10件（S-01〜S-10）とし、要求定義書4.1節の画面一覧と一致させている。</p>
+
+  <!-- ============ 5. 機能設計 ============ -->
+  <h2 id="sec5">5. 機能設計</h2>
+  <p>機能一覧（F-01〜F-23）ごとに処理概要・関連画面/API/テーブル・設計判断を示す。教材連携（F-05）の技術詳細は8章、AI連携機能（F-08, F-20〜F-23）の技術詳細は9章に譲り、本章では処理概要と他機能との関係を示すに留める。</p>
+
+  <h3>5.1 F-01 Google認証</h3>
+  <p><strong>処理概要:</strong> Google OAuth 2.0によるログイン。許可ドメイン制限、セッションJWT発行、初回ログイン時の自動ユーザー登録（role='learner'）を行う（対応要求: REQ-N-01）。詳細は3.1節参照。</p>
+  <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
+    <tbody><tr><td>S-01</td><td>A-01〜A-04</td><td>T-01</td></tr></tbody></table>
+
+  <h3>5.2 F-02 ユーザー・ロール管理</h3>
+  <p><strong>処理概要:</strong> ロール（learner/author/manager/admin）の付与・変更、アカウントの有効/無効化（admin専用。対応要求: REQ-N-02）。A-53 でユーザー一覧、A-54 でロール変更・有効/無効化を行う。自分自身のadmin降格・無効化は400で拒否する。</p>
+  <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
+    <tbody><tr><td>S-10</td><td>A-53, A-54</td><td>T-01</td></tr></tbody></table>
+
+  <h3>5.3 F-03 組織マスタ管理</h3>
+  <p><strong>処理概要:</strong> 部署・プロジェクトの登録（admin）と、社員自身によるプロジェクト所属の登録・更新（自己申告制。対応要求: REQ-F-06）。A-05〜A-10 で部署・プロジェクトのCRUDを行い、A-12/A-13 で社員本人がプロジェクトへの参加・離任を登録する。離任時は T-04 <code>project_memberships.left_at</code> に離任日時を記録し、物理削除はしない。</p>
+  <p><strong>猶予期間の実現:</strong> 自己申告は更新が遅れにくい一方、更新の失念という弱点がある（要求定義書9.2）。この弱点を補うため、離任（<code>left_at</code> 設定）後も T-21 <code>app_settings</code>（<code>key='project_leave_grace_period_days'</code>、既定30日、S-10で変更可）で定めた日数の間は、旧プロジェクト単位で配信された教材への閲覧アクセスを継続する。判定は「現役参加（<code>left_at IS NULL</code>）」または「<code>left_at + 猶予日数 &gt;= 現在時刻</code>」のいずれかを満たすかで行い、F-09（配信対象設定）のアクセス可否判定に組み込む。</p>
+  <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
+    <tbody><tr><td>S-07</td><td>A-05〜A-13</td><td>T-01〜T-04, T-21</td></tr></tbody></table>
+
+  <h3>5.4 F-04 教材・問題管理</h3>
+  <p><strong>処理概要:</strong> 教材（説明文・図・資料）と問題の登録・修正（対応要求: REQ-F-01）。教材はコース（T-05 courses）に属し、本文はMarkdownまたはHTML形式（T-06 <code>format</code>）で記述する。A-16（新規作成）、A-17（更新）、A-18（削除）、A-31（問題一括更新）で操作する。</p>
+  <div class="callout">
+    <strong>設計判断（単元はテーブルを持たない）:</strong> 画面モックアップ（S-05「構成（単元/コース）」タブ）は教材内に複数の「単元」を持ち、単元ごとに本文・進捗を扱う構成を示している。本書では単元を独立したテーブル（T-xx）としては設けず、<strong>教材本文（Markdown の <code>##</code> 見出し／HTML の <code>&lt;h2&gt;</code>）から動的に抽出する構造</strong>とする。理由は、単元をテーブル化すると本文編集（Claude Codeでのテキスト往復を含む8章）と単元テーブルの整合を常に取る必要が生じ、8章の「テキスト1本を取得・書き戻しするだけで教材が完結する」というシンプルさが崩れるためである。単元の追加・並び替え・削除は本文中の見出し操作のみで完結し、S-05の「単元構成」タブはその見出し構造を可視化・編集するUIとして実装する。T-10 <code>questions</code> の <code>unit_index</code>（0始まり、本文中の見出し出現順）で各設問がどの単元に属するかを表現し、T-12 <code>enrollment_progress.current_position</code> には現在の単元インデックスを保持する。
+  </div>
+  <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
+    <tbody><tr><td>S-03, S-05</td><td>A-14〜A-18, A-31</td><td>T-05, T-06, T-10</td></tr></tbody></table>
+
+  <h3>5.5 F-05 教材テキスト連携（Claude Code連携API）</h3>
+  <p><strong>処理概要:</strong> 教材・問題をMarkdownまたはHTML形式のテキストで記述し、画面操作を介さず取得・登録・更新できる（対応要求: REQ-F-02。要求定義書が「本システムの最も重視する要求」と明記）。技術詳細（フロントマタースキーマ・往復API仕様・改訂履歴・HTMLサニタイズ）は8章で定義する。</p>
+  <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
+    <tbody><tr><td>（画面なし・API直接利用）</td><td>A-19〜A-22</td><td>T-06, T-08, T-10</td></tr></tbody></table>
+
+  <h3>5.6 F-06 教材ファイル・リンク管理</h3>
+  <p><strong>処理概要:</strong> 動画・スライド・PDF等のファイルを教材に添付、または外部サービス上の資料へのリンクを教材として登録する（対応要求: REQ-F-03）。ファイルはSupabase Storageに保存し、T-09 <code>material_attachments.storage_key</code> にパスを記録する。外部リンクは <code>external_url</code> に保存する。A-30 で署名付きURLを発行してダウンロードさせる（アクセス制御は当該教材の受講対象者・オーナー・共同編集者・adminに限定し、URLの直接公開はしない）。</p>
+  <div class="callout">
+    <strong>設計判断（アップロード容量の上限）:</strong> 要求定義書は容量上限を「基本設計フェーズで決定」としていた。本書では1ファイルあたり<strong>200MB</strong>を上限とする（Supabase Storageの標準的なプラン制約と、動画教材でも数分〜十数分程度のコンパクトな教材を想定する運用実態を踏まえた値）。上限は環境変数 <code>MAX_ATTACHMENT_SIZE_MB</code> で調整可能とし、超過時は413を返す。フェーズ5（要求定義書10章）での実アップロード対応時に再検討する。
+  </div>
+  <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
+    <tbody><tr><td>S-04, S-05</td><td>A-27〜A-30</td><td>T-09</td></tr></tbody></table>
+
+  <h3>5.7 F-07 教材作成・共有</h3>
+  <p><strong>処理概要:</strong> 教育担当に限らず全社員が教材を作成し共有できる（対応要求: REQ-F-04）。教材作成時は作成者が既定でオーナー（T-06 <code>owner_id</code>）となる。オーナー・adminは共同編集者（T-07 <code>material_co_editors</code>）を追加・削除でき、プロジェクト単位の教材はオーナーの異動・離任後もオーナーの引き継ぎができる。判定ロジックは3.4節参照。</p>
+  <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
+    <tbody><tr><td>S-05</td><td>A-16, A-23〜A-26</td><td>T-06, T-07</td></tr></tbody></table>
+
+  <h3>5.8 F-08 教材AIレビュー</h3>
+  <p><strong>処理概要:</strong> 公開前にAIが教材内容（説明不足・記述の分かりにくさ・問題と教材内容の不整合等）を確認し、オーナー・共同編集者に提示する（対応要求: REQ-F-05）。指摘に従うかは作成者が判断する。同期呼び出しで実装する（9章参照）。</p>
+  <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
+    <tbody><tr><td>S-05</td><td>A-32, A-33</td><td>T-06, T-15, T-19</td></tr></tbody></table>
+
+  <h3>5.9 F-09 配信対象設定</h3>
+  <p><strong>処理概要:</strong> 教材の受講対象を全社・部署・プロジェクト・個人の単位で指定する（対応要求: REQ-F-06）。組織マスタ（F-03）の異動・参画情報を反映し、対象者を適切に保つ。プロジェクト離任時は猶予期間中、旧プロジェクトの教材への閲覧アクセスを維持する（5.3節参照）。</p>
+  <div class="callout">
+    <strong>設計判断（複数スコープはOR結合）:</strong> 画面モックアップ（S-06）は「部署Xかつプロジェクトを組み合わせて指定できる」という複合条件のUIを示しているが、要求定義書は複数単位を「組み合わせて指定できる」とのみ規定し、AND/ORいずれで結合するかまでは規定していない。本書では実装をシンプルに保つため、<strong>1教材に対して複数の T-11 <code>assignments</code> 行（scope_type×scope_idの組み合わせ数分）を持たせ、行間はOR結合（いずれかの条件に合致すれば対象者）とする</strong>。真に「部署Xの中でもプロジェクトYのメンバーのみ」というAND条件が必要な場合は、対象者を個人（individual）スコープとして展開して登録する運用とし、AND専用のスコープ種別は設けない。合否判定・再受験の条件（<code>pass_score_pct</code>・<code>retake_allowed</code>・<code>retake_limit</code>）は教材単位で1つに定める運用とし、複数スコープを設定する場合も同一教材内では同じ値を複製して保持する。
+  </div>
+  <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
+    <tbody><tr><td>S-06</td><td>A-36〜A-38</td><td>T-04, T-11</td></tr></tbody></table>
+
+  <h3>5.10 F-10 必修・任意区分</h3>
+  <p><strong>処理概要:</strong> 教材ごとに必修/任意を区別して設定し、受講者が自分が受けるべき必修教材を一覧で把握できる（対応要求: REQ-F-07）。T-11 <code>assignments.required</code> フラグで表現し、S-02（マイ学習）で必修/任意を分けて表示する。</p>
+  <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
+    <tbody><tr><td>S-02, S-06</td><td>A-38, A-39</td><td>T-11</td></tr></tbody></table>
+
+  <h3>5.11 F-11 受講期限・未受講者管理</h3>
+  <p><strong>処理概要:</strong> 必修教材に受講期限（<code>due_at</code>）を設定し、期限までの未受講者を管理者・部署長/PMが一覧で把握できる（対応要求: REQ-F-08。要求定義書が「重要な要求」と明記）。A-46 は担当範囲（scope）内で、対象者のうち T-12 <code>enrollment_progress.status != 'completed'</code>（または未着手）の者を未受講者として抽出する。</p>
+  <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
+    <tbody><tr><td>S-08</td><td>A-45, A-46</td><td>T-11, T-12</td></tr></tbody></table>
+
+  <h3>5.12 F-12 Slack受講催促通知</h3>
+  <p><strong>処理概要:</strong> 必修教材の未受講者へ、Slackで受講を促す通知を送る（対応要求: REQ-F-08）。A-47 呼び出し時にSlack Incoming Webhookへメッセージを送信し、T-20 <code>slack_notification_logs</code> に送信結果を記録する（重複催促の把握・監査のため）。</p>
+  <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
+    <tbody><tr><td>S-08</td><td>A-47</td><td>T-20, T-21</td></tr></tbody></table>
+
+  <h3>5.13 F-13 出題・回答受付</h3>
+  <p><strong>処理概要:</strong> 単一選択・複数選択の選択式問題と、文章で回答する記述式問題を出題し、回答を受け付ける（対応要求: REQ-F-10）。T-10 <code>questions.type</code> で問題種別を、<code>options</code>（選択肢）・<code>correct_answer</code>（正解）・<code>scoring_criteria</code>（記述式の採点基準）を保持する。回答は T-14 <code>answers.response</code>（JSONB）に生の入力値を保存する。</p>
+  <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
+    <tbody><tr><td>S-04</td><td>A-40〜A-42</td><td>T-10, T-13, T-14</td></tr></tbody></table>
+
+  <h3>5.14 F-14 合否判定・再受験</h3>
+  <p><strong>処理概要:</strong> 問題に合格基準（<code>pass_score_pct</code>）を設定して合否を判定する。不合格時は再受験でき、再受験の可否・回数は教材ごとに設定できる（対応要求: REQ-F-09）。A-42（提出）で T-13 <code>quiz_attempts.score_pct</code> を算出し、<code>pass_score_pct</code> と比較して <code>passed</code> を確定する（記述式のAI採点待ちの間は <code>passed</code> は NULL のまま「採点中」として扱う。9章参照）。<code>attempt_no</code> は同一教材・同一ユーザーの graded 試行の通し番号とし、<code>retake_limit</code> 到達後は新規受験を拒否する。</p>
+  <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
+    <tbody><tr><td>S-04, S-05</td><td>A-40, A-42, A-43</td><td>T-11, T-13</td></tr></tbody></table>
+
+  <h3>5.15 F-15 学習進捗管理</h3>
+  <p><strong>処理概要:</strong> 受講の中断・再開ができ、途中経過を保存する（対応要求: REQ-F-11）。T-12 <code>enrollment_progress</code> で教材全体の進捗（<code>status</code>・<code>current_position</code>）を管理し、A-41（回答保存）の都度、回答内容（T-14）と進捗（T-12）の両方を更新する。A-40（受験開始）で未提出の <code>quiz_attempts</code> が存在すればそれを返し、続きから再開させる。</p>
+  <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
+    <tbody><tr><td>S-02, S-04</td><td>A-39〜A-41</td><td>T-12, T-13, T-14</td></tr></tbody></table>
+
+  <h3>5.16 F-16 反復演習モード</h3>
+  <p><strong>処理概要:</strong> 合否判定を伴う受験とは別に、習熟目的で同じ問題を回数制限なく繰り返し解ける（対応要求: REQ-F-12）。T-13 <code>quiz_attempts.mode='practice'</code> で記録し、合否判定（<code>mode='graded'</code>）とは明確に区別する。出題順序・選択肢の並びは <code>question_order</code>（JSONB）に試行ごとの並びを保存し、実施のたびに変える。</p>
+  <div class="callout">
+    <strong>なぜ mode で分離するか:</strong> 反復演習の結果を合否判定用の <code>quiz_attempts</code> と同一の集計対象にすると、「気兼ねなく繰り返し学習できる」という要求（REQ-F-12）の裏で誤って合否や受講率の集計に混入するリスクがある。<code>mode</code> カラムで明示的に区別することで、集計クエリ（F-19ダッシュボード等）は常に <code>mode='graded'</code> のみを対象にすればよく、反復演習が既存の集計ロジックを汚染しない。
+  </div>
+  <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
+    <tbody><tr><td>S-04</td><td>A-40〜A-43</td><td>T-13, T-14</td></tr></tbody></table>
+
+  <h3>5.17 F-17 誤答問題抽出出題</h3>
+  <p><strong>処理概要:</strong> 過去の誤答や正答率の低い問題だけを集めて出題する。対象範囲（特定教材内/全教材）を受講者が選べる（対応要求: REQ-F-13）。A-44 は、対象範囲内で当該ユーザーが誤答した設問（<code>answers.is_correct=false</code>）、および正答率50%未満の設問（全受講者の <code>answers</code> 集計）を抽出して出題する。結果は <code>mode='practice'</code> の試行として記録し、合否には影響しない。</p>
+  <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
+    <tbody><tr><td>S-04</td><td>A-44</td><td>T-10, T-13, T-14</td></tr></tbody></table>
+
+  <h3>5.18 F-18 学習記録・回答保存</h3>
+  <p><strong>処理概要:</strong> 誰がどの教材をいつ受講し、どこまで進み、各設問にどう回答したかを記録する。正誤だけでなく回答内容そのものを保存する（対応要求: REQ-F-14）。T-12（教材全体の進捗）・T-13（試行単位の記録）・T-14（設問単位の回答内容・正誤・AI採点結果）の3テーブルで実現する。</p>
+  <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
+    <tbody><tr><td>S-02, S-04, S-09</td><td>A-39〜A-43, A-50</td><td>T-12, T-13, T-14</td></tr></tbody></table>
+
+  <h3>5.19 F-19 受講状況ダッシュボード</h3>
+  <p><strong>処理概要:</strong> 管理者・部署長/PMが担当範囲の受講率・合格率・未受講者を確認できる（対応要求: REQ-F-15）。manager の担当範囲は「<code>departments.head_user_id = 自分</code> の部署」または「<code>projects.pm_user_id = 自分</code> のプロジェクト」の集合として判定する（6.1節参照）。admin は「全社」スコープを追加で選択できる。</p>
+  <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
+    <tbody><tr><td>S-08</td><td>A-45, A-46</td><td>T-01〜T-04, T-11〜T-13</td></tr></tbody></table>
+
+  <h3>5.20 F-20 AI記述式採点・講評</h3>
+  <p><strong>処理概要:</strong> 記述式回答をAIが採点し、根拠を伴う講評を返す。採点結果は人が確認・修正できる（対応要求: REQ-F-16）。処理方式（非同期ジョブ）は9章参照。採点結果（<code>ai_score_pct</code>・<code>ai_feedback</code>）は T-14 <code>answers</code> に保存し、教材のオーナー・共同編集者が <code>reviewed_by</code>・<code>reviewed_at</code> を設定して修正できる。</p>
+  <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
+    <tbody><tr><td>S-04</td><td>A-42, A-43</td><td>T-14, T-19</td></tr></tbody></table>
+
+  <h3>5.21 F-21 AIつまずき分析・教材改善提案</h3>
+  <p><strong>処理概要:</strong> 正答率の低い設問や誤答傾向から受講者の理解不足箇所を分析し、教材のどこをどう直すべきかを提案する（対応要求: REQ-F-17）。F-05（Claude Code連携）と組み合わせ、A-35（結果取得）を Claude Code からも取得できるようにすることで「つまずき分析 → 改善提案 → Claude Codeでの修正 → 往復登録（A-20）」の循環を成立させる（8章参照）。</p>
+  <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
+    <tbody><tr><td>S-05</td><td>A-34, A-35</td><td>T-13, T-14, T-16, T-19</td></tr></tbody></table>
+
+  <h3>5.22 F-22 AI個人フィードバック</h3>
+  <p><strong>処理概要:</strong> 受講者ごとの回答傾向から、理解不足の点や次に学ぶとよい教材を本人に示す（対応要求: REQ-F-18）。個人学習レポート画面（S-09）を開いたとき、または受講完了時に非同期で生成し、T-17 <code>ai_personal_feedback</code> に保存する。</p>
+  <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
+    <tbody><tr><td>S-09</td><td>A-51, A-52</td><td>T-12〜T-14, T-17, T-19</td></tr></tbody></table>
+
+  <h3>5.23 F-23 AI組織レポート生成</h3>
+  <p><strong>処理概要:</strong> 部署・プロジェクト単位の学習状況・習熟度の傾向を、数値の一覧に加え要約と示唆を含むレポートとしてまとめる（対応要求: REQ-F-19）。S-08 でレポート生成を実行したときに非同期で生成し、T-18 <code>ai_org_reports</code> に保存する。</p>
+  <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
+    <tbody><tr><td>S-08</td><td>A-48, A-49</td><td>T-11〜T-14, T-18, T-19</td></tr></tbody></table>
+
+  <h3>5.24 対象外機能</h3>
+  <p>要求事項からは直接求められておらず、本システムでは対象外とする範囲を以下に示す（要求定義書3.2節に対応）。</p>
+  <table>
+    <thead><tr><th>機能</th><th>対象外とする理由</th></tr></thead>
+    <tbody>
+      <tr><td>学習記録の人事評価・目標管理での利用</td><td>学習記録は成長支援のための情報とし、人事評価の材料としないことが要求されているため（REQ-N-03）</td></tr>
+      <tr><td>勤怠管理・給与管理との連携</td><td>本システムは学習管理を対象とし、人事基幹機能とは連携しない</td></tr>
+      <tr><td>動画・スライドの編集・加工機能</td><td>教材ファイルはアップロード・視聴を対象とし、編集・加工は要求されていない（REQ-F-03）</td></tr>
+      <tr><td>メールによる通知</td><td>利用者への通知手段はSlackに限定される（制約条件）</td></tr>
+      <tr><td>プロジェクト所属情報の他システムとの自動連携</td><td>参照可能な外部システムが現時点で存在しないため初期実装の対象外（9.2節）。プロジェクト所属は自己申告制とする</td></tr>
+    </tbody>
+  </table>
+
+  <!-- ============ 6. データベース設計 ============ -->
+  <h2 id="sec6">6. データベース設計</h2>
+
+  <h3>6.1 ER図</h3>
+  <p>PostgreSQL (Supabase) 上に21テーブルを配置する。全テーブルを1枚に収めることはせず、「組織・教材まわり」と「配信・受講記録まわり」の2枚に分けて示す。AI関連テーブル（T-15〜T-20）と T-21 app_settings は、各機能・users への参照のみを持つ独立性の高いテーブルであり、Keirekiの app_settings と同様の位置づけのため図示を省略し、6.2節の一覧表で示す。</p>
+
+  <div class="diagram">
+    <svg width="860" height="420" viewBox="0 0 860 420" font-family="'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif">
+      <!-- users -->
+      <rect x="30" y="170" width="170" height="66" rx="8" fill="#eff6ff" stroke="#1e40af" stroke-width="1.5"/>
+      <rect x="30" y="170" width="170" height="26" rx="8" fill="#1e40af"/>
+      <rect x="30" y="186" width="170" height="10" fill="#1e40af"/>
+      <text x="115" y="188" text-anchor="middle" font-size="12" font-weight="600" fill="#ffffff">T-01 users</text>
+      <text x="115" y="210" text-anchor="middle" font-size="11" fill="#1a1d21">ユーザー</text>
+      <text x="115" y="226" text-anchor="middle" font-size="10" fill="#60656d">email / role / department_id</text>
+
+      <!-- departments -->
+      <rect x="280" y="60" width="170" height="60" rx="8" fill="#ffffff" stroke="#1e40af" stroke-width="1.5"/>
+      <rect x="280" y="60" width="170" height="24" rx="8" fill="#dbeafe"/>
+      <rect x="280" y="74" width="170" height="10" fill="#dbeafe"/>
+      <text x="365" y="76" text-anchor="middle" font-size="11.5" font-weight="600" fill="#1e3a8a">T-02 departments</text>
+      <text x="365" y="96" text-anchor="middle" font-size="10.5" fill="#1a1d21">部署</text>
+      <text x="365" y="111" text-anchor="middle" font-size="9.5" fill="#60656d">name / head_user_id</text>
+
+      <!-- projects -->
+      <rect x="280" y="150" width="170" height="60" rx="8" fill="#ffffff" stroke="#1e40af" stroke-width="1.5"/>
+      <rect x="280" y="150" width="170" height="24" rx="8" fill="#dbeafe"/>
+      <rect x="280" y="164" width="170" height="10" fill="#dbeafe"/>
+      <text x="365" y="166" text-anchor="middle" font-size="11.5" font-weight="600" fill="#1e3a8a">T-03 projects</text>
+      <text x="365" y="186" text-anchor="middle" font-size="10.5" fill="#1a1d21">プロジェクト</text>
+      <text x="365" y="201" text-anchor="middle" font-size="9.5" fill="#60656d">name / pm_user_id / status</text>
+
+      <!-- project_memberships -->
+      <rect x="280" y="240" width="170" height="60" rx="8" fill="#ffffff" stroke="#1e40af" stroke-width="1.5"/>
+      <rect x="280" y="240" width="170" height="24" rx="8" fill="#dbeafe"/>
+      <rect x="280" y="254" width="170" height="10" fill="#dbeafe"/>
+      <text x="365" y="256" text-anchor="middle" font-size="11.5" font-weight="600" fill="#1e3a8a">T-04 project_memberships</text>
+      <text x="365" y="276" text-anchor="middle" font-size="10.5" fill="#1a1d21">プロジェクト所属（自己申告）</text>
+      <text x="365" y="291" text-anchor="middle" font-size="9.5" fill="#60656d">joined_at / left_at</text>
+
+      <!-- courses -->
+      <rect x="560" y="30" width="150" height="55" rx="8" fill="#f5f7f9" stroke="#60656d" stroke-width="1.5"/>
+      <rect x="560" y="30" width="150" height="22" rx="8" fill="#e7eaee"/>
+      <text x="635" y="45" text-anchor="middle" font-size="11.5" font-weight="600" fill="#1a1d21">T-05 courses</text>
+      <text x="635" y="63" text-anchor="middle" font-size="10.5" fill="#1a1d21">コース</text>
+      <text x="635" y="78" text-anchor="middle" font-size="9.5" fill="#60656d">name / sort_order</text>
+
+      <!-- materials -->
+      <rect x="560" y="120" width="150" height="70" rx="8" fill="#eff6ff" stroke="#1e40af" stroke-width="1.5"/>
+      <rect x="560" y="120" width="150" height="24" rx="8" fill="#1e40af"/>
+      <text x="635" y="136" text-anchor="middle" font-size="11.5" font-weight="600" fill="#ffffff">T-06 materials</text>
+      <text x="635" y="158" text-anchor="middle" font-size="10.5" fill="#1a1d21">教材</text>
+      <text x="635" y="173" text-anchor="middle" font-size="9.5" fill="#60656d">course_id / owner_id / body</text>
+      <text x="635" y="186" text-anchor="middle" font-size="9.5" fill="#60656d">format / status</text>
+
+      <!-- material_co_editors -->
+      <rect x="560" y="225" width="150" height="55" rx="8" fill="#ffffff" stroke="#1e40af" stroke-width="1.5"/>
+      <rect x="560" y="225" width="150" height="22" rx="8" fill="#dbeafe"/>
+      <text x="635" y="240" text-anchor="middle" font-size="11.5" font-weight="600" fill="#1e3a8a">T-07 co_editors</text>
+      <text x="635" y="258" text-anchor="middle" font-size="10.5" fill="#1a1d21">共同編集者</text>
+      <text x="635" y="272" text-anchor="middle" font-size="9.5" fill="#60656d">material_id / user_id</text>
+
+      <!-- material_attachments -->
+      <rect x="560" y="305" width="150" height="55" rx="8" fill="#ffffff" stroke="#1e40af" stroke-width="1.5"/>
+      <rect x="560" y="305" width="150" height="22" rx="8" fill="#dbeafe"/>
+      <text x="635" y="320" text-anchor="middle" font-size="11.5" font-weight="600" fill="#1e3a8a">T-09 attachments</text>
+      <text x="635" y="338" text-anchor="middle" font-size="10.5" fill="#1a1d21">添付ファイル・リンク</text>
+      <text x="635" y="352" text-anchor="middle" font-size="9.5" fill="#60656d">material_id / storage_key</text>
+
+      <!-- questions -->
+      <rect x="770" y="120" width="80" height="70" rx="8" fill="#ffffff" stroke="#1e40af" stroke-width="1.5"/>
+      <rect x="770" y="120" width="80" height="24" rx="8" fill="#dbeafe"/>
+      <text x="810" y="136" text-anchor="middle" font-size="10.5" font-weight="600" fill="#1e3a8a">T-10</text>
+      <text x="810" y="158" text-anchor="middle" font-size="10" fill="#1a1d21">問題</text>
+      <text x="810" y="172" text-anchor="middle" font-size="9" fill="#60656d">unit_index</text>
+      <text x="810" y="184" text-anchor="middle" font-size="9" fill="#60656d">type</text>
+
+      <!-- relations -->
+      <line x1="200" y1="195" x2="278" y2="90" stroke="#60656d" stroke-width="1.3"/>
+      <text x="215" y="150" font-size="10.5" font-weight="600" fill="#1e40af">1</text>
+      <text x="265" y="88" font-size="10.5" font-weight="600" fill="#1e40af">N</text>
+      <text x="230" y="120" font-size="9.5" fill="#8a8f98">所属部署</text>
+
+      <line x1="200" y1="203" x2="278" y2="270" stroke="#60656d" stroke-width="1.3" stroke-dasharray="5 4"/>
+      <text x="215" y="220" font-size="9.5" fill="#8a8f98">joined_at/left_at</text>
+
+      <line x1="450" y1="180" x2="278" y2="203" stroke="#60656d" stroke-width="1.3"/>
+      <text x="440" y="200" font-size="10.5" font-weight="600" fill="#1e40af">1</text>
+      <text x="290" y="215" font-size="10.5" font-weight="600" fill="#1e40af">N</text>
+
+      <line x1="450" y1="80" x2="115" y2="205" stroke="#8a8f98" stroke-width="1.3" stroke-dasharray="5 4"/>
+      <text x="330" y="130" font-size="9.5" fill="#8a8f98">head_user_id（部署長, FK）</text>
+
+      <line x1="450" y1="170" x2="115" y2="215" stroke="#8a8f98" stroke-width="1.3" stroke-dasharray="5 4"/>
+      <text x="330" y="185" font-size="9.5" fill="#8a8f98">pm_user_id（PM, FK）</text>
+
+      <line x1="710" y1="60" x2="560" y2="145" stroke="#60656d" stroke-width="1.3"/>
+      <text x="700" y="90" font-size="10.5" font-weight="600" fill="#1e40af">1</text>
+      <text x="565" y="140" font-size="10.5" font-weight="600" fill="#1e40af">N</text>
+
+      <line x1="200" y1="220" x2="558" y2="165" stroke="#8a8f98" stroke-width="1.3" stroke-dasharray="5 4"/>
+      <text x="380" y="255" font-size="9.5" fill="#8a8f98">owner_id（オーナー, FK）</text>
+
+      <line x1="635" y1="190" x2="635" y2="223" stroke="#60656d" stroke-width="1.3"/>
+      <text x="645" y="212" font-size="10.5" font-weight="600" fill="#1e40af">1</text>
+      <text x="645" y="234" font-size="10.5" font-weight="600" fill="#1e40af">N</text>
+
+      <line x1="635" y1="190" x2="635" y2="303" stroke="#60656d" stroke-width="1.3"/>
+      <line x1="710" y1="155" x2="768" y2="155" stroke="#60656d" stroke-width="1.3"/>
+      <text x="720" y="148" font-size="10.5" font-weight="600" fill="#1e40af">1</text>
+      <text x="758" y="148" font-size="10.5" font-weight="600" fill="#1e40af">N</text>
+
+      <text x="430" y="15" text-anchor="middle" font-size="13" font-weight="600" fill="#1e3a8a">図A: 組織・教材まわり</text>
+    </svg>
+  </div>
+
+  <div class="diagram">
+    <svg width="860" height="360" viewBox="0 0 860 360" font-family="'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif">
+      <!-- materials (再掲・縮小) -->
+      <rect x="30" y="150" width="150" height="60" rx="8" fill="#f5f7f9" stroke="#60656d" stroke-width="1.5"/>
+      <rect x="30" y="150" width="150" height="22" rx="8" fill="#e7eaee"/>
+      <text x="105" y="165" text-anchor="middle" font-size="11.5" font-weight="600" fill="#1a1d21">T-06 materials</text>
+      <text x="105" y="184" text-anchor="middle" font-size="10" fill="#1a1d21">教材（再掲）</text>
+      <text x="105" y="198" text-anchor="middle" font-size="9" fill="#60656d">図A参照</text>
+
+      <!-- material_revisions -->
+      <rect x="30" y="30" width="150" height="60" rx="8" fill="#ffffff" stroke="#1e40af" stroke-width="1.5"/>
+      <rect x="30" y="30" width="150" height="22" rx="8" fill="#dbeafe"/>
+      <text x="105" y="45" text-anchor="middle" font-size="11.5" font-weight="600" fill="#1e3a8a">T-08 revisions</text>
+      <text x="105" y="64" text-anchor="middle" font-size="10" fill="#1a1d21">改訂履歴</text>
+      <text x="105" y="78" text-anchor="middle" font-size="9" fill="#60656d">body_snapshot / changed_via</text>
+
+      <!-- questions -->
+      <rect x="30" y="260" width="150" height="60" rx="8" fill="#ffffff" stroke="#1e40af" stroke-width="1.5"/>
+      <rect x="30" y="260" width="150" height="22" rx="8" fill="#dbeafe"/>
+      <text x="105" y="275" text-anchor="middle" font-size="11.5" font-weight="600" fill="#1e3a8a">T-10 questions</text>
+      <text x="105" y="294" text-anchor="middle" font-size="10" fill="#1a1d21">問題（再掲）</text>
+      <text x="105" y="308" text-anchor="middle" font-size="9" fill="#60656d">type / correct_answer</text>
+
+      <!-- assignments -->
+      <rect x="260" y="150" width="160" height="66" rx="8" fill="#eff6ff" stroke="#1e40af" stroke-width="1.5"/>
+      <rect x="260" y="150" width="160" height="24" rx="8" fill="#1e40af"/>
+      <text x="340" y="166" text-anchor="middle" font-size="11.5" font-weight="600" fill="#ffffff">T-11 assignments</text>
+      <text x="340" y="188" text-anchor="middle" font-size="10.5" fill="#1a1d21">配信設定</text>
+      <text x="340" y="202" text-anchor="middle" font-size="9.5" fill="#60656d">scope_type / scope_id / required</text>
+
+      <!-- enrollment_progress -->
+      <rect x="490" y="60" width="160" height="66" rx="8" fill="#ffffff" stroke="#1e40af" stroke-width="1.5"/>
+      <rect x="490" y="60" width="160" height="24" rx="8" fill="#dbeafe"/>
+      <text x="570" y="76" text-anchor="middle" font-size="11.5" font-weight="600" fill="#1e3a8a">T-12 progress</text>
+      <text x="570" y="98" text-anchor="middle" font-size="10.5" fill="#1a1d21">受講進捗</text>
+      <text x="570" y="112" text-anchor="middle" font-size="9.5" fill="#60656d">user_id / material_id / status</text>
+
+      <!-- quiz_attempts -->
+      <rect x="490" y="150" width="160" height="66" rx="8" fill="#ffffff" stroke="#1e40af" stroke-width="1.5"/>
+      <rect x="490" y="150" width="160" height="24" rx="8" fill="#dbeafe"/>
+      <text x="570" y="166" text-anchor="middle" font-size="11.5" font-weight="600" fill="#1e3a8a">T-13 quiz_attempts</text>
+      <text x="570" y="188" text-anchor="middle" font-size="10.5" fill="#1a1d21">受験記録</text>
+      <text x="570" y="202" text-anchor="middle" font-size="9.5" fill="#60656d">mode / score_pct / passed</text>
+
+      <!-- answers -->
+      <rect x="490" y="240" width="160" height="66" rx="8" fill="#eff6ff" stroke="#1e40af" stroke-width="1.5"/>
+      <rect x="490" y="240" width="160" height="24" rx="8" fill="#1e40af"/>
+      <text x="570" y="256" text-anchor="middle" font-size="11.5" font-weight="600" fill="#ffffff">T-14 answers</text>
+      <text x="570" y="278" text-anchor="middle" font-size="10.5" fill="#1a1d21">回答</text>
+      <text x="570" y="292" text-anchor="middle" font-size="9.5" fill="#60656d">response / ai_score_pct</text>
+
+      <!-- users (端点参照のみ) -->
+      <rect x="740" y="150" width="100" height="66" rx="8" fill="#f5f7f9" stroke="#60656d" stroke-width="1.5"/>
+      <rect x="740" y="150" width="100" height="24" rx="8" fill="#e7eaee"/>
+      <text x="790" y="166" text-anchor="middle" font-size="11" font-weight="600" fill="#1a1d21">T-01 users</text>
+      <text x="790" y="188" text-anchor="middle" font-size="10" fill="#1a1d21">ユーザー（再掲）</text>
+
+      <line x1="105" y1="90" x2="105" y2="148" stroke="#60656d" stroke-width="1.3"/>
+      <text x="112" y="115" font-size="10" font-weight="600" fill="#1e40af">1</text>
+      <text x="112" y="140" font-size="10" font-weight="600" fill="#1e40af">N</text>
+
+      <line x1="105" y1="212" x2="105" y2="258" stroke="#60656d" stroke-width="1.3"/>
+      <text x="112" y="232" font-size="10" font-weight="600" fill="#1e40af">1</text>
+      <text x="112" y="252" font-size="10" font-weight="600" fill="#1e40af">N</text>
+
+      <line x1="180" y1="180" x2="258" y2="180" stroke="#60656d" stroke-width="1.3"/>
+      <text x="190" y="173" font-size="10" font-weight="600" fill="#1e40af">1</text>
+      <text x="242" y="173" font-size="10" font-weight="600" fill="#1e40af">N</text>
+
+      <line x1="180" y1="160" x2="488" y2="95" stroke="#8a8f98" stroke-width="1.3" stroke-dasharray="5 4"/>
+      <text x="330" y="120" font-size="9.5" fill="#8a8f98">material_id（進捗対象）</text>
+
+      <line x1="180" y1="175" x2="488" y2="182" stroke="#8a8f98" stroke-width="1.3" stroke-dasharray="5 4"/>
+      <text x="330" y="195" font-size="9.5" fill="#8a8f98">material_id（受験対象）</text>
+
+      <line x1="570" y1="126" x2="570" y2="148" stroke="#60656d" stroke-width="1.3"/>
+      <line x1="570" y1="216" x2="570" y2="238" stroke="#60656d" stroke-width="1.3"/>
+      <text x="580" y="140" font-size="10" font-weight="600" fill="#1e40af">1</text>
+      <text x="580" y="230" font-size="10" font-weight="600" fill="#1e40af">1〜N</text>
+
+      <line x1="180" y1="285" x2="488" y2="270" stroke="#8a8f98" stroke-width="1.3" stroke-dasharray="5 4"/>
+      <text x="330" y="292" font-size="9.5" fill="#8a8f98">question_id（設問参照）</text>
+
+      <line x1="650" y1="183" x2="738" y2="183" stroke="#60656d" stroke-width="1.3"/>
+      <text x="660" y="176" font-size="10" font-weight="600" fill="#1e40af">N</text>
+      <text x="724" y="176" font-size="10" font-weight="600" fill="#1e40af">1</text>
+      <text x="680" y="196" font-size="9.5" fill="#8a8f98">user_id（受験者）</text>
+
+      <text x="430" y="15" text-anchor="middle" font-size="13" font-weight="600" fill="#1e3a8a">図B: 配信・受講記録まわり</text>
+    </svg>
+  </div>
+
+  <div class="callout">
+    <strong>図に含めなかったテーブル:</strong> T-15〜T-20（AI関連の各結果保存・利用ログ・Slack送信ログ）は、それぞれ対応する機能（materials／users／assignments）への参照のみを持ち、相互の関連を持たない。T-21 <code>app_settings</code> は Keireki の T-08 と同方針の汎用key-value設定テーブルであり、更新者（<code>updated_by</code>）として users(id) を参照するのみで、他の業務テーブルとは関連を持たない独立テーブルである。
+  </div>
+
+  <h3>6.2 テーブル一覧</h3>
+  <table>
+    <thead><tr><th>ID</th><th>物理名</th><th>論理名</th><th>概要</th></tr></thead>
+    <tbody>
+      <tr><td>T-01</td><td><code>users</code></td><td>ユーザー</td><td>email（UNIQUE）、name、picture_url、role（'learner'/'author'/'manager'/'admin'、DEFAULT 'learner'）、department_id（FK→departments、nullable）、is_active（DEFAULT true）</td></tr>
+      <tr><td>T-02</td><td><code>departments</code></td><td>部署</td><td>name（UNIQUE）、<strong>head_user_id</strong>（FK→users、nullable。部署長。S-08の担当範囲判定に使用）</td></tr>
+      <tr><td>T-03</td><td><code>projects</code></td><td>プロジェクト</td><td>name、description、status（'active'/'completed'、DEFAULT 'active'）、<strong>pm_user_id</strong>（FK→users、nullable。PM。S-08の担当範囲判定に使用）、created_by（FK→users）</td></tr>
+      <tr><td>T-04</td><td><code>project_memberships</code></td><td>プロジェクト所属</td><td>project_id（FK）、user_id（FK）、joined_at、left_at（nullable。NULLが現役参加。離任後の猶予期間判定に使用。5.3節参照）。自己申告制</td></tr>
+      <tr><td>T-05</td><td><code>courses</code></td><td>コース</td><td>name、description、sort_order。単元・コース構成の最上位単位</td></tr>
+      <tr><td>T-06</td><td><code>materials</code></td><td>教材</td><td>course_id（FK、nullable）、title、description（一覧表示用概要）、format（'markdown'/'html'）、body（本文。単元は本文中の見出しから抽出。5.4節参照）、owner_id（FK→users）、status（'draft'/'published'）、sort_order</td></tr>
+      <tr><td>T-07</td><td><code>material_co_editors</code></td><td>共同編集者</td><td>material_id（FK）、user_id（FK）、added_by（FK→users）。UNIQUE(material_id, user_id)</td></tr>
+      <tr><td>T-08</td><td><code>material_revisions</code></td><td>教材改訂履歴</td><td>material_id（FK）、body_snapshot、format、changed_by（FK→users）、changed_via（'web'/'claude_code'）、change_summary。8.4節参照</td></tr>
+      <tr><td>T-09</td><td><code>material_attachments</code></td><td>添付ファイル・リンク</td><td>material_id（FK）、kind（'file'/'link'）、storage_key（nullable。Supabase Storageのパス）、external_url（nullable）、filename、mime_type、size_bytes</td></tr>
+      <tr><td>T-10</td><td><code>questions</code></td><td>問題</td><td>material_id（FK）、<strong>unit_index</strong>（nullable int。本文中の単元出現順。5.4節参照）、type（'single'/'multi'/'free_text'）、prompt、options（JSONB）、correct_answer（JSONB）、<strong>scoring_criteria</strong>（text、nullable。記述式のAI採点基準）、<strong>points</strong>（int、DEFAULT 10。配点）、sort_order</td></tr>
+      <tr><td>T-11</td><td><code>assignments</code></td><td>配信設定</td><td>material_id（FK）、scope_type（'company'/'department'/'project'/'individual'）、scope_id（nullable）、required（bool）、due_at（nullable）、pass_score_pct（nullable）、retake_allowed（bool）、retake_limit（nullable）、created_by（FK→users）。1教材に対し複数行を持ちうる（5.9節）</td></tr>
+      <tr><td>T-12</td><td><code>enrollment_progress</code></td><td>受講進捗</td><td>user_id（FK）、material_id（FK）、status（'not_started'/'in_progress'/'completed'）、current_position（単元インデックス等の再開位置）、started_at、completed_at。UNIQUE(user_id, material_id)</td></tr>
+      <tr><td>T-13</td><td><code>quiz_attempts</code></td><td>受験記録</td><td>user_id（FK）、material_id（FK）、mode（'graded'/'practice'）、attempt_no、score_pct、passed（bool、nullable。採点中はNULL）、question_order（JSONB）、started_at、submitted_at</td></tr>
+      <tr><td>T-14</td><td><code>answers</code></td><td>回答</td><td>attempt_id（FK）、question_id（FK）、response（JSONB）、is_correct（bool、nullable）、ai_score_pct（nullable）、ai_feedback（text、nullable）、reviewed_by（FK→users、nullable）、reviewed_at（nullable）</td></tr>
+      <tr><td>T-15</td><td><code>ai_material_reviews</code></td><td>AI教材レビュー結果</td><td>material_id（FK）、requested_by（FK→users）、findings（JSONB）。F-08</td></tr>
+      <tr><td>T-16</td><td><code>ai_material_insights</code></td><td>AIつまずき分析結果</td><td>material_id（FK）、weak_questions（JSONB）、suggestions（text）。F-21</td></tr>
+      <tr><td>T-17</td><td><code>ai_personal_feedback</code></td><td>AI個人フィードバック</td><td>user_id（FK）、content（text）。F-22</td></tr>
+      <tr><td>T-18</td><td><code>ai_org_reports</code></td><td>AI組織レポート</td><td>scope_type、scope_id（nullable）、content（text）。F-23</td></tr>
+      <tr><td>T-19</td><td><code>ai_usage_logs</code></td><td>AI利用ログ</td><td>user_id（FK、nullable）、feature、model、input_tokens、output_tokens、cost_estimate。Keireki T-09と同方針（質問・回答の内容は保存しない）。9.3節</td></tr>
+      <tr><td>T-20</td><td><code>slack_notification_logs</code></td><td>Slack送信ログ</td><td>user_id（FK）、assignment_id（FK→assignments）、sent_at、status。F-12</td></tr>
+      <tr><td>T-21</td><td><code>app_settings</code></td><td>システム設定</td><td>key（PK）、value_text、updated_by（FK→users、nullable）。AIモデル選択（<code>key='ai_model'</code>）、Slack Webhook URL（<code>key='slack_webhook_url'</code>）・通知先チャンネル（<code>key='slack_channel'</code>）、プロジェクト離任猶予期間日数（<code>key='project_leave_grace_period_days'</code>）等をkey-valueで保持。Keireki T-08と同方針</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout">
+    <strong>与件からの調整点:</strong> 骨子で示されたテーブル構成に対し、次の2点を追加した。(1) T-02 departments に <code>head_user_id</code>、T-03 projects に <code>pm_user_id</code> を追加した。S-08受講状況ダッシュボードで manager が確認できる「担当範囲」（部署長／PM）を判定するために必須のカラムであり、画面モックアップにも部署長・PM列が存在するため補った。(2) T-10 questions に <code>unit_index</code>・<code>scoring_criteria</code>・<code>points</code> を追加した。<code>unit_index</code> は5.4節の単元設計（見出しベース）に対応するため、<code>scoring_criteria</code>・<code>points</code> は画面モックアップ（S-05問題編集タブ）が示す記述式のAI採点基準入力・配点入力を保持するために必要である。いずれもテーブル数（T-01〜T-21）は変更せず、既存テーブルへのカラム追加のみで対応している。
+  </div>
+
+  <h3>6.3 共通設計方針</h3>
+  <ul>
+    <li>主キー: <code>id</code> は BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY で統一する（T-21のみ <code>key</code> TEXT を主キーとする、Keirekiと同方針）。</li>
+    <li>タイムスタンプ: <code>created_at</code> / <code>updated_at</code> は TIMESTAMPTZ NOT NULL DEFAULT now() で全テーブルに付与する。</li>
+    <li>コード値（role, format, status, mode, type, kind, scope_type）はCHECK制約で許容値を担保する。</li>
+    <li>JSONB項目（options, correct_answer, response, question_order, findings, weak_questions等）は、詳細設計書でスキーマ（フィールド定義）を定める。</li>
+    <li>スキーマ定義は <code>backend/database.py</code>（SCHEMA定義）に集約し、テーブル定義書を docs/ で管理する。</li>
+  </ul>
+  <p>各テーブルのカラム詳細（型・NULL可否・制約・既定値の全定義）は詳細設計書に委ねる。</p>
+
+  <div class="callout">
+    <strong>RLS方針:</strong> 全テーブルでRow Level Security（RLS）を有効にする（<code>ALTER TABLE ... ENABLE ROW LEVEL SECURITY;</code>）。アプリケーションは asyncpg で直接接続するため通常アクセスの権限判定（3章のRBAC・オーナー/共同編集者判定）はAPI層で行うが、Supabaseの他経路（PostgREST等）からの意図しない参照を遮断する多層防御として全テーブルRLSを必須とする（Keirekiと同方針）。
+  </div>
+
+</div>
+</body>
+</html>

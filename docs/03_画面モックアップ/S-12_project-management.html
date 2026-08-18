@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S-12 プロジェクト管理 | e-learning 画面モックアップ</title>
+<link rel="stylesheet" href="mock.css">
+</head>
+<body>
+
+<div class="app">
+
+  <!-- サイドバー（部署長/PM: 山田 花子。プロジェクト「LCC CRM刷新」のローカルロールは管理者） -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-mark">e</div>
+      <div>
+        <div class="brand-name">e-learning</div>
+        <div class="brand-sub">社内学習管理システム</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-label">メニュー</div>
+      <a class="nav-item" href="S-02_my-learning.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h3.5v-6h5v6H18a1 1 0 0 0 1-1V9.5"/></svg></span>
+        マイ学習
+      </a>
+      <a class="nav-item" href="S-03_materials-list.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></span>
+        教材一覧・検索
+      </a>
+      <a class="nav-item" href="S-09_my-report.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
+        個人学習レポート
+      </a>
+      <a class="nav-item" href="S-11_project-create.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></span>
+        プロジェクト作成
+      </a>
+      <div class="nav-label">管理者メニュー</div>
+      <a class="nav-item active" href="S-12_project-management.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg></span>
+        プロジェクト管理
+      </a>
+      <a class="nav-item" href="S-08_dashboard.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg></span>
+        受講状況ダッシュボード
+      </a>
+      <div class="nav-note">※ S-12「プロジェクト管理」は、自分が管理者であるプロジェクトがある場合にメニュー表示（管理者はadminも含む）</div>
+    </nav>
+    <div class="sidebar-user">
+      <div class="sidebar-user-row">
+        <span class="avatar">山</span>
+        <div>
+          <div class="user-name">山田 花子 <span class="badge badge-role role-manager">manager</span></div>
+          <div class="user-mail">h.yamada@kogasoftware.com</div>
+        </div>
+      </div>
+      <a class="sidebar-logout" href="S-01_login.html">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        ログアウト
+      </a>
+    </div>
+  </aside>
+
+  <!-- メインエリア -->
+  <div class="main">
+    <header class="page-header">
+      <div>
+        <div class="page-title-group">
+          <h1>プロジェクト管理 — LCC CRM刷新</h1>
+          <span class="badge badge-projrole projrole-admin">あなたはこのプロジェクトの管理者</span>
+          <span class="screen-id">S-12</span>
+        </div>
+      </div>
+      <div class="header-actions">
+        <span class="filter-label">管理するプロジェクト</span>
+        <select style="width:190px">
+          <option selected>LCC CRM刷新（管理者）</option>
+        </select>
+      </div>
+    </header>
+
+    <div class="page-body">
+
+      <p class="tab-note">※ この画面はそのプロジェクトの管理者、または admin がアクセスできます（7.3参照）。あなたは manager ロールですが、これはシステム全体のロールとは別の軸である、プロジェクト「LCC CRM刷新」内のローカルロール（管理者）に基づくアクセスです。</p>
+
+      <!-- タブ -->
+      <div class="tabs" role="tablist">
+        <button class="tab active" id="tab-info" type="button" onclick="switchTab('info')">プロジェクト情報</button>
+        <button class="tab" id="tab-members" type="button" onclick="switchTab('members')">メンバー管理</button>
+        <button class="tab" id="tab-sharing" type="button" onclick="switchTab('sharing')">教材の共有</button>
+      </div>
+
+      <!-- プロジェクト情報タブ -->
+      <div class="tab-panel active" id="panel-info">
+        <div class="panel" style="max-width:680px">
+          <div class="panel-header">
+            <div class="panel-title">基本情報</div>
+          </div>
+          <div class="panel-body">
+            <div class="field">
+              <label>プロジェクト名</label>
+              <input type="text" value="LCC CRM刷新">
+            </div>
+            <div class="field">
+              <label>説明</label>
+              <textarea rows="4">既存のLCC CRMをReact 19 + FastAPI構成へ刷新するプロジェクト。営業部・開発部混成チームで、新機能開発と並行して段階的に移行する。</textarea>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label>状態</label>
+                <select style="max-width:160px">
+                  <option selected>進行中</option>
+                  <option>完了</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>作成日</label>
+                <input type="text" value="2026-03-01" disabled>
+              </div>
+            </div>
+            <div class="field" style="margin-bottom:0">
+              <label>作成者</label>
+              <div style="display:flex;align-items:center;gap:8px;font-size:13px">
+                <span class="avatar" style="width:22px;height:22px;font-size:10.5px">山</span> 山田 花子
+                <span class="field-help" style="margin:0">（作成者は自動的に管理者になります）</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="form-actions" style="position:static;background:none;border-top:none;padding-top:0;max-width:680px">
+          <button class="btn btn-primary" type="button">保存する</button>
+        </div>
+      </div>
+
+      <!-- メンバー管理タブ -->
+      <div class="tab-panel" id="panel-members">
+        <p class="tab-note">メンバーの追加・削除、ロール（管理者/編集者/受講者）の設定は、このプロジェクトの管理者が行います。プロジェクトのローカルロールは、システム全体のロール（受講者/教材作成者/部署長・PM/管理者）とは別の軸です。</p>
+
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr><th>氏名</th><th style="width:130px">全社ロール</th><th style="width:170px">プロジェクトロール</th><th style="width:110px">参加日</th><th style="width:90px">操作</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><div style="display:flex;align-items:center;gap:9px"><span class="avatar">山</span><span class="cell-main">山田 花子（あなた）</span></div></td>
+                <td><span class="badge badge-role role-manager">manager</span></td>
+                <td>
+                  <select disabled title="自分自身のロールはここでは変更できません">
+                    <option>受講者</option>
+                    <option>編集者</option>
+                    <option selected>管理者</option>
+                  </select>
+                </td>
+                <td>2026-03-01</td>
+                <td><button class="btn btn-ghost btn-sm" type="button" disabled title="唯一の管理者は削除できません">-</button></td>
+              </tr>
+              <tr>
+                <td><div style="display:flex;align-items:center;gap:9px"><span class="avatar">鈴</span><span class="cell-main">鈴木 美咲</span></div></td>
+                <td><span class="badge badge-role role-author">author</span></td>
+                <td>
+                  <select>
+                    <option>受講者</option>
+                    <option selected>編集者</option>
+                    <option>管理者</option>
+                  </select>
+                </td>
+                <td>2026-06-12</td>
+                <td><button class="btn btn-danger-ghost btn-sm" type="button">削除</button></td>
+              </tr>
+              <tr>
+                <td><div style="display:flex;align-items:center;gap:9px"><span class="avatar">高</span><span class="cell-main">高橋 大輔</span></div></td>
+                <td><span class="badge badge-role role-learner">learner</span></td>
+                <td>
+                  <select>
+                    <option>受講者</option>
+                    <option selected>編集者</option>
+                    <option>管理者</option>
+                  </select>
+                </td>
+                <td>2026-06-12</td>
+                <td><button class="btn btn-danger-ghost btn-sm" type="button">削除</button></td>
+              </tr>
+              <tr>
+                <td><div style="display:flex;align-items:center;gap:9px"><span class="avatar">佐</span><span class="cell-main">佐藤 健一</span></div></td>
+                <td><span class="badge badge-role role-learner">learner</span></td>
+                <td>
+                  <select>
+                    <option selected>受講者</option>
+                    <option>編集者</option>
+                    <option>管理者</option>
+                  </select>
+                </td>
+                <td>2026-07-20</td>
+                <td><button class="btn btn-danger-ghost btn-sm" type="button">削除</button></td>
+              </tr>
+              <tr>
+                <td><div style="display:flex;align-items:center;gap:9px"><span class="avatar">村</span><span class="cell-main">村田 亮</span></div></td>
+                <td><span class="badge badge-role role-learner">learner</span></td>
+                <td>
+                  <select>
+                    <option selected>受講者</option>
+                    <option>編集者</option>
+                    <option>管理者</option>
+                  </select>
+                </td>
+                <td>2026-08-01</td>
+                <td><button class="btn btn-danger-ghost btn-sm" type="button">削除</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="search-actions" style="border-top:none;padding-top:0;margin-top:14px">
+          <select style="min-width:220px">
+            <option selected disabled>社員を選択して追加…</option>
+            <option>千田 太郎（admin）</option>
+            <option>田中 悠斗（learner）</option>
+          </select>
+          <select style="min-width:140px">
+            <option selected>受講者</option>
+            <option>編集者</option>
+            <option>管理者</option>
+          </select>
+          <button class="btn btn-secondary" type="button">追加</button>
+        </div>
+        <p style="margin-top:12px;font-size:11.5px;color:var(--text-subtle)">※ メンバーを削除、またはロールを「受講者」以外から変更した場合も、猶予期間中は旧プロジェクトの教材への閲覧アクセスを継続します（9.2参照）。</p>
+      </div>
+
+      <!-- 教材の共有タブ -->
+      <div class="tab-panel" id="panel-sharing">
+        <p class="tab-note">このプロジェクトに紐づく教材を、他のプロジェクトでも受講・参照できるよう共有できます。共有の可否を判断・実行できるのは、教材が紐づく元プロジェクト（このプロジェクト）の管理者のみです（F-26）。</p>
+
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr><th>教材名</th><th style="width:100px">状態</th><th>共有先プロジェクト</th><th style="width:130px">操作</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="cell-main"><a href="S-05_material-edit.html">新システム操作ガイド</a></td>
+                <td><span class="badge badge-status-on">公開中</span></td>
+                <td><span style="color:var(--text-subtle);font-size:12px">共有先なし</span></td>
+                <td><button class="btn btn-secondary btn-sm" type="button">共有先を追加</button></td>
+              </tr>
+              <tr>
+                <td class="cell-main">セキュアコーディング入門</td>
+                <td><span class="badge badge-status-on">公開中</span></td>
+                <td><span class="chip">Keireki保守</span></td>
+                <td><button class="btn btn-secondary btn-sm" type="button">共有先を追加</button></td>
+              </tr>
+              <tr>
+                <td class="cell-main" style="color:var(--text-subtle)">DB移行手順（下書き）</td>
+                <td><span class="badge badge-status-off">下書き</span></td>
+                <td><span style="color:var(--text-subtle);font-size:12px">下書きのため共有不可</span></td>
+                <td><button class="btn btn-ghost btn-sm" type="button" disabled>-</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="panel" style="margin-top:16px;max-width:520px">
+          <div class="panel-header">
+            <div class="panel-title">「セキュアコーディング入門」の共有先を編集</div>
+          </div>
+          <div class="panel-body">
+            <div class="checkbox-group" style="flex-direction:column;align-items:flex-start;margin-bottom:12px">
+              <label class="checkbox-line"><input type="checkbox" checked> Keireki保守</label>
+              <label class="checkbox-line"><input type="checkbox"> e-learning新規構築</label>
+              <label class="checkbox-line"><input type="checkbox"> 介護クラウド保守</label>
+            </div>
+            <button class="btn btn-primary btn-sm" type="button">共有設定を保存</button>
+          </div>
+        </div>
+        <p style="margin-top:12px;font-size:11.5px;color:var(--text-subtle)">※ 共有された教材は、共有先プロジェクトの受講者が受講できます。編集権限は元プロジェクト（LCC CRM刷新）の管理者・編集者のままです。</p>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="mock-note">画面モックアップ（S-12）/ 研修サンプル</div>
+
+<script>
+// タブ切替（静的モック確認用の最小限のJS）
+function switchTab(name) {
+  var tabs = ['info', 'members', 'sharing'];
+  tabs.forEach(function (t) {
+    document.getElementById('tab-' + t).classList.toggle('active', t === name);
+    document.getElementById('panel-' + t).classList.toggle('active', t === name);
+  });
+}
+</script>
+
+</body>
+</html>

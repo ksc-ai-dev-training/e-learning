@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S-03 教材一覧・検索 | e-learning 画面モックアップ</title>
+<link rel="stylesheet" href="mock.css">
+</head>
+<body>
+
+<div class="app">
+
+  <!-- サイドバー（受講者: 佐藤 健一） -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-mark">e</div>
+      <div>
+        <div class="brand-name">e-learning</div>
+        <div class="brand-sub">社内学習管理システム</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-label">メニュー</div>
+      <a class="nav-item" href="S-02_my-learning.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h3.5v-6h5v6H18a1 1 0 0 0 1-1V9.5"/></svg></span>
+        マイ学習
+      </a>
+      <a class="nav-item active" href="S-03_materials-list.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></span>
+        教材一覧・検索
+      </a>
+      <a class="nav-item" href="S-05_material-edit.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></span>
+        教材編集
+      </a>
+      <div class="nav-note">※ 自分がオーナー・共同編集者の教材（例:「AWS基礎メモ」）がある場合のみ表示</div>
+      <a class="nav-item" href="S-09_my-report.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
+        個人学習レポート
+      </a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="sidebar-user-row">
+        <span class="avatar">佐</span>
+        <div>
+          <div class="user-name">佐藤 健一 <span class="badge badge-role role-learner">learner</span></div>
+          <div class="user-mail">k.sato@kogasoftware.com</div>
+        </div>
+      </div>
+      <a class="sidebar-logout" href="S-01_login.html">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        ログアウト
+      </a>
+    </div>
+  </aside>
+
+  <!-- メインエリア -->
+  <div class="main">
+    <header class="page-header">
+      <div class="page-title-group">
+        <h1>教材一覧・検索</h1>
+        <span class="screen-id">S-03</span>
+      </div>
+    </header>
+
+    <div class="page-body">
+
+      <!-- 検索パネル（開閉式・既定で開いた状態） -->
+      <details class="search-panel" open>
+        <summary>
+          <span class="summary-caret"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+          検索条件
+          <span class="summary-hint">クリックで開閉</span>
+        </summary>
+        <div class="search-panel-body">
+          <div class="search-grid">
+            <div class="field">
+              <label for="q">キーワード</label>
+              <input type="search" id="q" placeholder="教材名、単元名、コース名">
+            </div>
+            <div class="field">
+              <label>コース</label>
+              <select>
+                <option selected>すべて</option>
+                <option>新人研修2026</option>
+                <option>全社必修研修</option>
+                <option>エンジニア基礎</option>
+                <option>フロントエンド基礎</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>区分</label>
+              <select>
+                <option selected>すべて</option>
+                <option>必修のみ</option>
+                <option>任意のみ</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="checkbox-group" style="margin-bottom:10px">
+            <label class="checkbox-line"><input type="checkbox"> 未受講のみ表示</label>
+            <label class="checkbox-line"><input type="checkbox"> 自分が受講対象の教材のみ表示</label>
+          </div>
+
+          <div class="search-actions">
+            <button class="btn btn-primary" type="button">
+              <span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+              検索
+            </button>
+            <button class="btn btn-secondary" type="button">条件クリア</button>
+          </div>
+        </div>
+      </details>
+
+      <div class="table-notes">
+        ※ 一覧には公開済みの教材のみ表示されます。単元・コースの構成順に並びます。
+      </div>
+
+      <!-- 教材テーブル -->
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>教材</th>
+              <th>コース</th>
+              <th style="width:80px">区分</th>
+              <th style="width:100px">所要時間</th>
+              <th style="width:110px">更新日</th>
+              <th style="width:110px">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <div class="cell-main">AI開発研修 基礎編 — Claude Codeの使い方</div>
+                <div class="cell-sub">単元5構成 ／ 単一選択・記述式 全8問</div>
+              </td>
+              <td>新人研修2026</td>
+              <td><span class="badge badge-required">必修</span></td>
+              <td class="num">約90分</td>
+              <td>2026-08-10</td>
+              <td><a class="btn btn-secondary btn-sm" href="S-04_material-view.html">受講する</a></td>
+            </tr>
+            <tr>
+              <td>
+                <div class="cell-main">ビジネスマナー研修</div>
+                <div class="cell-sub">単元3構成 ／ 単一選択 全6問</div>
+              </td>
+              <td>新人研修2026</td>
+              <td><span class="badge badge-required">必修</span></td>
+              <td class="num">約40分</td>
+              <td>2026-07-20</td>
+              <td><a class="btn btn-secondary btn-sm" href="S-04_material-view.html">受講する</a></td>
+            </tr>
+            <tr>
+              <td>
+                <div class="cell-main">情報セキュリティ研修 2026</div>
+                <div class="cell-sub">単元4構成 ／ 単一選択・複数選択 全10問</div>
+              </td>
+              <td>全社必修研修</td>
+              <td><span class="badge badge-required">必修</span></td>
+              <td class="num">約60分</td>
+              <td>2026-08-01</td>
+              <td><a class="btn btn-secondary btn-sm" href="S-04_material-view.html">受講する</a></td>
+            </tr>
+            <tr>
+              <td>
+                <div class="cell-main">ハラスメント防止研修</div>
+                <div class="cell-sub">単元2構成 ／ 単一選択 全4問</div>
+              </td>
+              <td>全社必修研修</td>
+              <td><span class="badge badge-required">必修</span></td>
+              <td class="num">約30分</td>
+              <td>2026-06-15</td>
+              <td><a class="btn btn-ghost btn-sm" href="S-04_material-view.html">復習する</a></td>
+            </tr>
+            <tr>
+              <td>
+                <div class="cell-main">新人向けGit入門</div>
+                <div class="cell-sub">単元4構成 ／ 記述式 全5問 ／ 作成: 鈴木 美咲</div>
+              </td>
+              <td>エンジニア基礎</td>
+              <td><span class="badge badge-optional">任意</span></td>
+              <td class="num">約45分</td>
+              <td>2026-08-14</td>
+              <td><a class="btn btn-ghost btn-sm" href="S-04_material-view.html">反復演習</a></td>
+            </tr>
+            <tr>
+              <td>
+                <div class="cell-main">データベース設計入門</div>
+                <div class="cell-sub">単元5構成 ／ 単一選択・記述式 全9問 ／ 作成: 鈴木 美咲</div>
+              </td>
+              <td>エンジニア基礎</td>
+              <td><span class="badge badge-optional">任意</span></td>
+              <td class="num">約70分</td>
+              <td>2026-08-12</td>
+              <td><a class="btn btn-secondary btn-sm" href="S-04_material-view.html">受講する</a></td>
+            </tr>
+            <tr>
+              <td>
+                <div class="cell-main">TypeScript入門</div>
+                <div class="cell-sub">単元6構成 ／ 単一選択・記述式 全12問</div>
+              </td>
+              <td>フロントエンド基礎</td>
+              <td><span class="badge badge-optional">任意</span></td>
+              <td class="num">約100分</td>
+              <td>2026-08-05</td>
+              <td><a class="btn btn-secondary btn-sm" href="S-04_material-view.html">続きから受講</a></td>
+            </tr>
+            <tr>
+              <td>
+                <div class="cell-main">React入門</div>
+                <div class="cell-sub">単元5構成 ／ 単一選択 全8問</div>
+              </td>
+              <td>フロントエンド基礎</td>
+              <td><span class="badge badge-optional">任意</span></td>
+              <td class="num">約80分</td>
+              <td>2026-08-05</td>
+              <td><a class="btn btn-secondary btn-sm" href="S-04_material-view.html">受講する</a></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="list-footer">
+        <span class="filter-label">表示件数</span>
+        <select style="width:90px">
+          <option selected>20件</option>
+          <option>50件</option>
+          <option>100件</option>
+        </select>
+        <span class="total-count"><strong>1 - 8</strong> / 8件</span>
+        <div class="pagination">
+          <button class="page-btn" type="button" disabled>«</button>
+          <button class="page-btn current" type="button">1</button>
+          <button class="page-btn" type="button" disabled>»</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="mock-note">画面モックアップ（S-03）/ 研修サンプル</div>
+
+</body>
+</html>

@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S-05 教材編集 | e-learning 画面モックアップ</title>
+<link rel="stylesheet" href="mock.css">
+</head>
+<body>
+
+<div class="app">
+
+  <!-- サイドバー（教材作成者: 鈴木 美咲） -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-mark">e</div>
+      <div>
+        <div class="brand-name">e-learning</div>
+        <div class="brand-sub">社内学習管理システム</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-label">メニュー</div>
+      <a class="nav-item" href="S-02_my-learning.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h3.5v-6h5v6H18a1 1 0 0 0 1-1V9.5"/></svg></span>
+        マイ学習
+      </a>
+      <a class="nav-item" href="S-03_materials-list.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></span>
+        教材一覧・検索
+      </a>
+      <a class="nav-item active" href="S-05_material-edit.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></span>
+        教材編集
+      </a>
+      <a class="nav-item" href="S-09_my-report.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
+        個人学習レポート
+      </a>
+      <a class="nav-item" href="S-11_project-create.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></span>
+        プロジェクト作成
+      </a>
+      <a class="nav-item" href="S-12_project-management.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg></span>
+        プロジェクト管理
+      </a>
+      <div class="nav-note">※ S-11は全ロール常時表示。S-12は自分が管理者であるプロジェクトがある場合に表示</div>
+    </nav>
+    <div class="sidebar-user">
+      <div class="sidebar-user-row">
+        <span class="avatar">鈴</span>
+        <div>
+          <div class="user-name">鈴木 美咲 <span class="badge badge-role role-author">author</span></div>
+          <div class="user-mail">m.suzuki@kogasoftware.com</div>
+        </div>
+      </div>
+      <a class="sidebar-logout" href="S-01_login.html">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        ログアウト
+      </a>
+    </div>
+  </aside>
+
+  <!-- メインエリア -->
+  <div class="main">
+    <header class="page-header">
+      <div>
+        <div class="page-title-group">
+          <h1>
+            <span id="title-personal">教材編集 — 新人向けGit入門</span>
+            <span id="title-project" style="display:none">教材編集 — LCC CRM刷新 新システム操作ガイド</span>
+          </h1>
+          <span class="badge badge-status-off">下書き修正中</span>
+          <span class="screen-id">S-05</span>
+        </div>
+        <div id="ownerinfo-personal" style="display:flex;align-items:center;gap:8px;margin-top:4px;font-size:12px;color:var(--text-subtle)">
+          オーナー:
+          <span class="avatar" style="width:20px;height:20px;font-size:10px">鈴</span> 鈴木 美咲
+          ／ 共同編集者:
+          <span class="avatar-group">
+            <span class="avatar" style="width:20px;height:20px;font-size:10px">高</span>
+          </span>
+          高橋 大輔
+        </div>
+        <div id="ownerinfo-project" style="display:none;align-items:center;gap:8px;margin-top:4px;font-size:12px;color:var(--text-subtle);flex-wrap:wrap">
+          紐づくプロジェクト: <a href="S-12_project-management.html">LCC CRM刷新</a>
+          ／ あなたのロール: <span class="badge badge-projrole projrole-editor">編集者</span>
+          ／ プロジェクト管理者: 山田 花子
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-secondary" type="button">プレビュー</button>
+        <button class="btn btn-secondary" type="button">下書き保存</button>
+        <button class="btn btn-primary" type="button">公開する</button>
+      </div>
+    </header>
+
+    <div class="page-body">
+
+      <div class="toolbar" style="margin-bottom:16px">
+        <span class="filter-label">モック表示例:</span>
+        <div class="segmented">
+          <button type="button" class="active" id="mode-personal-btn" onclick="switchMode('personal')">個人教材の例</button>
+          <button type="button" id="mode-project-btn" onclick="switchMode('project')">プロジェクト教材の例</button>
+        </div>
+        <span style="font-size:11px;color:var(--text-subtle)">※ この切替はモック確認用のUIで、実際の画面には存在しません</span>
+      </div>
+
+      <p class="tab-note">※ この画面には対象教材のオーナー・共同編集者、対象教材が紐づくプロジェクトの管理者・編集者（7.3参照）、または admin がアクセスできます。個人教材はオーナー・共同編集者モデル（F-07）、プロジェクトに紐づく教材はプロジェクトのローカルロール（F-25）で編集権限が判定される、別の軸です。上のトグルで両方の例を確認できます。</p>
+
+      <!-- タブ -->
+      <div class="tabs" role="tablist">
+        <button class="tab active" id="tab-body" type="button" onclick="switchTab('body')">本文編集</button>
+        <button class="tab" id="tab-questions" type="button" onclick="switchTab('questions')">問題編集</button>
+        <button class="tab" id="tab-structure" type="button" onclick="switchTab('structure')">構成（単元/コース）</button>
+        <button class="tab" id="tab-attach" type="button" onclick="switchTab('attach')">ファイル・リンク</button>
+        <button class="tab" id="tab-editors" type="button" onclick="switchTab('editors')">共同編集者</button>
+        <button class="tab" id="tab-review" type="button" onclick="switchTab('review')">AIレビュー結果</button>
+        <button class="tab" id="tab-history" type="button" onclick="switchTab('history')">改訂履歴</button>
+      </div>
+
+      <!-- 本文編集タブ -->
+      <div class="tab-panel active" id="panel-body">
+        <div class="field-row">
+          <div class="field">
+            <label>単元タイトル</label>
+            <input type="text" value="単元2: ブランチとプルリクエストの基本">
+          </div>
+          <div class="field">
+            <label>概要（一覧表示用）</label>
+            <input type="text" value="作業ブランチの作成からプルリクエスト作成までの一連の流れを学びます">
+          </div>
+        </div>
+
+        <div class="field">
+          <label>記述形式</label>
+          <div class="segmented">
+            <button type="button" class="active">Markdown</button>
+            <button type="button">HTML</button>
+          </div>
+          <span class="field-help">教材ごとにMarkdown/HTMLいずれかの形式で記述できます。HTMLはサニタイズ（許可リスト方式）を通して表示されます。</span>
+        </div>
+
+        <div class="editor-split">
+          <div class="editor-pane">
+            <div class="preview-label">本文（Markdown）</div>
+            <textarea>## ブランチを作成する
+
+作業を始める前に、必ず `main` から新しいブランチを作成します。
+
+```
+git checkout -b feature/add-login
+```
+
+## プルリクエストを作成する
+
+変更をコミットしたら、リモートへpush してプルリクエストを作成します。
+レビュー担当者を必ず1名以上指定してください。
+
+- コミットメッセージは変更内容が分かるように書く
+- 差分（diff）はマージ前に必ず自分で見直す</textarea>
+          </div>
+          <div class="preview-pane">
+            <div class="preview-label">プレビュー</div>
+            <h3>ブランチを作成する</h3>
+            <p>作業を始める前に、必ず <code>main</code> から新しいブランチを作成します。</p>
+            <pre style="background:#1e2530;color:#dce3ec;border-radius:6px;padding:10px 12px;font-size:12px;margin-bottom:10px">git checkout -b feature/add-login</pre>
+            <h3>プルリクエストを作成する</h3>
+            <p>変更をコミットしたら、リモートへpush してプルリクエストを作成します。レビュー担当者を必ず1名以上指定してください。</p>
+            <ul style="margin:0 0 0 18px;color:var(--text-muted);font-size:13px">
+              <li>コミットメッセージは変更内容が分かるように書く</li>
+              <li>差分（diff）はマージ前に必ず自分で見直す</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button class="btn btn-primary" type="button">本文を保存</button>
+          <span class="actions-note">Claude Code連携APIからも同じ本文を取得・更新できます（往復編集）</span>
+        </div>
+      </div>
+
+      <!-- 問題編集タブ -->
+      <div class="tab-panel" id="panel-questions">
+        <p class="tab-note">単元ごとに設問を登録します。種別は単一選択・複数選択・記述式から選べます。</p>
+
+        <div class="edit-card">
+          <div class="edit-card-head">
+            <span class="edit-card-title">設問1（単元2）</span>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-secondary btn-sm" type="button">コピーして追加</button>
+              <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label>種別</label>
+              <select>
+                <option selected>単一選択</option>
+                <option>複数選択</option>
+                <option>記述式</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>配点</label>
+              <input type="number" value="10" min="0" step="5">
+            </div>
+          </div>
+          <div class="field">
+            <label>設問文</label>
+            <textarea rows="2">作業ブランチを作成するコマンドとして正しいものはどれか。</textarea>
+          </div>
+          <div class="field" style="margin-bottom:0">
+            <label>選択肢（正解にチェック）</label>
+            <div class="checkbox-group" style="flex-direction:column;align-items:flex-start">
+              <label class="checkbox-line"><input type="checkbox"> git commit -b feature/x</label>
+              <label class="checkbox-line"><input type="checkbox" checked> git checkout -b feature/x</label>
+              <label class="checkbox-line"><input type="checkbox"> git merge -b feature/x</label>
+              <label class="checkbox-line"><input type="checkbox"> git push -b feature/x</label>
+            </div>
+            <button class="add-row-btn" type="button" style="margin-top:8px">+ 選択肢を追加</button>
+          </div>
+        </div>
+
+        <div class="edit-card">
+          <div class="edit-card-head">
+            <span class="edit-card-title">設問2（単元2・記述式）</span>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-secondary btn-sm" type="button">コピーして追加</button>
+              <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label>種別</label>
+              <select>
+                <option>単一選択</option>
+                <option>複数選択</option>
+                <option selected>記述式</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>配点</label>
+              <input type="number" value="20" min="0" step="5">
+            </div>
+          </div>
+          <div class="field">
+            <label>設問文</label>
+            <textarea rows="2">よいプルリクエストの説明文に含めるべき情報を2つ挙げて説明してください。</textarea>
+          </div>
+          <div class="field" style="margin-bottom:0">
+            <label>模範解答・採点基準（AI採点の参照用）</label>
+            <textarea rows="3">変更の目的（なぜその変更が必要か）と、動作確認の方法（どう確認したか）が含まれていれば加点。箇条書きでも可。</textarea>
+          </div>
+        </div>
+
+        <button class="add-row-btn" type="button">+ 設問を追加</button>
+      </div>
+
+      <!-- 構成タブ -->
+      <div class="tab-panel" id="panel-structure">
+        <div class="field" style="max-width:360px">
+          <label>所属コース</label>
+          <select>
+            <option selected>エンジニア基礎</option>
+            <option>新人研修2026</option>
+            <option>フロントエンド基礎</option>
+          </select>
+        </div>
+
+        <section class="panel">
+          <div class="panel-header">
+            <div class="panel-title">単元構成</div>
+            <span class="panel-count">4単元</span>
+          </div>
+          <div class="panel-body">
+            <div class="qual-row">
+              <input type="text" value="単元1: Gitの基本概念とセットアップ" style="flex:1;max-width:none">
+              <button class="icon-btn" type="button" title="上へ">↑</button>
+              <button class="icon-btn" type="button" title="下へ">↓</button>
+              <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
+            </div>
+            <div class="qual-row">
+              <input type="text" value="単元2: ブランチとプルリクエストの基本" style="flex:1;max-width:none">
+              <button class="icon-btn" type="button" title="上へ">↑</button>
+              <button class="icon-btn" type="button" title="下へ">↓</button>
+              <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
+            </div>
+            <div class="qual-row">
+              <input type="text" value="単元3: コンフリクトの解消" style="flex:1;max-width:none">
+              <button class="icon-btn" type="button" title="上へ">↑</button>
+              <button class="icon-btn" type="button" title="下へ">↓</button>
+              <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
+            </div>
+            <div class="qual-row">
+              <input type="text" value="単元4: よく使うコマンドまとめ" style="flex:1;max-width:none">
+              <button class="icon-btn" type="button" title="上へ">↑</button>
+              <button class="icon-btn" type="button" title="下へ">↓</button>
+              <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
+            </div>
+            <button class="add-row-btn" type="button" style="margin-top:4px">+ 単元を追加</button>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <div class="panel-title">合否判定・再受験設定</div>
+          </div>
+          <div class="panel-body">
+            <div class="field-row">
+              <div class="field">
+                <label>合格基準（正答率）</label>
+                <div style="display:flex;align-items:center;gap:6px">
+                  <input type="number" value="70" min="0" max="100" step="5" style="width:90px">
+                  <span style="font-size:12px;color:var(--text-muted)">%以上</span>
+                </div>
+              </div>
+              <div class="field">
+                <label>再受験</label>
+                <div class="radio-group">
+                  <label class="radio-line"><input type="radio" name="retake" checked> 可</label>
+                  <label class="radio-line"><input type="radio" name="retake"> 不可</label>
+                </div>
+              </div>
+            </div>
+            <div class="field" style="max-width:220px;margin-bottom:0">
+              <label>再受験可能回数（合格まで）</label>
+              <input type="number" value="3" min="1" step="1">
+              <span class="field-help">回数制限をなくす場合は空欄にします</span>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- ファイル・リンクタブ -->
+      <div class="tab-panel" id="panel-attach">
+        <p class="tab-note">動画・スライド・PDF等のファイル添付、または外部サービス上の資料へのリンクを登録できます。</p>
+
+        <section class="panel">
+          <div class="panel-header">
+            <div class="panel-title">添付済みファイル・リンク</div>
+            <span class="panel-count">3件</span>
+          </div>
+          <div class="panel-body">
+            <div class="attach-item">
+              <span class="attach-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></span>
+              <div style="flex:1;min-width:0">
+                <div class="attach-name">ブランチ運用デモ動画.mp4</div>
+                <div class="attach-meta">動画 ／ 48.2MB ／ 2026-08-10 登録</div>
+              </div>
+              <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
+            </div>
+            <div class="attach-item">
+              <span class="attach-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span>
+              <div style="flex:1;min-width:0">
+                <div class="attach-name">Git用語集.pdf</div>
+                <div class="attach-meta">PDF ／ 620KB ／ 2026-07-28 登録</div>
+              </div>
+              <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
+            </div>
+            <div class="attach-item">
+              <span class="attach-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span>
+              <div style="flex:1;min-width:0">
+                <div class="attach-name">外部スライド（Google スライド）</div>
+                <div class="attach-meta">外部リンク ／ slides.google.com/... ／ 2026-08-14 登録</div>
+              </div>
+              <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <div class="panel-title">追加</div>
+          </div>
+          <div class="panel-body">
+            <div class="field">
+              <label>ファイルを選択</label>
+              <div class="file-pick">
+                <input type="file">
+              </div>
+              <span class="field-help">動画・スライド・PDFに対応（容量上限は基本設計フェーズで決定予定）</span>
+            </div>
+            <div class="field" style="margin-bottom:0">
+              <label>または外部リンクを追加</label>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <input type="url" placeholder="https://..." style="flex:1;min-width:220px">
+                <button class="btn btn-secondary" type="button">追加</button>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- 共同編集者タブ -->
+      <div class="tab-panel" id="panel-editors">
+
+        <!-- 個人教材の例: オーナー・共同編集者モデル（F-07） -->
+        <div id="editors-personal">
+          <p class="tab-note">オーナー、または管理者は共同編集者の追加・削除ができます。これは個人が作成・共有する教材（F-07）の権限モデルです。プロジェクトに紐づく教材は、この下の「プロジェクト教材の例」のとおり別の判定軸（F-25）になります。</p>
+
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr><th>氏名</th><th style="width:120px">ロール</th><th style="width:120px">区分</th><th style="width:110px">追加日</th><th style="width:100px">操作</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><div style="display:flex;align-items:center;gap:9px"><span class="avatar">鈴</span><span class="cell-main">鈴木 美咲</span></div></td>
+                  <td><span class="badge badge-role role-author">author</span></td>
+                  <td><span class="badge badge-status-on">オーナー</span></td>
+                  <td>2026-07-01</td>
+                  <td><button class="btn btn-ghost btn-sm" type="button" disabled title="オーナー自身は削除できません">-</button></td>
+                </tr>
+                <tr>
+                  <td><div style="display:flex;align-items:center;gap:9px"><span class="avatar">高</span><span class="cell-main">高橋 大輔</span></div></td>
+                  <td><span class="badge badge-role role-learner">learner</span></td>
+                  <td><span class="badge">共同編集者</span></td>
+                  <td>2026-08-05</td>
+                  <td><button class="btn btn-danger-ghost btn-sm" type="button">削除</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="search-actions" style="border-top:none;padding-top:0;margin-top:14px">
+            <select style="min-width:220px">
+              <option selected disabled>共同編集者を選択して追加…</option>
+              <option>山田 花子（manager）</option>
+              <option>佐藤 健一（learner）</option>
+            </select>
+            <button class="btn btn-secondary" type="button">追加</button>
+            <button class="btn btn-ghost" type="button" style="margin-left:auto">オーナーを引き継ぐ…</button>
+          </div>
+        </div>
+
+        <!-- プロジェクト教材の例: プロジェクトのローカルロールモデル（F-25、7.3） -->
+        <div id="editors-project" style="display:none">
+          <div class="callout">
+            この教材はプロジェクト「<strong>LCC CRM刷新</strong>」に紐づいています。編集権限はこのタブの一覧を編集することではなく、プロジェクトの管理者・編集者（ローカルロール）で判定されます（F-25）。あなたはこのプロジェクトの<strong>編集者</strong>としてアクセスしており、メンバーの追加・削除・ロール設定はプロジェクト管理者専用の操作です。
+          </div>
+
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr><th>氏名</th><th style="width:140px">全社ロール</th><th style="width:140px">プロジェクトロール</th><th style="width:110px">参加日</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><div style="display:flex;align-items:center;gap:9px"><span class="avatar">山</span><span class="cell-main">山田 花子</span></div></td>
+                  <td><span class="badge badge-role role-manager">manager</span></td>
+                  <td><span class="badge badge-projrole projrole-admin">管理者</span></td>
+                  <td>2026-03-01</td>
+                </tr>
+                <tr>
+                  <td><div style="display:flex;align-items:center;gap:9px"><span class="avatar">鈴</span><span class="cell-main">鈴木 美咲（あなた）</span></div></td>
+                  <td><span class="badge badge-role role-author">author</span></td>
+                  <td><span class="badge badge-projrole projrole-editor">編集者</span></td>
+                  <td>2026-06-12</td>
+                </tr>
+                <tr>
+                  <td><div style="display:flex;align-items:center;gap:9px"><span class="avatar">高</span><span class="cell-main">高橋 大輔</span></div></td>
+                  <td><span class="badge badge-role role-learner">learner</span></td>
+                  <td><span class="badge badge-projrole projrole-editor">編集者</span></td>
+                  <td>2026-06-12</td>
+                </tr>
+                <tr>
+                  <td><div style="display:flex;align-items:center;gap:9px"><span class="avatar">佐</span><span class="cell-main">佐藤 健一</span></div></td>
+                  <td><span class="badge badge-role role-learner">learner</span></td>
+                  <td><span class="badge badge-projrole projrole-member">受講者</span></td>
+                  <td>2026-07-20</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="search-actions" style="border-top:none;padding-top:0;margin-top:14px">
+            <span style="font-size:12px;color:var(--text-subtle)">メンバーの追加・削除・ロール変更はプロジェクト管理者が行います。</span>
+            <a class="btn btn-secondary" href="S-12_project-management.html" style="margin-left:auto">プロジェクト管理画面を開く（S-12）→</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- AIレビュー結果タブ -->
+      <div class="tab-panel" id="panel-review">
+        <div class="toolbar">
+          <button class="btn btn-primary" type="button">
+            <span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg></span>
+            AIレビューを実行
+          </button>
+          <span class="result-count">最終実行: 2026-08-16 10:20（鈴木 美咲）</span>
+        </div>
+
+        <div class="ai-review-item">
+          <span class="badge badge-due-soon" style="flex-shrink:0">指摘</span>
+          <div>
+            <div style="font-weight:600;font-size:12.5px;margin-bottom:2px">単元3「コンフリクトの解消」に問題が1問も設定されていません</div>
+            <div style="font-size:12px;color:var(--text-muted)">他の単元と学習内容の定着度を揃えるため、コンフリクト解消の手順に関する設問を1問以上追加することを推奨します。</div>
+          </div>
+        </div>
+        <div class="ai-review-item">
+          <span class="badge badge-due-soon" style="flex-shrink:0">指摘</span>
+          <div>
+            <div style="font-weight:600;font-size:12.5px;margin-bottom:2px">設問1（単元2）の選択肢がすべて似た形式のコマンドで紛らわしい可能性があります</div>
+            <div style="font-size:12px;color:var(--text-muted)">「git checkout -b」以外の選択肢も実在するコマンドの断片であるため、初学者には判別が難しい場合があります。誤答選択肢の妥当性を再確認してください。</div>
+          </div>
+        </div>
+        <div class="ai-review-item">
+          <span class="badge" style="flex-shrink:0">提案</span>
+          <div>
+            <div style="font-weight:600;font-size:12.5px;margin-bottom:2px">本文に図解を追加すると理解しやすくなります</div>
+            <div style="font-size:12px;color:var(--text-muted)">ブランチ分岐のイメージ図があると、テキストのみの説明より初学者の理解が進みやすいと考えられます。</div>
+          </div>
+        </div>
+
+        <p class="ai-generated-note">※ AIレビューの指摘に従うかどうかはオーナー・共同編集者の判断に委ねられます。この結果は教材の品質を保証するものではありません。</p>
+      </div>
+
+      <!-- 改訂履歴タブ -->
+      <div class="tab-panel" id="panel-history">
+        <p class="tab-note">教材の改訂履歴です。Claude Code連携API経由の更新も含め、いつ・誰が・何を変更したかを記録します。</p>
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr><th style="width:150px">日時</th><th style="width:140px">変更者</th><th>変更内容</th><th style="width:110px">経路</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>2026-08-16 10:05</td><td>鈴木 美咲</td><td>単元2 本文を修正（コマンド例を追記）</td><td><span class="chip">画面</span></td></tr>
+              <tr><td>2026-08-14 21:40</td><td>鈴木 美咲</td><td>外部リンク（スライド）を追加</td><td><span class="chip">画面</span></td></tr>
+              <tr><td>2026-08-10 08:12</td><td>鈴木 美咲</td><td>単元4「よく使うコマンドまとめ」を新規追加</td><td><span class="chip">Claude Code</span></td></tr>
+              <tr><td>2026-08-05 13:30</td><td>高橋 大輔</td><td>設問2（記述式）の採点基準を修正</td><td><span class="chip">画面</span></td></tr>
+              <tr><td>2026-07-01 09:00</td><td>鈴木 美咲</td><td>教材を新規作成</td><td><span class="chip">Claude Code</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="mock-note">画面モックアップ（S-05）/ 研修サンプル</div>
+
+<script>
+// タブ切替（静的モック確認用の最小限のJS）
+function switchTab(name) {
+  var tabs = ['body', 'questions', 'structure', 'attach', 'editors', 'review', 'history'];
+  tabs.forEach(function (t) {
+    document.getElementById('tab-' + t).classList.toggle('active', t === name);
+    document.getElementById('panel-' + t).classList.toggle('active', t === name);
+  });
+}
+
+// 個人教材／プロジェクト教材の表示例切替（モック確認用の最小限のJS。実画面には存在しない）
+function switchMode(mode) {
+  var isProject = mode === 'project';
+  document.getElementById('mode-personal-btn').classList.toggle('active', !isProject);
+  document.getElementById('mode-project-btn').classList.toggle('active', isProject);
+  document.getElementById('title-personal').style.display = isProject ? 'none' : '';
+  document.getElementById('title-project').style.display = isProject ? '' : 'none';
+  document.getElementById('ownerinfo-personal').style.display = isProject ? 'none' : 'flex';
+  document.getElementById('ownerinfo-project').style.display = isProject ? 'flex' : 'none';
+  document.getElementById('editors-personal').style.display = isProject ? 'none' : '';
+  document.getElementById('editors-project').style.display = isProject ? '' : 'none';
+}
+</script>
+
+</body>
+</html>

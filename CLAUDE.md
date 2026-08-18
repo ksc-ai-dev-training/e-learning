@@ -11,13 +11,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## ブランチ構成
 
 - `requirements-definition`: 要件定義書など、要件定義フェーズの成果物を管理する。
-- `basic-design`: 画面モックアップ・基本設計書など、基本設計フェーズの成果物を管理する。要件定義書と画面まわりの成果物は別ブランチで管理する方針のため、`docs/03_画面モックアップ/` と `docs/04_基本設計書.html` は本ブランチ（requirements-definition）には含めない。
+- `basic-design`（本ブランチ）: 画面モックアップ・基本設計書など、基本設計フェーズの成果物を管理する。要件定義書と画面まわりの成果物は別ブランチで管理する方針のため、`docs/03_画面モックアップ/` と `docs/04_基本設計書.html` は本ブランチで管理し、`requirements-definition` ブランチには含めない。
 
 ## ドキュメント構成（変更前に該当ドキュメントを参照すること）
 
 | 内容 | ファイル |
 |---|---|
-| 要件定義 | `docs/02_要件定義書.html` |
+| 要件定義 | `docs/02_要件定義書.html`（requirements-definitionブランチからマージ） |
+| 画面モックアップ（S-01〜S-12） | `docs/03_画面モックアップ/` |
+| 基本設計 | `docs/04_基本設計書.html`（作成中。セッション上限により6章までで中断、続きの作成が必要） |
 
 ドキュメントを追加したら、この表を更新する。
 
@@ -32,7 +34,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 実装状況
 
-- 未着手。現時点では要件定義書（`docs/02_要件定義書.html`）のみ存在する。
-- 要件定義フェーズは `requirements-definition` ブランチで作業中。
-- `docs/02_要求定義書.html` は `docs/02_要件定義書.html` にリネーム済み（2026-08-18）。
-- 画面モックアップ・基本設計書は `basic-design` ブランチで管理する。
+- 未着手。要件定義書・画面モックアップが存在する。基本設計書は作成中。
+- 基本設計フェーズは `basic-design` ブランチ（`requirements-definition` から分岐）で作業中。
+- 基本設計書（`docs/04_基本設計書.html`）はセッション上限により6章（データベース設計）までで中断・未完成（2026-08-18）。7章（API設計）以降の続きの作成が必要。

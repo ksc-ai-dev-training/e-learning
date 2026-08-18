@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>e-learning 画面モックアップ一覧</title>
+<link rel="stylesheet" href="mock.css">
+</head>
+<body>
+
+<div class="index-page">
+  <div class="index-header">
+    <div class="brand-mark">e</div>
+    <h1>e-learning 画面モックアップ一覧</h1>
+  </div>
+  <p class="index-lead">社内学習管理システム（e-learning）の画面モックアップ（静的HTML）です。各カードをクリックすると画面イメージを確認できます。<br>
+  <span style="font-size:11.5px;color:var(--text-subtle)">Ver 1.1 ／ 要件定義書 v1.4 に基づき更新（プロジェクトのローカルロール・プロジェクト単位教材管理を反映。画面一覧・画面遷移は要件定義書 4.1・4.2 準拠）</span><br>
+  <span style="font-size:11.5px;color:var(--text-subtle)">※ 設計時点のイメージです。デザインシステムは Keireki（社員経歴書管理システム）のモックアップを踏襲しています。</span></p>
+
+  <div class="mock-cards">
+    <a class="mock-card" href="S-01_login.html">
+      <div class="card-top">
+        <span class="card-id">S-01</span>
+        <span class="card-name">ログイン</span>
+      </div>
+      <div class="card-roles">
+        <span class="badge">全員（未認証）</span>
+      </div>
+      <p class="card-desc">Googleでログインボタンのみのシンプルな画面。許可ドメイン（kogasoftware.com）のみ利用可。</p>
+    </a>
+
+    <a class="mock-card" href="S-02_my-learning.html">
+      <div class="card-top">
+        <span class="card-id">S-02</span>
+        <span class="card-name">マイ学習</span>
+      </div>
+      <div class="card-roles">
+        <span class="badge">全ロール</span>
+      </div>
+      <p class="card-desc">ログイン後の初期画面。自分が受けるべき必修・任意教材の一覧と進捗状況を表示。期限が近い必修教材を強調表示。</p>
+    </a>
+
+    <a class="mock-card" href="S-03_materials-list.html">
+      <div class="card-top">
+        <span class="card-id">S-03</span>
+        <span class="card-name">教材一覧・検索</span>
+      </div>
+      <div class="card-roles">
+        <span class="badge">全ロール</span>
+      </div>
+      <p class="card-desc">公開されている教材の一覧・検索。単元・コース単位で表示し、必修/任意・所要時間を確認できる。</p>
+    </a>
+
+    <a class="mock-card" href="S-04_material-view.html">
+      <div class="card-top">
+        <span class="card-id">S-04</span>
+        <span class="card-name">教材受講</span>
+      </div>
+      <div class="card-roles">
+        <span class="badge">対象者（全ロール）</span>
+      </div>
+      <p class="card-desc">教材本文の閲覧、選択式・記述式問題への回答。中断・再開、反復演習・誤答抽出出題にタブで対応。</p>
+    </a>
+
+    <a class="mock-card" href="S-05_material-edit.html">
+      <div class="card-top">
+        <span class="card-id">S-05</span>
+        <span class="card-name">教材編集</span>
+      </div>
+      <div class="card-roles">
+        <span class="badge">オーナー・共同編集者</span>
+        <span class="badge">プロジェクトの管理者・編集者</span>
+        <span class="badge badge-role role-admin">admin</span>
+      </div>
+      <p class="card-desc">教材・問題のテキスト編集（Markdown/HTML切替）、ファイル・リンク添付、単元/コース構成、AIレビュー結果・改訂履歴の確認。個人教材はオーナー・共同編集者、プロジェクト教材はそのプロジェクトの管理者・編集者（ローカルロール）がアクセス可。画面上部のトグルで両方の例を確認できます。</p>
+    </a>
+
+    <a class="mock-card" href="S-06_assignment-settings.html">
+      <div class="card-top">
+        <span class="card-id">S-06</span>
+        <span class="card-name">配信設定</span>
+      </div>
+      <div class="card-roles">
+        <span class="badge badge-role role-admin">admin</span>
+      </div>
+      <p class="card-desc">教材の配信対象（全社/部署/プロジェクト/個人）、必修/任意、受講期限の設定。</p>
+    </a>
+
+    <a class="mock-card" href="S-07_org-management.html">
+      <div class="card-top">
+        <span class="card-id">S-07</span>
+        <span class="card-name">組織管理</span>
+      </div>
+      <div class="card-roles">
+        <span class="badge badge-role role-admin">admin</span>
+      </div>
+      <p class="card-desc">部署の登録のみを扱う画面（v1.4でプロジェクト関連タブを削除・縮小）。プロジェクトの作成・管理はS-11・S-12に移管されました。</p>
+    </a>
+
+    <a class="mock-card" href="S-08_dashboard.html">
+      <div class="card-top">
+        <span class="card-id">S-08</span>
+        <span class="card-name">受講状況ダッシュボード</span>
+      </div>
+      <div class="card-roles">
+        <span class="badge badge-role role-manager">manager</span>
+        <span class="badge badge-role role-admin">admin</span>
+      </div>
+      <p class="card-desc">担当範囲（部署/プロジェクト/全社）の受講率・合格率・未受講者の確認。AI組織レポートの表示。managerは担当範囲に限定。</p>
+    </a>
+
+    <a class="mock-card" href="S-09_my-report.html">
+      <div class="card-top">
+        <span class="card-id">S-09</span>
+        <span class="card-name">個人学習レポート</span>
+      </div>
+      <div class="card-roles">
+        <span class="badge">本人</span>
+        <span class="badge badge-role role-manager">manager</span>
+        <span class="badge badge-role role-admin">admin</span>
+      </div>
+      <p class="card-desc">AIによる個人フィードバック（理解不足点・推奨教材）と学習履歴の表示。</p>
+    </a>
+
+    <a class="mock-card" href="S-10_admin.html">
+      <div class="card-top">
+        <span class="card-id">S-10</span>
+        <span class="card-name">管理</span>
+      </div>
+      <div class="card-roles">
+        <span class="badge badge-role role-admin">admin</span>
+      </div>
+      <p class="card-desc">タブ構成: 「ユーザー管理」（ロール変更・有効/無効）、「システム設定」（AI利用設定・Slack通知・猶予期間）。</p>
+    </a>
+
+    <a class="mock-card" href="S-11_project-create.html">
+      <div class="card-top">
+        <span class="card-id">S-11</span>
+        <span class="card-name">プロジェクト作成</span>
+      </div>
+      <div class="card-roles">
+        <span class="badge">全ロール</span>
+      </div>
+      <p class="card-desc">プロジェクト名・説明を入力して新規作成するシンプルな画面。作成者は自動的にそのプロジェクトの管理者になる（F-24、v1.4新設）。</p>
+    </a>
+
+    <a class="mock-card" href="S-12_project-management.html">
+      <div class="card-top">
+        <span class="card-id">S-12</span>
+        <span class="card-name">プロジェクト管理</span>
+      </div>
+      <div class="card-roles">
+        <span class="badge">対象プロジェクトの管理者</span>
+        <span class="badge badge-role role-admin">admin</span>
+      </div>
+      <p class="card-desc">タブ構成: 「プロジェクト情報」（名称・説明の編集）、「メンバー管理」（メンバー一覧・ロール設定・追加削除）、「教材の共有」（他プロジェクトへの共有設定）。F-24〜F-26、v1.4新設。</p>
+    </a>
+  </div>
+
+  <div class="flow-section">
+    <div class="flow-title">画面遷移図</div>
+    <div class="flow-diagram">
+      <div class="flow-lane">
+        <div class="flow-node flow-start">
+          <div class="flow-id">S-01</div>
+          <div class="flow-name">ログイン</div>
+        </div>
+        <div class="flow-arrow">
+          <span class="arrow-label">ログイン成功</span>
+          <span class="arrow-line"></span>
+        </div>
+        <div class="flow-node">
+          <div class="flow-id">S-02</div>
+          <div class="flow-name">マイ学習</div>
+        </div>
+        <div class="flow-arrow">
+          <span class="arrow-label">教材を探す</span>
+          <span class="arrow-line"></span>
+        </div>
+        <div class="flow-node">
+          <div class="flow-id">S-03</div>
+          <div class="flow-name">教材一覧・検索</div>
+        </div>
+        <div class="flow-arrow">
+          <span class="arrow-label">受講する</span>
+          <span class="arrow-line"></span>
+        </div>
+        <div class="flow-node">
+          <div class="flow-id">S-04</div>
+          <div class="flow-name">教材受講</div>
+        </div>
+      </div>
+
+      <div class="flow-branch">
+        <div class="flow-node">
+          <div class="flow-id">S-09</div>
+          <div class="flow-name">個人学習レポート</div>
+        </div>
+        <div class="flow-branch-note">← S-02「マイ学習」から、自分の学習記録・AIフィードバックを確認するために遷移</div>
+      </div>
+
+      <div class="flow-branch">
+        <div class="flow-node">
+          <div class="flow-id">S-05</div>
+          <div class="flow-name">教材編集</div>
+        </div>
+        <div class="flow-branch-note">← サイドバーの「教材編集」から遷移（オーナー・共同編集者、または対象教材が紐づくプロジェクトの管理者・編集者を持つ教材がある場合と、adminに表示）</div>
+      </div>
+
+      <div class="flow-branch">
+        <div class="flow-node">
+          <div class="flow-id">S-06</div>
+          <div class="flow-name">配信設定</div>
+        </div>
+        <div class="flow-node">
+          <div class="flow-id">S-07</div>
+          <div class="flow-name">組織管理</div>
+        </div>
+        <div class="flow-node">
+          <div class="flow-id">S-08</div>
+          <div class="flow-name">受講状況ダッシュボード</div>
+        </div>
+        <div class="flow-node">
+          <div class="flow-id">S-10</div>
+          <div class="flow-name">管理</div>
+        </div>
+        <div class="flow-branch-note">← サイドバーの管理者メニューから遷移（adminのみ表示）</div>
+      </div>
+
+      <div class="flow-branch">
+        <div class="flow-branch-note">※ S-08（受講状況ダッシュボード）は manager にもメニュー表示されます（担当範囲の部署/プロジェクトに限定。プロジェクトの管理者〔ローカルロール〕であれば全ロールに自プロジェクト分が表示）</div>
+      </div>
+
+      <div class="flow-branch">
+        <div class="flow-node">
+          <div class="flow-id">S-11</div>
+          <div class="flow-name">プロジェクト作成</div>
+        </div>
+        <div class="flow-arrow">
+          <span class="arrow-label">作成（自動的に管理者に）</span>
+          <span class="arrow-line"></span>
+        </div>
+        <div class="flow-node">
+          <div class="flow-id">S-12</div>
+          <div class="flow-name">プロジェクト管理</div>
+        </div>
+        <div class="flow-branch-note">← S-11は全ロールのヘッダーに常時表示。S-12は自分が管理者であるプロジェクトがある場合にメニュー表示（v1.4新設、F-24〜F-26）</div>
+      </div>
+
+      <div class="flow-branch">
+        <div class="flow-node">
+          <div class="flow-id">S-12</div>
+          <div class="flow-name">プロジェクト管理</div>
+        </div>
+        <div class="flow-arrow">
+          <span class="arrow-label">紐づく教材を編集</span>
+          <span class="arrow-line"></span>
+        </div>
+        <div class="flow-node">
+          <div class="flow-id">S-05</div>
+          <div class="flow-name">教材編集</div>
+        </div>
+        <div class="flow-branch-note">プロジェクト教材の場合、S-05とS-12は相互にリンクします（メンバー管理の導線／教材一覧の導線）</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="mock-note">画面モックアップ 一覧 / 研修サンプル</div>
+
+</body>
+</html>
