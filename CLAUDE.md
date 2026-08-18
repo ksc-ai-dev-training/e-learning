@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 概要
 
-社内学習管理システム「e-learning」の設計ドキュメントと実装（新人向けAI開発研修のサンプル成果物）。教材の作成・配信・受講・AIによる採点/分析を扱う。要求事項の詳細は `docs/02_要求定義書.html` を参照。
+社内学習管理システム「e-learning」の設計ドキュメントと実装（新人向けAI開発研修のサンプル成果物）。教材の作成・配信・受講・AIによる採点/分析を扱う。要件の詳細は要件定義書（`docs/02_要求定義書.html`。文書タイトルは v1.4 で「要件定義書」に変更済みだが、ファイル名は他ドキュメントからの参照を壊さないよう変更を保留中）を参照。
 
 現時点ではドキュメントのみで、実装（backend/frontend）は未着手。
 
@@ -12,7 +12,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 | 内容 | ファイル |
 |---|---|
-| 要求定義 | `docs/02_要求定義書.html` |
+| 要件定義（ファイル名は要リネーム、下記参照） | `docs/02_要求定義書.html` |
+| 画面モックアップ（S-01〜S-10） | `docs/03_画面モックアップ/` |
 
 ドキュメントを追加したら、この表を更新する。
 
@@ -27,5 +28,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 実装状況
 
-- 未着手。現時点では要求定義書（`docs/02_要求定義書.html`）のみ存在する。
-- 要求定義フェーズは `requirements-definition` ブランチで作業中。
+- 未着手。現時点では要件定義書（`docs/02_要求定義書.html`）と画面モックアップ（`docs/03_画面モックアップ/`）のみ存在する。
+- 要件定義フェーズは `requirements-definition` ブランチで作業中。
+- **TODO:** `docs/02_要求定義書.html` を `docs/02_要件定義書.html` にリネームする（v1.4でタイトルを「要件定義書」に変更済みだが、ファイル名は基本設計書作成タスクの参照競合を避けるため未変更）。リネーム時は CLAUDE.md・本書からの相互参照を確認すること。
+- 基本設計書（`docs/04_基本設計書.html`）を作成中（バックグラウンドタスク）。

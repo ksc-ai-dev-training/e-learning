@@ -146,6 +146,11 @@ pre code { background: none; border: none; color: inherit; padding: 0; }
 .badge-author { background: #fef3c7; color: #b45309; }
 .badge-learner { background: #f1f5f9; color: #475569; }
 
+/* 改訂差分の強調表示（変更箇所を明示するための一時的なマーキング） */
+.rev-new { color: #dc2626; }
+tr.rev-row td { color: #dc2626; }
+.rev-old { color: #9aa0a8; text-decoration: line-through; }
+
 .callout {
   background: var(--accent-50);
   border: 1px solid var(--accent-100);
