@@ -16,7 +16,7 @@
     <p class="subtitle">社内学習管理システム（e-learning）</p>
     <div class="meta">
       <span>作成日: 2026-08-18</span>
-      <span>版数: 1.0</span>
+      <span>版数: 1.1</span>
       <span>作成: コガソフトウェア株式会社</span>
     </div>
     <p class="note">本ドキュメントは新人社員向けAI開発研修のサンプル成果物です</p>
@@ -28,6 +28,7 @@
     <thead><tr><th>版数</th><th>日付</th><th>改訂内容</th></tr></thead>
     <tbody>
       <tr><td>1.0</td><td>2026-08-18</td><td>初版</td></tr>
+      <tr><td>1.1</td><td>2026-08-18</td><td>要件定義書v1.4（教材のプロジェクト単位管理）に対応。1〜6章を改訂: プロジェクトのローカルロール（管理者/編集者/受講者）による認可を3.5節として新設し、3.3節から自己申告制の記述を削除。S-11（プロジェクト作成）・S-12（プロジェクト管理）を4章に新設し、S-05・S-07の記述を更新。F-24（プロジェクト管理）・F-25（プロジェクト単位教材管理）・F-26（教材のプロジェクト間共有）を5章に新設し、F-03・F-07・F-19を修正。T-04にrole・assigned_by列を、T-06にproject_id列を追加し、T-22 material_project_sharesを新設（6章）。変更箇所は赤字で示す。7章以降は本改訂の対象外（別タスクで新設）。</td></tr>
     </tbody>
   </table>
 
@@ -53,10 +54,10 @@
   <h2 id="sec1">1. はじめに</h2>
 
   <h3>1.1 本書の位置づけ</h3>
-  <p>本書は、社内学習管理システム（e-learning）の基本設計書である。要求定義書（v1.3）で定義された要求事項（REQ-F-01〜REQ-F-19、REQ-N-01〜REQ-N-06）を実現するためのシステム構成・認証認可方式・画面・機能・データベース・API・教材連携・AI連携の設計方針を定める。実装レベルの詳細（カラム単位の入出力仕様、リクエスト/レスポンスのフィールド定義、バリデーション規則、フロントマターの完全な文法など）は後続の詳細設計書で定義する。</p>
+  <p>本書は、社内学習管理システム（e-learning）の基本設計書である。<span class="rev-old">要求定義書（v1.3）</span><span class="rev-new">要件定義書（v1.4）</span>で定義された要求事項（REQ-F-01〜REQ-F-19、REQ-N-01〜REQ-N-06）を実現するためのシステム構成・認証認可方式・画面・機能・データベース・API・教材連携・AI連携の設計方針を定める。実装レベルの詳細（カラム単位の入出力仕様、リクエスト/レスポンスのフィールド定義、バリデーション規則、フロントマターの完全な文法など）は後続の詳細設計書で定義する。</p>
   <p>本システムは、社員経歴書管理システム「Keireki」と同じ研修シリーズの一部であり、デザインシステム・ドキュメント形式・ID体系（REQ-xx=要求 / F-xx=機能 / S-xx=画面 / T-xx=テーブル / A-xx=API）・技術スタックの多くをKeirekiから踏襲する。画面の詳細レイアウトは、実際に作り込まれた画面モックアップ「<a href="03_画面モックアップ/index.html">03_画面モックアップ/</a>」を参照する。</p>
-  <div class="callout warn">
-    <strong>教材作成者（author）ロールの権限論点について:</strong> 「author ロールが受講者（learner）と権限的にほぼ同一で、実質的な追加権限が何かという設計論点」は、本書執筆時点でユーザーとの議論が保留中である。本書では要求定義書v1.3に記載された現状の権限モデル（4ロール制＋教材ごとのオーナー・共同編集者による追加の認可レイヤー）をそのまま前提として設計しており、この論点を先取りして解決したり独自の結論を出したりはしていない。後日 author ロールの結論が出た場合、本書の3章・7.3節・権限マトリクスを別途改訂する。
+  <div class="callout rev-new">
+    <strong>教材作成者（author）ロールの権限論点について（v1.4で解消）:</strong> 「author ロールが受講者（learner）と権限的にほぼ同一で、実質的な追加権限が何かという設計論点」は、v1.0執筆時点ではユーザーとの議論が保留中だった。要件定義書v1.4が導入したプロジェクトのローカルロール（管理者/編集者/受講者。F-24、要件定義書7.3節）により、教材の編集権限は「個人教材はオーナー・共同編集者（3.4節）」「プロジェクトに紐づく教材はそのプロジェクトの管理者・編集者（3.5節）」のいずれかで判定されるようになり、システム全体の「教材作成者（author）」ロールは編集権限の判定に用いられなくなった。この経緯により、本論点は実質的に解消されたものとして扱う。author ロールの名称・扱いをどう整理するかは要件定義書側の未決事項（要件定義書3章のコールアウト参照）であり、本書は現時点のロール名称（learner/author/manager/admin）をそのまま踏襲して設計している。詳細は3.5節を参照。
   </div>
 
   <h3>1.2 要求定義書との対応表</h3>
@@ -67,9 +68,9 @@
       <tr><td>REQ-F-01</td><td>教材と問題を登録・修正できること</td><td>F-04（5.4節）、S-05（4章）、T-06・T-10（6章）</td></tr>
       <tr><td>REQ-F-02</td><td>Claude Codeから教材・問題を登録・修正できること</td><td>F-05（5.5節）、8章 教材連携設計</td></tr>
       <tr><td>REQ-F-03</td><td>動画・スライド等のファイルを教材として扱えること</td><td>F-06（5.6節）、T-09（6章）</td></tr>
-      <tr><td>REQ-F-04</td><td>社員が自分で教材を作成・共有できること</td><td>F-07（5.7節）、3.4節（オーナー・共同編集者の認可レイヤー）</td></tr>
+      <tr><td>REQ-F-04</td><td>社員が自分で教材を作成・共有できること</td><td>F-07（5.7節）、3.4節（オーナー・共同編集者の認可レイヤー。個人教材）<span class="rev-new">、F-25（5.26節）・3.5節（プロジェクトのローカルロール。プロジェクト教材）</span></td></tr>
       <tr><td>REQ-F-05</td><td>公開前にAIが教材をレビューできること</td><td>F-08（5.8節）、9章 AI機能設計</td></tr>
-      <tr><td>REQ-F-06</td><td>会社全体・プロジェクト・部署・個人を単位として教材を割り当てられること</td><td>F-03・F-09（5.3・5.9節）、T-04・T-11（6章）</td></tr>
+      <tr><td>REQ-F-06</td><td>会社全体・プロジェクト・部署・個人を単位として教材を割り当てられること</td><td>F-03・F-09（5.3・5.9節）、T-04・T-11（6章）<span class="rev-new">、F-24・F-25・F-26（5.25〜5.27節）、3.5節、T-04・T-06・T-22（6章）</span></td></tr>
       <tr><td>REQ-F-07</td><td>必修と任意を区別して扱えること</td><td>F-10（5.10節）</td></tr>
       <tr><td>REQ-F-08</td><td>必修教材の期限を設定し、未受講者を把握・催促できること</td><td>F-11・F-12（5.11・5.12節）、T-20（6章）</td></tr>
       <tr><td>REQ-F-09</td><td>合否判定と再受験ができること</td><td>F-14（5.14節）、T-13（6章）</td></tr>
@@ -266,7 +267,7 @@
   </table>
 
   <h3>3.3 認可（ロールベースアクセス制御）</h3>
-  <p>ロールは learner / author / manager / admin の4ロール制とする（REQ-N-02）。認可判定はすべてサーバー側（<code>auth_helpers.py</code> の権限デコレーター）で行い、フロントエンドの表示制御はあくまで利便性のための補助とする。初回ログイン時は learner が付与され、ロールの変更は管理者（F-02）が行う。</p>
+  <p>ロールは learner / author / manager / admin の4ロール制とする（REQ-N-02）。認可判定はすべてサーバー側（<code>auth_helpers.py</code> の権限デコレーター）で行い、フロントエンドの表示制御はあくまで利便性のための補助とする。初回ログイン時は learner が付与され、ロールの変更は管理者（F-02）が行う。<span class="rev-new">プロジェクトに紐づく教材の編集・受講権限は、本節のシステム全体ロールとは別の軸として、3.5節のプロジェクトのローカルロール（管理者/編集者/受講者）で判定する。</span></p>
   <table>
     <thead><tr><th>ロール</th><th>コード</th><th>想定利用者</th><th>できること</th></tr></thead>
     <tbody>
@@ -293,8 +294,7 @@
       <tr><td>Slackでの受講催促</td><td>×</td><td>×</td><td>○（担当範囲）</td><td>○（全社）</td></tr>
       <tr><td>担当範囲メンバーの学習記録・個人レポート閲覧（S-09）</td><td>×</td><td>×</td><td>○（担当範囲）</td><td>○（全社）</td></tr>
       <tr><td>AI組織レポートの生成・閲覧</td><td>×</td><td>×</td><td>○（担当範囲）</td><td>○（全社）</td></tr>
-      <tr><td>組織マスタ管理（部署・プロジェクト登録、S-07）</td><td>×</td><td>×</td><td>×</td><td>○</td></tr>
-      <tr><td>プロジェクト所属の自己申告（参加・離任）</td><td>○（自分のみ）</td><td>○（自分のみ）</td><td>○（自分のみ）</td><td>○（自分のみ）</td></tr>
+      <tr><td>組織マスタ管理（部署登録、S-07）</td><td>×</td><td>×</td><td>×</td><td>○</td></tr>
       <tr><td>ユーザー・ロール管理、システム設定（S-10）</td><td>×</td><td>×</td><td>×</td><td>○</td></tr>
     </tbody>
   </table>
@@ -304,9 +304,9 @@
   </div>
 
   <h3>3.4 教材ごとのオーナー・共同編集者による追加の認可レイヤー</h3>
-  <p>要求定義書7章が定める「教材の改訂（オーナー・共同編集者）」は、3.3節のロールベース権限（RBAC）とは独立した、<strong>教材1件ごとの行レベル認可</strong>である。「受講者が自分で作成・共有した教材でも、オーナーであれば編集できる」（S-05の設計方針）を成立させるため、ロールでは判定できない。</p>
+  <p>要求定義書7章が定める「教材の改訂（オーナー・共同編集者）」は、3.3節のロールベース権限（RBAC）とは独立した、<strong>教材1件ごとの行レベル認可</strong>である。「受講者が自分で作成・共有した教材でも、オーナーであれば編集できる」（S-05の設計方針）を成立させるため、ロールでは判定できない。<span class="rev-new">本節の判定は、対象教材が<strong>個人教材（<code>materials.project_id</code> が NULL）</strong>の場合にのみ適用される。プロジェクトに紐づく教材（<code>project_id</code> が非NULL）の編集権限判定は3.5節を参照。</span></p>
   <ul>
-    <li><strong>判定ロジック:</strong> <code>auth_helpers.py</code> に <code>require_material_editor(material_id, user)</code> 依存関数を設け、S-05（教材編集）・教材更新系API（7章 A-17, A-19〜A-31 等）すべてで共通利用する。判定は次の優先順で行う。
+    <li><strong>判定ロジック:</strong> <code>auth_helpers.py</code> に <code>require_material_editor(material_id, user)</code> 依存関数を設け、S-05（教材編集）・教材更新系API（7章 A-17, A-19〜A-31 等）すべてで共通利用する。<span class="rev-new">この依存関数はまず対象教材の <code>project_id</code> を確認し（3.5節）、個人教材（<code>project_id IS NULL</code>）の場合に限り、</span>次の優先順で判定する。
       <ol>
         <li><code>user.role == 'admin'</code> なら許可（保守目的の全教材編集権）</li>
         <li><code>materials.owner_id == user.id</code> なら許可</li>
@@ -314,11 +314,31 @@
         <li>いずれにも該当しなければ 403</li>
       </ol>
     </li>
-    <li><strong>共同編集者の追加・削除・オーナー引き継ぎ:</strong> オーナー本人または admin のみが行える（共同編集者自身は不可）。プロジェクト単位の教材はオーナーの異動・離任後も、admin または既存の共同編集者がオーナーを引き継げるようにするため、オーナー引き継ぎ操作は「オーナー本人 or admin」に限定する（共同編集者からの一方的なオーナー交代は認めない）。</li>
-    <li><strong>RBACとの関係:</strong> ロール（learner/author/manager/admin）は「そもそも教材編集機能にアクセスできるか」を判定せず、S-05・関連APIへのアクセス可否は本節の行レベル判定のみで決まる（サイドバーの「教材編集」メニュー表示・非表示は、ログインユーザーがオーナー・共同編集者である教材が1件以上存在するかどうかで判定する利便性のための補助表示であり、認可そのものはAPI側の行レベル判定で担保する）。</li>
+    <li><strong>共同編集者の追加・削除・オーナー引き継ぎ:</strong> オーナー本人または admin のみが行える（共同編集者自身は不可）。<span class="rev-old">プロジェクト単位の教材はオーナーの異動・離任後も、admin または既存の共同編集者がオーナーを引き継げるようにするため、オーナー引き継ぎ操作は「オーナー本人 or admin」に限定する（共同編集者からの一方的なオーナー交代は認めない）。</span><span class="rev-new">プロジェクトに紐づく教材はこのオーナー・共同編集者モデルを使わないため（3.5節）、オーナー異動時の引き継ぎ問題はプロジェクトに紐づけることで根本的に回避できる。個人教材のままメンテナンス主体を分散したい場合は、共同編集者を追加するか、プロジェクトに紐づけ直す（F-25）運用とする。</span></li>
+    <li><strong>RBACとの関係:</strong> ロール（learner/author/manager/admin）は「そもそも教材編集機能にアクセスできるか」を判定せず、S-05・関連APIへのアクセス可否は本節（個人教材）または3.5節（プロジェクト教材）の行レベル判定のみで決まる（サイドバーの「教材編集」メニュー表示・非表示は、ログインユーザーがオーナー・共同編集者である教材、または管理者・編集者であるプロジェクトに紐づく教材が1件以上存在するかどうかで判定する利便性のための補助表示であり、認可そのものはAPI側の行レベル判定で担保する）。</li>
   </ul>
   <div class="callout">
-    <strong>なぜロールと独立させたか:</strong> 要求定義書7章は「教材作成者（author）ロールは、自身が作成した教材のオーナーとしての操作範囲を明確にするためのロールであり、教材の作成・共有自体は全ロール共通の操作」と明記している。したがって教材編集の可否をロールに紐付けると、learner が自作教材を編集できなくなり要求と矛盾する。オーナー・共同編集者という教材単位の行レベル認可をRBACとは別レイヤーとして持つことで、「誰でも教材を作れる」という要求と「教材ごとに編集者を絞る」という要求を両立させている。
+    <strong>なぜロールと独立させたか:</strong> 要求定義書7章は「教材作成者（author）ロールは、自身が作成した教材のオーナーとしての操作範囲を明確にするためのロールであり、教材の作成・共有自体は全ロール共通の操作」と明記している。したがって教材編集の可否をロールに紐付けると、learner が自作教材を編集できなくなり要求と矛盾する。オーナー・共同編集者という教材単位の行レベル認可をRBACとは別レイヤーとして持つことで、「誰でも教材を作れる」という要求と「教材ごとに編集者を絞る」という要求を両立させている。<span class="rev-new">プロジェクトに紐づく教材についても同じ問題意識（誰でも教材を作れる／編集者を絞りたい）が生じるが、v1.4ではプロジェクト単位で編集者を管理できるほうが実態に合う（3.5節のなぜプロジェクト単位のローカルロールを導入したか、参照）ため、別の認可レイヤーとして設計した。</span>
+  </div>
+
+  <h3 class="rev-new">3.5 プロジェクトのローカルロールによる認可</h3>
+  <p class="rev-new">要件定義書7.3節が定める「プロジェクトのローカルロール」は、3.3節のシステム全体ロール（learner/author/manager/admin）とも3.4節のオーナー・共同編集者モデルとも独立した、<strong>プロジェクト1件ごとの認可レイヤー</strong>である。プロジェクトは誰でも新規作成でき（F-24）、作成時に T-04 <code>project_memberships</code> へ作成者を <code>role='admin'</code> で自動登録する。以降のメンバー追加・削除・ロール変更は、そのプロジェクトの管理者のみが行える（社員本人による自己申告は行わない）。</p>
+  <table>
+    <thead><tr><th class="rev-new">ローカルロール</th><th class="rev-new">できること</th></tr></thead>
+    <tbody>
+      <tr class="rev-row"><td>管理者（admin）</td><td>プロジェクト情報の編集、メンバーの追加・削除・ロール設定、プロジェクトに紐づく教材の他プロジェクトへの共有（F-26）、自プロジェクトの受講状況確認（F-19）</td></tr>
+      <tr class="rev-row"><td>編集者（editor）</td><td>プロジェクトに紐づく教材の作成・修正（F-25）</td></tr>
+      <tr class="rev-row"><td>受講者（learner）</td><td>プロジェクトに紐づく教材の受講</td></tr>
+    </tbody>
+  </table>
+  <ul class="rev-new">
+    <li><strong>判定ロジック:</strong> <code>auth_helpers.py</code> に <code>require_project_role(project_id, user, min_role)</code> 依存関数を設け、S-12（プロジェクト管理）・プロジェクトに紐づく教材の編集系API・F-19の自プロジェクト受講状況確認で共通利用する。ロールには 管理者 &gt; 編集者 &gt; 受講者 という階層を設け、<code>project_memberships</code> 上のロールが <code>min_role</code> 以上であれば許可する（例: <code>min_role='editor'</code> の判定は編集者・管理者を許可し、受講者は不可）。システム全体の <code>user.role == 'admin'</code> は、当該プロジェクトのローカルロールを持たない場合でも常に許可する（3.4節のadmin保守権限と同じ位置づけ）。</li>
+    <li><strong>プロジェクト作成時の自動付与:</strong> A-09（プロジェクト作成）の処理内で、作成した <code>projects</code> 行に対する <code>project_memberships</code> 行を <code>user_id=作成者, role='admin'</code> で同時に作成する。作成者を限定しない（F-24。運用上は部署長・PMの作成を想定するが、システムとしては制限しない）。</li>
+    <li><strong>メンバー管理:</strong> メンバーの追加・削除・ロール変更（A-11〜A-13）は、<code>require_project_role(project_id, user, min_role='admin')</code> を満たすユーザーのみ実行できる。唯一の管理者を削除・降格する操作は400で拒否する（プロジェクト管理者が不在になることを防ぐため。3.3節の「管理者不在防止」と同じ設計方針）。</li>
+    <li><strong>教材編集権限判定の分岐:</strong> <code>require_material_editor(material_id, user)</code>（3.4節）は、対象教材の <code>materials.project_id</code> を確認し、<code>NULL</code> なら3.4節の判定（オーナー・共同編集者）、非NULLなら本節の <code>require_project_role(project_id, user, min_role='editor')</code> に処理を委譲する。教材の受講可否（配信対象、F-09）とは別の判定である点に注意する。詳細は5.26節（F-25）参照。</li>
+  </ul>
+  <div class="callout rev-new">
+    <strong>なぜプロジェクト単位のローカルロールを導入したか:</strong> v1.3までの「オーナー・共同編集者」モデルは、プロジェクト単位で配信される教材でもオーナー個人に紐づくため、オーナーの異動・離任のたびに引き継ぎ操作が必要だった（3.4節）。v1.4はこれに加え、プロジェクトという単位そのものにロール（管理者/編集者/受講者）を持たせることで、「誰が管理者か」「誰が編集できるか」をプロジェクト側で一元管理できるようにした。またプロジェクトの新規登録をadmin限定から誰でも可能にしたことで、旧v1.3の「プロジェクト所属の自己申告制」（3.3節の権限マトリクスにあった行）は不要になった。メンバーの追加・削除・ロール設定という能動的な操作をプロジェクト管理者に一本化したためである。
   </div>
 
   <!-- ============ 4. 画面設計 ============ -->
@@ -332,18 +352,20 @@
       <tr><td>S-02</td><td>マイ学習</td><td><code>/</code>（ログイン後の初期画面）</td><td>全ロール</td><td>自分が受けるべき必修・任意教材の一覧と進捗状況。期限が近い必修教材を強調表示</td></tr>
       <tr><td>S-03</td><td>教材一覧・検索</td><td><code>/materials</code></td><td>全ロール</td><td>公開されている教材の一覧・検索。単元・コース単位で表示</td></tr>
       <tr><td>S-04</td><td>教材受講</td><td><code>/materials/:materialId</code></td><td>対象者（全ロール）</td><td>教材本文の閲覧、選択式・記述式問題への回答。通常受講／反復演習／誤答のみ抽出の3タブ</td></tr>
-      <tr><td>S-05</td><td>教材編集</td><td><code>/materials/:materialId/edit</code></td><td>対象教材のオーナー・共同編集者、<span class="badge badge-admin">admin</span></td><td>本文・問題編集、単元/コース構成、ファイル・リンク添付、共同編集者管理、AIレビュー結果・改訂履歴の確認</td></tr>
+      <tr><td>S-05</td><td>教材編集</td><td><code>/materials/:materialId/edit</code></td><td>対象教材のオーナー・共同編集者<span class="rev-new">、対象教材が紐づくプロジェクトの管理者・編集者</span>、<span class="badge badge-admin">admin</span></td><td>本文・問題編集、単元/コース構成、ファイル・リンク添付、共同編集者管理<span class="rev-new">（個人教材の場合）／プロジェクトメンバーの確認とS-12への導線（プロジェクト教材の場合）</span>、AIレビュー結果・改訂履歴の確認<span class="rev-new">。個人教材（3.4節）とプロジェクトに紐づく教材（3.5節）の両方に対応する</span></td></tr>
       <tr><td>S-06</td><td>配信設定</td><td><code>/admin/assignments</code></td><td><span class="badge badge-admin">admin</span></td><td>教材の配信対象（全社/部署/プロジェクト/個人）、必修/任意、受講期限の設定</td></tr>
-      <tr><td>S-07</td><td>組織管理</td><td><code>/admin/organization</code></td><td><span class="badge badge-admin">admin</span></td><td>部署・プロジェクトの登録（タブ構成）、社員所属の閲覧。プロジェクト所属は社員本人の自己申告制</td></tr>
-      <tr><td>S-08</td><td>受講状況ダッシュボード</td><td><code>/dashboard</code></td><td><span class="badge badge-manager">manager</span> <span class="badge badge-admin">admin</span></td><td>担当範囲（部署/プロジェクト/全社）の受講率・合格率・未受講者の確認。AI組織レポートの表示</td></tr>
+      <tr><td>S-07</td><td>組織管理</td><td><code>/admin/organization</code></td><td><span class="badge badge-admin">admin</span></td><td><span class="rev-old">部署・プロジェクトの登録（タブ構成）、社員所属の閲覧。プロジェクト所属は社員本人の自己申告制</span><span class="rev-new">部署の登録のみを扱う。プロジェクトの作成・メンバー管理はS-11・S-12へ移管した（誰でも作成できるため、管理者専用画面からは分離した）</span></td></tr>
+      <tr><td>S-08</td><td>受講状況ダッシュボード</td><td><code>/dashboard</code></td><td><span class="badge badge-manager">manager</span> <span class="badge badge-admin">admin</span><span class="rev-new">、対象プロジェクトの管理者（自プロジェクト分のみ）</span></td><td>担当範囲（部署/プロジェクト/全社）の受講率・合格率・未受講者の確認。AI組織レポートの表示</td></tr>
       <tr><td>S-09</td><td>個人学習レポート</td><td><code>/reports/:userId</code></td><td>本人, <span class="badge badge-manager">manager</span> <span class="badge badge-admin">admin</span></td><td>AIによる個人フィードバック（理解不足点・推奨教材）と学習履歴の表示</td></tr>
       <tr><td>S-10</td><td>管理</td><td><code>/admin/settings</code></td><td><span class="badge badge-admin">admin</span></td><td>タブ構成: 「ユーザー管理」（ロール変更・有効/無効）、「システム設定」（AI利用設定・Slack通知・猶予期間）</td></tr>
+      <tr class="rev-row"><td>S-11</td><td>プロジェクト作成</td><td><code>/projects/new</code></td><td>全ロール</td><td>プロジェクト名・説明を入力して新規作成する。作成者は自動的にそのプロジェクトの管理者になる（F-24）</td></tr>
+      <tr class="rev-row"><td>S-12</td><td>プロジェクト管理</td><td><code>/projects/:projectId/manage</code></td><td>対象プロジェクトの管理者、<span class="badge badge-admin">admin</span></td><td>プロジェクト情報の編集、メンバーの追加・削除・ロール設定、プロジェクトに紐づく教材の他プロジェクトへの共有設定（F-24〜F-26）</td></tr>
     </tbody>
   </table>
 
   <h3>4.2 画面遷移図</h3>
   <div class="diagram">
-    <svg width="820" height="330" viewBox="0 0 820 330" font-family="'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif">
+    <svg width="820" height="420" viewBox="0 0 820 420" font-family="'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif">
       <defs>
         <marker id="arw3" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
           <path d="M0,0 L9,4.5 L0,9 z" fill="#1e40af"/>
@@ -414,12 +436,33 @@
       <line x1="765" y1="176" x2="765" y2="217" stroke="#8a8f98" stroke-width="1.5" marker-end="url(#arw3g)"/>
       <text x="605" y="200" text-anchor="middle" font-size="9.5" fill="#8a8f98">管理者メニュー（adminのみ表示。S-08はmanagerにも表示）</text>
 
+      <!-- v1.1追加: S-11 プロジェクト作成 / S-12 プロジェクト管理 -->
+      <rect x="20" y="300" width="150" height="56" rx="8" fill="#fff5f5" stroke="#dc2626" stroke-width="1.5"/>
+      <text x="95" y="323" text-anchor="middle" font-size="12.5" font-weight="600" fill="#b91c1c">S-12 プロジェクト管理</text>
+      <text x="95" y="341" text-anchor="middle" font-size="10" fill="#b91c1c">管理者 / admin</text>
+
+      <rect x="200" y="300" width="150" height="56" rx="8" fill="#fff5f5" stroke="#dc2626" stroke-width="1.5"/>
+      <text x="275" y="323" text-anchor="middle" font-size="12.5" font-weight="600" fill="#b91c1c">S-11 プロジェクト作成</text>
+      <text x="275" y="341" text-anchor="middle" font-size="10" fill="#b91c1c">全ロール・常時表示</text>
+
+      <line x1="85" y1="176" x2="70" y2="297" stroke="#dc2626" stroke-width="1.3" stroke-dasharray="4 3" marker-end="url(#arw3)"/>
+      <text x="30" y="270" text-anchor="middle" font-size="9" fill="#b91c1c">紐づく教材編集</text>
+
+      <line x1="170" y1="328" x2="197" y2="328" stroke="#dc2626" stroke-width="1.5" marker-end="url(#arw3)"/>
+      <text x="184" y="320" text-anchor="middle" font-size="9" fill="#b91c1c">←管理</text>
+
+      <line x1="265" y1="120" x2="270" y2="297" stroke="#dc2626" stroke-width="1.3" stroke-dasharray="4 3" marker-end="url(#arw3)"/>
+      <text x="330" y="230" text-anchor="middle" font-size="9" fill="#b91c1c">ヘッダーに常時表示（全ロール）</text>
+
+      <text x="95" y="374" text-anchor="middle" font-size="9.5" fill="#8a8f98">S-12は自分が管理者であるプロジェクトがある場合に表示</text>
+      <text x="275" y="374" text-anchor="middle" font-size="9.5" fill="#8a8f98">作成すると自動的に管理者になりS-12を開ける</text>
+
       <text x="410" y="18" text-anchor="middle" font-size="13" font-weight="600" fill="#1e3a8a">e-learning 画面遷移</text>
     </svg>
   </div>
 
   <div class="callout">
-    <strong>共通レイアウト:</strong> 左サイドバー（メニュー: マイ学習、教材一覧・検索、教材編集[オーナー・共同編集者を持つ教材がある場合のみ表示]、個人学習レポート／管理者メニュー: 受講状況ダッシュボード、配信設定、組織管理、管理[adminのみ表示]）＋ ヘッダー（システム名、ユーザー名/アバター/ロールバッジ、ログアウト）。認証ガードは <code>frontend/src/App.tsx</code> で行い、未認証時は S-01 へ、権限外パスへのアクセス時は S-02 へ誘導する。フォーム部品はKeirekiと同様に自作の共通UIコンポーネント（<code>frontend/src/components/ui/</code>）に統一する。
+    <strong>共通レイアウト:</strong> 左サイドバー（メニュー: マイ学習、教材一覧・検索、教材編集[オーナー・共同編集者<span class="rev-new">、またはプロジェクトの管理者・編集者</span>を持つ教材がある場合のみ表示]、<span class="rev-new">プロジェクト作成[全ロールに常時表示]、</span>個人学習レポート／管理者メニュー: <span class="rev-new">プロジェクト管理[自分が管理者であるプロジェクトがある場合のみ表示]、</span>受講状況ダッシュボード、配信設定、組織管理、管理[adminのみ表示]）＋ ヘッダー（システム名、ユーザー名/アバター/ロールバッジ、ログアウト）。認証ガードは <code>frontend/src/App.tsx</code> で行い、未認証時は S-01 へ、権限外パスへのアクセス時は S-02 へ誘導する。フォーム部品はKeirekiと同様に自作の共通UIコンポーネント（<code>frontend/src/components/ui/</code>）に統一する。
   </div>
 
   <p>各画面の具体的なレイアウト・UI項目は画面モックアップ「<a href="03_画面モックアップ/index.html">03_画面モックアップ/</a>」を参照のこと。以下では各画面の設計概要のみ記す。</p>
@@ -468,10 +511,13 @@
     <li><strong>アクセス制御:</strong> admin のみ。</li>
   </ul>
 
-  <h3>4.9 S-07 組織管理</h3>
+  <h3 class="rev-new">4.9 S-07 組織管理</h3>
+  <div class="callout rev-new">
+    <strong>v1.4の変更:</strong> プロジェクトの作成・メンバー管理はこの画面から分離した。プロジェクトはS-11（プロジェクト作成）から誰でも新規作成でき、作成者が自動的にそのプロジェクトの管理者になる。作成後のメンバー追加・ロール設定・教材の他プロジェクトへの共有はS-12（プロジェクト管理）で、そのプロジェクトの管理者が行う。本画面は部署の登録のみを扱う。
+  </div>
   <ul>
-    <li><strong>タブ構成:</strong> 「部署」（部署名・所属人数・部署長の一覧、追加・編集）、「プロジェクト」（プロジェクト名・状態・参加人数・PMの一覧、追加・編集）、「社員所属」（氏名・部署・参加プロジェクト［自己申告］・最終更新日の一覧。離任後の猶予期間中は残り日数を注記表示）。</li>
-    <li><strong>操作:</strong> A-05〜A-10（部署・プロジェクトのCRUD）、A-11（社員所属一覧の閲覧）。プロジェクト所属自体の登録・解除は社員本人が S-07 以外の導線（ヘッダー等）から A-12/A-13 を呼び出して行う自己申告制であり、本画面では閲覧のみとする。</li>
+    <li><strong>表示項目:</strong> 部署名・所属人数・部署長の一覧、追加・編集フォーム（部署名・部署長の設定）。</li>
+    <li><strong>操作:</strong> <span class="rev-new">A-05〜A-08（部署のCRUD）。</span><span class="rev-old">A-05〜A-10（部署・プロジェクトのCRUD）、A-11（社員所属一覧の閲覧）。プロジェクト所属自体の登録・解除は社員本人が S-07 以外の導線（ヘッダー等）から A-12/A-13 を呼び出して行う自己申告制であり、本画面では閲覧のみとする。</span></li>
     <li><strong>アクセス制御:</strong> admin のみ。</li>
   </ul>
 
@@ -496,11 +542,26 @@
     <li><strong>アクセス制御:</strong> admin のみ。</li>
   </ul>
 
-  <p>本改訂で画面IDは10件（S-01〜S-10）とし、要求定義書4.1節の画面一覧と一致させている。</p>
+  <h3 class="rev-new">4.13 S-11 プロジェクト作成</h3>
+  <ul class="rev-new">
+    <li><strong>表示項目:</strong> プロジェクト名・説明の入力欄、作成すると何が起きるかの説明（作成者が自動的にそのプロジェクトの管理者になる旨）、「自分が参加しているプロジェクト」一覧（プロジェクト名・自分のロール・状態・S-12を開く操作。管理者ロールの行のみS-12への導線を有効化）。</li>
+    <li><strong>操作:</strong> A-09（プロジェクト作成。作成者を <code>project_memberships.role='admin'</code> で自動登録。3.5節・5.25節参照）。「自分が参加しているプロジェクト」一覧はA-11をログインユーザーのuser_idで絞り込んで取得する。</li>
+    <li><strong>アクセス制御:</strong> 全ロール（誰でも新規作成できる。F-24）。サイドバー・ヘッダーに常時表示する。</li>
+  </ul>
+
+  <h3 class="rev-new">4.14 S-12 プロジェクト管理</h3>
+  <ul class="rev-new">
+    <li><strong>ヘッダー:</strong> 管理するプロジェクトの選択（自分が管理者であるプロジェクトが複数ある場合はプルダウンで切替。adminは全プロジェクトから選択可）。</li>
+    <li><strong>タブ構成:</strong> 「プロジェクト情報」（名称・説明・状態の編集、作成日・作成者の表示）、「メンバー管理」（氏名・全社ロール・プロジェクトロール・参加日の一覧、ロール変更、社員選択による追加、削除。唯一の管理者は削除・降格不可）、「教材の共有」（このプロジェクトに紐づく公開済み教材ごとの共有先プロジェクト設定。下書き教材は共有不可）。</li>
+    <li><strong>操作:</strong> A-10（プロジェクト情報更新）、A-11（メンバー一覧取得）、A-12（メンバー追加・ロール設定）、A-13（メンバー削除・ロール変更）、A-59〜A-61（教材のプロジェクト間共有設定。5.27節参照）。</li>
+    <li><strong>アクセス制御:</strong> 対象プロジェクトの管理者、または admin（3.5節）。</li>
+  </ul>
+
+  <p>本改訂で画面IDは12件（S-01〜S-12）とし、要求定義書4.1節の画面一覧と一致させている。<span class="rev-new">S-11・S-12はv1.4（教材のプロジェクト単位管理、F-24〜F-26）で新設した。</span></p>
 
   <!-- ============ 5. 機能設計 ============ -->
   <h2 id="sec5">5. 機能設計</h2>
-  <p>機能一覧（F-01〜F-23）ごとに処理概要・関連画面/API/テーブル・設計判断を示す。教材連携（F-05）の技術詳細は8章、AI連携機能（F-08, F-20〜F-23）の技術詳細は9章に譲り、本章では処理概要と他機能との関係を示すに留める。</p>
+  <p>機能一覧（F-01〜<span class="rev-new">F-26</span>）ごとに処理概要・関連画面/API/テーブル・設計判断を示す。教材連携（F-05）の技術詳細は8章、AI連携機能（F-08, F-20〜F-23）の技術詳細は9章に譲り、本章では処理概要と他機能との関係を示すに留める。</p>
 
   <h3>5.1 F-01 Google認証</h3>
   <p><strong>処理概要:</strong> Google OAuth 2.0によるログイン。許可ドメイン制限、セッションJWT発行、初回ログイン時の自動ユーザー登録（role='learner'）を行う（対応要求: REQ-N-01）。詳細は3.1節参照。</p>
@@ -513,10 +574,10 @@
     <tbody><tr><td>S-10</td><td>A-53, A-54</td><td>T-01</td></tr></tbody></table>
 
   <h3>5.3 F-03 組織マスタ管理</h3>
-  <p><strong>処理概要:</strong> 部署・プロジェクトの登録（admin）と、社員自身によるプロジェクト所属の登録・更新（自己申告制。対応要求: REQ-F-06）。A-05〜A-10 で部署・プロジェクトのCRUDを行い、A-12/A-13 で社員本人がプロジェクトへの参加・離任を登録する。離任時は T-04 <code>project_memberships.left_at</code> に離任日時を記録し、物理削除はしない。</p>
-  <p><strong>猶予期間の実現:</strong> 自己申告は更新が遅れにくい一方、更新の失念という弱点がある（要求定義書9.2）。この弱点を補うため、離任（<code>left_at</code> 設定）後も T-21 <code>app_settings</code>（<code>key='project_leave_grace_period_days'</code>、既定30日、S-10で変更可）で定めた日数の間は、旧プロジェクト単位で配信された教材への閲覧アクセスを継続する。判定は「現役参加（<code>left_at IS NULL</code>）」または「<code>left_at + 猶予日数 &gt;= 現在時刻</code>」のいずれかを満たすかで行い、F-09（配信対象設定）のアクセス可否判定に組み込む。</p>
+  <p><strong>処理概要:</strong> <span class="rev-new">部署の登録（admin専用。対応要求: REQ-F-06）を行う。A-05〜A-08 で部署のCRUDを行う。</span><span class="rev-old">部署・プロジェクトの登録（admin）と、社員自身によるプロジェクト所属の登録・更新（自己申告制。対応要求: REQ-F-06）。A-05〜A-10 で部署・プロジェクトのCRUDを行い、A-12/A-13 で社員本人がプロジェクトへの参加・離任を登録する。離任時は T-04 <code>project_memberships.left_at</code> に離任日時を記録し、物理削除はしない。</span></p>
+  <p class="rev-new"><strong>プロジェクトとの関係:</strong> v1.4より、プロジェクトの新規登録は誰でも行えるようになり（admin限定ではなくなり）、作成者がそのプロジェクトの管理者になる。これに伴い、プロジェクトの登録・メンバー管理・猶予期間の実現はF-24（5.25節）として独立させた。本節は部署マスタのみを扱う。</p>
   <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
-    <tbody><tr><td>S-07</td><td>A-05〜A-13</td><td>T-01〜T-04, T-21</td></tr></tbody></table>
+    <tbody><tr><td>S-07</td><td>A-05〜A-08</td><td>T-01, T-02</td></tr></tbody></table>
 
   <h3>5.4 F-04 教材・問題管理</h3>
   <p><strong>処理概要:</strong> 教材（説明文・図・資料）と問題の登録・修正（対応要求: REQ-F-01）。教材はコース（T-05 courses）に属し、本文はMarkdownまたはHTML形式（T-06 <code>format</code>）で記述する。A-16（新規作成）、A-17（更新）、A-18（削除）、A-31（問題一括更新）で操作する。</p>
@@ -540,7 +601,7 @@
     <tbody><tr><td>S-04, S-05</td><td>A-27〜A-30</td><td>T-09</td></tr></tbody></table>
 
   <h3>5.7 F-07 教材作成・共有</h3>
-  <p><strong>処理概要:</strong> 教育担当に限らず全社員が教材を作成し共有できる（対応要求: REQ-F-04）。教材作成時は作成者が既定でオーナー（T-06 <code>owner_id</code>）となる。オーナー・adminは共同編集者（T-07 <code>material_co_editors</code>）を追加・削除でき、プロジェクト単位の教材はオーナーの異動・離任後もオーナーの引き継ぎができる。判定ロジックは3.4節参照。</p>
+  <p><strong>処理概要:</strong> 教育担当に限らず全社員が教材を作成し共有できる（対応要求: REQ-F-04）。<span class="rev-new">個人が作成する</span>教材の作成時は、作成者が既定でオーナー（T-06 <code>owner_id</code>）となる。オーナー・adminは共同編集者（T-07 <code>material_co_editors</code>）を追加・削除できる。判定ロジックは3.4節参照（<span class="rev-new">個人教材、すなわち <code>materials.project_id</code> が NULL の教材にのみ適用される</span>）。<span class="rev-old">プロジェクト単位の教材はオーナーの異動・離任後もオーナーの引き継ぎができる。</span><span class="rev-new">教材をプロジェクトに紐づけて管理する場合の編集権限モデルはF-25（5.26節）を参照。</span></p>
   <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
     <tbody><tr><td>S-05</td><td>A-16, A-23〜A-26</td><td>T-06, T-07</td></tr></tbody></table>
 
@@ -550,7 +611,7 @@
     <tbody><tr><td>S-05</td><td>A-32, A-33</td><td>T-06, T-15, T-19</td></tr></tbody></table>
 
   <h3>5.9 F-09 配信対象設定</h3>
-  <p><strong>処理概要:</strong> 教材の受講対象を全社・部署・プロジェクト・個人の単位で指定する（対応要求: REQ-F-06）。組織マスタ（F-03）の異動・参画情報を反映し、対象者を適切に保つ。プロジェクト離任時は猶予期間中、旧プロジェクトの教材への閲覧アクセスを維持する（5.3節参照）。</p>
+  <p><strong>処理概要:</strong> 教材の受講対象を全社・部署・プロジェクト・個人の単位で指定する（対応要求: REQ-F-06）。組織マスタ（F-03）の異動・参画情報を反映し、対象者を適切に保つ。プロジェクト離任時は猶予期間中、旧プロジェクトの教材への閲覧アクセスを維持する（<span class="rev-new">5.25節参照</span><span class="rev-old">5.3節参照</span>）。</p>
   <div class="callout">
     <strong>設計判断（複数スコープはOR結合）:</strong> 画面モックアップ（S-06）は「部署Xかつプロジェクトを組み合わせて指定できる」という複合条件のUIを示しているが、要求定義書は複数単位を「組み合わせて指定できる」とのみ規定し、AND/ORいずれで結合するかまでは規定していない。本書では実装をシンプルに保つため、<strong>1教材に対して複数の T-11 <code>assignments</code> 行（scope_type×scope_idの組み合わせ数分）を持たせ、行間はOR結合（いずれかの条件に合致すれば対象者）とする</strong>。真に「部署Xの中でもプロジェクトYのメンバーのみ」というAND条件が必要な場合は、対象者を個人（individual）スコープとして展開して登録する運用とし、AND専用のスコープ種別は設けない。合否判定・再受験の条件（<code>pass_score_pct</code>・<code>retake_allowed</code>・<code>retake_limit</code>）は教材単位で1つに定める運用とし、複数スコープを設定する場合も同一教材内では同じ値を複製して保持する。
   </div>
@@ -606,7 +667,7 @@
     <tbody><tr><td>S-02, S-04, S-09</td><td>A-39〜A-43, A-50</td><td>T-12, T-13, T-14</td></tr></tbody></table>
 
   <h3>5.19 F-19 受講状況ダッシュボード</h3>
-  <p><strong>処理概要:</strong> 管理者・部署長/PMが担当範囲の受講率・合格率・未受講者を確認できる（対応要求: REQ-F-15）。manager の担当範囲は「<code>departments.head_user_id = 自分</code> の部署」または「<code>projects.pm_user_id = 自分</code> のプロジェクト」の集合として判定する（6.1節参照）。admin は「全社」スコープを追加で選択できる。</p>
+  <p><strong>処理概要:</strong> 管理者・部署長/PMが担当範囲の受講率・合格率・未受講者を確認できる（対応要求: REQ-F-15）。manager の担当範囲は「<code>departments.head_user_id = 自分</code> の部署」または「<code>projects.pm_user_id = 自分</code> のプロジェクト」の集合として判定する（6.1節参照）。admin は「全社」スコープを追加で選択できる。<span class="rev-new">加えて、プロジェクトについては、そのプロジェクトの管理者（ローカルロール、3.5節）も自プロジェクトの受講状況を確認できる。担当範囲判定は「<code>departments.head_user_id = 自分</code>」「<code>projects.pm_user_id = 自分</code>」に、「対象プロジェクトについて <code>require_project_role(project_id, user, min_role='admin')</code> を満たす」を加えたいずれかで行う。</span></p>
   <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
     <tbody><tr><td>S-08</td><td>A-45, A-46</td><td>T-01〜T-04, T-11〜T-13</td></tr></tbody></table>
 
@@ -639,15 +700,40 @@
       <tr><td>勤怠管理・給与管理との連携</td><td>本システムは学習管理を対象とし、人事基幹機能とは連携しない</td></tr>
       <tr><td>動画・スライドの編集・加工機能</td><td>教材ファイルはアップロード・視聴を対象とし、編集・加工は要求されていない（REQ-F-03）</td></tr>
       <tr><td>メールによる通知</td><td>利用者への通知手段はSlackに限定される（制約条件）</td></tr>
-      <tr><td>プロジェクト所属情報の他システムとの自動連携</td><td>参照可能な外部システムが現時点で存在しないため初期実装の対象外（9.2節）。プロジェクト所属は自己申告制とする</td></tr>
+      <tr><td>プロジェクト所属情報の他システムとの自動連携</td><td>参照可能な外部システムが現時点で存在しないため初期実装の対象外（9.2節）。<span class="rev-old">プロジェクト所属は自己申告制とする</span><span class="rev-new">プロジェクトのメンバー・ロールはそのプロジェクトの管理者が設定する運用とする（3.5節・5.25節）</span></td></tr>
     </tbody>
   </table>
+
+  <h3 class="rev-new">5.25 F-24 プロジェクト管理</h3>
+  <p class="rev-new"><strong>処理概要:</strong> プロジェクトは誰でも新規作成でき（対応要求: REQ-F-06）、作成者は自動的にそのプロジェクトの管理者（ローカルロール、3.5節）になる。プロジェクト情報（名称・説明・状態）の編集、メンバーの追加・削除、メンバーのロール（管理者/編集者/受講者）の設定は、そのプロジェクトの管理者が行う。運用上は部署長・PMがプロジェクトを作成して管理者となることを想定するが、システムとして作成者を限定しない。</p>
+  <p class="rev-new"><strong>猶予期間の実現:</strong> プロジェクト管理者によるメンバー管理は、v1.3までの自己申告制と異なり、本人以外の操作で急にアクセスを失いうる。管理者による設定の反映が遅れたり対応が漏れたりする場合に備え、メンバーがプロジェクトから削除された場合は、T-21 <code>app_settings</code>（<code>key='project_leave_grace_period_days'</code>、既定30日、S-10で変更可）で定めた猶予期間中、旧プロジェクト単位で配信された教材への閲覧アクセスを継続する。判定は「現役メンバー（T-04 <code>project_memberships.left_at IS NULL</code>）」または「<code>left_at + 猶予日数 &gt;= 現在時刻</code>」のいずれかを満たすかで行い、F-09（配信対象設定）のアクセス可否判定に組み込む（v1.3の「離任（自己申告）」を「削除（管理者操作）」に読み替えた以外は、5.3節旧版の判定ロジックを踏襲する）。</p>
+  <div class="callout rev-new">
+    <strong>設計判断（ロール降格時は猶予期間の対象外とする）:</strong> S-12モックアップの注記は「メンバーを削除、またはロールを『受講者』以外から変更した場合も、猶予期間中は旧プロジェクトの教材への閲覧アクセスを継続する」としている。しかし本設計では、プロジェクトに残ったままロールが編集者/管理者から受講者へ降格された場合は、受講者ロールが引き続き該当教材の受講権限を持つため、閲覧アクセスが途切れることはない。したがって猶予期間の判定対象は「プロジェクトから削除された（メンバーでなくなった）場合」のみとし、ロール降格それ自体では猶予期間を発生させない設計とした。降格に伴う編集権限の喪失は即時反映とする（誤操作による情報流出リスクを避けるため）。
+  </div>
+  <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
+    <tbody><tr><td>S-11, S-12</td><td>A-09〜A-13</td><td>T-01, T-03, T-04, T-21</td></tr></tbody></table>
+  <div class="callout rev-new">
+    <strong>なぜ project_memberships に role を持たせたか:</strong> v1.3までの <code>project_memberships</code> は「所属しているか否か（<code>joined_at</code>/<code>left_at</code>）」のみを表現し、プロジェクト内での権限は区別しなかった。v1.4はプロジェクト単位で教材の編集権限を分離する要求（F-25）に対応するため、所属テーブル自体にロールを持たせる設計とした。プロジェクト・ユーザーの組み合わせごとに高々1つのロールしか持てない（UNIQUE制約、6.2節参照）ため複数ロールの併有は不可とし、「管理者は編集者・受講者の操作も行える」という階層関係（3.5節）で上位互換を表現する。
+  </div>
+
+  <h3 class="rev-new">5.26 F-25 プロジェクト単位教材管理</h3>
+  <p class="rev-new"><strong>処理概要:</strong> 教材をプロジェクトに紐づけて管理できる（対応要求: REQ-F-06）。教材作成・更新時に T-06 <code>materials.project_id</code> を設定するとプロジェクト教材となり（既定はNULL＝個人教材）、以後の編集権限はオーナー・共同編集者（3.4節）ではなく、そのプロジェクトの管理者・編集者（ローカルロール、3.5節）で判定する。受講権限は、そのプロジェクトの受講者（3.5節）、および配信設定（F-09）で別途対象に指定された利用者が持つ。<code>project_id</code> は教材の新規作成時に指定でき、作成後の紐づけ変更（個人教材→プロジェクト教材、または別プロジェクトへの付け替え）はA-17（教材更新）で行うが、変更操作自体は変更前・変更後いずれの編集権限も満たす者（3.4節または3.5節の判定）に限定する。</p>
+  <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
+    <tbody><tr><td>S-05, S-12</td><td>A-16, A-17</td><td>T-03, T-04, T-06</td></tr></tbody></table>
+
+  <h3 class="rev-new">5.27 F-26 教材のプロジェクト間共有</h3>
+  <p class="rev-new"><strong>処理概要:</strong> プロジェクトに紐づく教材を、別のプロジェクトでも受講・参照できるよう共有できる（対応要求: REQ-F-06）。共有の可否を判断・実行する権限は、教材が紐づく元プロジェクトの管理者が持つ（<code>require_project_role(materials.project_id, user, min_role='admin')</code>）。共有はT-22 <code>material_project_shares</code> に行を追加することで表現し、共有先プロジェクトのメンバーは当該教材を受講対象として扱う（編集権限は共有によって移動せず、常に元プロジェクトの管理者・編集者が持つ）。下書き（<code>status='draft'</code>）の教材は共有できない。</p>
+  <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
+    <tbody><tr><td>S-12</td><td>A-59〜A-61</td><td>T-06, T-22</td></tr></tbody></table>
+  <div class="callout rev-new">
+    <strong>設計判断（共有は元プロジェクトの受講対象への追加として扱う）:</strong> 共有された教材の受講対象をF-09（配信設定 T-11 <code>assignments</code>）に都度書き込む方式も検討したが、それでは「どの教材がどのプロジェクトに元々紐づき、どこへ共有されているか」の全体像が <code>assignments</code> の行に埋もれてしまう。本設計ではT-22を独立テーブルとして持たせ、教材の受講可否判定（F-09の対象者算出ロジック）は「配信設定（<code>assignments</code>）に合致する」または「<code>materials.project_id</code> のプロジェクトメンバーである」または「<code>material_project_shares</code> で共有された先のプロジェクトのメンバーである」のいずれかを満たすか、というOR条件で拡張する。S-12の「教材の共有」タブがどの教材が・どこに共有されているかを一覧できるのは、この独立テーブル構成による。
+  </div>
 
   <!-- ============ 6. データベース設計 ============ -->
   <h2 id="sec6">6. データベース設計</h2>
 
   <h3>6.1 ER図</h3>
-  <p>PostgreSQL (Supabase) 上に21テーブルを配置する。全テーブルを1枚に収めることはせず、「組織・教材まわり」と「配信・受講記録まわり」の2枚に分けて示す。AI関連テーブル（T-15〜T-20）と T-21 app_settings は、各機能・users への参照のみを持つ独立性の高いテーブルであり、Keirekiの app_settings と同様の位置づけのため図示を省略し、6.2節の一覧表で示す。</p>
+  <p>PostgreSQL (Supabase) 上に<span class="rev-old">21</span><span class="rev-new">22</span>テーブルを配置する。全テーブルを1枚に収めることはせず、「組織・教材まわり」と「配信・受講記録まわり」の2枚に分けて示す。AI関連テーブル（T-15〜T-20）と T-21 app_settings は、各機能・users への参照のみを持つ独立性の高いテーブルであり、Keirekiの app_settings と同様の位置づけのため図示を省略し、6.2節の一覧表で示す。<span class="rev-new">T-22 <code>material_project_shares</code>（F-26）は図Aに簡略な形で追記する。</span></p>
 
   <div class="diagram">
     <svg width="860" height="420" viewBox="0 0 860 420" font-family="'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif">
@@ -680,8 +766,8 @@
       <rect x="280" y="240" width="170" height="24" rx="8" fill="#dbeafe"/>
       <rect x="280" y="254" width="170" height="10" fill="#dbeafe"/>
       <text x="365" y="256" text-anchor="middle" font-size="11.5" font-weight="600" fill="#1e3a8a">T-04 project_memberships</text>
-      <text x="365" y="276" text-anchor="middle" font-size="10.5" fill="#1a1d21">プロジェクト所属（自己申告）</text>
-      <text x="365" y="291" text-anchor="middle" font-size="9.5" fill="#60656d">joined_at / left_at</text>
+      <text x="365" y="276" text-anchor="middle" font-size="10.5" fill="#1a1d21">プロジェクトメンバー（ロール制）</text>
+      <text x="365" y="291" text-anchor="middle" font-size="9.5" fill="#dc2626">role / joined_at / left_at</text>
 
       <!-- courses -->
       <rect x="560" y="30" width="150" height="55" rx="8" fill="#f5f7f9" stroke="#60656d" stroke-width="1.5"/>
@@ -695,8 +781,8 @@
       <rect x="560" y="120" width="150" height="24" rx="8" fill="#1e40af"/>
       <text x="635" y="136" text-anchor="middle" font-size="11.5" font-weight="600" fill="#ffffff">T-06 materials</text>
       <text x="635" y="158" text-anchor="middle" font-size="10.5" fill="#1a1d21">教材</text>
-      <text x="635" y="173" text-anchor="middle" font-size="9.5" fill="#60656d">course_id / owner_id / body</text>
-      <text x="635" y="186" text-anchor="middle" font-size="9.5" fill="#60656d">format / status</text>
+      <text x="635" y="173" text-anchor="middle" font-size="9.5" fill="#dc2626">course_id / owner_id / project_id</text>
+      <text x="635" y="186" text-anchor="middle" font-size="9.5" fill="#60656d">body / format / status</text>
 
       <!-- material_co_editors -->
       <rect x="560" y="225" width="150" height="55" rx="8" fill="#ffffff" stroke="#1e40af" stroke-width="1.5"/>
@@ -754,6 +840,22 @@
       <line x1="710" y1="155" x2="768" y2="155" stroke="#60656d" stroke-width="1.3"/>
       <text x="720" y="148" font-size="10.5" font-weight="600" fill="#1e40af">1</text>
       <text x="758" y="148" font-size="10.5" font-weight="600" fill="#1e40af">N</text>
+
+      <!-- v1.1追加: T-22 material_project_shares（F-26） -->
+      <rect x="770" y="225" width="80" height="95" rx="8" fill="#fff5f5" stroke="#dc2626" stroke-width="1.5"/>
+      <rect x="770" y="225" width="80" height="22" rx="8" fill="#fee2e2"/>
+      <text x="810" y="240" text-anchor="middle" font-size="10" font-weight="600" fill="#b91c1c">T-22</text>
+      <text x="810" y="257" text-anchor="middle" font-size="8.5" fill="#b91c1c">教材の</text>
+      <text x="810" y="269" text-anchor="middle" font-size="8.5" fill="#b91c1c">プロジェクト間共有</text>
+      <text x="810" y="285" text-anchor="middle" font-size="7.5" fill="#8a8f98">material_id /</text>
+      <text x="810" y="296" text-anchor="middle" font-size="7.5" fill="#8a8f98">shared_to_project_id</text>
+      <text x="810" y="310" text-anchor="middle" font-size="7.5" fill="#8a8f98">shared_by</text>
+      <line x1="720" y1="190" x2="775" y2="228" stroke="#dc2626" stroke-width="1.3" stroke-dasharray="5 4"/>
+      <text x="700" y="212" font-size="8.5" fill="#b91c1c">material_id（共有元教材）</text>
+      <text x="810" y="330" text-anchor="middle" font-size="8" fill="#8a8f98">shared_to_project_id は T-03 projects を参照（共有先）</text>
+
+      <line x1="450" y1="175" x2="558" y2="150" stroke="#dc2626" stroke-width="1.3" stroke-dasharray="5 4"/>
+      <text x="500" y="145" text-anchor="middle" font-size="8.5" fill="#b91c1c">project_id（プロジェクト教材, nullable）</text>
 
       <text x="430" y="15" text-anchor="middle" font-size="13" font-weight="600" fill="#1e3a8a">図A: 組織・教材まわり</text>
     </svg>
@@ -862,9 +964,9 @@
       <tr><td>T-01</td><td><code>users</code></td><td>ユーザー</td><td>email（UNIQUE）、name、picture_url、role（'learner'/'author'/'manager'/'admin'、DEFAULT 'learner'）、department_id（FK→departments、nullable）、is_active（DEFAULT true）</td></tr>
       <tr><td>T-02</td><td><code>departments</code></td><td>部署</td><td>name（UNIQUE）、<strong>head_user_id</strong>（FK→users、nullable。部署長。S-08の担当範囲判定に使用）</td></tr>
       <tr><td>T-03</td><td><code>projects</code></td><td>プロジェクト</td><td>name、description、status（'active'/'completed'、DEFAULT 'active'）、<strong>pm_user_id</strong>（FK→users、nullable。PM。S-08の担当範囲判定に使用）、created_by（FK→users）</td></tr>
-      <tr><td>T-04</td><td><code>project_memberships</code></td><td>プロジェクト所属</td><td>project_id（FK）、user_id（FK）、joined_at、left_at（nullable。NULLが現役参加。離任後の猶予期間判定に使用。5.3節参照）。自己申告制</td></tr>
+      <tr><td>T-04</td><td><code>project_memberships</code></td><td><span class="rev-new">プロジェクトメンバー</span><span class="rev-old">プロジェクト所属</span></td><td>project_id（FK）、user_id（FK）、<strong class="rev-new">role</strong><span class="rev-new">（'admin'/'editor'/'learner'、DEFAULT 'learner'。プロジェクトのローカルロール。3.5節参照）</span>、<strong class="rev-new">assigned_by</strong><span class="rev-new">（FK→users、nullable。ロールを設定したプロジェクト管理者。作成時の自動付与はNULL）</span>、joined_at、left_at（nullable。NULLが現役メンバー。<span class="rev-new">プロジェクト管理者によるメンバー削除時に設定し、削除後の猶予期間判定に使用（5.25節参照）</span><span class="rev-old">離任後の猶予期間判定に使用。5.3節参照</span>）。UNIQUE(project_id, user_id)。<span class="rev-old">自己申告制</span><span class="rev-new">メンバーの追加・削除・ロール設定はプロジェクト管理者が行う（3.5節）</span></td></tr>
       <tr><td>T-05</td><td><code>courses</code></td><td>コース</td><td>name、description、sort_order。単元・コース構成の最上位単位</td></tr>
-      <tr><td>T-06</td><td><code>materials</code></td><td>教材</td><td>course_id（FK、nullable）、title、description（一覧表示用概要）、format（'markdown'/'html'）、body（本文。単元は本文中の見出しから抽出。5.4節参照）、owner_id（FK→users）、status（'draft'/'published'）、sort_order</td></tr>
+      <tr><td>T-06</td><td><code>materials</code></td><td>教材</td><td>course_id（FK、nullable）、title、description（一覧表示用概要）、format（'markdown'/'html'）、body（本文。単元は本文中の見出しから抽出。5.4節参照）、owner_id（FK→users）、<strong class="rev-new">project_id</strong><span class="rev-new">（FK→projects、nullable。個人教材はNULL、プロジェクトに紐づく教材は該当プロジェクトID。編集権限判定の分岐に用いる。3.5節・5.26節参照）</span>、status（'draft'/'published'）、sort_order</td></tr>
       <tr><td>T-07</td><td><code>material_co_editors</code></td><td>共同編集者</td><td>material_id（FK）、user_id（FK）、added_by（FK→users）。UNIQUE(material_id, user_id)</td></tr>
       <tr><td>T-08</td><td><code>material_revisions</code></td><td>教材改訂履歴</td><td>material_id（FK）、body_snapshot、format、changed_by（FK→users）、changed_via（'web'/'claude_code'）、change_summary。8.4節参照</td></tr>
       <tr><td>T-09</td><td><code>material_attachments</code></td><td>添付ファイル・リンク</td><td>material_id（FK）、kind（'file'/'link'）、storage_key（nullable。Supabase Storageのパス）、external_url（nullable）、filename、mime_type、size_bytes</td></tr>
@@ -880,11 +982,12 @@
       <tr><td>T-19</td><td><code>ai_usage_logs</code></td><td>AI利用ログ</td><td>user_id（FK、nullable）、feature、model、input_tokens、output_tokens、cost_estimate。Keireki T-09と同方針（質問・回答の内容は保存しない）。9.3節</td></tr>
       <tr><td>T-20</td><td><code>slack_notification_logs</code></td><td>Slack送信ログ</td><td>user_id（FK）、assignment_id（FK→assignments）、sent_at、status。F-12</td></tr>
       <tr><td>T-21</td><td><code>app_settings</code></td><td>システム設定</td><td>key（PK）、value_text、updated_by（FK→users、nullable）。AIモデル選択（<code>key='ai_model'</code>）、Slack Webhook URL（<code>key='slack_webhook_url'</code>）・通知先チャンネル（<code>key='slack_channel'</code>）、プロジェクト離任猶予期間日数（<code>key='project_leave_grace_period_days'</code>）等をkey-valueで保持。Keireki T-08と同方針</td></tr>
+      <tr class="rev-row"><td>T-22</td><td><code>material_project_shares</code></td><td>教材のプロジェクト間共有</td><td>material_id（FK→materials）、shared_to_project_id（FK→projects）、shared_by（FK→users。共有を実行したプロジェクト管理者）、shared_at（TIMESTAMPTZ NOT NULL DEFAULT now()）。UNIQUE(material_id, shared_to_project_id)。F-26（5.27節）</td></tr>
     </tbody>
   </table>
 
   <div class="callout">
-    <strong>与件からの調整点:</strong> 骨子で示されたテーブル構成に対し、次の2点を追加した。(1) T-02 departments に <code>head_user_id</code>、T-03 projects に <code>pm_user_id</code> を追加した。S-08受講状況ダッシュボードで manager が確認できる「担当範囲」（部署長／PM）を判定するために必須のカラムであり、画面モックアップにも部署長・PM列が存在するため補った。(2) T-10 questions に <code>unit_index</code>・<code>scoring_criteria</code>・<code>points</code> を追加した。<code>unit_index</code> は5.4節の単元設計（見出しベース）に対応するため、<code>scoring_criteria</code>・<code>points</code> は画面モックアップ（S-05問題編集タブ）が示す記述式のAI採点基準入力・配点入力を保持するために必要である。いずれもテーブル数（T-01〜T-21）は変更せず、既存テーブルへのカラム追加のみで対応している。
+    <strong>与件からの調整点:</strong> 骨子で示されたテーブル構成に対し、次の<span class="rev-old">2</span><span class="rev-new">4</span>点を追加した。(1) T-02 departments に <code>head_user_id</code>、T-03 projects に <code>pm_user_id</code> を追加した。S-08受講状況ダッシュボードで manager が確認できる「担当範囲」（部署長／PM）を判定するために必須のカラムであり、画面モックアップにも部署長・PM列が存在するため補った。(2) T-10 questions に <code>unit_index</code>・<code>scoring_criteria</code>・<code>points</code> を追加した。<code>unit_index</code> は5.4節の単元設計（見出しベース）に対応するため、<code>scoring_criteria</code>・<code>points</code> は画面モックアップ（S-05問題編集タブ）が示す記述式のAI採点基準入力・配点入力を保持するために必要である。<span class="rev-new">(3) 要件定義書v1.4（教材のプロジェクト単位管理）に対応するため、T-04 project_memberships に <code>role</code>・<code>assigned_by</code> を追加した。旧v1.3の「自己申告制」の所属テーブルを、プロジェクト管理者がロールを設定するテーブルへ変更したことに伴う（3.5節・5.25節）。(4) T-06 materials に <code>project_id</code> を追加し、教材をプロジェクトに紐づけて管理できるようにした（F-25、5.26節）。また新規テーブル T-22 material_project_shares を追加し、教材のプロジェクト間共有（F-26、5.27節）を表現した。この(3)(4)により、テーブル数はT-01〜T-21（21件）からT-01〜T-22（22件）に増えた。</span>いずれも既存テーブルへのカラム追加、または独立性の高い新規テーブルの追加のみで対応しており、他テーブルの再設計は伴わない。
   </div>
 
   <h3>6.3 共通設計方針</h3>
