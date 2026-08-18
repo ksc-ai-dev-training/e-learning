@@ -142,9 +142,8 @@ pre code { background: none; border: none; color: inherit; padding: 0; }
 .badge-put { background: #fef3c7; color: #b45309; }
 .badge-delete { background: #fee2e2; color: #b91c1c; }
 .badge-admin { background: #ede9fe; color: #6d28d9; }
-.badge-manager { background: #dbeafe; color: #1d4ed8; }
-.badge-author { background: #fef3c7; color: #b45309; }
-.badge-learner { background: #f1f5f9; color: #475569; }
+.badge-member { background: #f1f5f9; color: #475569; }
+.badge-projrole { background: #ffffff; color: #475569; border: 1px dashed #9aa0a8; }
 
 /* 改訂差分の強調表示（変更箇所を明示するための一時的なマーキング） */
 .rev-new { color: #dc2626; }
