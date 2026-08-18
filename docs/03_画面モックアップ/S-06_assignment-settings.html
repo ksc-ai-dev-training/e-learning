@@ -46,15 +46,11 @@
         <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></span>
         配信設定
       </a>
-      <a class="nav-item" href="S-07_org-management.html">
-        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
-        組織管理
-      </a>
       <a class="nav-item" href="S-10_admin.html">
         <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
         管理
       </a>
-      <div class="nav-note">※ 管理者メニューは admin のみ表示（受講状況ダッシュボードは manager にも担当範囲で表示）</div>
+      <div class="nav-note">※ 管理者メニューは admin のみ表示（受講状況ダッシュボードは対象プロジェクトの管理者にも自プロジェクトのスコープで表示。配信設定も、プロジェクトスコープの設定に限り対象プロジェクトの管理者が利用可）</div>
     </nav>
     <div class="sidebar-user">
       <div class="sidebar-user-row">
@@ -81,6 +77,8 @@
     </header>
 
     <div class="page-body">
+
+      <p class="tab-note">アクセス制御: <span class="badge badge-role role-admin">admin</span>（全社スコープの配信対象を設定可能）、対象プロジェクトの管理者（自プロジェクトをスコープとする配信対象のみ設定可能）。</p>
 
       <div class="toolbar">
         <div class="search-box">
@@ -126,7 +124,7 @@
             </tr>
             <tr style="outline:2px solid var(--accent-500);outline-offset:-2px">
               <td class="cell-main">新人向けGit入門</td>
-              <td>プロジェクト: LCC CRM刷新, 部署: 開発部</td>
+              <td>プロジェクト: LCC CRM刷新</td>
               <td><span class="badge badge-optional">任意</span></td>
               <td>—</td>
               <td><span class="badge badge-status-on">公開中</span></td>
@@ -142,7 +140,7 @@
             </tr>
             <tr>
               <td class="cell-main">TypeScript入門</td>
-              <td>部署: 開発部</td>
+              <td>プロジェクト: e-learning新規構築</td>
               <td><span class="badge badge-optional">任意</span></td>
               <td>—</td>
               <td><span class="badge badge-status-on">公開中</span></td>
@@ -171,29 +169,18 @@
             <label>配信対象</label>
             <div class="radio-group">
               <label class="radio-line"><input type="radio" name="target-scope"> 全社</label>
-              <label class="radio-line"><input type="radio" name="target-scope" checked> 部署</label>
               <label class="radio-line"><input type="radio" name="target-scope" checked> プロジェクト</label>
               <label class="radio-line"><input type="radio" name="target-scope"> 個人</label>
             </div>
-            <span class="field-help">複数の単位を組み合わせて指定できます（例: 部署「開発部」かつプロジェクト「LCC CRM刷新」）</span>
+            <span class="field-help">全社・プロジェクト・個人の3種類から指定します（部署単位の配信はv1.5で廃止されました）。全社を指定できるのはadminのみで、対象プロジェクトの管理者はそのプロジェクトをスコープとする設定のみ行えます。</span>
           </div>
 
-          <div class="field-row">
-            <div class="field">
-              <label>部署を選択</label>
-              <div class="checkbox-group" style="flex-direction:column;align-items:flex-start">
-                <label class="checkbox-line"><input type="checkbox" checked> 開発部</label>
-                <label class="checkbox-line"><input type="checkbox"> 営業部</label>
-                <label class="checkbox-line"><input type="checkbox"> 管理部</label>
-              </div>
-            </div>
-            <div class="field">
-              <label>プロジェクトを選択</label>
-              <div class="checkbox-group" style="flex-direction:column;align-items:flex-start">
-                <label class="checkbox-line"><input type="checkbox" checked> LCC CRM刷新</label>
-                <label class="checkbox-line"><input type="checkbox"> Keireki保守</label>
-                <label class="checkbox-line"><input type="checkbox"> e-learning新規構築</label>
-              </div>
+          <div class="field">
+            <label>プロジェクトを選択</label>
+            <div class="checkbox-group" style="flex-direction:column;align-items:flex-start">
+              <label class="checkbox-line"><input type="checkbox" checked> LCC CRM刷新</label>
+              <label class="checkbox-line"><input type="checkbox"> Keireki保守</label>
+              <label class="checkbox-line"><input type="checkbox"> e-learning新規構築</label>
             </div>
           </div>
 
@@ -223,7 +210,7 @@
           <div class="search-actions">
             <button class="btn btn-primary" type="button">保存</button>
             <button class="btn btn-secondary" type="button">キャンセル</button>
-            <span class="actions-note" style="margin-left:auto">対象者プレビュー: <strong style="color:var(--text)">開発部 かつ LCC CRM刷新 所属 24名</strong></span>
+            <span class="actions-note" style="margin-left:auto">対象者プレビュー: <strong style="color:var(--text)">LCC CRM刷新 所属 18名</strong></span>
           </div>
         </div>
       </section>

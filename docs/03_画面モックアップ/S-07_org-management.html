@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>S-07 組織管理 | e-learning 画面モックアップ</title>
+<title>S-07 廃止（組織管理） | e-learning 画面モックアップ</title>
 <link rel="stylesheet" href="mock.css">
 </head>
 <body>
@@ -41,7 +41,7 @@
         <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></span>
         プロジェクト作成
       </a>
-      <div class="nav-note">※ S-11「プロジェクト作成」は全ロールに常時表示</div>
+      <div class="nav-note">※ S-11「プロジェクト作成」は全員に常時表示</div>
       <div class="nav-label">管理者メニュー</div>
       <a class="nav-item" href="S-08_dashboard.html">
         <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg></span>
@@ -50,10 +50,6 @@
       <a class="nav-item" href="S-06_assignment-settings.html">
         <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></span>
         配信設定
-      </a>
-      <a class="nav-item active" href="S-07_org-management.html">
-        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
-        組織管理
       </a>
       <a class="nav-item" href="S-12_project-management.html">
         <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg></span>
@@ -64,7 +60,7 @@
         <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
         管理
       </a>
-      <div class="nav-note">※ 管理者メニューは admin のみ表示（受講状況ダッシュボードは manager にも担当範囲で表示）</div>
+      <div class="nav-note">※ 管理者メニューは admin のみ表示（受講状況ダッシュボードは対象プロジェクトの管理者にも自プロジェクトのスコープで表示）</div>
     </nav>
     <div class="sidebar-user">
       <div class="sidebar-user-row">
@@ -86,62 +82,29 @@
     <header class="page-header">
       <div class="page-title-group">
         <h1>組織管理</h1>
+        <span class="badge badge-status-off">廃止（v1.5）</span>
         <span class="screen-id">S-07</span>
-      </div>
-      <div class="header-actions">
-        <button class="btn btn-primary" type="button">+ 部署を追加</button>
       </div>
     </header>
 
     <div class="page-body">
 
       <div class="callout">
-        <strong>v1.4の変更:</strong> プロジェクトの作成・メンバー管理はこの画面から分離されました。プロジェクトは<a href="S-11_project-create.html">S-11（プロジェクト作成）</a>から誰でも新規作成でき、作成者が自動的にそのプロジェクトの管理者になります。作成後のメンバー追加・ロール設定・教材の他プロジェクトへの共有は<a href="S-12_project-management.html">S-12（プロジェクト管理）</a>で、そのプロジェクトの管理者が行います。この画面（組織管理）は部署の登録のみを扱います。
+        <strong>この画面は要件定義書v1.5で廃止されました。</strong><br>
+        部署（department）の概念がシステムから廃止されたため、部署登録のみを扱っていたこの画面自体が不要になりました。組織単位は「全社」「プロジェクト」「個人」の3種のみとなり、部署に関する登録・編集機能はシステムから完全に削除されています。<br><br>
+        プロジェクトの作成・管理は <a href="S-11_project-create.html">S-11（プロジェクト作成）</a>・<a href="S-12_project-management.html">S-12（プロジェクト管理）</a> を参照してください。プロジェクトは誰でも新規作成でき、作成者は自動的にそのプロジェクトの管理者になります（F-24）。作成後のメンバー追加・ロール設定・教材の他プロジェクトへの共有は、そのプロジェクトの管理者がS-12で行います。<br><br>
+        画面ID・パス（<code>/admin/organization</code>）・関連APIは欠番として保持し、本モックアップのファイルも参照用に残しています（基本設計書4.9節参照）。
       </div>
 
-      <div class="toolbar">
-        <span class="result-count"><strong>4件</strong> 登録済み</span>
+      <div class="table-notes">
+        旧仕様（部署登録画面としてのS-07）のレイアウトは、本改訂前のリビジョン（v1.4以前）を参照してください。
       </div>
-      <div class="table-wrap">
-        <table class="table">
-          <thead>
-            <tr><th>部署名</th><th style="width:120px">所属人数</th><th style="width:160px">部署長</th><th style="width:100px">操作</th></tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td class="cell-main">開発部</td>
-              <td class="num">86名</td>
-              <td>山田 花子</td>
-              <td><button class="btn btn-ghost btn-sm" type="button">編集</button></td>
-            </tr>
-            <tr>
-              <td class="cell-main">営業部</td>
-              <td class="num">42名</td>
-              <td>高橋 大輔</td>
-              <td><button class="btn btn-ghost btn-sm" type="button">編集</button></td>
-            </tr>
-            <tr>
-              <td class="cell-main">管理部</td>
-              <td class="num">18名</td>
-              <td>千田 太郎</td>
-              <td><button class="btn btn-ghost btn-sm" type="button">編集</button></td>
-            </tr>
-            <tr>
-              <td class="cell-main">品質保証部</td>
-              <td class="num">15名</td>
-              <td>（未設定）</td>
-              <td><button class="btn btn-ghost btn-sm" type="button">編集</button></td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <p style="margin-top:10px;font-size:11.5px;color:var(--text-subtle)">※ 部署の異動は管理者がここで設定します。社員個人の部署所属変更は基本設計フェーズで画面詳細を定めます。</p>
 
     </div>
   </div>
 </div>
 
-<div class="mock-note">画面モックアップ（S-07）/ 研修サンプル</div>
+<div class="mock-note">画面モックアップ（S-07・廃止）/ 研修サンプル</div>
 
 </body>
 </html>

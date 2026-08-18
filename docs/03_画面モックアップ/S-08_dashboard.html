@@ -10,7 +10,7 @@
 
 <div class="app">
 
-  <!-- サイドバー（部署長/PM: 山田 花子） -->
+  <!-- サイドバー（プロジェクト管理者: 山田 花子） -->
   <aside class="sidebar">
     <div class="sidebar-brand">
       <div class="brand-mark">e</div>
@@ -33,18 +33,18 @@
         <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
         個人学習レポート
       </a>
-      <div class="nav-note">※「教材編集」は現在オーナー・共同編集者の教材がないため非表示です</div>
+      <div class="nav-note">※「教材編集」は現在、対象教材が紐づくプロジェクトの管理者・編集者権限を持つ教材がないため非表示です</div>
       <a class="nav-item active" href="S-08_dashboard.html">
         <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg></span>
         受講状況ダッシュボード
       </a>
-      <div class="nav-note">※ manager/admin のみ表示（manager は担当範囲に限定）</div>
+      <div class="nav-note">※ admin（全社スコープ）、対象プロジェクトの管理者（自プロジェクトのスコープ）に表示</div>
     </nav>
     <div class="sidebar-user">
       <div class="sidebar-user-row">
         <span class="avatar">山</span>
         <div>
-          <div class="user-name">山田 花子 <span class="badge badge-role role-manager">manager</span></div>
+          <div class="user-name">山田 花子 <span class="badge badge-role role-member">member</span></div>
           <div class="user-mail">h.yamada@kogasoftware.com</div>
         </div>
       </div>
@@ -65,8 +65,8 @@
       <div class="header-actions">
         <span class="filter-label">担当範囲</span>
         <select style="width:190px">
-          <option selected>開発部（部署長）</option>
-          <option>LCC CRM刷新（PM）</option>
+          <option selected>LCC CRM刷新（管理者）</option>
+          <option>e-learning新規構築（管理者）</option>
         </select>
       </div>
     </header>
@@ -95,7 +95,7 @@
       <!-- 教材別受講率 -->
       <section class="panel">
         <div class="panel-header">
-          <div class="panel-title">教材別 受講率（開発部・必修教材）</div>
+          <div class="panel-title">教材別 受講率（LCC CRM刷新・必修教材）</div>
         </div>
         <div class="panel-body">
           <div class="bar-row">
@@ -125,7 +125,7 @@
       <section class="panel">
         <div class="panel-header">
           <div class="panel-title">未受講者一覧</div>
-          <span class="panel-count">19名（開発部・必修教材）</span>
+          <span class="panel-count">19名（LCC CRM刷新・必修教材）</span>
         </div>
         <div class="table-wrap" style="box-shadow:none;border:none">
           <table class="table">
@@ -163,7 +163,7 @@
       <!-- AI組織レポート -->
       <section class="panel">
         <div class="panel-header">
-          <div class="panel-title">AI組織レポート（開発部）</div>
+          <div class="panel-title">AI組織レポート（LCC CRM刷新）</div>
           <button class="btn btn-secondary btn-sm" type="button">レポートを再生成</button>
         </div>
         <div class="panel-body">
@@ -172,7 +172,7 @@
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
               AI要約（2026-08-17 09:10 生成）
             </div>
-            <p style="font-size:13px;line-height:1.8;margin-bottom:10px">開発部全体の必修受講率は78%で、全社平均（71%）をやや上回っています。一方「情報セキュリティ研修2026」と「ビジネスマナー研修」の受講率が他教材より低く、期限まで余裕があるためと考えられます。設問別の正答率では、記述式問題の平均得点が選択式より低く、特に「ブランチ運用」に関する設問の正答率が低い傾向が見られました。</p>
+            <p style="font-size:13px;line-height:1.8;margin-bottom:10px">LCC CRM刷新プロジェクト全体の必修受講率は78%で、全社平均（71%）をやや上回っています。一方「情報セキュリティ研修2026」と「ビジネスマナー研修」の受講率が他教材より低く、期限まで余裕があるためと考えられます。設問別の正答率では、記述式問題の平均得点が選択式より低く、特に「ブランチ運用」に関する設問の正答率が低い傾向が見られました。</p>
             <div>
               <span class="ai-tag">示唆: 期限1週間前のリマインド強化を推奨</span>
               <span class="ai-tag">示唆: Git関連教材の記述式設問の見直しを推奨</span>

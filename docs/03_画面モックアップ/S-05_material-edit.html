@@ -10,7 +10,7 @@
 
 <div class="app">
 
-  <!-- サイドバー（教材作成者: 鈴木 美咲） -->
+  <!-- サイドバー（プロジェクト編集者: 鈴木 美咲） -->
   <aside class="sidebar">
     <div class="sidebar-brand">
       <div class="brand-mark">e</div>
@@ -45,13 +45,13 @@
         <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg></span>
         プロジェクト管理
       </a>
-      <div class="nav-note">※ S-11は全ロール常時表示。S-12は自分が管理者であるプロジェクトがある場合に表示</div>
+      <div class="nav-note">※ S-11は全員常時表示。S-12は自分が管理者であるプロジェクトがある場合に表示</div>
     </nav>
     <div class="sidebar-user">
       <div class="sidebar-user-row">
         <span class="avatar">鈴</span>
         <div>
-          <div class="user-name">鈴木 美咲 <span class="badge badge-role role-author">author</span></div>
+          <div class="user-name">鈴木 美咲 <span class="badge badge-role role-member">member</span></div>
           <div class="user-mail">m.suzuki@kogasoftware.com</div>
         </div>
       </div>
@@ -67,23 +67,11 @@
     <header class="page-header">
       <div>
         <div class="page-title-group">
-          <h1>
-            <span id="title-personal">教材編集 — 新人向けGit入門</span>
-            <span id="title-project" style="display:none">教材編集 — LCC CRM刷新 新システム操作ガイド</span>
-          </h1>
+          <h1>教材編集 — LCC CRM刷新 新システム操作ガイド</h1>
           <span class="badge badge-status-off">下書き修正中</span>
           <span class="screen-id">S-05</span>
         </div>
-        <div id="ownerinfo-personal" style="display:flex;align-items:center;gap:8px;margin-top:4px;font-size:12px;color:var(--text-subtle)">
-          オーナー:
-          <span class="avatar" style="width:20px;height:20px;font-size:10px">鈴</span> 鈴木 美咲
-          ／ 共同編集者:
-          <span class="avatar-group">
-            <span class="avatar" style="width:20px;height:20px;font-size:10px">高</span>
-          </span>
-          高橋 大輔
-        </div>
-        <div id="ownerinfo-project" style="display:none;align-items:center;gap:8px;margin-top:4px;font-size:12px;color:var(--text-subtle);flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:8px;margin-top:4px;font-size:12px;color:var(--text-subtle);flex-wrap:wrap">
           紐づくプロジェクト: <a href="S-12_project-management.html">LCC CRM刷新</a>
           ／ あなたのロール: <span class="badge badge-projrole projrole-editor">編集者</span>
           ／ プロジェクト管理者: 山田 花子
@@ -98,16 +86,7 @@
 
     <div class="page-body">
 
-      <div class="toolbar" style="margin-bottom:16px">
-        <span class="filter-label">モック表示例:</span>
-        <div class="segmented">
-          <button type="button" class="active" id="mode-personal-btn" onclick="switchMode('personal')">個人教材の例</button>
-          <button type="button" id="mode-project-btn" onclick="switchMode('project')">プロジェクト教材の例</button>
-        </div>
-        <span style="font-size:11px;color:var(--text-subtle)">※ この切替はモック確認用のUIで、実際の画面には存在しません</span>
-      </div>
-
-      <p class="tab-note">※ この画面には対象教材のオーナー・共同編集者、対象教材が紐づくプロジェクトの管理者・編集者（7.3参照）、または admin がアクセスできます。個人教材はオーナー・共同編集者モデル（F-07）、プロジェクトに紐づく教材はプロジェクトのローカルロール（F-25）で編集権限が判定される、別の軸です。上のトグルで両方の例を確認できます。</p>
+      <p class="tab-note">※ この画面には対象教材が紐づくプロジェクトの管理者・編集者（3.5節）、または admin がアクセスできます。教材は必ずいずれかのプロジェクトに属するため（F-25）、アクセス可否・編集権限は常にプロジェクトのローカルロールのみで判定されます。個人所有の教材（オーナー・共同編集者モデル）はv1.5で廃止されました。</p>
 
       <!-- タブ -->
       <div class="tabs" role="tablist">
@@ -115,7 +94,7 @@
         <button class="tab" id="tab-questions" type="button" onclick="switchTab('questions')">問題編集</button>
         <button class="tab" id="tab-structure" type="button" onclick="switchTab('structure')">構成（単元/コース）</button>
         <button class="tab" id="tab-attach" type="button" onclick="switchTab('attach')">ファイル・リンク</button>
-        <button class="tab" id="tab-editors" type="button" onclick="switchTab('editors')">共同編集者</button>
+        <button class="tab" id="tab-editors" type="button" onclick="switchTab('editors')">プロジェクトメンバー</button>
         <button class="tab" id="tab-review" type="button" onclick="switchTab('review')">AIレビュー結果</button>
         <button class="tab" id="tab-history" type="button" onclick="switchTab('history')">改訂履歴</button>
       </div>
@@ -393,92 +372,49 @@ git checkout -b feature/add-login
         </section>
       </div>
 
-      <!-- 共同編集者タブ -->
+      <!-- プロジェクトメンバータブ（参照専用。3.5節） -->
       <div class="tab-panel" id="panel-editors">
-
-        <!-- 個人教材の例: オーナー・共同編集者モデル（F-07） -->
-        <div id="editors-personal">
-          <p class="tab-note">オーナー、または管理者は共同編集者の追加・削除ができます。これは個人が作成・共有する教材（F-07）の権限モデルです。プロジェクトに紐づく教材は、この下の「プロジェクト教材の例」のとおり別の判定軸（F-25）になります。</p>
-
-          <div class="table-wrap">
-            <table class="table">
-              <thead>
-                <tr><th>氏名</th><th style="width:120px">ロール</th><th style="width:120px">区分</th><th style="width:110px">追加日</th><th style="width:100px">操作</th></tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td><div style="display:flex;align-items:center;gap:9px"><span class="avatar">鈴</span><span class="cell-main">鈴木 美咲</span></div></td>
-                  <td><span class="badge badge-role role-author">author</span></td>
-                  <td><span class="badge badge-status-on">オーナー</span></td>
-                  <td>2026-07-01</td>
-                  <td><button class="btn btn-ghost btn-sm" type="button" disabled title="オーナー自身は削除できません">-</button></td>
-                </tr>
-                <tr>
-                  <td><div style="display:flex;align-items:center;gap:9px"><span class="avatar">高</span><span class="cell-main">高橋 大輔</span></div></td>
-                  <td><span class="badge badge-role role-learner">learner</span></td>
-                  <td><span class="badge">共同編集者</span></td>
-                  <td>2026-08-05</td>
-                  <td><button class="btn btn-danger-ghost btn-sm" type="button">削除</button></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <div class="search-actions" style="border-top:none;padding-top:0;margin-top:14px">
-            <select style="min-width:220px">
-              <option selected disabled>共同編集者を選択して追加…</option>
-              <option>山田 花子（manager）</option>
-              <option>佐藤 健一（learner）</option>
-            </select>
-            <button class="btn btn-secondary" type="button">追加</button>
-            <button class="btn btn-ghost" type="button" style="margin-left:auto">オーナーを引き継ぐ…</button>
-          </div>
+        <div class="callout">
+          この教材はプロジェクト「<strong>LCC CRM刷新</strong>」に紐づいています。教材の編集権限は、このタブの一覧を編集することではなく、プロジェクトの管理者・編集者（ローカルロール、3.5節）によって判定されます（F-25）。あなたはこのプロジェクトの<strong>編集者</strong>としてアクセスしており、このタブは参照専用です。メンバーの追加・削除・ロール変更はプロジェクト管理者専用の操作としてS-12（プロジェクト管理）で行います。
         </div>
 
-        <!-- プロジェクト教材の例: プロジェクトのローカルロールモデル（F-25、7.3） -->
-        <div id="editors-project" style="display:none">
-          <div class="callout">
-            この教材はプロジェクト「<strong>LCC CRM刷新</strong>」に紐づいています。編集権限はこのタブの一覧を編集することではなく、プロジェクトの管理者・編集者（ローカルロール）で判定されます（F-25）。あなたはこのプロジェクトの<strong>編集者</strong>としてアクセスしており、メンバーの追加・削除・ロール設定はプロジェクト管理者専用の操作です。
-          </div>
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr><th>氏名</th><th style="width:140px">全社ロール</th><th style="width:140px">プロジェクトロール</th><th style="width:110px">参加日</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><div style="display:flex;align-items:center;gap:9px"><span class="avatar">山</span><span class="cell-main">山田 花子</span></div></td>
+                <td><span class="badge badge-role role-member">member</span></td>
+                <td><span class="badge badge-projrole projrole-admin">管理者</span></td>
+                <td>2026-03-01</td>
+              </tr>
+              <tr>
+                <td><div style="display:flex;align-items:center;gap:9px"><span class="avatar">鈴</span><span class="cell-main">鈴木 美咲（あなた）</span></div></td>
+                <td><span class="badge badge-role role-member">member</span></td>
+                <td><span class="badge badge-projrole projrole-editor">編集者</span></td>
+                <td>2026-06-12</td>
+              </tr>
+              <tr>
+                <td><div style="display:flex;align-items:center;gap:9px"><span class="avatar">高</span><span class="cell-main">高橋 大輔</span></div></td>
+                <td><span class="badge badge-role role-member">member</span></td>
+                <td><span class="badge badge-projrole projrole-editor">編集者</span></td>
+                <td>2026-06-12</td>
+              </tr>
+              <tr>
+                <td><div style="display:flex;align-items:center;gap:9px"><span class="avatar">佐</span><span class="cell-main">佐藤 健一</span></div></td>
+                <td><span class="badge badge-role role-member">member</span></td>
+                <td><span class="badge badge-projrole projrole-member">受講者</span></td>
+                <td>2026-07-20</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
-          <div class="table-wrap">
-            <table class="table">
-              <thead>
-                <tr><th>氏名</th><th style="width:140px">全社ロール</th><th style="width:140px">プロジェクトロール</th><th style="width:110px">参加日</th></tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td><div style="display:flex;align-items:center;gap:9px"><span class="avatar">山</span><span class="cell-main">山田 花子</span></div></td>
-                  <td><span class="badge badge-role role-manager">manager</span></td>
-                  <td><span class="badge badge-projrole projrole-admin">管理者</span></td>
-                  <td>2026-03-01</td>
-                </tr>
-                <tr>
-                  <td><div style="display:flex;align-items:center;gap:9px"><span class="avatar">鈴</span><span class="cell-main">鈴木 美咲（あなた）</span></div></td>
-                  <td><span class="badge badge-role role-author">author</span></td>
-                  <td><span class="badge badge-projrole projrole-editor">編集者</span></td>
-                  <td>2026-06-12</td>
-                </tr>
-                <tr>
-                  <td><div style="display:flex;align-items:center;gap:9px"><span class="avatar">高</span><span class="cell-main">高橋 大輔</span></div></td>
-                  <td><span class="badge badge-role role-learner">learner</span></td>
-                  <td><span class="badge badge-projrole projrole-editor">編集者</span></td>
-                  <td>2026-06-12</td>
-                </tr>
-                <tr>
-                  <td><div style="display:flex;align-items:center;gap:9px"><span class="avatar">佐</span><span class="cell-main">佐藤 健一</span></div></td>
-                  <td><span class="badge badge-role role-learner">learner</span></td>
-                  <td><span class="badge badge-projrole projrole-member">受講者</span></td>
-                  <td>2026-07-20</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <div class="search-actions" style="border-top:none;padding-top:0;margin-top:14px">
-            <span style="font-size:12px;color:var(--text-subtle)">メンバーの追加・削除・ロール変更はプロジェクト管理者が行います。</span>
-            <a class="btn btn-secondary" href="S-12_project-management.html" style="margin-left:auto">プロジェクト管理画面を開く（S-12）→</a>
-          </div>
+        <div class="search-actions" style="border-top:none;padding-top:0;margin-top:14px">
+          <span style="font-size:12px;color:var(--text-subtle)">メンバーの追加・削除・ロール変更はプロジェクト管理者が行います。</span>
+          <a class="btn btn-secondary" href="S-12_project-management.html" style="margin-left:auto">プロジェクト管理画面を開く（S-12）→</a>
         </div>
       </div>
 
@@ -514,7 +450,7 @@ git checkout -b feature/add-login
           </div>
         </div>
 
-        <p class="ai-generated-note">※ AIレビューの指摘に従うかどうかはオーナー・共同編集者の判断に委ねられます。この結果は教材の品質を保証するものではありません。</p>
+        <p class="ai-generated-note">※ AIレビューの指摘に従うかどうかは、教材が紐づくプロジェクトの編集者・管理者の判断に委ねられます。この結果は教材の品質を保証するものではありません。</p>
       </div>
 
       <!-- 改訂履歴タブ -->
@@ -552,18 +488,6 @@ function switchTab(name) {
   });
 }
 
-// 個人教材／プロジェクト教材の表示例切替（モック確認用の最小限のJS。実画面には存在しない）
-function switchMode(mode) {
-  var isProject = mode === 'project';
-  document.getElementById('mode-personal-btn').classList.toggle('active', !isProject);
-  document.getElementById('mode-project-btn').classList.toggle('active', isProject);
-  document.getElementById('title-personal').style.display = isProject ? 'none' : '';
-  document.getElementById('title-project').style.display = isProject ? '' : 'none';
-  document.getElementById('ownerinfo-personal').style.display = isProject ? 'none' : 'flex';
-  document.getElementById('ownerinfo-project').style.display = isProject ? 'flex' : 'none';
-  document.getElementById('editors-personal').style.display = isProject ? 'none' : '';
-  document.getElementById('editors-project').style.display = isProject ? '' : 'none';
-}
 </script>
 
 </body>

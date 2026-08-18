@@ -10,7 +10,7 @@
 
 <div class="app">
 
-  <!-- サイドバー（部署長/PM: 山田 花子。プロジェクト「LCC CRM刷新」のローカルロールは管理者） -->
+  <!-- サイドバー（一般ユーザー: 山田 花子。プロジェクト「LCC CRM刷新」のローカルロールは管理者） -->
   <aside class="sidebar">
     <div class="sidebar-brand">
       <div class="brand-mark">e</div>
@@ -52,7 +52,7 @@
       <div class="sidebar-user-row">
         <span class="avatar">山</span>
         <div>
-          <div class="user-name">山田 花子 <span class="badge badge-role role-manager">manager</span></div>
+          <div class="user-name">山田 花子 <span class="badge badge-role role-member">member</span></div>
           <div class="user-mail">h.yamada@kogasoftware.com</div>
         </div>
       </div>
@@ -83,7 +83,7 @@
 
     <div class="page-body">
 
-      <p class="tab-note">※ この画面はそのプロジェクトの管理者、または admin がアクセスできます（7.3参照）。あなたは manager ロールですが、これはシステム全体のロールとは別の軸である、プロジェクト「LCC CRM刷新」内のローカルロール（管理者）に基づくアクセスです。</p>
+      <p class="tab-note">※ この画面はそのプロジェクトの管理者、または admin がアクセスできます（7.3参照）。あなたは member ロールですが、これはシステム全体のロールとは別の軸である、プロジェクト「LCC CRM刷新」内のローカルロール（管理者）に基づくアクセスです。</p>
 
       <!-- タブ -->
       <div class="tabs" role="tablist">
@@ -136,7 +136,7 @@
 
       <!-- メンバー管理タブ -->
       <div class="tab-panel" id="panel-members">
-        <p class="tab-note">メンバーの追加・削除、ロール（管理者/編集者/受講者）の設定は、このプロジェクトの管理者が行います。プロジェクトのローカルロールは、システム全体のロール（受講者/教材作成者/部署長・PM/管理者）とは別の軸です。</p>
+        <p class="tab-note">メンバーの追加・削除、ロール（管理者/編集者/受講者）の設定は、このプロジェクトの管理者が行います。プロジェクトのローカルロールは、システム全体のロール（member/admin）とは別の軸です。</p>
 
         <div class="table-wrap">
           <table class="table">
@@ -146,7 +146,7 @@
             <tbody>
               <tr>
                 <td><div style="display:flex;align-items:center;gap:9px"><span class="avatar">山</span><span class="cell-main">山田 花子（あなた）</span></div></td>
-                <td><span class="badge badge-role role-manager">manager</span></td>
+                <td><span class="badge badge-role role-member">member</span></td>
                 <td>
                   <select disabled title="自分自身のロールはここでは変更できません">
                     <option>受講者</option>
@@ -159,7 +159,7 @@
               </tr>
               <tr>
                 <td><div style="display:flex;align-items:center;gap:9px"><span class="avatar">鈴</span><span class="cell-main">鈴木 美咲</span></div></td>
-                <td><span class="badge badge-role role-author">author</span></td>
+                <td><span class="badge badge-role role-member">member</span></td>
                 <td>
                   <select>
                     <option>受講者</option>
@@ -172,7 +172,7 @@
               </tr>
               <tr>
                 <td><div style="display:flex;align-items:center;gap:9px"><span class="avatar">高</span><span class="cell-main">高橋 大輔</span></div></td>
-                <td><span class="badge badge-role role-learner">learner</span></td>
+                <td><span class="badge badge-role role-member">member</span></td>
                 <td>
                   <select>
                     <option>受講者</option>
@@ -185,7 +185,7 @@
               </tr>
               <tr>
                 <td><div style="display:flex;align-items:center;gap:9px"><span class="avatar">佐</span><span class="cell-main">佐藤 健一</span></div></td>
-                <td><span class="badge badge-role role-learner">learner</span></td>
+                <td><span class="badge badge-role role-member">member</span></td>
                 <td>
                   <select>
                     <option selected>受講者</option>
@@ -198,7 +198,7 @@
               </tr>
               <tr>
                 <td><div style="display:flex;align-items:center;gap:9px"><span class="avatar">村</span><span class="cell-main">村田 亮</span></div></td>
-                <td><span class="badge badge-role role-learner">learner</span></td>
+                <td><span class="badge badge-role role-member">member</span></td>
                 <td>
                   <select>
                     <option selected>受講者</option>
@@ -217,7 +217,7 @@
           <select style="min-width:220px">
             <option selected disabled>社員を選択して追加…</option>
             <option>千田 太郎（admin）</option>
-            <option>田中 悠斗（learner）</option>
+            <option>田中 悠斗（member）</option>
           </select>
           <select style="min-width:140px">
             <option selected>受講者</option>

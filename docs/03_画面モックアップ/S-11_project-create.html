@@ -10,7 +10,7 @@
 
 <div class="app">
 
-  <!-- サイドバー（受講者: 村田 亮。全ロールがS-11にアクセスできる例として、あえてlearnerを表示） -->
+  <!-- サイドバー（一般ユーザー: 村田 亮。全員がS-11にアクセスできる例として、あえてmemberを表示） -->
   <aside class="sidebar">
     <div class="sidebar-brand">
       <div class="brand-mark">e</div>
@@ -29,7 +29,7 @@
         <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></span>
         教材一覧・検索
       </a>
-      <div class="nav-note">※「教材編集」は現在オーナー・共同編集者の教材がないため非表示です</div>
+      <div class="nav-note">※「教材編集」は現在、対象教材が紐づくプロジェクトの管理者・編集者権限を持つ教材がないため非表示です</div>
       <a class="nav-item" href="S-09_my-report.html">
         <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
         個人学習レポート
@@ -38,14 +38,14 @@
         <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></span>
         プロジェクト作成
       </a>
-      <div class="nav-note">※ S-11「プロジェクト作成」は全ロールに常時表示されます</div>
+      <div class="nav-note">※ S-11「プロジェクト作成」は全員に常時表示されます</div>
       <div class="nav-note">※ 現在管理者であるプロジェクトがないため「プロジェクト管理」（S-12）は表示されません</div>
     </nav>
     <div class="sidebar-user">
       <div class="sidebar-user-row">
         <span class="avatar">村</span>
         <div>
-          <div class="user-name">村田 亮 <span class="badge badge-role role-learner">learner</span></div>
+          <div class="user-name">村田 亮 <span class="badge badge-role role-member">member</span></div>
           <div class="user-mail">r.murata@kogasoftware.com</div>
         </div>
       </div>
@@ -67,7 +67,7 @@
 
     <div class="page-body">
 
-      <p class="tab-note">※ この画面は全ロールがアクセスできます。学習管理システムの4ロール（受講者/教材作成者/部署長・PM/管理者）に関わらず、誰でもプロジェクトを新規作成できます（F-24）。運用上は部署長・PMが作成することを想定していますが、システムとして作成者を限定するものではありません。</p>
+      <p class="tab-note">※ この画面は全員がアクセスできます。システム全体のロール（member/admin）に関わらず、誰でもプロジェクトを新規作成できます（F-24）。運用上は部署長・PMが作成することを想定していますが、システムとして作成者を限定するものではありません。</p>
 
       <div class="panel" style="max-width:640px">
         <div class="panel-header">

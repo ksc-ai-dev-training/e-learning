@@ -31,7 +31,7 @@
       <tr><td>1.1</td><td>2026-08-18</td><td>要件定義書v1.4（教材のプロジェクト単位管理）に対応。1〜6章を改訂: プロジェクトのローカルロール（管理者/編集者/受講者）による認可を3.5節として新設し、3.3節から自己申告制の記述を削除。S-11（プロジェクト作成）・S-12（プロジェクト管理）を4章に新設し、S-05・S-07の記述を更新。F-24（プロジェクト管理）・F-25（プロジェクト単位教材管理）・F-26（教材のプロジェクト間共有）を5章に新設し、F-03・F-07・F-19を修正。T-04にrole・assigned_by列を、T-06にproject_id列を追加し、T-22 material_project_sharesを新設（6章）。変更箇所は赤字で示す。7章以降は本改訂の対象外（別タスクで新設）。</td></tr>
       <tr><td>1.2</td><td>2026-08-18</td><td>要件定義書v1.5（権限モデルの大幅簡素化）に対応。1〜6章を改訂: システムロールをmember（一般ユーザー）／adminの2種に統合し、3.3節の権限マトリクスを作り直した。3.4節（教材ごとのオーナー・共同編集者による認可レイヤー）を廃止し、3.5節（プロジェクトのローカルロールによる認可）をプロジェクト教材・個人教材の分岐なしの唯一の判定ロジックに更新した。S-07（組織管理）を廃止し、S-08・S-09のアクセス制御をmanagerからadmin／対象プロジェクトの管理者に置き換えた。F-02のロール表記を更新し、F-03（組織マスタ管理）・F-07（教材作成・共有）を廃止、F-25から個人教材との使い分けの記述を削除し、5.24節（対象外機能）に部署単位の組織管理・個人所有教材を追記した。T-02 departments・T-07 material_co_editorsを廃止（IDは欠番）、T-01からdepartment_idを削除しroleを2値化、T-06のowner_idをcreated_by（作成者記録用）に読み替えてproject_idをNOT NULL化、T-04・T-11から部署関連の記述を除去した。ER図・テーブル一覧・「与件からの調整点」コールアウトを更新した。変更箇所は赤字で示す。7章以降は本改訂の対象外（別タスクで作成）。</td></tr>
       <tr><td>1.3</td><td>2026-08-18</td><td>7〜11章（API設計／教材連携設計〔Claude Code連携〕／AI機能設計／非機能設計／前提・制約）を新設。1〜6章で既出のAPI（A-01〜A-61、廃止・欠番のA-05〜A-08・A-23〜A-26を含む）をルーター構成別に一覧化し（7章）、Claude Code向けのCLIトークン認証（A-62・A-63）を新設した。教材のフロントマタースキーマ・本文中の問題ブロック形式、取得・書き戻しAPI（A-19〜A-22）、改訂履歴（T-08）の記録方式、HTMLサニタイズを提供時にのみ適用する方式を定義した（8章）。AIジョブを別プロセスのキュー基盤を持たず同一Uvicornプロセス内の非同期タスクとして実現する方式、AI利用ログ（T-19）・モデル選択の優先順位・送信データ範囲を定義した（9章）。性能・レスポンシブ方針、可用性、セキュリティ、監査ログ、デプロイ、保守性を要件定義書8章の非機能要件に対応させて定義した（10章）。要件定義書が基本設計フェーズで定めるとしていた事項（ファイル容量上限・猶予期間日数・HTMLサニタイズ許可リスト・AI送信データ範囲等）の決定を一覧化した（11章）。1〜6章の内容は変更していない。</td></tr>
-      <tr><td>1.4</td><td>2026-08-18</td><td>レビュー指摘の修正。(1) S-05本文編集タブのプレビューがサニタイズ経路から漏れていた問題を修正: プレビュー専用API A-64を新設し、未保存コンテンツも含め全ての描画経路（A-15/A-40/A-64）でサニタイズを必須化した（4.7節・7.2.3節・8.6節）。(2) AI非同期ジョブがプロセス再起動・デプロイで消失し、受講者・教材編集者が結果を永久に待ち続ける問題を修正: T-16〜T-18に<code>requested_at</code>を追加してリクエスト受付時にプレースホルダ行を作成する方式とし、起動時・5分ごとの「スタックジョブ・スイープ」による自動再試行を追加した（6.2節・9.2節）。(3) 4.1節S-02〜S-04の「全ロール」表記を「全員」に統一した。</td></tr>
+      <tr><td>1.4</td><td>2026-08-18</td><td>レビュー指摘の修正。(1) S-05本文編集タブのプレビューがサニタイズ経路から漏れていた問題を修正: プレビュー専用API A-64を新設し、未保存コンテンツも含め全ての描画経路（A-15/A-40/A-64）でサニタイズを必須化した（4.7節・7.2.3節・8.6節）。(2) AI非同期ジョブがプロセス再起動・デプロイで消失し、受講者・教材編集者が結果を永久に待ち続ける問題を修正: T-16〜T-18に<code>requested_at</code>を追加してリクエスト受付時にプレースホルダ行を作成する方式とし、起動時・5分ごとの「スタックジョブ・スイープ」による自動再試行を追加した（6.2節・9.2節）。(3) 4.1節・4.2節図・4.13節の「全ロール」表記を「全員」に統一した（S-02〜S-04, S-11, 共通レイアウトの説明）。</td></tr>
     </tbody>
   </table>
 
@@ -347,7 +347,7 @@
       <tr><td>S-08</td><td>受講状況ダッシュボード</td><td><code>/dashboard</code></td><td><span class="rev-old"><span class="badge badge-manager">manager</span> <span class="badge badge-admin">admin</span>、対象プロジェクトの管理者（自プロジェクト分のみ）</span><span class="rev-new"><span class="badge badge-admin">admin</span>（全社スコープ）、対象プロジェクトの管理者（自プロジェクトのスコープ）</span></td><td>担当範囲（<span class="rev-old">部署/</span>プロジェクト/全社）の受講率・合格率・未受講者の確認。AI組織レポートの表示</td></tr>
       <tr><td>S-09</td><td>個人学習レポート</td><td><code>/reports/:userId</code></td><td>本人, <span class="rev-old"><span class="badge badge-manager">manager</span> <span class="badge badge-admin">admin</span></span><span class="rev-new">対象者が所属するプロジェクトの管理者, <span class="badge badge-admin">admin</span></span></td><td>AIによる個人フィードバック（理解不足点・推奨教材）と学習履歴の表示</td></tr>
       <tr><td>S-10</td><td>管理</td><td><code>/admin/settings</code></td><td><span class="badge badge-admin">admin</span></td><td>タブ構成: 「ユーザー管理」（ロール変更・有効/無効）、「システム設定」（AI利用設定・Slack通知・猶予期間）</td></tr>
-      <tr class="rev-row"><td>S-11</td><td>プロジェクト作成</td><td><code>/projects/new</code></td><td>全ロール</td><td>プロジェクト名・説明を入力して新規作成する。作成者は自動的にそのプロジェクトの管理者になる（F-24）</td></tr>
+      <tr class="rev-row"><td>S-11</td><td>プロジェクト作成</td><td><code>/projects/new</code></td><td>全員</td><td>プロジェクト名・説明を入力して新規作成する。作成者は自動的にそのプロジェクトの管理者になる（F-24）</td></tr>
       <tr class="rev-row"><td>S-12</td><td>プロジェクト管理</td><td><code>/projects/:projectId/manage</code></td><td>対象プロジェクトの管理者、<span class="badge badge-admin">admin</span></td><td>プロジェクト情報の編集、メンバーの追加・削除・ロール設定、プロジェクトに紐づく教材の他プロジェクトへの共有設定（F-24〜F-26）</td></tr>
     </tbody>
   </table>
@@ -429,7 +429,7 @@
 
       <rect x="200" y="300" width="150" height="56" rx="8" fill="#fff5f5" stroke="#dc2626" stroke-width="1.5"/>
       <text x="275" y="323" text-anchor="middle" font-size="12.5" font-weight="600" fill="#b91c1c">S-11 プロジェクト作成</text>
-      <text x="275" y="341" text-anchor="middle" font-size="10" fill="#b91c1c">全ロール・常時表示</text>
+      <text x="275" y="341" text-anchor="middle" font-size="10" fill="#b91c1c">全員・常時表示</text>
 
       <line x1="85" y1="176" x2="70" y2="297" stroke="#dc2626" stroke-width="1.3" stroke-dasharray="4 3" marker-end="url(#arw3)"/>
       <text x="30" y="270" text-anchor="middle" font-size="9" fill="#b91c1c">紐づく教材編集</text>
@@ -438,7 +438,7 @@
       <text x="184" y="320" text-anchor="middle" font-size="9" fill="#b91c1c">←管理</text>
 
       <line x1="265" y1="120" x2="270" y2="297" stroke="#dc2626" stroke-width="1.3" stroke-dasharray="4 3" marker-end="url(#arw3)"/>
-      <text x="330" y="230" text-anchor="middle" font-size="9" fill="#b91c1c">ヘッダーに常時表示（全ロール）</text>
+      <text x="330" y="230" text-anchor="middle" font-size="9" fill="#b91c1c">ヘッダーに常時表示（全員）</text>
 
       <text x="95" y="374" text-anchor="middle" font-size="9.5" fill="#8a8f98">S-12は自分が管理者であるプロジェクトがある場合に表示</text>
       <text x="275" y="374" text-anchor="middle" font-size="9.5" fill="#8a8f98">作成すると自動的に管理者になりS-12を開ける</text>
@@ -448,7 +448,7 @@
   </div>
 
   <div class="callout">
-    <strong>共通レイアウト:</strong> 左サイドバー（メニュー: マイ学習、教材一覧・検索、教材編集[<span class="rev-old">オーナー・共同編集者、またはプロジェクトの管理者・編集者</span><span class="rev-new">プロジェクトの管理者・編集者</span>を持つ教材がある場合のみ表示]、プロジェクト作成[全ロールに常時表示]、個人学習レポート／管理者メニュー: プロジェクト管理[自分が管理者であるプロジェクトがある場合のみ表示]、受講状況ダッシュボード、配信設定、<span class="rev-old">組織管理、</span>管理[adminのみ表示]）＋ ヘッダー（システム名、ユーザー名/アバター/ロールバッジ、ログアウト）。<span class="rev-new">組織管理（S-07）はv1.5で廃止した。</span>認証ガードは <code>frontend/src/App.tsx</code> で行い、未認証時は S-01 へ、権限外パスへのアクセス時は S-02 へ誘導する。フォーム部品はKeirekiと同様に自作の共通UIコンポーネント（<code>frontend/src/components/ui/</code>）に統一する。
+    <strong>共通レイアウト:</strong> 左サイドバー（メニュー: マイ学習、教材一覧・検索、教材編集[<span class="rev-old">オーナー・共同編集者、またはプロジェクトの管理者・編集者</span><span class="rev-new">プロジェクトの管理者・編集者</span>を持つ教材がある場合のみ表示]、プロジェクト作成[全員に常時表示]、個人学習レポート／管理者メニュー: プロジェクト管理[自分が管理者であるプロジェクトがある場合のみ表示]、受講状況ダッシュボード、配信設定、<span class="rev-old">組織管理、</span>管理[adminのみ表示]）＋ ヘッダー（システム名、ユーザー名/アバター/ロールバッジ、ログアウト）。<span class="rev-new">組織管理（S-07）はv1.5で廃止した。</span>認証ガードは <code>frontend/src/App.tsx</code> で行い、未認証時は S-01 へ、権限外パスへのアクセス時は S-02 へ誘導する。フォーム部品はKeirekiと同様に自作の共通UIコンポーネント（<code>frontend/src/components/ui/</code>）に統一する。
   </div>
 
   <p>各画面の具体的なレイアウト・UI項目は画面モックアップ「<a href="03_画面モックアップ/index.html">03_画面モックアップ/</a>」を参照のこと。以下では各画面の設計概要のみ記す。</p>
@@ -527,7 +527,7 @@
   <ul class="rev-new">
     <li><strong>表示項目:</strong> プロジェクト名・説明の入力欄、作成すると何が起きるかの説明（作成者が自動的にそのプロジェクトの管理者になる旨）、「自分が参加しているプロジェクト」一覧（プロジェクト名・自分のロール・状態・S-12を開く操作。管理者ロールの行のみS-12への導線を有効化）。</li>
     <li><strong>操作:</strong> A-09（プロジェクト作成。作成者を <code>project_memberships.role='admin'</code> で自動登録。3.5節・5.25節参照）。「自分が参加しているプロジェクト」一覧はA-11をログインユーザーのuser_idで絞り込んで取得する。</li>
-    <li><strong>アクセス制御:</strong> 全ロール（誰でも新規作成できる。F-24）。サイドバー・ヘッダーに常時表示する。</li>
+    <li><strong>アクセス制御:</strong> 全員（誰でも新規作成できる。F-24）。サイドバー・ヘッダーに常時表示する。</li>
   </ul>
 
   <h3 class="rev-new">4.14 S-12 プロジェクト管理</h3>

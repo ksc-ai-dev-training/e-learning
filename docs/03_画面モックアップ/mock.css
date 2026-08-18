@@ -23,23 +23,17 @@
   --text-muted:    #60656d;
   --text-subtle:   #8a8f98;
 
-  /* ロールバッジ（4ロール制: learner / author / manager / admin）
+  /* ロールバッジ（v1.5: 2ロール制 member / admin に統合）
      e-learning の docs/assets/style.css の配色に合わせる */
-  --role-learner-bg: #f1f5f9;
-  --role-learner-fg: #475569;
-  --role-learner-bd: #e2e8f0;
-  --role-author-bg:  #fef3c7;
-  --role-author-fg:  #b45309;
-  --role-author-bd:  #fde68a;
-  --role-manager-bg: #dbeafe;
-  --role-manager-fg: #1d4ed8;
-  --role-manager-bd: #bfdbfe;
+  --role-member-bg:  #f1f5f9;
+  --role-member-fg:  #475569;
+  --role-member-bd:  #e2e8f0;
   --role-admin-bg:   #ede9fe;
   --role-admin-fg:   #6d28d9;
   --role-admin-bd:   #ddd6fe;
 
   /* プロジェクトのローカルロールバッジ（管理者/編集者/受講者。7.3参照）
-     全社ロール（learner/author/manager/admin）のバッジと混同しないよう、
+     全社ロール（member/admin）のバッジと混同しないよう、
      塗りつぶしではなくグレーの破線枠＋白背景のアウトライン表現にする。
      色相も全社ロールバッジ（slate/amber/blue/violet）とは重ならないものを使う。 */
   --projrole-bg:          var(--bg);
@@ -287,9 +281,7 @@ h1 { font-size: 20px; font-weight: 600; letter-spacing: 0.01em; }
 .badge-skill { background: var(--accent-50); color: var(--accent-700); border-color: var(--accent-100); }
 
 .badge-role { font-weight: 600; letter-spacing: 0.03em; }
-.badge-role.role-learner { background: var(--role-learner-bg); color: var(--role-learner-fg); border-color: var(--role-learner-bd); }
-.badge-role.role-author  { background: var(--role-author-bg);  color: var(--role-author-fg);  border-color: var(--role-author-bd); }
-.badge-role.role-manager { background: var(--role-manager-bg); color: var(--role-manager-fg); border-color: var(--role-manager-bd); }
+.badge-role.role-member  { background: var(--role-member-bg);  color: var(--role-member-fg);  border-color: var(--role-member-bd); }
 .badge-role.role-admin   { background: var(--role-admin-bg);   color: var(--role-admin-fg);   border-color: var(--role-admin-bd); }
 
 /* プロジェクトのローカルロールバッジ（管理者/編集者/受講者）

@@ -46,15 +46,11 @@
         <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></span>
         配信設定
       </a>
-      <a class="nav-item" href="S-07_org-management.html">
-        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
-        組織管理
-      </a>
       <a class="nav-item active" href="S-10_admin.html">
         <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
         管理
       </a>
-      <div class="nav-note">※ 管理者メニューは admin のみ表示（受講状況ダッシュボードは manager にも担当範囲で表示）</div>
+      <div class="nav-note">※ 管理者メニューは admin のみ表示（受講状況ダッシュボードは対象プロジェクトの管理者にも自プロジェクトのスコープで表示）</div>
     </nav>
     <div class="sidebar-user">
       <div class="sidebar-user-row">
@@ -120,9 +116,7 @@
                 <td>t.chida@kogasoftware.com</td>
                 <td>
                   <select disabled title="自分自身のロール変更・無効化はできません">
-                    <option>learner</option>
-                    <option>author</option>
-                    <option>manager</option>
+                    <option>member</option>
                     <option selected>admin</option>
                   </select>
                 </td>
@@ -145,9 +139,7 @@
                 <td>h.yamada@kogasoftware.com</td>
                 <td>
                   <select>
-                    <option>learner</option>
-                    <option>author</option>
-                    <option selected>manager</option>
+                    <option selected>member</option>
                     <option>admin</option>
                   </select>
                 </td>
@@ -170,9 +162,7 @@
                 <td>k.sato@kogasoftware.com</td>
                 <td>
                   <select>
-                    <option selected>learner</option>
-                    <option>author</option>
-                    <option>manager</option>
+                    <option selected>member</option>
                     <option>admin</option>
                   </select>
                 </td>
@@ -195,9 +185,7 @@
                 <td>m.suzuki@kogasoftware.com</td>
                 <td>
                   <select>
-                    <option>learner</option>
-                    <option selected>author</option>
-                    <option>manager</option>
+                    <option selected>member</option>
                     <option>admin</option>
                   </select>
                 </td>
@@ -220,9 +208,7 @@
                 <td>d.takahashi@kogasoftware.com</td>
                 <td>
                   <select disabled title="無効化されたユーザーはロールを変更できません">
-                    <option selected>learner</option>
-                    <option>author</option>
-                    <option>manager</option>
+                    <option selected>member</option>
                     <option>admin</option>
                   </select>
                 </td>
@@ -238,7 +224,7 @@
             </tbody>
           </table>
         </div>
-        <p style="margin-top:10px;font-size:11.5px;color:var(--text-subtle)">※ 自分自身（ログイン中ユーザー）の admin 降格・無効化はできません。初回ログイン時は learner として自動登録されます。無効化されたユーザーはログインできません。</p>
+        <p style="margin-top:10px;font-size:11.5px;color:var(--text-subtle)">※ 自分自身（ログイン中ユーザー）の admin 降格・無効化はできません。初回ログイン時は member として自動登録されます。無効化されたユーザーはログインできません。</p>
       </div>
 
       <!-- システム設定タブ -->
@@ -299,7 +285,7 @@
                 <input type="number" value="30" min="0" step="1" style="width:90px">
                 <span style="font-size:12px;color:var(--text-muted)">日</span>
               </div>
-              <span class="field-help">社員がプロジェクトを離任（自己申告で所属を解除）した場合も、この日数の間は旧プロジェクトの教材を閲覧できます</span>
+              <span class="field-help">プロジェクト管理者がメンバーを削除した場合も、この日数の間は旧プロジェクトの教材を閲覧できます</span>
             </div>
           </div>
         </div>
