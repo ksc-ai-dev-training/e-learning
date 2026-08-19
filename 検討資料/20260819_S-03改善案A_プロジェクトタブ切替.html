@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>【検討中】S-03改善案A: プロジェクトタブ切替 | e-learning</title>
+<link rel="stylesheet" href="../docs/03_画面モックアップ/mock.css">
+<style>
+  .proj-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+  .proj-tab {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 32px; padding: 0 14px;
+    border: 1px solid var(--border-strong); border-radius: 999px;
+    background: var(--bg); color: var(--text-muted);
+    font-size: 12.5px; font-weight: 500; cursor: pointer; white-space: nowrap;
+  }
+  .proj-tab .proj-count { font-size: 11px; color: var(--text-subtle); }
+  .proj-tab.active { background: var(--accent-600); border-color: var(--accent-600); color: #fff; font-weight: 600; }
+  .proj-tab.active .proj-count { color: #dbeafe; }
+  .proj-tab.pinned { border-style: dashed; }
+  .proj-tab .pin-icon { width: 12px; height: 12px; flex-shrink: 0; }
+</style>
+</head>
+<body>
+
+<div style="background:#fef3c7;border-bottom:1px solid #fbbf24;color:#78350f;font-size:12px;font-weight:600;text-align:center;padding:6px;">
+  【検討中】S-03改善案A: プロジェクトタブ切替 ／ 正式版ではありません（docs/ には未反映）
+</div>
+
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-mark">e</div>
+      <div>
+        <div class="brand-name">e-learning</div>
+        <div class="brand-sub">社内学習管理システム</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-label">メニュー</div>
+      <a class="nav-item" href="#">マイ学習</a>
+      <a class="nav-item active" href="#">教材一覧・検索</a>
+      <a class="nav-item" href="#">教材編集</a>
+      <a class="nav-item" href="#">個人学習レポート</a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="sidebar-user-row">
+        <span class="avatar">佐</span>
+        <div>
+          <div class="user-name">佐藤 健一 <span class="badge badge-role role-member">member</span></div>
+          <div class="user-mail">k.sato@kogasoftware.com</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="page-header">
+      <div class="page-title-group">
+        <h1>教材一覧・検索</h1>
+        <span class="screen-id">S-03</span>
+      </div>
+    </header>
+
+    <div class="page-body">
+
+      <div class="callout" style="margin-bottom:16px">
+        <strong>案A: プロジェクトタブ切替。</strong> ページ上部に所属プロジェクトのタブを横並びで置き、クリックした瞬間に一覧をそのプロジェクトの教材だけに絞り込む。「全社公開」は誰でも編集者になれる特別プロジェクトのため、ピン留め表示で常に先頭に固定する。既存の「コース」（学習順序のまとまり）とは別の軸として、テーブルに「プロジェクト」列を追加した。
+      </div>
+
+      <!-- プロジェクトタブ -->
+      <div class="proj-tabs" role="tablist" aria-label="所属プロジェクトで絞り込み">
+        <button class="proj-tab active" type="button">すべて <span class="proj-count">8件</span></button>
+        <button class="proj-tab pinned" type="button">
+          <svg class="pin-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a1 1 0 0 0 0-2H8a1 1 0 0 0 0 2h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/></svg>
+          全社公開 <span class="proj-count">1件</span>
+        </button>
+        <button class="proj-tab" type="button">新人研修2026運営 <span class="proj-count">2件</span></button>
+        <button class="proj-tab" type="button">情報セキュリティ委員会 <span class="proj-count">2件</span></button>
+        <button class="proj-tab" type="button">LCC CRM刷新 <span class="proj-count">2件</span></button>
+        <button class="proj-tab" type="button">e-learning新規構築 <span class="proj-count">2件</span></button>
+      </div>
+
+      <details class="search-panel">
+        <summary>
+          <span class="summary-caret"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+          検索条件
+          <span class="summary-hint">クリックで開閉</span>
+        </summary>
+        <div class="search-panel-body">
+          <div class="search-grid">
+            <div class="field">
+              <label for="q">キーワード</label>
+              <input type="search" id="q" placeholder="教材名、単元名、コース名">
+            </div>
+            <div class="field">
+              <label>コース</label>
+              <select>
+                <option selected>すべて</option>
+                <option>新人研修2026</option>
+                <option>全社必修研修</option>
+                <option>エンジニア基礎</option>
+                <option>フロントエンド基礎</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>区分</label>
+              <select>
+                <option selected>すべて</option>
+                <option>必修のみ</option>
+                <option>任意のみ</option>
+              </select>
+            </div>
+          </div>
+          <div class="checkbox-group" style="margin-bottom:10px">
+            <label class="checkbox-line"><input type="checkbox"> 未受講のみ表示</label>
+            <label class="checkbox-line"><input type="checkbox"> 自分が受講対象の教材のみ表示</label>
+          </div>
+          <div class="search-actions">
+            <button class="btn btn-primary" type="button">検索</button>
+            <button class="btn btn-secondary" type="button">条件クリア</button>
+          </div>
+        </div>
+      </details>
+
+      <div class="table-notes">
+        ※ 一覧には公開済みの教材のみ表示されます。「プロジェクト」は教材の所属・編集権限の単位、「コース」は学習順序のまとまりで、独立した軸です。
+      </div>
+
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>教材</th>
+              <th>プロジェクト</th>
+              <th>コース</th>
+              <th style="width:80px">区分</th>
+              <th style="width:100px">所要時間</th>
+              <th style="width:110px">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <div class="cell-main">AI開発研修 基礎編 — Claude Codeの使い方</div>
+                <div class="cell-sub">単元5構成 ／ 単一選択・記述式 全8問</div>
+              </td>
+              <td><span class="chip">新人研修2026運営</span></td>
+              <td>新人研修2026</td>
+              <td><span class="badge badge-required">必修</span></td>
+              <td class="num">約90分</td>
+              <td><a class="btn btn-secondary btn-sm" href="#">受講する</a></td>
+            </tr>
+            <tr>
+              <td>
+                <div class="cell-main">ビジネスマナー研修</div>
+                <div class="cell-sub">単元3構成 ／ 単一選択 全6問</div>
+              </td>
+              <td><span class="chip">新人研修2026運営</span></td>
+              <td>新人研修2026</td>
+              <td><span class="badge badge-required">必修</span></td>
+              <td class="num">約40分</td>
+              <td><a class="btn btn-secondary btn-sm" href="#">受講する</a></td>
+            </tr>
+            <tr>
+              <td>
+                <div class="cell-main">情報セキュリティ研修 2026</div>
+                <div class="cell-sub">単元4構成 ／ 単一選択・複数選択 全10問</div>
+              </td>
+              <td><span class="chip">情報セキュリティ委員会</span></td>
+              <td>全社必修研修</td>
+              <td><span class="badge badge-required">必修</span></td>
+              <td class="num">約60分</td>
+              <td><a class="btn btn-secondary btn-sm" href="#">受講する</a></td>
+            </tr>
+            <tr>
+              <td>
+                <div class="cell-main">ハラスメント防止研修</div>
+                <div class="cell-sub">単元2構成 ／ 単一選択 全4問</div>
+              </td>
+              <td><span class="chip">情報セキュリティ委員会</span></td>
+              <td>全社必修研修</td>
+              <td><span class="badge badge-required">必修</span></td>
+              <td class="num">約30分</td>
+              <td><a class="btn btn-ghost btn-sm" href="#">復習する</a></td>
+            </tr>
+            <tr>
+              <td>
+                <div class="cell-main">新人向けGit入門</div>
+                <div class="cell-sub">単元4構成 ／ 記述式 全5問 ／ 作成: 鈴木 美咲</div>
+              </td>
+              <td><span class="chip">LCC CRM刷新</span></td>
+              <td>エンジニア基礎</td>
+              <td><span class="badge badge-optional">任意</span></td>
+              <td class="num">約45分</td>
+              <td><a class="btn btn-ghost btn-sm" href="#">反復演習</a></td>
+            </tr>
+            <tr>
+              <td>
+                <div class="cell-main">データベース設計入門</div>
+                <div class="cell-sub">単元5構成 ／ 単一選択・記述式 全9問 ／ 作成: 鈴木 美咲</div>
+              </td>
+              <td><span class="chip">LCC CRM刷新</span></td>
+              <td>エンジニア基礎</td>
+              <td><span class="badge badge-optional">任意</span></td>
+              <td class="num">約70分</td>
+              <td><a class="btn btn-secondary btn-sm" href="#">受講する</a></td>
+            </tr>
+            <tr>
+              <td>
+                <div class="cell-main">TypeScript入門</div>
+                <div class="cell-sub">単元6構成 ／ 単一選択・記述式 全12問</div>
+              </td>
+              <td><span class="chip">e-learning新規構築</span></td>
+              <td>フロントエンド基礎</td>
+              <td><span class="badge badge-optional">任意</span></td>
+              <td class="num">約100分</td>
+              <td><a class="btn btn-secondary btn-sm" href="#">続きから受講</a></td>
+            </tr>
+            <tr>
+              <td>
+                <div class="cell-main">Python基礎ハンズオン資料</div>
+                <div class="cell-sub">単元2構成 ／ 記述式・コード記述式 全5問 ／ 作成: 高橋 大輔</div>
+              </td>
+              <td><span class="chip" style="border-style:dashed">📌 全社公開</span></td>
+              <td>—</td>
+              <td><span class="badge badge-optional">任意</span></td>
+              <td class="num">約30分</td>
+              <td><a class="btn btn-secondary btn-sm" href="#">受講する</a></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="mock-note">検討中の改善案A（プロジェクトタブ切替）／ S-03のたたき台</div>
+
+</body>
+</html>
