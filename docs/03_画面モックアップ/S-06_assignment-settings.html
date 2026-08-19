@@ -50,7 +50,7 @@
         <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
         管理
       </a>
-      <div class="nav-note">※ 管理者メニューは admin のみ表示（受講状況ダッシュボードは対象プロジェクトの管理者にも自プロジェクトのスコープで表示。配信設定も、プロジェクトスコープの設定に限り対象プロジェクトの管理者が利用可）</div>
+      <div class="nav-note">※ 管理者メニューは admin のみ表示（受講状況ダッシュボードは対象プロジェクトの管理者にも自プロジェクトのスコープで表示。配信設定も、プロジェクトスコープの設定と、自分の教材の全社任意公開に限り対象プロジェクトの管理者が利用可）</div>
     </nav>
     <div class="sidebar-user">
       <div class="sidebar-user-row">
@@ -78,7 +78,7 @@
 
     <div class="page-body">
 
-      <p class="tab-note">アクセス制御: <span class="badge badge-role role-admin">admin</span>（全社スコープの配信対象を設定可能）、対象プロジェクトの管理者（自プロジェクトをスコープとする配信対象のみ設定可能）。</p>
+      <p class="tab-note">アクセス制御: <span class="badge badge-role role-admin">admin</span>（全スコープの配信対象を設定可能）、対象プロジェクトの管理者（自プロジェクトをスコープとする配信対象、および自分の教材の「全社任意公開」を設定可能。「全社必修配信」はadmin限定）。</p>
 
       <div class="toolbar">
         <div class="search-box">
@@ -90,7 +90,7 @@
           <option>公開中</option>
           <option>下書き</option>
         </select>
-        <span class="result-count"><strong>6件</strong> 表示中</span>
+        <span class="result-count"><strong>7件</strong> 表示中</span>
       </div>
 
       <div class="table-wrap">
@@ -108,7 +108,7 @@
           <tbody>
             <tr>
               <td class="cell-main">AI開発研修 基礎編 — Claude Codeの使い方</td>
-              <td>全社</td>
+              <td>全社（必修配信）</td>
               <td><span class="badge badge-required">必修</span></td>
               <td>2026-08-20</td>
               <td><span class="badge badge-status-on">公開中</span></td>
@@ -116,9 +116,17 @@
             </tr>
             <tr>
               <td class="cell-main">情報セキュリティ研修 2026</td>
-              <td>全社</td>
+              <td>全社（必修配信）</td>
               <td><span class="badge badge-required">必修</span></td>
               <td>2026-09-30</td>
+              <td><span class="badge badge-status-on">公開中</span></td>
+              <td><button class="btn btn-ghost btn-sm" type="button">編集</button></td>
+            </tr>
+            <tr>
+              <td class="cell-main">Python基礎ハンズオン資料</td>
+              <td>全社（任意公開）<span class="field-help" style="display:block;margin-top:2px">e-learning新規構築の管理者が設定</span></td>
+              <td><span class="badge badge-optional">任意</span></td>
+              <td>—</td>
               <td><span class="badge badge-status-on">公開中</span></td>
               <td><button class="btn btn-ghost btn-sm" type="button">編集</button></td>
             </tr>
@@ -172,7 +180,7 @@
               <label class="radio-line"><input type="radio" name="target-scope" checked> プロジェクト</label>
               <label class="radio-line"><input type="radio" name="target-scope"> 個人</label>
             </div>
-            <span class="field-help">全社・プロジェクト・個人の3種類から指定します（部署単位の配信はv1.5で廃止されました）。全社を指定できるのはadminのみで、対象プロジェクトの管理者はそのプロジェクトをスコープとする設定のみ行えます。</span>
+            <span class="field-help">全社・プロジェクト・個人の3種類から指定します（部署単位の配信はv1.5で廃止されました）。「全社」を選んだ場合、必修・任意の選べる範囲がロールによって変わります（下記参照）。プロジェクトの管理者は、自プロジェクトをスコープとする設定に加え、自分の教材の「全社」への任意公開も行えます。</span>
           </div>
 
           <div class="field">
@@ -199,6 +207,7 @@
               <label class="radio-line"><input type="radio" name="required"> 必修</label>
               <label class="radio-line"><input type="radio" name="required" checked> 任意</label>
             </div>
+            <span class="field-help">配信対象が「全社」の場合、「必修」（全社必修配信）を選べるのはadminのみです。プロジェクトの管理者が「全社」を選ぶと「任意」（全社任意公開）のみ選択でき、「必修」はグレーアウトされます。</span>
           </div>
 
           <div class="field" style="max-width:220px">
