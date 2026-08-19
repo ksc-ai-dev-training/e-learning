@@ -16,7 +16,7 @@
     <p class="subtitle">社内学習管理システム（e-learning）</p>
     <div class="meta">
       <span>作成日: 2026-08-18</span>
-      <span>版数: 1.7</span>
+      <span>版数: 1.8</span>
       <span>作成: コガソフトウェア株式会社</span>
     </div>
     <p class="note">本ドキュメントは新人社員向けAI開発研修のサンプル成果物です</p>
@@ -35,6 +35,7 @@
       <tr><td>1.5</td><td>2026-08-18</td><td>要件定義書v1.6（コード記述式問題）に対応。T-10 questionsにtype='code'とcode_languageを追加し（6.2節）、フロントマター問題ブロックのスキーマ・記述例を拡張した（8.3節）。F-13（5.13節）・F-20（5.20節）の処理概要にコード記述式問題を追記し、Claude APIがコードを実行せず読解して正誤・改善提案を判定する方式と、その設計判断（サンドボックス実行環境を持たない理由）を明記した。9.5節の送信データ範囲、5.24節の対象外機能（コードの実行・自動テストは対象外）を更新した。</td></tr>
       <tr><td>1.6</td><td>2026-08-18</td><td>要件定義書v1.7（全社スコープの分割）に対応。T-11 assignmentsのscope_type='company'をrequired値で権限分岐する方式（新しいscope_type列挙値は追加しない）を5.9節に明記し、設計判断のcalloutを追加した。A-38・4.8節（S-06）のアクセス制御を「全社必修配信はadmin限定、全社任意公開は対象教材のプロジェクト管理者も可」に更新した。</td></tr>
       <tr><td>1.7</td><td>2026-08-18</td><td>要件定義書v1.8（可用性の前提を24時間365日利用に変更）に対応。10.2節の稼働時間を業務時間限定から原則24時間365日に更新し、10.5節に「デプロイタイミング」の行を追加した（利用の少ない時間帯を前提にできなくなったため、ローリング再起動と既存の保存・再試行の仕組み〔5.15節・9.2節〕で学習記録の消失を防ぐ方針を明記）。</td></tr>
+      <tr><td>1.8</td><td>2026-08-19</td><td>要件定義書v1.9（「全社公開」プロジェクトの新設）に対応。T-03 projectsに<code>is_company_wide</code>列を追加し、初期データとして削除不可の特別プロジェクトを1行のみ投入する方式を6.2節に明記した。A-02（初回ログイン）で新規ユーザーをこのプロジェクトへ自動的にeditorとして参加させる処理、A-16（教材新規作成）で<code>project_id</code>省略時にこのプロジェクトIDを既定値とする処理を追記した（7.2.1節・7.2.3節）。5.25節（F-24）・5.26節（F-25）・3.5節に該当する設計判断を追記した。画面モックアップ（S-02・S-03）にプロジェクト表示・絞り込みを、S-05に所属プロジェクトの選択欄を反映した（4.1節）。</td></tr>
     </tbody>
   </table>
 
@@ -218,7 +219,7 @@
     </tbody>
   </table>
   <div class="callout">
-    <strong>AI連携先の選定（なぜ Claude API か）:</strong> 要求定義書9.1は「外部AI API（Chat Completions相当。Keirekiと同一方式）」とのみ規定し、具体的な連携先はAPI設計フェーズ（本書）で定めるとしていた。画面モックアップ（S-10 管理画面）で利用モデル選択肢を「Claude Sonnet／Claude Opus／Claude Haiku」として先行して具体化していたため、本書ではこれを正式に採用し、Anthropic Claude API（Messages API）による連携として設計する。Keirekiの「AIサポート」機能はOpenAI APIを採用しているが、本システムは開発チームがすでにClaude Code運用に習熟していること、8章のClaude Code連携（教材の取得・書き戻し）とAI機能（9章）を同一ベンダーのSDKで統一できることを踏まえ、Claude APIを選定した。</p>
+    <strong>AI連携先の選定（なぜ Claude API か）:</strong> 要求定義書9.1は「外部AI API（Chat Completions相当。Keirekiと同一方式）」とのみ規定し、具体的な連携先はAPI設計フェーズ（本書）で定めるとしていた。画面モックアップ（S-10 管理画面）で利用モデル選択肢を「Claude Sonnet／Claude Opus／Claude Haiku」として先行して具体化していたため、本書ではこれを正式に採用し、Anthropic Claude API（Messages API）による連携として設計する。Keirekiの「AIサポート」機能はOpenAI APIを採用しているが、本システムは開発チームがすでにClaude Code運用に習熟していること、8章のClaude Code連携（教材の取得・書き戻し）とAI機能（9章）を同一ベンダーのSDKで統一できることを踏まえ、Claude APIを選定した。
   </div>
 
   <h3>2.3 開発時と本番時の構成差</h3>
@@ -341,10 +342,10 @@
     <thead><tr><th>画面ID</th><th>画面名</th><th>パス</th><th>アクセス可能ロール</th><th>概要</th></tr></thead>
     <tbody>
       <tr><td>S-01</td><td>ログイン</td><td><code>/login</code></td><td>全員（未認証）</td><td>Googleでログインボタンのみのシンプルな画面</td></tr>
-      <tr><td>S-02</td><td>マイ学習</td><td><code>/</code>（ログイン後の初期画面）</td><td>全員</td><td>自分が受けるべき必修・任意教材の一覧と進捗状況。期限が近い必修教材を強調表示</td></tr>
-      <tr><td>S-03</td><td>教材一覧・検索</td><td><code>/materials</code></td><td>全員</td><td>公開されている教材の一覧・検索。単元・コース単位で表示</td></tr>
+      <tr><td>S-02</td><td>マイ学習</td><td><code>/</code>（ログイン後の初期画面）</td><td>全員</td><td>自分が受けるべき必修・任意教材の一覧と進捗状況。期限が近い必修教材を強調表示<span class="rev-new">。教材ごとに所属プロジェクトを表示し、プロジェクトタブ（「全社公開」を含む）で絞り込める</span></td></tr>
+      <tr><td>S-03</td><td>教材一覧・検索</td><td><code>/materials</code></td><td>全員</td><td>公開されている教材の一覧・検索。単元・コース単位で表示<span class="rev-new">。テーブルに「プロジェクト」列を追加し、プロジェクトタブでも絞り込める</span></td></tr>
       <tr><td>S-04</td><td>教材受講</td><td><code>/materials/:materialId</code></td><td>対象者（全員）</td><td>教材本文の閲覧、選択式・記述式問題への回答。通常受講／反復演習／誤答のみ抽出の3タブ</td></tr>
-      <tr><td>S-05</td><td>教材編集</td><td><code>/materials/:materialId/edit</code></td><td><span class="rev-old">対象教材のオーナー・共同編集者、対象教材が紐づくプロジェクトの管理者・編集者</span><span class="rev-new">対象教材が紐づくプロジェクトの管理者・編集者</span>、<span class="badge badge-admin">admin</span></td><td>本文・問題編集、単元/コース構成、ファイル・リンク添付、<span class="rev-old">共同編集者管理（個人教材の場合）／</span>プロジェクトメンバーの確認とS-12への導線<span class="rev-old">（プロジェクト教材の場合）</span>、AIレビュー結果・改訂履歴の確認<span class="rev-old">。個人教材（3.4節）とプロジェクトに紐づく教材（3.5節）の両方に対応する</span><span class="rev-new">。教材は必ずいずれかのプロジェクトに属するため（F-25）、アクセス可否・編集権限は常に3.5節のロジックのみで判定する</span></td></tr>
+      <tr><td>S-05</td><td>教材編集</td><td><code>/materials/:materialId/edit</code></td><td><span class="rev-old">対象教材のオーナー・共同編集者、対象教材が紐づくプロジェクトの管理者・編集者</span><span class="rev-new">対象教材が紐づくプロジェクトの管理者・編集者</span>、<span class="badge badge-admin">admin</span></td><td>本文・問題編集、単元/コース構成、ファイル・リンク添付、<span class="rev-old">共同編集者管理（個人教材の場合）／</span>プロジェクトメンバーの確認とS-12への導線<span class="rev-old">（プロジェクト教材の場合）</span>、AIレビュー結果・改訂履歴の確認<span class="rev-old">。個人教材（3.4節）とプロジェクトに紐づく教材（3.5節）の両方に対応する</span><span class="rev-new">。教材は必ずいずれかのプロジェクトに属するため（F-25）、アクセス可否・編集権限は常に3.5節のロジックのみで判定する。構成タブに所属プロジェクトの選択欄を持ち、新規作成時に未指定なら「全社公開」が既定選択となる</span></td></tr>
       <tr><td>S-06</td><td>配信設定</td><td><code>/admin/assignments</code></td><td><span class="rev-old"><span class="badge badge-admin">admin</span></span><span class="rev-new"><span class="badge badge-admin">admin</span>（全社スコープ）、対象プロジェクトの管理者（自プロジェクトのスコープ）</span></td><td>教材の配信対象（全社/<span class="rev-old">部署/</span>プロジェクト/個人）、必修/任意、受講期限の設定</td></tr>
       <tr class="rev-row"><td>S-07</td><td><span class="rev-old">組織管理</span></td><td><span class="rev-old"><code>/admin/organization</code></span></td><td><span class="rev-old"><span class="badge badge-admin">admin</span></span></td><td><span class="rev-old">部署の登録のみを扱う。プロジェクトの作成・メンバー管理はS-11・S-12へ移管した（誰でも作成できるため、管理者専用画面からは分離した）</span><span class="rev-new">廃止（v1.5）。部署（department）の概念をシステムから廃止したため、部署登録を行う画面自体が不要になった。プロジェクトの作成・管理はS-11・S-12を参照。画面ID・パスは欠番として保持する。</span></td></tr>
       <tr><td>S-08</td><td>受講状況ダッシュボード</td><td><code>/dashboard</code></td><td><span class="rev-old"><span class="badge badge-manager">manager</span> <span class="badge badge-admin">admin</span>、対象プロジェクトの管理者（自プロジェクト分のみ）</span><span class="rev-new"><span class="badge badge-admin">admin</span>（全社スコープ）、対象プロジェクトの管理者（自プロジェクトのスコープ）</span></td><td>担当範囲（<span class="rev-old">部署/</span>プロジェクト/全社）の受講率・合格率・未受講者の確認。AI組織レポートの表示</td></tr>
@@ -699,20 +700,24 @@
 
   <h3 class="rev-new">5.25 F-24 プロジェクト管理</h3>
   <p class="rev-new"><strong>処理概要:</strong> プロジェクトは誰でも新規作成でき（対応要求: REQ-F-06）、作成者は自動的にそのプロジェクトの管理者（ローカルロール、3.5節）になる。プロジェクト情報（名称・説明・状態）の編集、メンバーの追加・削除、メンバーのロール（管理者/編集者/受講者）の設定は、そのプロジェクトの管理者が行う。運用上は部署長・PMがプロジェクトを作成して管理者となることを想定するが、システムとして作成者を限定しない。</p>
+  <p class="rev-new"><strong>「全社公開」プロジェクト:</strong> システムは初期データとして、削除不可の特別プロジェクト「全社公開」（<code>is_company_wide=true</code>、6章参照）を1行だけ保持する。新規ユーザーはA-02（初回ログイン）の処理内で、このプロジェクトへ自動的に<code>role='editor'</code>として登録される（<code>assigned_by</code>はNULL、システムによる自動付与）。このプロジェクトの管理者（<code>role='admin'</code>）はシステム管理者のみとし、通常のプロジェクト作成フロー（A-09）やメンバー管理API（A-12/A-13）では新たに作成・変更できない。用途は5.26節（F-25）を参照。</p>
   <p class="rev-new"><strong>猶予期間の実現:</strong> プロジェクト管理者によるメンバー管理は、v1.3までの自己申告制と異なり、本人以外の操作で急にアクセスを失いうる。管理者による設定の反映が遅れたり対応が漏れたりする場合に備え、メンバーがプロジェクトから削除された場合は、T-21 <code>app_settings</code>（<code>key='project_leave_grace_period_days'</code>、既定30日、S-10で変更可）で定めた猶予期間中、旧プロジェクト単位で配信された教材への閲覧アクセスを継続する。判定は「現役メンバー（T-04 <code>project_memberships.left_at IS NULL</code>）」または「<code>left_at + 猶予日数 &gt;= 現在時刻</code>」のいずれかを満たすかで行い、F-09（配信対象設定）のアクセス可否判定に組み込む（v1.3の「離任（自己申告）」を「削除（管理者操作）」に読み替えた以外は、5.3節旧版の判定ロジックを踏襲する）。</p>
   <div class="callout rev-new">
     <strong>設計判断（ロール降格時は猶予期間の対象外とする）:</strong> S-12モックアップの注記は「メンバーを削除、またはロールを『受講者』以外から変更した場合も、猶予期間中は旧プロジェクトの教材への閲覧アクセスを継続する」としている。しかし本設計では、プロジェクトに残ったままロールが編集者/管理者から受講者へ降格された場合は、受講者ロールが引き続き該当教材の受講権限を持つため、閲覧アクセスが途切れることはない。したがって猶予期間の判定対象は「プロジェクトから削除された（メンバーでなくなった）場合」のみとし、ロール降格それ自体では猶予期間を発生させない設計とした。降格に伴う編集権限の喪失は即時反映とする（誤操作による情報流出リスクを避けるため）。
   </div>
   <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
-    <tbody><tr><td>S-11, S-12</td><td>A-09〜A-13</td><td>T-01, T-03, T-04, T-21</td></tr></tbody></table>
+    <tbody><tr><td>S-11, S-12</td><td>A-02, A-09〜A-13</td><td>T-01, T-03, T-04, T-21</td></tr></tbody></table>
   <div class="callout rev-new">
     <strong>なぜ project_memberships に role を持たせたか:</strong> v1.3までの <code>project_memberships</code> は「所属しているか否か（<code>joined_at</code>/<code>left_at</code>）」のみを表現し、プロジェクト内での権限は区別しなかった。v1.4はプロジェクト単位で教材の編集権限を分離する要求（F-25）に対応するため、所属テーブル自体にロールを持たせる設計とした。プロジェクト・ユーザーの組み合わせごとに高々1つのロールしか持てない（UNIQUE制約、6.2節参照）ため複数ロールの併有は不可とし、「管理者は編集者・受講者の操作も行える」という階層関係（3.5節）で上位互換を表現する。
   </div>
 
   <h3 class="rev-new">5.26 F-25 プロジェクト単位教材管理</h3>
-  <p class="rev-new"><strong>処理概要:</strong> <span class="rev-old">教材をプロジェクトに紐づけて管理できる</span><span class="rev-new">教材は必ずいずれかのプロジェクトに紐づけて管理する（個人所有の教材は存在しない。v1.5でF-07を統合した）</span>（対応要求: REQ-F-06）。教材作成時に T-06 <code>materials.project_id</code>（<span class="rev-old">既定はNULL＝個人教材</span><span class="rev-new">NOT NULL。6章参照</span>）を指定し、編集権限は<span class="rev-old">オーナー・共同編集者（3.4節）ではなく、</span>そのプロジェクトの管理者・編集者（ローカルロール、3.5節）で判定する。受講権限は、そのプロジェクトの受講者（3.5節）、および配信設定（F-09）で別途対象に指定された利用者が持つ。<span class="rev-new">個人で教材を作りたい場合は、まず自分のプロジェクトを作成する（作成者は自動的にそのプロジェクトの管理者になる。F-24）。</span>作成後の紐づけ変更（<span class="rev-old">個人教材→プロジェクト教材、または</span>別プロジェクトへの付け替え）はA-17（教材更新）で行うが、変更操作自体は変更前・変更後<span class="rev-old">いずれの編集権限も満たす者（3.4節または3.5節の判定）</span><span class="rev-new">いずれのプロジェクトについても編集権限（3.5節の判定）を満たす者</span>に限定する。</p>
+  <p class="rev-new"><strong>処理概要:</strong> <span class="rev-old">教材をプロジェクトに紐づけて管理できる</span><span class="rev-new">教材は必ずいずれかのプロジェクトに紐づけて管理する（個人所有の教材は存在しない。v1.5でF-07を統合した）</span>（対応要求: REQ-F-06）。教材作成時に T-06 <code>materials.project_id</code>（<span class="rev-old">既定はNULL＝個人教材</span><span class="rev-new">NOT NULL。6章参照</span>）を指定し、編集権限は<span class="rev-old">オーナー・共同編集者（3.4節）ではなく、</span>そのプロジェクトの管理者・編集者（ローカルロール、3.5節）で判定する。受講権限は、そのプロジェクトの受講者（3.5節）、および配信設定（F-09）で別途対象に指定された利用者が持つ。<span class="rev-old">個人で教材を作りたい場合は、まず自分のプロジェクトを作成する（作成者は自動的にそのプロジェクトの管理者になる。F-24）。</span><span class="rev-new">A-16（教材新規作成）で<code>project_id</code>を省略した場合は、全社員が自動的にeditorとして参加している「全社公開」プロジェクト（<code>is_company_wide=true</code>、5.25節）のIDを既定値として補完する。これにより、個人が単発の教材を作るためだけに使い捨てのプロジェクトを作る必要がなくなる。特定メンバーだけで管理したい場合は、引き続き自分のプロジェクトを作成できる（作成者は自動的にそのプロジェクトの管理者になる。F-24）。</span>作成後の紐づけ変更（<span class="rev-old">個人教材→プロジェクト教材、または</span>別プロジェクトへの付け替え）はA-17（教材更新）で行うが、変更操作自体は変更前・変更後<span class="rev-old">いずれの編集権限も満たす者（3.4節または3.5節の判定）</span><span class="rev-new">いずれのプロジェクトについても編集権限（3.5節の判定）を満たす者</span>に限定する。</p>
   <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
     <tbody><tr><td>S-05, S-12</td><td>A-16, A-17</td><td>T-03, T-04, T-06</td></tr></tbody></table>
+  <div class="callout rev-new">
+    <strong>設計判断（「全社公開」の管理者はシステム管理者に限定し、メンバー管理APIは変更しない）:</strong> 「全社公開」は全社員がeditorとして参加するが、admin（プロジェクトのローカルロール）はシステム管理者に限定し、他の誰にも付与しない。editorは教材の作成・修正はできるが削除はできない（A-18は対象プロジェクトの管理者限定、7.2.3節）ため、誰でも編集できる状態でも他人の教材を勝手に削除される心配はない。またAPI一覧（7章）には現時点でプロジェクトを削除するエンドポイント自体が存在しないため、「削除不可」を実現するための特別な保護ロジックは不要であり、A-12（メンバー追加）・A-13（メンバー変更・削除）・A-10（プロジェクト情報更新）の権限判定（<code>require_project_role(min_role='admin')</code>）を変更せずに、「全社公開の管理者は事実上システム管理者のみ」という状態を維持できる。
+  </div>
 
   <h3 class="rev-new">5.27 F-26 教材のプロジェクト間共有</h3>
   <p class="rev-new"><strong>処理概要:</strong> プロジェクトに紐づく教材を、別のプロジェクトでも受講・参照できるよう共有できる（対応要求: REQ-F-06）。共有の可否を判断・実行する権限は、教材が紐づく元プロジェクトの管理者が持つ（<code>require_project_role(materials.project_id, user, min_role='admin')</code>）。共有はT-22 <code>material_project_shares</code> に行を追加することで表現し、共有先プロジェクトのメンバーは当該教材を受講対象として扱う（編集権限は共有によって移動せず、常に元プロジェクトの管理者・編集者が持つ）。下書き（<code>status='draft'</code>）の教材は共有できない。</p>
@@ -936,7 +941,7 @@
     <tbody>
       <tr><td>T-01</td><td><code>users</code></td><td>ユーザー</td><td>email（UNIQUE）、name、picture_url、role（<span class="rev-old">'learner'/'author'/'manager'/'admin'、DEFAULT 'learner'</span><span class="rev-new">'member'/'admin'、DEFAULT 'member'</span>）、<span class="rev-old">department_id（FK→departments、nullable）、</span>is_active（DEFAULT true）<span class="rev-new">。department_idはv1.5で削除した（部署の概念の廃止に伴う）</span></td></tr>
       <tr class="rev-row"><td>T-02</td><td><span class="rev-old"><code>departments</code></span></td><td><span class="rev-old">部署</span></td><td><span class="rev-old">name（UNIQUE）、head_user_id（FK→users、nullable。部署長。S-08の担当範囲判定に使用）</span><span class="rev-new">廃止（v1.5）。部署（department）の概念をシステムから廃止したため、本テーブルは廃止した。T-01 <code>users.department_id</code> も同時に削除した。IDは欠番として保持する。</span></td></tr>
-      <tr><td>T-03</td><td><code>projects</code></td><td>プロジェクト</td><td>name、description、status（'active'/'completed'、DEFAULT 'active'）、<strong>pm_user_id</strong>（FK→users、nullable。PM。S-08の担当範囲判定に使用）、created_by（FK→users）</td></tr>
+      <tr class="rev-row"><td>T-03</td><td><code>projects</code></td><td>プロジェクト</td><td>name、description、status（'active'/'completed'、DEFAULT 'active'）、<strong>pm_user_id</strong>（FK→users、nullable。PM。S-08の担当範囲判定に使用）、created_by（FK→users）、<strong class="rev-new">is_company_wide</strong><span class="rev-new">（BOOLEAN NOT NULL DEFAULT false。「全社公開」プロジェクトを表すフラグ。trueの行は初期データとして1行のみ投入し、通常のAPI〔A-09/A-10〕からtrueに設定する手段は提供しない。5.25節参照）</span></td></tr>
       <tr><td>T-04</td><td><code>project_memberships</code></td><td><span class="rev-new">プロジェクトメンバー</span><span class="rev-old">プロジェクト所属</span></td><td>project_id（FK）、user_id（FK）、<strong class="rev-new">role</strong><span class="rev-new">（'admin'/'editor'/'learner'、DEFAULT 'learner'。プロジェクトのローカルロール。3.5節参照）</span>、<strong class="rev-new">assigned_by</strong><span class="rev-new">（FK→users、nullable。ロールを設定したプロジェクト管理者。作成時の自動付与はNULL）</span>、joined_at、left_at（nullable。NULLが現役メンバー。<span class="rev-new">プロジェクト管理者によるメンバー削除時に設定し、削除後の猶予期間判定に使用（5.25節参照）</span><span class="rev-old">離任後の猶予期間判定に使用。5.3節参照</span>）。UNIQUE(project_id, user_id)。<span class="rev-old">自己申告制</span><span class="rev-new">メンバーの追加・削除・ロール設定はプロジェクト管理者が行う（3.5節）</span></td></tr>
       <tr><td>T-05</td><td><code>courses</code></td><td>コース</td><td>name、description、sort_order。単元・コース構成の最上位単位</td></tr>
       <tr><td>T-06</td><td><code>materials</code></td><td>教材</td><td>course_id（FK、nullable）、title、description（一覧表示用概要）、format（'markdown'/'html'）、body（本文。単元は本文中の見出しから抽出。5.4節参照）、<span class="rev-old">owner_id（FK→users）</span><span class="rev-new"><strong>created_by</strong>（FK→users。作成者を記録する用途のみで、編集権限判定には用いない。v1.5でowner_idから読み替えた）</span>、<strong>project_id</strong>（FK→projects、<span class="rev-old">nullable。個人教材はNULL、プロジェクトに紐づく教材は該当プロジェクトID。編集権限判定の分岐に用いる。</span><span class="rev-new">NOT NULL。教材は必ずいずれかのプロジェクトに属する（v1.5）。編集権限は常にこのプロジェクトのローカルロールで判定する。</span>3.5節・5.26節参照）、status（'draft'/'published'）、sort_order</td></tr>
@@ -991,7 +996,7 @@
     <thead><tr><th>API ID</th><th>メソッド</th><th>パス</th><th>権限</th><th>概要</th></tr></thead>
     <tbody>
       <tr><td>A-01</td><td><span class="badge badge-get">GET</span></td><td><code>/api/auth/login</code></td><td>不要</td><td>Google OAuth 2.0 認可URLへリダイレクト（3.1節）</td></tr>
-      <tr><td>A-02</td><td><span class="badge badge-get">GET</span></td><td><code>/api/auth/callback</code></td><td>不要</td><td>OAuthコールバック。ドメイン検証→ユーザー登録/取得→セッションJWT発行（Cookie）→ <code>/</code> へリダイレクト</td></tr>
+      <tr class="rev-row"><td>A-02</td><td><span class="badge badge-get">GET</span></td><td><code>/api/auth/callback</code></td><td>不要</td><td>OAuthコールバック。ドメイン検証→ユーザー登録/取得→<span class="rev-new">新規登録時は「全社公開」プロジェクト（<code>is_company_wide=true</code>）へ<code>role='editor'</code>で自動登録（5.25節）→</span>セッションJWT発行（Cookie）→ <code>/</code> へリダイレクト</td></tr>
       <tr><td>A-03</td><td><span class="badge badge-post">POST</span></td><td><code>/api/auth/logout</code></td><td>認証済</td><td>セッションCookie破棄</td></tr>
       <tr><td>A-04</td><td><span class="badge badge-get">GET</span></td><td><code>/api/auth/me</code></td><td>認証済</td><td>ログイン中ユーザー情報（id, email, name, role, picture_url）取得</td></tr>
       <tr><td>A-62</td><td><span class="badge badge-get">GET</span></td><td><code>/api/auth/cli/login</code></td><td>不要</td><td>CLI用ログイン開始。ブラウザでA-01と同じGoogle OAuthフローを開き、成功後にlocalhostコールバックへ長期JWT（CLIトークン）を返す（8.2節）</td></tr>
@@ -1021,7 +1026,7 @@
     <tbody>
       <tr><td>A-14</td><td><span class="badge badge-get">GET</span></td><td><code>/api/materials</code></td><td>認証済（全員）</td><td>教材一覧・検索（S-03）。クエリ: <code>q</code>, <code>course_id</code>, <code>required</code>, <code>incomplete_only</code>, <code>my_assignments_only</code>, <code>page</code>, <code>per_page</code></td></tr>
       <tr><td>A-15</td><td><span class="badge badge-get">GET</span></td><td><code>/api/materials/{id}</code></td><td>受講対象者、対象教材が紐づくプロジェクトの<span class="badge badge-projrole">管理者・編集者</span> <span class="badge badge-admin">admin</span></td><td>教材詳細取得（構造化JSON。本文・問題を含む。下書きは編集権限保持者のみ閲覧可）</td></tr>
-      <tr><td>A-16</td><td><span class="badge badge-post">POST</span></td><td><code>/api/materials</code></td><td>対象プロジェクトの<span class="badge badge-projrole">編集者・管理者</span> <span class="badge badge-admin">admin</span></td><td>新規作成。<code>project_id</code>必須（5.26節）</td></tr>
+      <tr class="rev-row"><td>A-16</td><td><span class="badge badge-post">POST</span></td><td><code>/api/materials</code></td><td>対象プロジェクトの<span class="badge badge-projrole">編集者・管理者</span> <span class="badge badge-admin">admin</span></td><td>新規作成。<span class="rev-new"><code>project_id</code>省略時は「全社公開」プロジェクトのIDを既定値として補完する（5.26節）。指定する場合は指定したプロジェクトの編集者以上であること。</span></td></tr>
       <tr><td>A-17</td><td><span class="badge badge-put">PUT</span></td><td><code>/api/materials/{id}</code></td><td>対象教材が紐づくプロジェクトの<span class="badge badge-projrole">管理者・編集者</span> <span class="badge badge-admin">admin</span></td><td>メタデータ更新（タイトル・状態・<code>course_id</code>・<code>project_id</code>付け替え含む。付け替えは変更前後どちらのプロジェクトについても編集権限を満たす者に限定。5.26節）</td></tr>
       <tr><td>A-18</td><td><span class="badge badge-delete">DELETE</span></td><td><code>/api/materials/{id}</code></td><td>対象教材が紐づくプロジェクトの<span class="badge badge-projrole">管理者</span> <span class="badge badge-admin">admin</span></td><td>削除</td></tr>
       <tr><td>A-19</td><td><span class="badge badge-get">GET</span></td><td><code>/api/materials/{id}/source</code></td><td>対象教材が紐づくプロジェクトの<span class="badge badge-projrole">管理者・編集者</span> <span class="badge badge-admin">admin</span></td><td>フロントマター付きテキスト取得（画面のMarkdown/HTMLエディタ・Claude Code共通、8.4節）</td></tr>
