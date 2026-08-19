@@ -1045,6 +1045,28 @@ details.search-panel > summary .summary-hint {
 .preview-pane p { margin-bottom: 10px; color: var(--text-muted); }
 .preview-label { font-size: 11px; font-weight: 600; color: var(--text-subtle); letter-spacing: 0.04em; margin-bottom: 6px; }
 
+/* コード記述式問題の回答欄（設問カード内） */
+.code-answer {
+  width: 100%;
+  min-height: 120px;
+  font-family: "SF Mono", ui-monospace, Consolas, monospace;
+  font-size: 12.5px;
+  line-height: 1.7;
+  tab-size: 4;
+}
+.code-lang-tag {
+  display: inline-block;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-subtle);
+  background: var(--bg-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 1px 7px;
+  margin-left: 6px;
+  font-family: "SF Mono", ui-monospace, Consolas, monospace;
+}
+
 /* 添付ファイル・リンク */
 .attach-item {
   display: flex;

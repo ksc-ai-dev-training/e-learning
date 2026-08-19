@@ -105,7 +105,7 @@
         <section class="panel" style="margin-bottom:18px">
           <div class="panel-header">
             <div class="panel-title">記述式回答のAI採点結果</div>
-            <span class="panel-count">単元1・2（採点済み・採点中）</span>
+            <span class="panel-count">単元1〜3（採点済み・採点中）</span>
           </div>
           <div class="panel-body">
             <div class="ai-review-item">
@@ -122,7 +122,14 @@
                 <div style="font-size:12px;color:var(--text-muted)">AIによる採点処理中です。結果が出るまで数十秒〜数分かかる場合がありますが、採点を待たずに他の設問へ進められます。</div>
               </div>
             </div>
-            <p class="ai-generated-note">採点結果（点数・講評）は学習記録として保存され、必要に応じて対象教材が紐づくプロジェクトの編集者・管理者が確認・修正できます。</p>
+            <div class="ai-review-item">
+              <span class="badge badge-complete" style="flex-shrink:0">12/15点</span>
+              <div>
+                <div style="font-weight:600;font-size:12.5px;margin-bottom:2px">単元3 設問4（コード）: 辞書 d の値をすべて合計して返す関数 sum_values(d) を書いてください。<span class="code-lang-tag">python</span></div>
+                <div style="font-size:12px;color:var(--text-muted)">AI講評: 出力は正しく、空の辞書を渡した場合も0を返せています。ただし <code>for k in d: total += d[k]</code> は <code>for v in d.values(): total += v</code> と書くことでキーの参照を1回減らせます。ループを2重に回している箇所（8〜12行目）は<strong>1回のループにまとめられ、簡略化できます</strong>。コードは実行せずAIが読解して採点しています。</div>
+              </div>
+            </div>
+            <p class="ai-generated-note">採点結果（点数・講評）は学習記録として保存され、必要に応じて対象教材が紐づくプロジェクトの編集者・管理者が確認・修正できます。コード記述式は実行せずAIが読解して正誤・改善点を判定するため、複雑な処理では判定精度が下がる場合があります。</p>
           </div>
         </section>
 
@@ -182,6 +189,17 @@
           <div class="question-text">あなたの業務でClaude Codeを活用できそうな場面を、具体的に100字程度で述べてください。</div>
           <textarea rows="3" disabled placeholder="設問2に回答すると入力できるようになります"></textarea>
           <p class="field-help" style="margin-top:6px">※ 記述式はAIが自動採点します。結果が出るまで数十秒〜数分かかる場合がありますが、採点を待たずに次の設問へ進めます。</p>
+        </div>
+
+        <!-- 設問4（コード記述式・未解放） -->
+        <div class="question-card" style="opacity:0.55">
+          <div class="question-head">
+            <span class="question-no">設問4 ／ コード記述式<span class="code-lang-tag">python</span></span>
+            <span class="badge">設問3に回答すると解放されます</span>
+          </div>
+          <div class="question-text">辞書 d の値をすべて合計して返す関数 sum_values(d) を書いてください。空の辞書を渡した場合は 0 を返すようにしてください。</div>
+          <textarea class="code-answer" disabled placeholder="設問3に回答すると入力できるようになります&#10;&#10;def sum_values(d):&#10;    ..."></textarea>
+          <p class="field-help" style="margin-top:6px">※ コード記述式はAIがコードを実行せず読解して採点します。正誤の判定に加えて、無駄な処理があれば簡略化の提案も講評に含まれます。結果を待たずに次の設問へ進めます。</p>
         </div>
 
         <div class="form-actions">

@@ -162,7 +162,7 @@ git checkout -b feature/add-login
 
       <!-- 問題編集タブ -->
       <div class="tab-panel" id="panel-questions">
-        <p class="tab-note">単元ごとに設問を登録します。種別は単一選択・複数選択・記述式から選べます。</p>
+        <p class="tab-note">単元ごとに設問を登録します。種別は単一選択・複数選択・記述式・コード記述式から選べます。コード記述式はAIがコードを実行せず読解して採点するため、数式処理・辞書操作等、実行結果をAIが読解のみで推論しやすい教育用の課題を想定してください。</p>
 
         <div class="edit-card">
           <div class="edit-card-head">
@@ -179,6 +179,7 @@ git checkout -b feature/add-login
                 <option selected>単一選択</option>
                 <option>複数選択</option>
                 <option>記述式</option>
+                <option>コード記述式</option>
               </select>
             </div>
             <div class="field">
@@ -217,6 +218,7 @@ git checkout -b feature/add-login
                 <option>単一選択</option>
                 <option>複数選択</option>
                 <option selected>記述式</option>
+                <option>コード記述式</option>
               </select>
             </div>
             <div class="field">
@@ -231,6 +233,50 @@ git checkout -b feature/add-login
           <div class="field" style="margin-bottom:0">
             <label>模範解答・採点基準（AI採点の参照用）</label>
             <textarea rows="3">変更の目的（なぜその変更が必要か）と、動作確認の方法（どう確認したか）が含まれていれば加点。箇条書きでも可。</textarea>
+          </div>
+        </div>
+
+        <div class="edit-card">
+          <div class="edit-card-head">
+            <span class="edit-card-title">設問3（単元3・コード記述式）</span>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-secondary btn-sm" type="button">コピーして追加</button>
+              <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
+            </div>
+          </div>
+          <div class="field-row-3">
+            <div class="field">
+              <label>種別</label>
+              <select>
+                <option>単一選択</option>
+                <option>複数選択</option>
+                <option>記述式</option>
+                <option selected>コード記述式</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>言語</label>
+              <select>
+                <option selected>python</option>
+                <option>javascript</option>
+                <option>sql</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>配点</label>
+              <input type="number" value="15" min="0" step="5">
+            </div>
+          </div>
+          <div class="field">
+            <label>設問文</label>
+            <textarea rows="2">辞書 d の値をすべて合計して返す関数 sum_values(d) を書いてください。空の辞書を渡した場合は 0 を返すようにしてください。</textarea>
+          </div>
+          <div class="field" style="margin-bottom:0">
+            <label>模範解答・採点基準（AI採点の参照用）</label>
+            <textarea rows="3">・辞書の値を正しく合計できているか（キーではなく値を対象にしているか）
+・空の辞書を渡した場合に0を返せているか
+・不要なループの重複など、簡略化できる冗長な処理がないか（改善提案として講評に含める）</textarea>
+            <p class="field-help" style="margin-top:6px">※ コード記述式はAIがコードを実行せず読解して採点します（8.6節・9章参照）。ループの繰り返し回数が多い・数値計算が精密といった課題では判定精度が下がるため、採点結果は必ず確認してください。</p>
           </div>
         </div>
 
