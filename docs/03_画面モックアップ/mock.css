@@ -321,6 +321,32 @@ h1 { font-size: 20px; font-weight: 600; letter-spacing: 0.01em; }
 .badge-group { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
 
 /* ---------------------------------------------------------
+   プロジェクトタブ（所属プロジェクトによる絞り込み）
+   --------------------------------------------------------- */
+.proj-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+.proj-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--text-muted);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.proj-tab .proj-count { font-size: 11px; color: var(--text-subtle); }
+.proj-tab.active { background: var(--accent-600); border-color: var(--accent-600); color: #fff; font-weight: 600; }
+.proj-tab.active .proj-count { color: #dbeafe; }
+.proj-tab.pinned { border-style: dashed; }
+.proj-tab .pin-icon { width: 12px; height: 12px; flex-shrink: 0; }
+.chip-proj { border-style: dashed; }
+
+/* ---------------------------------------------------------
    テーブル（高密度: 行高36px）
    --------------------------------------------------------- */
 .table-wrap {

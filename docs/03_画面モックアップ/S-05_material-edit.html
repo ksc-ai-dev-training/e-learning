@@ -285,13 +285,27 @@ git checkout -b feature/add-login
 
       <!-- 構成タブ -->
       <div class="tab-panel" id="panel-structure">
-        <div class="field" style="max-width:360px">
-          <label>所属コース</label>
-          <select>
-            <option selected>エンジニア基礎</option>
-            <option>新人研修2026</option>
-            <option>フロントエンド基礎</option>
-          </select>
+        <div class="field-row">
+          <div class="field">
+            <label>所属プロジェクト</label>
+            <select>
+              <option selected>LCC CRM刷新</option>
+              <option>📌 全社公開</option>
+              <option>新人研修2026運営</option>
+              <option>情報セキュリティ委員会</option>
+              <option>e-learning新規構築</option>
+            </select>
+            <span class="field-help">教材の編集権限を持つ単位です。変更するには、変更前・変更後どちらのプロジェクトでも編集者以上である必要があります。未選択で新規作成した場合は「全社公開」が既定で選ばれます。</span>
+          </div>
+          <div class="field">
+            <label>所属コース</label>
+            <select>
+              <option selected>エンジニア基礎</option>
+              <option>新人研修2026</option>
+              <option>フロントエンド基礎</option>
+            </select>
+            <span class="field-help">学習順序のまとまりです。プロジェクトとは独立した軸で、任意項目です。</span>
+          </div>
         </div>
 
         <section class="panel">

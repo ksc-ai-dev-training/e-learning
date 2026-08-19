@@ -65,6 +65,19 @@
 
     <div class="page-body">
 
+      <!-- プロジェクトタブ（所属プロジェクトによる絞り込み。「全社公開」は常に先頭固定） -->
+      <div class="proj-tabs" role="tablist" aria-label="所属プロジェクトで絞り込み">
+        <button class="proj-tab active" type="button">すべて <span class="proj-count">9件</span></button>
+        <button class="proj-tab pinned" type="button">
+          <svg class="pin-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a1 1 0 0 0 0-2H8a1 1 0 0 0 0 2h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/></svg>
+          全社公開 <span class="proj-count">1件</span>
+        </button>
+        <button class="proj-tab" type="button">新人研修2026運営 <span class="proj-count">2件</span></button>
+        <button class="proj-tab" type="button">情報セキュリティ委員会 <span class="proj-count">2件</span></button>
+        <button class="proj-tab" type="button">LCC CRM刷新 <span class="proj-count">2件</span></button>
+        <button class="proj-tab" type="button">e-learning新規構築 <span class="proj-count">2件</span></button>
+      </div>
+
       <!-- 検索パネル（開閉式・既定で開いた状態） -->
       <details class="search-panel" open>
         <summary>
@@ -114,7 +127,7 @@
       </details>
 
       <div class="table-notes">
-        ※ 一覧には公開済みの教材のみ表示されます。単元・コースの構成順に並びます。
+        ※ 一覧には公開済みの教材のみ表示されます。「プロジェクト」は教材の所属・編集権限の単位、「コース」は学習順序のまとまりで、独立した軸です。
       </div>
 
       <!-- 教材テーブル -->
@@ -123,6 +136,7 @@
           <thead>
             <tr>
               <th>教材</th>
+              <th>プロジェクト</th>
               <th>コース</th>
               <th style="width:80px">区分</th>
               <th style="width:100px">所要時間</th>
@@ -136,6 +150,7 @@
                 <div class="cell-main">AI開発研修 基礎編 — Claude Codeの使い方</div>
                 <div class="cell-sub">単元5構成 ／ 単一選択・記述式 全8問</div>
               </td>
+              <td><span class="chip">新人研修2026運営</span></td>
               <td>新人研修2026</td>
               <td><span class="badge badge-required">必修</span></td>
               <td class="num">約90分</td>
@@ -147,6 +162,7 @@
                 <div class="cell-main">ビジネスマナー研修</div>
                 <div class="cell-sub">単元3構成 ／ 単一選択 全6問</div>
               </td>
+              <td><span class="chip">新人研修2026運営</span></td>
               <td>新人研修2026</td>
               <td><span class="badge badge-required">必修</span></td>
               <td class="num">約40分</td>
@@ -158,6 +174,7 @@
                 <div class="cell-main">情報セキュリティ研修 2026</div>
                 <div class="cell-sub">単元4構成 ／ 単一選択・複数選択 全10問</div>
               </td>
+              <td><span class="chip">情報セキュリティ委員会</span></td>
               <td>全社必修研修</td>
               <td><span class="badge badge-required">必修</span></td>
               <td class="num">約60分</td>
@@ -169,6 +186,7 @@
                 <div class="cell-main">ハラスメント防止研修</div>
                 <div class="cell-sub">単元2構成 ／ 単一選択 全4問</div>
               </td>
+              <td><span class="chip">情報セキュリティ委員会</span></td>
               <td>全社必修研修</td>
               <td><span class="badge badge-required">必修</span></td>
               <td class="num">約30分</td>
@@ -180,6 +198,7 @@
                 <div class="cell-main">新人向けGit入門</div>
                 <div class="cell-sub">単元4構成 ／ 記述式 全5問 ／ 作成: 鈴木 美咲</div>
               </td>
+              <td><span class="chip">LCC CRM刷新</span></td>
               <td>エンジニア基礎</td>
               <td><span class="badge badge-optional">任意</span></td>
               <td class="num">約45分</td>
@@ -191,6 +210,7 @@
                 <div class="cell-main">データベース設計入門</div>
                 <div class="cell-sub">単元5構成 ／ 単一選択・記述式 全9問 ／ 作成: 鈴木 美咲</div>
               </td>
+              <td><span class="chip">LCC CRM刷新</span></td>
               <td>エンジニア基礎</td>
               <td><span class="badge badge-optional">任意</span></td>
               <td class="num">約70分</td>
@@ -202,6 +222,7 @@
                 <div class="cell-main">TypeScript入門</div>
                 <div class="cell-sub">単元6構成 ／ 単一選択・記述式 全12問</div>
               </td>
+              <td><span class="chip">e-learning新規構築</span></td>
               <td>フロントエンド基礎</td>
               <td><span class="badge badge-optional">任意</span></td>
               <td class="num">約100分</td>
@@ -213,10 +234,23 @@
                 <div class="cell-main">React入門</div>
                 <div class="cell-sub">単元5構成 ／ 単一選択 全8問</div>
               </td>
+              <td><span class="chip">e-learning新規構築</span></td>
               <td>フロントエンド基礎</td>
               <td><span class="badge badge-optional">任意</span></td>
               <td class="num">約80分</td>
               <td>2026-08-05</td>
+              <td><a class="btn btn-secondary btn-sm" href="S-04_material-view.html">受講する</a></td>
+            </tr>
+            <tr>
+              <td>
+                <div class="cell-main">Python基礎ハンズオン資料</div>
+                <div class="cell-sub">単元2構成 ／ 記述式・コード記述式 全5問 ／ 作成: 高橋 大輔</div>
+              </td>
+              <td><span class="chip chip-proj">📌 全社公開</span></td>
+              <td>—</td>
+              <td><span class="badge badge-optional">任意</span></td>
+              <td class="num">約30分</td>
+              <td>2026-08-17</td>
               <td><a class="btn btn-secondary btn-sm" href="S-04_material-view.html">受講する</a></td>
             </tr>
           </tbody>
@@ -230,7 +264,7 @@
           <option>50件</option>
           <option>100件</option>
         </select>
-        <span class="total-count"><strong>1 - 8</strong> / 8件</span>
+        <span class="total-count"><strong>1 - 9</strong> / 9件</span>
         <div class="pagination">
           <button class="page-btn" type="button" disabled>«</button>
           <button class="page-btn current" type="button">1</button>
