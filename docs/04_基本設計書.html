@@ -16,7 +16,7 @@
     <p class="subtitle">社内学習管理システム（e-learning）</p>
     <div class="meta">
       <span>作成日: 2026-08-18</span>
-      <span>版数: 1.4</span>
+      <span>版数: 1.5</span>
       <span>作成: コガソフトウェア株式会社</span>
     </div>
     <p class="note">本ドキュメントは新人社員向けAI開発研修のサンプル成果物です</p>
@@ -32,6 +32,7 @@
       <tr><td>1.2</td><td>2026-08-18</td><td>要件定義書v1.5（権限モデルの大幅簡素化）に対応。1〜6章を改訂: システムロールをmember（一般ユーザー）／adminの2種に統合し、3.3節の権限マトリクスを作り直した。3.4節（教材ごとのオーナー・共同編集者による認可レイヤー）を廃止し、3.5節（プロジェクトのローカルロールによる認可）をプロジェクト教材・個人教材の分岐なしの唯一の判定ロジックに更新した。S-07（組織管理）を廃止し、S-08・S-09のアクセス制御をmanagerからadmin／対象プロジェクトの管理者に置き換えた。F-02のロール表記を更新し、F-03（組織マスタ管理）・F-07（教材作成・共有）を廃止、F-25から個人教材との使い分けの記述を削除し、5.24節（対象外機能）に部署単位の組織管理・個人所有教材を追記した。T-02 departments・T-07 material_co_editorsを廃止（IDは欠番）、T-01からdepartment_idを削除しroleを2値化、T-06のowner_idをcreated_by（作成者記録用）に読み替えてproject_idをNOT NULL化、T-04・T-11から部署関連の記述を除去した。ER図・テーブル一覧・「与件からの調整点」コールアウトを更新した。変更箇所は赤字で示す。7章以降は本改訂の対象外（別タスクで作成）。</td></tr>
       <tr><td>1.3</td><td>2026-08-18</td><td>7〜11章（API設計／教材連携設計〔Claude Code連携〕／AI機能設計／非機能設計／前提・制約）を新設。1〜6章で既出のAPI（A-01〜A-61、廃止・欠番のA-05〜A-08・A-23〜A-26を含む）をルーター構成別に一覧化し（7章）、Claude Code向けのCLIトークン認証（A-62・A-63）を新設した。教材のフロントマタースキーマ・本文中の問題ブロック形式、取得・書き戻しAPI（A-19〜A-22）、改訂履歴（T-08）の記録方式、HTMLサニタイズを提供時にのみ適用する方式を定義した（8章）。AIジョブを別プロセスのキュー基盤を持たず同一Uvicornプロセス内の非同期タスクとして実現する方式、AI利用ログ（T-19）・モデル選択の優先順位・送信データ範囲を定義した（9章）。性能・レスポンシブ方針、可用性、セキュリティ、監査ログ、デプロイ、保守性を要件定義書8章の非機能要件に対応させて定義した（10章）。要件定義書が基本設計フェーズで定めるとしていた事項（ファイル容量上限・猶予期間日数・HTMLサニタイズ許可リスト・AI送信データ範囲等）の決定を一覧化した（11章）。1〜6章の内容は変更していない。</td></tr>
       <tr><td>1.4</td><td>2026-08-18</td><td>レビュー指摘の修正。(1) S-05本文編集タブのプレビューがサニタイズ経路から漏れていた問題を修正: プレビュー専用API A-64を新設し、未保存コンテンツも含め全ての描画経路（A-15/A-40/A-64）でサニタイズを必須化した（4.7節・7.2.3節・8.6節）。(2) AI非同期ジョブがプロセス再起動・デプロイで消失し、受講者・教材編集者が結果を永久に待ち続ける問題を修正: T-16〜T-18に<code>requested_at</code>を追加してリクエスト受付時にプレースホルダ行を作成する方式とし、起動時・5分ごとの「スタックジョブ・スイープ」による自動再試行を追加した（6.2節・9.2節）。(3) 4.1節・4.2節図・4.13節の「全ロール」表記を「全員」に統一した（S-02〜S-04, S-11, 共通レイアウトの説明）。</td></tr>
+      <tr><td>1.5</td><td>2026-08-18</td><td>要件定義書v1.6（コード記述式問題）に対応。T-10 questionsにtype='code'とcode_languageを追加し（6.2節）、フロントマター問題ブロックのスキーマ・記述例を拡張した（8.3節）。F-13（5.13節）・F-20（5.20節）の処理概要にコード記述式問題を追記し、Claude APIがコードを実行せず読解して正誤・改善提案を判定する方式と、その設計判断（サンドボックス実行環境を持たない理由）を明記した。9.5節の送信データ範囲、5.24節の対象外機能（コードの実行・自動テストは対象外）を更新した。</td></tr>
     </tbody>
   </table>
 
@@ -614,7 +615,7 @@
     <tbody><tr><td>S-08</td><td>A-47</td><td>T-20, T-21</td></tr></tbody></table>
 
   <h3>5.13 F-13 出題・回答受付</h3>
-  <p><strong>処理概要:</strong> 単一選択・複数選択の選択式問題と、文章で回答する記述式問題を出題し、回答を受け付ける（対応要求: REQ-F-10）。T-10 <code>questions.type</code> で問題種別を、<code>options</code>（選択肢）・<code>correct_answer</code>（正解）・<code>scoring_criteria</code>（記述式の採点基準）を保持する。回答は T-14 <code>answers.response</code>（JSONB）に生の入力値を保存する。</p>
+  <p><strong>処理概要:</strong> 単一選択・複数選択の選択式問題と、文章で回答する記述式問題を出題し、回答を受け付ける（対応要求: REQ-F-10）。<span class="rev-new">記述式問題には、コードを記述して回答する形式（<code>type='code'</code>、プログラミング問題）を含む。</span>T-10 <code>questions.type</code> で問題種別を、<code>options</code>（選択肢）・<code>correct_answer</code>（正解）・<code>scoring_criteria</code>（記述式・<span class="rev-new">code</span>の採点基準<span class="rev-new">）・<code>code_language</code>（<code>type='code'</code>のときの言語ヒント</span>）を保持する。回答は T-14 <code>answers.response</code>（JSONB）に生の入力値を保存する（<span class="rev-new">code問題ではコード本文の文字列を保存する。5.20節参照</span>）。</p>
   <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
     <tbody><tr><td>S-04</td><td>A-40〜A-42</td><td>T-10, T-13, T-14</td></tr></tbody></table>
 
@@ -653,6 +654,10 @@
 
   <h3>5.20 F-20 AI記述式採点・講評</h3>
   <p><strong>処理概要:</strong> 記述式回答をAIが採点し、根拠を伴う講評を返す。採点結果は人が確認・修正できる（対応要求: REQ-F-16）。処理方式（非同期ジョブ）は9章参照。採点結果（<code>ai_score_pct</code>・<code>ai_feedback</code>）は T-14 <code>answers</code> に保存し、<span class="rev-old">教材のオーナー・共同編集者</span><span class="rev-new">対象教材が紐づくプロジェクトの管理者・編集者</span>が <code>reviewed_by</code>・<code>reviewed_at</code> を設定して修正できる。</p>
+  <p class="rev-new"><strong>コード記述式問題（<code>type='code'</code>）の採点:</strong> 提出されたコード（T-14 <code>response</code>）・出題の模範解答/採点基準（T-10 <code>scoring_criteria</code>）・言語ヒント（<code>code_language</code>）をプロンプトに含め、Claude APIにコードを<strong>実行せず読解させ</strong>、想定される実行結果・エラーの有無を推論して正誤を判定させる。<code>ai_feedback</code>には正誤の判定根拠に加え、無駄な処理の簡略化など改善提案があれば含めるよう構造化出力のスキーマに項目を設ける（例: <code>{"correct": bool, "reasoning": str, "improvement_suggestions": str | null}</code>）。</p>
+  <div class="callout warn rev-new">
+    <strong>なぜコードを実行せず読解のみで採点するか:</strong> 提出されたコードを実際に実行するには、任意のコードを安全に動かせるサンドボックス実行環境（コンテナ分離・リソース制限・ネットワーク遮断等）が必要になり、2章で定めたUvicorn単一プロセス構成には収まらない、独立したインフラの新設を要する。要件定義書3.1節・3.2節は、対象を教育用の簡単な課題（数式処理・辞書操作等）に絞ることでAIの静的読解による採点を許容し、コード実行環境は初期実装の対象外としている。本設計もこれに従い、Claude APIへのコード読解のみで採点を行う。ループの繰り返し回数が多い・数値計算が精密といった、AIの読解精度が下がりやすい課題を出題する場合は、教材編集者が採点結果を確認・修正する運用（REQ-F-16）を徹底する。
+  </div>
   <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
     <tbody><tr><td>S-04</td><td>A-42, A-43</td><td>T-14, T-19</td></tr></tbody></table>
 
@@ -683,6 +688,7 @@
       <tr><td>プロジェクト所属情報の他システムとの自動連携</td><td>参照可能な外部システムが現時点で存在しないため初期実装の対象外（9.2節）。<span class="rev-old">プロジェクト所属は自己申告制とする</span><span class="rev-new">プロジェクトのメンバー・ロールはそのプロジェクトの管理者が設定する運用とする（3.5節・5.25節）</span></td></tr>
       <tr class="rev-row"><td>部署（department）単位の組織管理・配信対象指定</td><td>v1.5で権限モデルを簡素化し、組織単位を「全社」「プロジェクト」「個人」の3種に整理したため（3.3節・7章参照）</td></tr>
       <tr class="rev-row"><td>個人所有の教材（オーナー・共同編集者モデル）</td><td>教材は必ずいずれかのプロジェクトに属する方式に一本化したため（F-25）</td></tr>
+      <tr class="rev-row"><td>コード記述式問題の提出コードの実行・自動テスト（サンドボックス実行環境）</td><td>教育用の簡単な課題（数式処理・辞書操作等）を主な対象とし、AIによる静的な読解での採点で十分と判断したため。実行環境の構築・保守コストとセキュリティ対策（任意コード実行のリスク）を要するため初期実装の対象外とする（5.20節）</td></tr>
     </tbody>
   </table>
 
@@ -932,7 +938,7 @@
       <tr class="rev-row"><td>T-07</td><td><span class="rev-old"><code>material_co_editors</code></span></td><td><span class="rev-old">共同編集者</span></td><td><span class="rev-old">material_id（FK）、user_id（FK）、added_by（FK→users）。UNIQUE(material_id, user_id)</span><span class="rev-new">廃止（v1.5）。教材は必ずいずれかのプロジェクトに属する方式に一本化され、個人所有の教材（オーナー・共同編集者モデル）が廃止されたため、本テーブルは廃止した。IDは欠番として保持する。</span></td></tr>
       <tr><td>T-08</td><td><code>material_revisions</code></td><td>教材改訂履歴</td><td>material_id（FK）、body_snapshot、format、changed_by（FK→users）、changed_via（'web'/'claude_code'）、change_summary。8.4節参照</td></tr>
       <tr><td>T-09</td><td><code>material_attachments</code></td><td>添付ファイル・リンク</td><td>material_id（FK）、kind（'file'/'link'）、storage_key（nullable。Supabase Storageのパス）、external_url（nullable）、filename、mime_type、size_bytes</td></tr>
-      <tr><td>T-10</td><td><code>questions</code></td><td>問題</td><td>material_id（FK）、<strong>unit_index</strong>（nullable int。本文中の単元出現順。5.4節参照）、type（'single'/'multi'/'free_text'）、prompt、options（JSONB）、correct_answer（JSONB）、<strong>scoring_criteria</strong>（text、nullable。記述式のAI採点基準）、<strong>points</strong>（int、DEFAULT 10。配点）、sort_order</td></tr>
+      <tr><td>T-10</td><td><code>questions</code></td><td>問題</td><td>material_id（FK）、<strong>unit_index</strong>（nullable int。本文中の単元出現順。5.4節参照）、type（'single'/'multi'/'free_text'<span class="rev-new">/'code'</span>）、prompt、options（JSONB）、correct_answer（JSONB）、<strong>scoring_criteria</strong>（text、nullable。記述式・<span class="rev-new">code</span>のAI採点基準）、<span class="rev-new"><strong>code_language</strong>（text、nullable。type='code'のときの言語ヒント。例: 'python'。AIへのプロンプトに含める）、</span><strong>points</strong>（int、DEFAULT 10。配点）、sort_order</td></tr>
       <tr><td>T-11</td><td><code>assignments</code></td><td>配信設定</td><td>material_id（FK）、scope_type（<span class="rev-old">'company'/'department'/'project'/'individual'</span><span class="rev-new">'company'/'project'/'individual'。'department'はv1.5で削除した（部署の概念の廃止に伴う）</span>）、scope_id（nullable）、required（bool）、due_at（nullable）、pass_score_pct（nullable）、retake_allowed（bool）、retake_limit（nullable）、created_by（FK→users）。1教材に対し複数行を持ちうる（5.9節）</td></tr>
       <tr><td>T-12</td><td><code>enrollment_progress</code></td><td>受講進捗</td><td>user_id（FK）、material_id（FK）、status（'not_started'/'in_progress'/'completed'）、current_position（単元インデックス等の再開位置）、started_at、completed_at。UNIQUE(user_id, material_id)</td></tr>
       <tr><td>T-13</td><td><code>quiz_attempts</code></td><td>受験記録</td><td>user_id（FK）、material_id（FK）、mode（'graded'/'practice'）、attempt_no、score_pct、passed（bool、nullable。採点中はNULL）、question_order（JSONB）、started_at、submitted_at</td></tr>
@@ -1220,11 +1226,12 @@
     <thead><tr><th>フィールド（ブロック内YAML）</th><th>対応カラム</th><th>要否</th><th>内容</th></tr></thead>
     <tbody>
       <tr><td><code>id</code></td><td><code>questions.id</code></td><td>更新時のみ</td><td>既存問題の更新対象ID。新規追加時は省略またはnull</td></tr>
-      <tr><td><code>type</code></td><td><code>questions.type</code></td><td>必須</td><td><code>single</code> / <code>multi</code> / <code>free_text</code></td></tr>
+      <tr><td><code>type</code></td><td><code>questions.type</code></td><td>必須</td><td><code>single</code> / <code>multi</code> / <code>free_text</code><span class="rev-new"> / <code>code</code></span></td></tr>
       <tr><td><code>prompt</code></td><td><code>questions.prompt</code></td><td>必須</td><td>設問文</td></tr>
       <tr><td><code>options</code></td><td><code>questions.options</code></td><td><code>single</code>/<code>multi</code>で必須</td><td>選択肢の配列</td></tr>
       <tr><td><code>correct_answer</code></td><td><code>questions.correct_answer</code></td><td><code>single</code>/<code>multi</code>で必須</td><td>正解（値または配列）</td></tr>
-      <tr><td><code>scoring_criteria</code></td><td><code>questions.scoring_criteria</code></td><td><code>free_text</code>で必須</td><td>AI採点基準</td></tr>
+      <tr><td><code>scoring_criteria</code></td><td><code>questions.scoring_criteria</code></td><td><code>free_text</code>/<code>code</code>で必須</td><td>AI採点基準</td></tr>
+      <tr class="rev-row"><td><code>code_language</code></td><td><code>questions.code_language</code></td><td><code>code</code>で必須</td><td>言語ヒント（例: <code>python</code>）</td></tr>
       <tr><td><code>points</code></td><td><code>questions.points</code></td><td>任意（既定10）</td><td>配点</td></tr>
     </tbody>
   </table>
@@ -1267,6 +1274,21 @@ scoring_criteria: |
   - for文・while文それぞれが適した場面に言及しているか
   - 具体例が示されているか
 points: 20
+```
+
+## 単元3: 関数
+
+関数を使うと、同じ処理をまとめて再利用できる……
+
+```question
+type: code
+code_language: python
+prompt: "引数として渡された辞書 d の値をすべて合計して返す関数 sum_values(d) を書いてください。"
+scoring_criteria: |
+  - 辞書の値を正しく合計できているか（キーではなく値を対象にしているか）
+  - 空の辞書を渡した場合に0を返せているか
+  - 不要なループの重複など、簡略化できる冗長な処理がないか（改善提案として講評に含める）
+points: 15
 ```
 </code></pre>
   <div class="callout">
@@ -1413,7 +1435,7 @@ points: 20
     <thead><tr><th>機能</th><th>送信するデータ</th><th>送信しないデータ</th></tr></thead>
     <tbody>
       <tr><td>F-08 教材AIレビュー</td><td>教材本文・問題定義（T-06, T-10）</td><td>作成者・編集者の氏名等の個人情報、他教材の内容</td></tr>
-      <tr><td>F-20 AI記述式採点</td><td>回答内容（T-14 <code>response</code>）、出題の模範解答・採点基準（T-10）</td><td>受講者の氏名・メールアドレス（プロンプトには<code>user_id</code>を含めず、採点結果の保存時にのみ紐づける）</td></tr>
+      <tr><td>F-20 AI記述式採点</td><td>回答内容（T-14 <code>response</code>。<span class="rev-new">コード記述式問題の場合は提出コード本文と言語ヒント<code>code_language</code>を含む</span>）、出題の模範解答・採点基準（T-10）</td><td>受講者の氏名・メールアドレス（プロンプトには<code>user_id</code>を含めず、採点結果の保存時にのみ紐づける）</td></tr>
       <tr><td>F-21 AIつまずき分析</td><td>設問ごとの正答率・誤答傾向の集計値（複数受講者の回答を集計したもの）</td><td>個々の受講者を特定できる回答・氏名</td></tr>
       <tr><td>F-22 AI個人フィードバック</td><td>対象者本人の回答傾向データ（正誤・分野別集計、T-12〜T-14の集計）</td><td>氏名・メールアドレス（宛先としての氏名表示はフロントエンド側で付与する）</td></tr>
       <tr><td>F-23 AI組織レポート</td><td>プロジェクト単位・全社単位の集計データ（受講率・合格率等）</td><td>個人が特定できる粒度のデータ（常に集計後の数値のみを送信する）</td></tr>
@@ -1527,7 +1549,7 @@ points: 20
   </ul>
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（e-learning）基本設計書 v1.4</span>
+    <span>社内学習管理システム（e-learning）基本設計書 v1.5</span>
     <span>コガソフトウェア株式会社 / 2026-08-18</span>
   </footer>
 
