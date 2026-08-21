@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S-17 教材編集：ページ編集 | e-learning 画面モックアップ</title>
+<link rel="stylesheet" href="mock.css">
+<style>
+  .kind-toggle { display:flex; gap:8px; margin-bottom:16px; }
+  .kind-toggle label {
+    display:flex; align-items:center; gap:6px; padding:8px 14px;
+    border:1px solid var(--border-strong); border-radius:8px; font-size:12.5px; cursor:pointer;
+  }
+  .kind-toggle input:checked + span { font-weight:700; color: var(--accent-600); }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- サイドバー（プロジェクト編集者: 鈴木 美咲） -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-mark">e</div>
+      <div>
+        <div class="brand-name">e-learning</div>
+        <div class="brand-sub">社内学習管理システム</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-label">メニュー</div>
+      <a class="nav-item" href="S-02_my-learning.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h3.5v-6h5v6H18a1 1 0 0 0 1-1V9.5"/></svg></span>
+        マイ学習
+      </a>
+      <a class="nav-item" href="S-03_materials-list.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></span>
+        教材一覧・検索
+      </a>
+      <a class="nav-item active" href="S-13_material-edit-project-select.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></span>
+        教材編集
+      </a>
+      <a class="nav-item" href="S-09_my-report.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
+        個人学習レポート
+      </a>
+      <a class="nav-item" href="S-11_project-create.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></span>
+        プロジェクト作成
+      </a>
+      <a class="nav-item" href="S-12_project-management.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg></span>
+        プロジェクト管理
+      </a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="sidebar-user-row">
+        <span class="avatar">鈴</span>
+        <div>
+          <div class="user-name">鈴木 美咲 <span class="badge badge-role role-member">member</span></div>
+          <div class="user-mail">m.suzuki@kogasoftware.com</div>
+        </div>
+      </div>
+      <a class="sidebar-logout" href="S-15_profile-edit.html">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        プロフィール編集
+      </a>
+      <a class="sidebar-logout" href="S-01_login.html">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        ログアウト
+      </a>
+    </div>
+  </aside>
+
+  <!-- メインエリア -->
+  <div class="main">
+    <header class="page-header">
+      <div>
+        <div class="page-title-group">
+          <h1>ページ編集 — ブランチを作成する</h1>
+          <span class="screen-id">S-17</span>
+        </div>
+        <div style="font-size:12px;color:var(--text-subtle);margin-top:2px">新人向けGit入門 ／ 第2章 ブランチとプルリクエストの基本</div>
+      </div>
+      <div class="header-actions">
+        <a class="btn btn-secondary" href="S-05_material-edit.html">← 目次編集に戻る</a>
+        <button class="btn btn-secondary" type="button">プレビュー</button>
+        <button class="btn btn-primary" type="button">このページを保存</button>
+      </div>
+    </header>
+
+    <div class="page-body">
+
+      <div class="field-row">
+        <div class="field">
+          <label>ページタイトル</label>
+          <input type="text" value="ブランチを作成する">
+        </div>
+        <div class="field">
+          <label>概要（一覧表示用）</label>
+          <input type="text" value="作業ブランチの作成から命名規則までを学びます">
+        </div>
+      </div>
+
+      <div class="field">
+        <label>このページの構成</label>
+        <div class="kind-toggle">
+          <label><input type="checkbox" checked> <span>説明文を含める</span></label>
+          <label><input type="checkbox"> <span>問題を含める</span></label>
+        </div>
+        <span class="field-help">作成者の判断で自由に組み合わせられる。説明文だけの「読み物ページ」、問題だけの「演習ページ」、両方を含む「説明＋確認問題」のいずれも作れる。少なくともどちらか一方は必須。</span>
+      </div>
+
+      <section class="panel">
+        <div class="panel-header">
+          <div class="panel-title">説明文</div>
+        </div>
+        <div class="panel-body">
+          <div class="field">
+            <label>記述形式</label>
+            <div class="segmented">
+              <button type="button" class="active">Markdown</button>
+              <button type="button">HTML</button>
+            </div>
+            <span class="field-help">教材ごとにMarkdown/HTMLいずれかの形式で記述できます。HTMLはサニタイズ（許可リスト方式）を通して表示されます。</span>
+          </div>
+
+          <div class="editor-split">
+            <div class="editor-pane">
+              <div class="preview-label">本文（Markdown）</div>
+              <textarea>## ブランチを作成する
+
+作業を始める前に、必ず `main` から新しいブランチを作成します。
+
+```
+git checkout -b feature/add-login
+```
+
+- コミットメッセージは変更内容が分かるように書く
+- 差分（diff）はマージ前に必ず自分で見直す</textarea>
+            </div>
+            <div class="preview-pane">
+              <div class="preview-label">プレビュー</div>
+              <h3>ブランチを作成する</h3>
+              <p>作業を始める前に、必ず <code>main</code> から新しいブランチを作成します。</p>
+              <pre style="background:#1e2530;color:#dce3ec;border-radius:6px;padding:10px 12px;font-size:12px;margin-bottom:10px">git checkout -b feature/add-login</pre>
+              <ul style="margin:0 0 0 18px;color:var(--text-muted);font-size:13px">
+                <li>コミットメッセージは変更内容が分かるように書く</li>
+                <li>差分（diff）はマージ前に必ず自分で見直す</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <div class="panel-title">このページの添付ファイル・リンク</div>
+          <span class="panel-count">1件</span>
+        </div>
+        <div class="panel-body">
+          <p style="font-size:12px;color:var(--text-subtle);margin:0 0 8px">このページの説明文と一緒に受講者に表示されます（S-16）。教材全体に関わる資料（シラバス等）はS-05「ファイル・リンク」タブに登録してください。</p>
+          <div class="attach-item">
+            <span class="attach-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></span>
+            <div style="flex:1;min-width:0">
+              <div class="attach-name">ブランチ運用デモ動画.mp4</div>
+              <div class="attach-meta">動画 ／ 48.2MB ／ 2026-08-10 登録</div>
+            </div>
+            <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+            <div class="file-pick" style="flex:1;min-width:160px">
+              <input type="file">
+            </div>
+            <input type="url" placeholder="または外部リンクを追加 https://..." style="flex:1;min-width:200px">
+            <button class="btn btn-secondary btn-sm" type="button">追加</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" style="opacity:0.55">
+        <div class="panel-header">
+          <div class="panel-title">問題（このページでは未使用）</div>
+        </div>
+        <div class="panel-body">
+          <p style="font-size:12px;color:var(--text-subtle);margin:0 0 8px">「問題を含める」にチェックすると、下の例（第2章「プルリクエストを作成する」ページ）と同じ設問編集フォームがここに展開されます。</p>
+          <button class="add-row-btn" type="button" disabled>+ 設問を追加</button>
+        </div>
+      </section>
+
+      <div class="field" style="max-width:520px">
+        <label>出題方式</label>
+        <div class="radio-group">
+          <label class="radio-line"><input type="radio" name="quiz-mode" checked> このページの設問をすべて出題する</label>
+          <label class="radio-line"><input type="radio" name="quiz-mode"> 問題プールからランダムに出題する</label>
+        </div>
+        <span class="field-help">プールを選ぶと「プール内の設問数」「1回あたりの出題数」を追加で設定できます（大きな問題バンクから毎回一部だけ出題したい場合。例: 章末に50問プールを用意し、受講のたびランダムに5問）。</span>
+      </div>
+
+      <div class="table-notes" style="margin:16px 0">
+        ※ 参考として、「説明＋問題」ページ（第2章「プルリクエストを作成する」）を開いた場合の問題編集フォームを以下に例示します。種別は単一選択・複数選択・並び替え・記述式・コード記述式・スコア記録から選べます。コード記述式はAIがコードを実行せず読解して採点するため、数式処理・辞書操作等、実行結果をAIが読解のみで推論しやすい教育用の課題を想定してください。
+      </div>
+
+      <div class="edit-card">
+        <div class="edit-card-head">
+          <span class="edit-card-title">設問1（単一選択）</span>
+          <div style="display:flex;gap:6px">
+            <a class="btn btn-secondary btn-sm" href="S-19_question-answers.html">回答一覧</a>
+            <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>種別</label>
+          <select>
+            <option selected>単一選択</option>
+            <option>複数選択</option>
+            <option>並び替え</option>
+            <option>記述式</option>
+            <option>コード記述式</option>
+            <option>スコア記録</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>設問文</label>
+          <textarea rows="2">作業ブランチを作成するコマンドとして正しいものはどれか。</textarea>
+        </div>
+        <div class="field" style="margin-bottom:0">
+          <label>選択肢（正解にチェック）</label>
+          <div class="checkbox-group" style="flex-direction:column;align-items:flex-start">
+            <label class="checkbox-line"><input type="checkbox"> git commit -b feature/x</label>
+            <label class="checkbox-line"><input type="checkbox" checked> git checkout -b feature/x</label>
+            <label class="checkbox-line"><input type="checkbox"> git merge -b feature/x</label>
+            <label class="checkbox-line"><input type="checkbox"> git push -b feature/x</label>
+          </div>
+          <button class="add-row-btn" type="button" style="margin-top:8px">+ 選択肢を追加</button>
+        </div>
+        <p class="field-help" style="margin-top:6px">※ 単一選択・複数選択は「正解にチェック」した内容（<code>correct_answer</code>）と回答を直接照合するため、採点にAIは使いません。</p>
+        <div class="field-row" style="margin-top:10px">
+          <div>
+            <label>回答</label>
+            <div class="radio-group">
+              <label class="radio-line"><input type="radio" name="q1-required" checked> 必須</label>
+              <label class="radio-line"><input type="radio" name="q1-required"> 任意（スキップ可）</label>
+            </div>
+          </div>
+          <div>
+            <label>ドボン問題</label>
+            <label class="checkbox-line"><input type="checkbox"> この設問にする</label>
+            <span class="field-help">不正解だと受験単位（S-05で設定）が正答率によらず不合格になります</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="edit-card">
+        <div class="edit-card-head">
+          <span class="edit-card-title">設問2（記述式）<span class="bomb-tag" style="display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;color:#991b1b;background:#fee2e2;border-radius:999px;padding:1px 8px;margin-left:6px">⚠ ドボン</span></span>
+          <div style="display:flex;gap:6px">
+            <a class="btn btn-secondary btn-sm" href="S-19_question-answers.html">回答一覧</a>
+            <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>種別</label>
+          <select>
+            <option>単一選択</option>
+            <option>複数選択</option>
+            <option>並び替え</option>
+            <option selected>記述式</option>
+            <option>コード記述式</option>
+            <option>スコア記録</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>設問文</label>
+          <textarea rows="2">よいプルリクエストの説明文に含めるべき情報を2つ挙げて説明してください。</textarea>
+        </div>
+        <div class="field">
+          <label>模範解答・採点基準（採点の参照用）</label>
+          <textarea rows="3">変更の目的（なぜその変更が必要か）と、動作確認の方法（どう確認したか）が含まれていれば正解。箇条書きでも可。</textarea>
+          <p class="field-help" style="margin-top:6px">※ 記述式・コード記述式は、この基準を参照して採点します。基準そのものは人が設定しますが、最終判定は下の「採点方式」でAIまたはプロジェクト担当者のどちらかに委ねられます。配点は設けず、教材全体の正答率（正解した設問数／全設問数）のみで合否を判定します。</p>
+        </div>
+        <div class="field-row">
+          <div>
+            <label>回答</label>
+            <div class="radio-group">
+              <label class="radio-line"><input type="radio" name="q2-required" checked> 必須</label>
+              <label class="radio-line"><input type="radio" name="q2-required"> 任意（スキップ可）</label>
+            </div>
+          </div>
+          <div>
+            <label>ドボン問題</label>
+            <label class="checkbox-line"><input type="checkbox" checked> この設問にする</label>
+          </div>
+        </div>
+        <div class="field">
+          <label>採点方式</label>
+          <select id="q2-grading-mode" onchange="document.getElementById('q2-feedback-style').style.opacity = this.selectedIndex===0 ? '1' : '0.5'">
+            <option>教材の既定に従う（S-05で設定）</option>
+            <option selected>AI自動採点</option>
+            <option>プロジェクト担当者（管理者・編集者）が手動採点</option>
+          </select>
+          <span class="field-help">「手動採点」を選ぶと、この設問はAIによる正誤判定を行わずS-19「回答一覧」で担当者が採点します。AIはその結果をF-21のつまずき分析にのみ利用します。</span>
+        </div>
+        <div class="field" id="q2-feedback-style" style="margin-bottom:0">
+          <label>AI講評のスタイル</label>
+          <select>
+            <option selected>教材の既定に従う（S-05で設定）</option>
+            <option>正解提示型</option>
+            <option>コードレビュー型（間違いのみ指摘）</option>
+            <option>ヒント型（正解を見せない）</option>
+          </select>
+          <span class="field-help">採点方式が「AI自動採点」の場合のみ有効です。この設問だけ教材の既定と違うスタイルにしたい場合に選びます。</span>
+        </div>
+      </div>
+
+      <div class="edit-card">
+        <div class="edit-card-head">
+          <span class="edit-card-title">設問3（並び替え）</span>
+          <div style="display:flex;gap:6px">
+            <a class="btn btn-secondary btn-sm" href="S-19_question-answers.html">回答一覧</a>
+            <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>種別</label>
+          <select>
+            <option>単一選択</option>
+            <option>複数選択</option>
+            <option selected>並び替え</option>
+            <option>記述式</option>
+            <option>コード記述式</option>
+            <option>スコア記録</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>設問文</label>
+          <textarea rows="2">プルリクエスト作成までの手順を正しい順番に並べ替えてください。</textarea>
+        </div>
+        <div class="field" style="margin-bottom:0">
+          <label>正しい順番（この並びが正解になります）</label>
+          <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--bg-subtle);border-radius:6px;margin:3px 0;font-size:12.5px">⠿ 1. 作業ブランチを作成する</div>
+          <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--bg-subtle);border-radius:6px;margin:3px 0;font-size:12.5px">⠿ 2. 変更をコミットする</div>
+          <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--bg-subtle);border-radius:6px;margin:3px 0;font-size:12.5px">⠿ 3. リモートへpushする</div>
+          <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--bg-subtle);border-radius:6px;margin:3px 0;font-size:12.5px">⠿ 4. プルリクエストを作成する</div>
+          <button class="add-row-btn" type="button" style="margin-top:6px">+ 項目を追加</button>
+          <p class="field-help" style="margin-top:6px">受講側ではこの項目がシャッフルされた状態で表示され、受講者がドラッグで並び替えて回答します。採点は正解の並びと回答順序の完全一致で判定し、AIは使いません。</p>
+        </div>
+      </div>
+
+      <div class="edit-card">
+        <div class="edit-card-head">
+          <span class="edit-card-title">設問4（スコア記録）</span>
+          <div style="display:flex;gap:6px">
+            <a class="btn btn-secondary btn-sm" href="S-19_question-answers.html">回答一覧</a>
+            <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>種別</label>
+          <select>
+            <option>単一選択</option>
+            <option>複数選択</option>
+            <option>並び替え</option>
+            <option>記述式</option>
+            <option>コード記述式</option>
+            <option selected>スコア記録</option>
+          </select>
+        </div>
+        <div class="field-row">
+          <div style="grid-column:span 2">
+            <label>設問文（指示文）</label>
+            <input type="text" value="タイピング練習の結果（正打数）を入力してください">
+          </div>
+          <div>
+            <label>単位</label>
+            <input type="text" value="WPM">
+          </div>
+        </div>
+        <span class="field-help" style="display:block">正解・不正解の概念を持たない設問です。受講者が数値を自己申告で入力し、記録として積み上がります（反復演習と組み合わせて推移を追う想定）。正答率の計算には含めず、ドボン問題にも設定できません。AI個人フィードバックでスコアの推移コメントが本人に届きます。</span>
+      </div>
+
+      <button class="add-row-btn" type="button">+ 設問を追加</button>
+
+      <div class="form-actions" style="margin-top:18px">
+        <button class="btn btn-primary" type="button">このページを保存</button>
+        <span class="actions-note">保存すると目次編集画面（S-05）に戻ります。Claude Code連携APIからも同じページ内容を取得・更新できます（往復編集）</span>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="mock-note">画面モックアップ（S-17）/ 研修サンプル</div>
+
+</body>
+</html>

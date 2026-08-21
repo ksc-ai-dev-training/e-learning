@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S-14 教材編集：教材一覧 | e-learning 画面モックアップ</title>
+<link rel="stylesheet" href="mock.css">
+<style>
+  .branch-actions { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- サイドバー（プロジェクト編集者: 鈴木 美咲） -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-mark">e</div>
+      <div>
+        <div class="brand-name">e-learning</div>
+        <div class="brand-sub">社内学習管理システム</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-label">メニュー</div>
+      <a class="nav-item" href="S-02_my-learning.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h3.5v-6h5v6H18a1 1 0 0 0 1-1V9.5"/></svg></span>
+        マイ学習
+      </a>
+      <a class="nav-item" href="S-03_materials-list.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></span>
+        教材一覧・検索
+      </a>
+      <a class="nav-item active" href="S-13_material-edit-project-select.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></span>
+        教材編集
+      </a>
+      <a class="nav-item" href="S-09_my-report.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
+        個人学習レポート
+      </a>
+      <a class="nav-item" href="S-11_project-create.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></span>
+        プロジェクト作成
+      </a>
+      <a class="nav-item" href="S-12_project-management.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg></span>
+        プロジェクト管理
+      </a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="sidebar-user-row">
+        <span class="avatar">鈴</span>
+        <div>
+          <div class="user-name">鈴木 美咲 <span class="badge badge-role role-member">member</span></div>
+          <div class="user-mail">m.suzuki@kogasoftware.com</div>
+        </div>
+      </div>
+      <a class="sidebar-logout" href="S-15_profile-edit.html">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        プロフィール編集
+      </a>
+      <a class="sidebar-logout" href="S-01_login.html">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        ログアウト
+      </a>
+    </div>
+  </aside>
+
+  <!-- メインエリア -->
+  <div class="main">
+    <header class="page-header">
+      <div class="page-title-group">
+        <h1>教材編集 — LCC CRM刷新</h1>
+        <span class="screen-id">S-14</span>
+      </div>
+    </header>
+
+    <div class="page-body">
+
+      <p class="tab-note">
+        <a href="S-13_material-edit-project-select.html">← プロジェクト選択に戻る</a>
+        ／ このプロジェクトの教材（下書きを含む）を一覧表示します。S-03（教材一覧・検索）とは異なり、公開済みでない教材もここで確認・編集できます。
+      </p>
+
+      <details class="search-panel">
+        <summary>
+          <span class="summary-caret"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+          絞り込み
+          <span class="summary-hint">クリックで開閉</span>
+        </summary>
+        <div class="search-panel-body">
+          <div class="search-grid">
+            <div class="field">
+              <label for="q14">キーワード</label>
+              <input type="search" id="q14" placeholder="教材名、#タグ">
+            </div>
+            <div class="field">
+              <label>状態</label>
+              <select>
+                <option selected>すべて</option>
+                <option>公開中</option>
+                <option>下書き</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>更新月</label>
+              <select>
+                <option selected>すべて</option>
+                <option>2026年8月</option>
+                <option>2026年7月</option>
+                <option>2026年6月</option>
+              </select>
+            </div>
+          </div>
+          <div class="search-actions">
+            <button class="btn btn-primary" type="button">絞り込む</button>
+            <button class="btn btn-secondary" type="button">条件クリア</button>
+          </div>
+        </div>
+      </details>
+
+      <div class="branch-actions">
+        <a class="btn btn-primary" href="S-18_ai-draft-session.html">＋ このプロジェクトに新規教材を作成</a>
+        <span style="font-size:12px;color:var(--text-subtle)">または、下の一覧から既存の教材を編集・複製</span>
+      </div>
+
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>教材</th>
+              <th style="width:90px">状態</th>
+              <th style="width:110px">構成</th>
+              <th style="width:110px">更新日</th>
+              <th style="width:160px">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <a class="cell-main" href="S-05_material-edit.html" style="text-decoration:none;color:inherit;display:block">新人向けGit入門</a>
+                <div class="cell-sub">記述式 全5問 ／ 作成: 鈴木 美咲（あなた）</div>
+              </td>
+              <td><span class="badge badge-status-on">公開中</span></td>
+              <td class="num">4章・12ページ</td>
+              <td>2026-08-14</td>
+              <td>
+                <a class="btn btn-secondary btn-sm" href="S-05_material-edit.html">編集する</a>
+                <a class="btn btn-ghost btn-sm" href="S-05_material-edit.html#duplicated" title="この教材の内容をコピーして新しい下書きを作成">複製</a>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <a class="cell-main" href="S-05_material-edit.html" style="text-decoration:none;color:inherit;display:block">データベース設計入門 v2（改訂中）</a>
+                <div class="cell-sub">単一選択・記述式 全9問 ／ 作成: 鈴木 美咲（あなた）</div>
+              </td>
+              <td><span class="badge badge-status-off">下書き</span></td>
+              <td class="num">3章・7ページ</td>
+              <td>2026-08-18</td>
+              <td>
+                <a class="btn btn-secondary btn-sm" href="S-05_material-edit.html">編集する</a>
+                <a class="btn btn-ghost btn-sm" href="S-05_material-edit.html#duplicated" title="この教材の内容をコピーして新しい下書きを作成">複製</a>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="table-notes" style="margin-top:10px">
+        ※ 「複製」を押すと、教材1冊分（目次構造〔章・小見出し・ページ〕と各ページの説明文・問題）をそのままコピーした新しい下書きが作成され、目次編集画面が開きます。年度更新など、既存教材をベースに作り直したい場合に使います（例: 「新人研修2026」を複製して「新人研修2027」の下書きを作る）。複製元の公開状態・改訂履歴は引き継がず、複製後の教材は常に下書きから始まります。
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="mock-note">画面モックアップ（S-14）/ 研修サンプル</div>
+
+</body>
+</html>

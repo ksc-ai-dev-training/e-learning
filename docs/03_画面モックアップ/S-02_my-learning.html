@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>S-02 マイ学習 | e-learning 画面モックアップ</title>
 <link rel="stylesheet" href="mock.css">
+<style>
+  .tag-pill-sm {
+    display:inline-block; font-size:11px; font-weight:600; color: var(--accent-600);
+    background: var(--accent-100); border-radius:999px; padding:1px 7px;
+  }
+</style>
 </head>
 <body>
 
@@ -29,14 +35,21 @@
         <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></span>
         教材一覧・検索
       </a>
-      <a class="nav-item" href="S-05_material-edit.html">
+      <a class="nav-item" href="S-13_material-edit-project-select.html">
         <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></span>
         教材編集
       </a>
-      <div class="nav-note">※ 対象教材が紐づくプロジェクトの管理者・編集者権限を持つ教材（例:「AWS基礎メモ」）がある場合のみ表示</div>
       <a class="nav-item" href="S-09_my-report.html">
         <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
         個人学習レポート
+      </a>
+      <a class="nav-item" href="S-11_project-create.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></span>
+        プロジェクト作成
+      </a>
+      <a class="nav-item" href="S-12_project-management.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg></span>
+        プロジェクト管理
       </a>
     </nav>
     <div class="sidebar-user">
@@ -47,6 +60,10 @@
           <div class="user-mail">k.sato@kogasoftware.com</div>
         </div>
       </div>
+      <a class="sidebar-logout" href="S-15_profile-edit.html">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        プロフィール編集
+      </a>
       <a class="sidebar-logout" href="S-01_login.html">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         ログアウト
@@ -120,7 +137,7 @@
                 <span class="badge badge-required">必修</span>
                 <span class="badge badge-overdue">期限まであと2日（2026-08-20）</span>
                 <span class="chip">新人研修2026運営</span>
-                <span>単元3/5 完了</span>
+                <span>6/9 ページ完了</span>
               </div>
             </div>
             <div class="material-progress">
@@ -153,7 +170,7 @@
                 <span class="badge badge-required">必修</span>
                 <span>期限: 2026-08-20</span>
                 <span class="chip">新人研修2026運営</span>
-                <span>コース: 新人研修2026</span>
+                <span class="tag-pill-sm">#新人研修2026</span>
               </div>
             </div>
             <div class="material-progress">
@@ -177,7 +194,7 @@
                 <span class="badge badge-required">必修</span>
                 <span>期限: 2026-09-30</span>
                 <span class="chip">情報セキュリティ委員会</span>
-                <span>コース: 全社必修研修</span>
+                <span class="tag-pill-sm">#セキュリティ</span>
               </div>
             </div>
             <div class="material-progress">
@@ -233,7 +250,7 @@
               <div class="material-meta">
                 <span class="badge badge-optional">任意</span>
                 <span class="chip">e-learning新規構築</span>
-                <span>コース: フロントエンド基礎</span>
+                <span class="tag-pill-sm">#フロントエンド基礎</span>
               </div>
             </div>
             <div class="material-progress">
@@ -257,7 +274,7 @@
                 <span class="badge badge-optional">任意</span>
                 <span class="badge badge-complete">合格済み（2026-07-10）</span>
                 <span class="chip">LCC CRM刷新</span>
-                <span>コース: エンジニア基礎</span>
+                <span class="tag-pill-sm">#エンジニア基礎</span> <span class="tag-pill-sm">#Git</span>
               </div>
             </div>
             <div class="material-progress">

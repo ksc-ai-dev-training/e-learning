@@ -3,8 +3,36 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>S-04 教材受講 | e-learning 画面モックアップ</title>
+<title>S-04 教材受講：目次 | e-learning 画面モックアップ</title>
 <link rel="stylesheet" href="mock.css">
+<style>
+  .toc-chapter { border:1px solid var(--border-strong); border-radius:8px; margin-bottom:10px; background:#fff; }
+  .toc-chapter-head {
+    display:flex; align-items:center; gap:10px; padding:10px 14px;
+    background: var(--bg-subtle); border-radius:8px 8px 0 0; border-bottom:1px solid var(--border);
+  }
+  .toc-chapter-head .chapter-no { font-size:12px; font-weight:700; color:var(--accent-600); flex-shrink:0; }
+  .toc-chapter-head .chapter-title { flex:1; font-size:13.5px; font-weight:700; }
+  .toc-chapter-head .chapter-progress { font-size:11.5px; color:var(--text-subtle); flex-shrink:0; }
+  .toc-body { padding:8px 14px 10px; }
+  .toc-section { margin: 6px 0; }
+  .toc-section-head { font-size:11.5px; font-weight:600; color:var(--text-subtle); margin:8px 0 4px 4px; }
+  .toc-page {
+    display:flex; align-items:center; gap:10px; padding:8px 10px; margin:4px 0;
+    border-radius:6px; background: var(--bg-subtle); text-decoration:none; color:inherit;
+  }
+  .toc-page:hover { background: var(--accent-100); }
+  .toc-page.indent { margin-left:18px; }
+  .toc-page-check { width:16px; height:16px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
+  .toc-page-check.done { background:#16a34a; color:#fff; }
+  .toc-page-check.todo { border:1.5px solid var(--border-strong); }
+  .toc-page-title { flex:1; font-size:12.5px; }
+  .toc-page-kind { font-size:10.5px; color:var(--text-subtle); flex-shrink:0; }
+  .tag-pill {
+    display:inline-block; font-size:11px; font-weight:600; color: var(--accent-600);
+    background: var(--accent-100); border-radius:999px; padding:1px 7px;
+  }
+</style>
 </head>
 <body>
 
@@ -25,18 +53,25 @@
         <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h3.5v-6h5v6H18a1 1 0 0 0 1-1V9.5"/></svg></span>
         マイ学習
       </a>
-      <a class="nav-item" href="S-03_materials-list.html">
+      <a class="nav-item active" href="S-03_materials-list.html">
         <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></span>
         教材一覧・検索
       </a>
-      <a class="nav-item" href="S-05_material-edit.html">
+      <a class="nav-item" href="S-13_material-edit-project-select.html">
         <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></span>
         教材編集
       </a>
-      <div class="nav-note">※ 対象教材が紐づくプロジェクトの管理者・編集者権限を持つ教材（例:「AWS基礎メモ」）がある場合のみ表示</div>
       <a class="nav-item" href="S-09_my-report.html">
         <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
         個人学習レポート
+      </a>
+      <a class="nav-item" href="S-11_project-create.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></span>
+        プロジェクト作成
+      </a>
+      <a class="nav-item" href="S-12_project-management.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg></span>
+        プロジェクト管理
       </a>
     </nav>
     <div class="sidebar-user">
@@ -47,6 +82,10 @@
           <div class="user-mail">k.sato@kogasoftware.com</div>
         </div>
       </div>
+      <a class="sidebar-logout" href="S-15_profile-edit.html">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        プロフィール編集
+      </a>
       <a class="sidebar-logout" href="S-01_login.html">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         ログアウト
@@ -63,7 +102,9 @@
           <span class="badge badge-required">必修</span>
           <span class="screen-id">S-04</span>
         </div>
-        <div style="font-size:12px;color:var(--text-subtle);margin-top:2px">コース: 新人研修2026 ／ 単元3「Claude Codeとの基本的なやりとり」／ 期限: 2026-08-20</div>
+        <div style="font-size:12px;color:var(--text-subtle);margin-top:2px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          <span class="tag-pill">#新人研修2026</span> ／ 全5章・14ページ ／ 期限: 2026-08-20
+        </div>
       </div>
       <div class="header-actions">
         <a class="btn btn-ghost" href="S-02_my-learning.html">マイ学習へ戻る</a>
@@ -74,58 +115,85 @@
 
       <!-- モード切替タブ -->
       <div class="tabs" role="tablist">
-        <button class="tab active" id="tab-normal" type="button" onclick="switchTab('normal')">通常受講</button>
+        <button class="tab active" id="tab-toc" type="button" onclick="switchTab('toc')">目次</button>
         <button class="tab" id="tab-repeat" type="button" onclick="switchTab('repeat')">反復演習</button>
         <button class="tab" id="tab-wrong" type="button" onclick="switchTab('wrong')">誤答のみ抽出</button>
       </div>
 
-      <!-- 通常受講 -->
-      <div class="tab-panel active" id="panel-normal">
+      <!-- 目次 -->
+      <div class="tab-panel active" id="panel-toc">
 
         <div class="ai-panel" style="margin-bottom:18px">
           <div class="ai-panel-head">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
             前回の続きから再開しました
           </div>
-          <p style="font-size:12.5px;color:var(--text-muted)">2026-08-16 14:20 に中断 ／ 単元3・設問2 から再開します。ここまでの回答は保存済みです。</p>
+          <p style="font-size:12.5px;color:var(--text-muted)">2026-08-16 14:20 に中断 ／ 第3章「Claude Codeとの基本的なやりとり」から再開します。ここまでの回答は保存済みです。</p>
         </div>
 
-        <!-- 合否判定・再受験（F-14） -->
+        <!-- 合否判定・再受験（F-14。この教材は受験単位=見出し（章）ごとに設定されている） -->
+        <div class="table-notes" style="margin-bottom:8px">※ この教材は受験単位が「見出し（章）ごと」に設定されているため、章ごとに独立して合否判定・再受験を行います（S-05で作成者が設定）。</div>
+        <div style="border:1px solid var(--border-strong);border-radius:8px;overflow:hidden;margin-bottom:8px">
+          <div style="background:var(--bg-subtle);padding:7px 12px;font-weight:700;font-size:12.5px;display:flex;justify-content:space-between;align-items:center">
+            第1章 Claude Codeとは
+            <span class="badge" style="background:#dcfce7;color:#166534">合格</span>
+          </div>
+          <div style="padding:8px 12px;font-size:11.5px;color:var(--text-muted)">2026-08-14 実施 ／ 正答率100%</div>
+        </div>
+        <div style="border:1px solid var(--border-strong);border-radius:8px;overflow:hidden;margin-bottom:8px">
+          <div style="background:var(--bg-subtle);padding:7px 12px;font-weight:700;font-size:12.5px;display:flex;justify-content:space-between;align-items:center">
+            第2章 基本コマンドとワークフロー
+            <span class="badge" style="background:#dcfce7;color:#166534">合格</span>
+          </div>
+          <div style="padding:8px 12px;font-size:11.5px;color:var(--text-muted)">2026-08-16 実施 ／ 正答率83%</div>
+        </div>
         <section class="panel" style="border-color:#fecaca;margin-bottom:18px">
           <div class="panel-header" style="background:#fef2f2">
-            <div class="panel-title">前回の受験結果</div>
-            <span class="badge badge-failed">不合格</span>
+            <div class="panel-title">第3章 Claude Codeとの基本的なやりとり</div>
+            <span class="badge badge-failed">不合格・再受験可（残り2回）</span>
           </div>
           <div class="panel-body" style="font-size:12.5px;color:var(--text-muted)">
-            2026-08-10 実施 ／ 正答率58%（合格基準: 正答率70%以上）／ 再受験 残り2回（最大3回まで）。今回はその再受験（2回目）です。
+            2026-08-10 実施 ／ 正答率78%（合格基準70%は満たしている）<br>
+            <strong style="color:#991b1b">ただし <span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;color:#991b1b;background:#fee2e2;border-radius:999px;padding:1px 8px">⚠ ドボン</span> 設問2「よいプルリクエストの説明文に含めるべき情報を2つ挙げて説明してください」に正解しなかったため、この章は不合格と判定されました。</strong>
+            今回はその再受験（2回目）です。この教材は再受験時に「前回間違えた問題だけ解き直す」設定のため、設問2のみ再度出題されます。
           </div>
         </section>
+
+        <!-- 受験後アンケート（第2章に設置されている場合。合格直後に表示） -->
+        <div class="callout" style="border-color:#93c5fd;background:#eff6ff;margin-bottom:18px">
+          <strong>第2章のアンケートにご協力ください（任意・30秒程度）</strong>
+          <p style="margin:6px 0 0">第2章「基本コマンドとワークフロー」の内容は理解しやすかったですか？<br>
+          <span style="display:inline-flex;gap:4px;margin-top:4px">
+            <span class="btn btn-secondary btn-sm">1</span><span class="btn btn-secondary btn-sm">2</span><span class="btn btn-secondary btn-sm">3</span><span class="btn btn-secondary btn-sm">4</span><span class="btn btn-secondary btn-sm">5</span>
+          </span></p>
+          <p style="margin:10px 0 0"><a class="btn btn-primary btn-sm" href="#" style="margin-right:6px">回答する</a><a href="#" style="font-size:11.5px;color:var(--text-subtle)">今回はスキップ</a></p>
+        </div>
 
         <!-- 記述式AI採点結果（F-20） -->
         <section class="panel" style="margin-bottom:18px">
           <div class="panel-header">
             <div class="panel-title">記述式回答のAI採点結果</div>
-            <span class="panel-count">単元1〜3（採点済み・採点中）</span>
+            <span class="panel-count">第1〜3章（採点済み・採点中）</span>
           </div>
           <div class="panel-body">
             <div class="ai-review-item">
               <span class="badge badge-complete" style="flex-shrink:0">18/20点</span>
               <div>
-                <div style="font-weight:600;font-size:12.5px;margin-bottom:2px">単元2 設問2: よいプルリクエストの説明文に含めるべき情報を2つ挙げて説明してください。</div>
+                <div style="font-weight:600;font-size:12.5px;margin-bottom:2px">第2章 設問2: よいプルリクエストの説明文に含めるべき情報を2つ挙げて説明してください。</div>
                 <div style="font-size:12px;color:var(--text-muted)">AI講評: 「変更の目的」「動作確認の方法」の両方に触れられており、模範解答の要点を満たしています。文章をもう少し具体的にするとさらに良くなります。</div>
               </div>
             </div>
             <div class="ai-review-item">
               <span class="badge" style="flex-shrink:0">採点中</span>
               <div>
-                <div style="font-weight:600;font-size:12.5px;margin-bottom:2px">単元1 設問3: Claude Codeを安全に使う上で注意すべき点を述べてください。</div>
-                <div style="font-size:12px;color:var(--text-muted)">AIによる採点処理中です。結果が出るまで数十秒〜数分かかる場合がありますが、採点を待たずに他の設問へ進められます。</div>
+                <div style="font-weight:600;font-size:12.5px;margin-bottom:2px">第1章 設問3: Claude Codeを安全に使う上で注意すべき点を述べてください。</div>
+                <div style="font-size:12px;color:var(--text-muted)">AIによる採点処理中です。結果が出るまで数十秒〜数分かかる場合がありますが、採点を待たずに他のページへ進められます。</div>
               </div>
             </div>
             <div class="ai-review-item">
               <span class="badge badge-complete" style="flex-shrink:0">12/15点</span>
               <div>
-                <div style="font-weight:600;font-size:12.5px;margin-bottom:2px">単元3 設問4（コード）: 辞書 d の値をすべて合計して返す関数 sum_values(d) を書いてください。<span class="code-lang-tag">python</span></div>
+                <div style="font-weight:600;font-size:12.5px;margin-bottom:2px">第3章 設問4（コード）: 辞書 d の値をすべて合計して返す関数 sum_values(d) を書いてください。<span class="code-lang-tag">python</span></div>
                 <div style="font-size:12px;color:var(--text-muted)">AI講評: 出力は正しく、空の辞書を渡した場合も0を返せています。ただし <code>for k in d: total += d[k]</code> は <code>for v in d.values(): total += v</code> と書くことでキーの参照を1回減らせます。ループを2重に回している箇所（8〜12行目）は<strong>1回のループにまとめられ、簡略化できます</strong>。コードは実行せずAIが読解して採点しています。</div>
               </div>
             </div>
@@ -134,84 +202,162 @@
         </section>
 
         <div class="progress" style="margin-bottom:18px">
-          <span class="progress-label">単元 3/5</span>
-          <div class="progress-track" style="max-width:320px"><div class="progress-fill warn" style="width:60%"></div></div>
-          <span class="progress-label">60%</span>
+          <span class="progress-label">ページ 6/14</span>
+          <div class="progress-track" style="max-width:320px"><div class="progress-fill warn" style="width:43%"></div></div>
+          <span class="progress-label">43%</span>
         </div>
 
-        <section class="panel">
+        <!-- 教材全体の資料（特定ページに属さない添付。S-05「ファイル・リンク」タブで登録されたもの） -->
+        <section class="panel" style="margin-bottom:18px">
           <div class="panel-header">
-            <div class="panel-title">単元3: Claude Codeとの基本的なやりとり</div>
-            <span class="panel-count">本文</span>
+            <div class="panel-title">教材全体の資料</div>
+            <span class="panel-count">2件</span>
           </div>
-          <div class="panel-body" style="font-size:13px;line-height:1.9;color:var(--text)">
-            <p style="margin-bottom:10px">Claude Codeは、ファイルの読み取り・編集・検索やコマンド実行といった操作をエージェントが代行するツールです。指示は日本語の自然文で構いませんが、変更してよい範囲や確認してほしいタイミングを具体的に伝えると、意図しない変更を防げます。</p>
-            <p style="margin-bottom:10px">特に既存ファイルを編集する際は、事前にどのファイルのどの部分を変更するかを確認し、差分（diff）を見てから反映するとよいでしょう。設定ファイルなど影響範囲の大きいものは、変更前にバックアップを取ることを習慣にしてください。</p>
-            <p style="margin-bottom:0">添付資料:
-              <a href="#" onclick="return false">Claude Code操作ガイド.pdf</a>
-              ／ <a href="#" onclick="return false">デモ動画（12分）</a>
-            </p>
+          <div class="panel-body" style="display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px">
+            <a href="#" onclick="return false" style="display:flex;align-items:center;gap:6px;text-decoration:none;color:var(--accent-600)">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              Git用語集.pdf
+            </a>
+            <a href="#" onclick="return false" style="display:flex;align-items:center;gap:6px;text-decoration:none;color:var(--accent-600)">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+              外部スライド（Google スライド）
+            </a>
           </div>
         </section>
 
-        <!-- 設問1（回答済み・単一選択） -->
-        <div class="question-card">
-          <div class="question-head">
-            <span class="question-no">設問1 ／ 単一選択</span>
-            <span class="badge badge-complete">回答済み・正解</span>
+        <!-- 目次ツリー -->
+        <div class="toc-chapter">
+          <div class="toc-chapter-head">
+            <span class="chapter-no">第1章</span>
+            <span class="chapter-title">Claude Codeとは</span>
+            <span class="chapter-progress">2/2 完了</span>
           </div>
-          <div class="question-text">Claude Codeにおいて、既存ファイルの部分編集を行うために主に使用するツールはどれか。</div>
-          <label class="option-line"><input type="radio" name="q1" disabled> Read（ファイルの読み取り専用）</label>
-          <label class="option-line correct"><input type="radio" name="q1" checked disabled> Edit（ファイルの部分編集）</label>
-          <label class="option-line"><input type="radio" name="q1" disabled> Bash（シェルコマンド実行）</label>
-          <label class="option-line"><input type="radio" name="q1" disabled> Glob（ファイル検索）</label>
+          <div class="toc-body">
+            <a class="toc-page" href="S-16_material-page-view.html">
+              <span class="toc-page-check done">✓</span>
+              <span class="toc-page-title">Claude Codeの概要</span>
+              <span class="toc-page-kind">説明</span>
+            </a>
+            <a class="toc-page" href="S-16_material-page-view.html">
+              <span class="toc-page-check done">✓</span>
+              <span class="toc-page-title">導入前チェック</span>
+              <span class="toc-page-kind">問題×3</span>
+            </a>
+          </div>
         </div>
 
-        <!-- 設問2（回答中・複数選択） -->
-        <div class="question-card" style="border-color:var(--accent-500);box-shadow:0 0 0 3px var(--accent-100)">
-          <div class="question-head">
-            <span class="question-no">設問2 ／ 複数選択</span>
-            <span class="badge">回答中</span>
+        <div class="toc-chapter">
+          <div class="toc-chapter-head">
+            <span class="chapter-no">第2章</span>
+            <span class="chapter-title">基本コマンドとワークフロー</span>
+            <span class="chapter-progress">3/3 完了</span>
           </div>
-          <div class="question-text">Claude Codeを利用する上で望ましい心がけとして正しいものを全て選びなさい。</div>
-          <label class="option-line"><input type="checkbox"> 変更内容をこまめにコミットし、差分を確認する</label>
-          <label class="option-line"><input type="checkbox"> 重要な設定ファイルの変更前にはバックアップを取る</label>
-          <label class="option-line"><input type="checkbox"> レビューを省略してすぐにマージする</label>
-          <label class="option-line"><input type="checkbox"> 意図しない挙動があれば作業を中断して確認する</label>
+          <div class="toc-body">
+            <a class="toc-page" href="S-16_material-page-view.html">
+              <span class="toc-page-check done">✓</span>
+              <span class="toc-page-title">ファイルの読み取り・編集</span>
+              <span class="toc-page-kind">説明</span>
+            </a>
+            <a class="toc-page" href="S-16_material-page-view.html">
+              <span class="toc-page-check done">✓</span>
+              <span class="toc-page-title">よいプルリクエストの書き方</span>
+              <span class="toc-page-kind">説明＋問題×1</span>
+            </a>
+            <a class="toc-page" href="S-16_material-page-view.html">
+              <span class="toc-page-check done">✓</span>
+              <span class="toc-page-title">章末演習</span>
+              <span class="toc-page-kind">問題×2</span>
+            </a>
+          </div>
         </div>
 
-        <!-- 設問3（記述式・未解放） -->
-        <div class="question-card" style="opacity:0.55">
-          <div class="question-head">
-            <span class="question-no">設問3 ／ 記述式</span>
-            <span class="badge">設問2に回答すると解放されます</span>
+        <div class="toc-chapter">
+          <div class="toc-chapter-head">
+            <span class="chapter-no">第3章</span>
+            <span class="chapter-title">Claude Codeとの基本的なやりとり</span>
+            <span class="chapter-progress">1/4 完了</span>
           </div>
-          <div class="question-text">あなたの業務でClaude Codeを活用できそうな場面を、具体的に100字程度で述べてください。</div>
-          <textarea rows="3" disabled placeholder="設問2に回答すると入力できるようになります"></textarea>
-          <p class="field-help" style="margin-top:6px">※ 記述式はAIが自動採点します。結果が出るまで数十秒〜数分かかる場合がありますが、採点を待たずに次の設問へ進めます。</p>
+          <div class="toc-body">
+            <div class="toc-section-head">3.1 指示の出し方</div>
+            <a class="toc-page indent" href="S-16_material-page-view.html">
+              <span class="toc-page-check done">✓</span>
+              <span class="toc-page-title">安全に指示を出すコツ</span>
+              <span class="toc-page-kind">説明</span>
+            </a>
+            <div class="toc-section-head">3.2 実践編</div>
+            <a class="toc-page indent" href="S-16_material-page-view.html" style="outline:2px solid var(--accent-500);outline-offset:-1px">
+              <span class="toc-page-check todo"></span>
+              <span class="toc-page-title">Claude Codeとの基本的なやりとり（本文＋演習）</span>
+              <span class="toc-page-kind">説明＋問題×4</span>
+            </a>
+            <a class="toc-page indent" href="S-16_material-page-view.html">
+              <span class="toc-page-check todo"></span>
+              <span class="toc-page-title">よくある失敗パターン</span>
+              <span class="toc-page-kind">説明</span>
+            </a>
+            <a class="toc-page indent" href="S-16_material-page-view.html">
+              <span class="toc-page-check todo"></span>
+              <span class="toc-page-title">章末演習</span>
+              <span class="toc-page-kind">問題×3</span>
+            </a>
+          </div>
         </div>
 
-        <!-- 設問4（コード記述式・未解放） -->
-        <div class="question-card" style="opacity:0.55">
-          <div class="question-head">
-            <span class="question-no">設問4 ／ コード記述式<span class="code-lang-tag">python</span></span>
-            <span class="badge">設問3に回答すると解放されます</span>
+        <div class="toc-chapter">
+          <div class="toc-chapter-head">
+            <span class="chapter-no">第4章</span>
+            <span class="chapter-title">応用的な使い方</span>
+            <span class="chapter-progress">0/3 完了</span>
           </div>
-          <div class="question-text">辞書 d の値をすべて合計して返す関数 sum_values(d) を書いてください。空の辞書を渡した場合は 0 を返すようにしてください。</div>
-          <textarea class="code-answer" disabled placeholder="設問3に回答すると入力できるようになります&#10;&#10;def sum_values(d):&#10;    ..."></textarea>
-          <p class="field-help" style="margin-top:6px">※ コード記述式はAIがコードを実行せず読解して採点します。正誤の判定に加えて、無駄な処理があれば簡略化の提案も講評に含まれます。結果を待たずに次の設問へ進めます。</p>
+          <div class="toc-body">
+            <a class="toc-page" href="S-16_material-page-view.html">
+              <span class="toc-page-check todo"></span>
+              <span class="toc-page-title">複数ファイルにまたがる変更</span>
+              <span class="toc-page-kind">説明</span>
+            </a>
+            <a class="toc-page" href="S-16_material-page-view.html">
+              <span class="toc-page-check todo"></span>
+              <span class="toc-page-title">テストとの付き合い方</span>
+              <span class="toc-page-kind">説明</span>
+            </a>
+            <a class="toc-page" href="S-16_material-page-view.html">
+              <span class="toc-page-check todo"></span>
+              <span class="toc-page-title">章末演習</span>
+              <span class="toc-page-kind">問題×2</span>
+            </a>
+          </div>
+        </div>
+
+        <div class="toc-chapter">
+          <div class="toc-chapter-head">
+            <span class="chapter-no">第5章</span>
+            <span class="chapter-title">まとめ</span>
+            <span class="chapter-progress">0/2 完了</span>
+          </div>
+          <div class="toc-body">
+            <a class="toc-page" href="S-16_material-page-view.html">
+              <span class="toc-page-check todo"></span>
+              <span class="toc-page-title">振り返りチェックリスト</span>
+              <span class="toc-page-kind">説明</span>
+            </a>
+            <a class="toc-page" href="S-16_material-page-view.html">
+              <span class="toc-page-check todo"></span>
+              <span class="toc-page-title">総合演習</span>
+              <span class="toc-page-kind">問題×5</span>
+            </a>
+          </div>
         </div>
 
         <div class="form-actions">
           <a class="btn btn-secondary" href="S-02_my-learning.html">一時中断する</a>
-          <button class="btn btn-primary" type="button">回答して次へ</button>
+          <a class="btn btn-primary" href="S-16_material-page-view.html">続きから受講（3.2）</a>
           <span class="actions-note">中断しても回答内容は保存され、次回この続きから再開できます</span>
         </div>
       </div>
 
       <!-- 反復演習 -->
       <div class="tab-panel" id="panel-repeat">
-        <p class="tab-note">合否判定を伴う受験とは別に、この教材の全問題を回数制限なく繰り返し解けます。結果は合否には影響せず、習熟のための記録としてのみ残ります。出題順序・選択肢の並びは実施のたびに変わります。</p>
+        <p class="tab-note">合否判定を伴う受験とは別に、この教材の全ページの問題を回数制限なく繰り返し解けます。結果は合否には影響せず、習熟のための記録としてのみ残ります。出題順序・選択肢の並びは実施のたびに変わります。</p>
 
         <section class="panel">
           <div class="panel-header">
@@ -264,7 +410,7 @@
 <script>
 // タブ切替（静的モック確認用の最小限のJS）
 function switchTab(name) {
-  var tabs = ['normal', 'repeat', 'wrong'];
+  var tabs = ['toc', 'repeat', 'wrong'];
   tabs.forEach(function (t) {
     document.getElementById('tab-' + t).classList.toggle('active', t === name);
     document.getElementById('panel-' + t).classList.toggle('active', t === name);

@@ -16,7 +16,7 @@
     <p class="subtitle">社内学習管理システム（e-learning）</p>
     <div class="meta">
       <span>作成日: 2026-08-18</span>
-      <span>版数: 1.8</span>
+      <span>版数: 1.21</span>
       <span>作成: コガソフトウェア株式会社</span>
     </div>
     <p class="note">本ドキュメントは新人社員向けAI開発研修のサンプル成果物です</p>
@@ -36,6 +36,19 @@
       <tr><td>1.6</td><td>2026-08-18</td><td>要件定義書v1.7（全社スコープの分割）に対応。T-11 assignmentsのscope_type='company'をrequired値で権限分岐する方式（新しいscope_type列挙値は追加しない）を5.9節に明記し、設計判断のcalloutを追加した。A-38・4.8節（S-06）のアクセス制御を「全社必修配信はadmin限定、全社任意公開は対象教材のプロジェクト管理者も可」に更新した。</td></tr>
       <tr><td>1.7</td><td>2026-08-18</td><td>要件定義書v1.8（可用性の前提を24時間365日利用に変更）に対応。10.2節の稼働時間を業務時間限定から原則24時間365日に更新し、10.5節に「デプロイタイミング」の行を追加した（利用の少ない時間帯を前提にできなくなったため、ローリング再起動と既存の保存・再試行の仕組み〔5.15節・9.2節〕で学習記録の消失を防ぐ方針を明記）。</td></tr>
       <tr><td>1.8</td><td>2026-08-19</td><td>要件定義書v1.9（「全社公開」プロジェクトの新設）に対応。T-03 projectsに<code>is_company_wide</code>列を追加し、初期データとして削除不可の特別プロジェクトを1行のみ投入する方式を6.2節に明記した。A-02（初回ログイン）で新規ユーザーをこのプロジェクトへ自動的にeditorとして参加させる処理、A-16（教材新規作成）で<code>project_id</code>省略時にこのプロジェクトIDを既定値とする処理を追記した（7.2.1節・7.2.3節）。5.25節（F-24）・5.26節（F-25）・3.5節に該当する設計判断を追記した。画面モックアップ（S-02・S-03）にプロジェクト表示・絞り込みを、S-05に所属プロジェクトの選択欄を反映した（4.1節）。</td></tr>
+      <tr><td>1.9</td><td>2026-08-20</td><td>要件定義書v1.10（F-26の共有承認フロー）に対応。T-22 material_project_sharesに<code>status</code>（pending/accepted/rejected）・<code>responded_by</code>・<code>responded_at</code>を追加し、承認済み（accepted）の共有のみ受講対象に反映する方式に変更した（6.2節・5.27節）。共有先プロジェクト管理者が応答するAPI（A-65）、自プロジェクト宛ての共有申請一覧取得API（A-66）を新設し、A-59〜A-61の権限・概要を更新した（7.2.2節）。7.3節の「対象教材の受講対象者」OR条件にT-22（status='accepted'限定）を明記した（従来はF-26の設計時に5.27節のcalloutでのみ触れられ、7.3節の判定表から漏れていた）。誰でもプロジェクトを作成できる方式（F-24）のもとで、共有元の一存だけで他プロジェクトへ一方的に教材を押し付けられる欠陥への対応。</td></tr>
+      <tr><td>1.10</td><td>2026-08-20</td><td>要件定義書v1.11（F-24のメンバー招待制）に対応。T-04 project_membershipsに<code>status</code>（invited/active/declined、既定invited）を追加し、招待を承諾（status='active'）するまでrequire_project_roleの判定を通さない（3.5節）方式に変更した。招待に応答するAPI（A-67）を新設し、A-12の概要を更新した（7.2.2節）。5.25節の猶予期間判定（現役メンバーの定義）にstatus='active'条件を明記した（従来left_at IS NULLのみで判定しており、招待中メンバーを誤って現役扱いする漏れがあった）。画面一覧にS-13（教材編集：プロジェクト選択）・S-14（教材編集：教材一覧）・S-15（プロフィール編集。招待の承諾・辞退を含む）を追加し、実働画面を14件とした（4.1節）。誰でもプロジェクトを作成できる方式（F-24）のもとで、管理者が本人の同意なしに一方的にメンバーを追加できる欠陥への対応（F-26と同種の問題）。</td></tr>
+      <tr><td>1.11</td><td>2026-08-20</td><td>要件定義書v1.12（教材構造案の採用）に対応。教材の内部構造を「本文＋本文中の見出しから動的抽出する単元（フラットな並び）」から「章／小見出し（任意）／ページ」の入れ子構造に刷新した。新設のT-23 material_nodesを自己参照ツリーとして追加し、T-06 materialsからformat・bodyを削除（目次・各ページの本文はT-23へ移管）、T-10 questionsのunit_indexをnode_id（FK→material_nodes）に、T-12 enrollment_progressのcurrent_positionをcurrent_node_id・completed_node_idsに置き換えた（6.2節）。画面設計を全面改訂: S-04を教材の目次・全体進捗・合否判定を表示する画面に再構成し、ページ単位の受講・編集をそれぞれ新設のS-16（教材受講：ページ）・S-17（教材編集：ページ編集）に分離、S-05は目次編集画面として再構成した（4.6・4.6a・4.7・4.7a節）。合否判定・再受験（F-14）は要求仕様（REQ-F-09）どおり維持し、教材1冊分の全ページの正誤をまとめて1回の受験として判定する方式とした（判定粒度の変更なし）。8.3節のフロントマタースキーマを、章（<code>#</code>）・小見出し（<code>##</code>、任意）・ページ（<code>###</code>）の3階層見出しとノードID注記（<code>&lt;!-- node:.. --&gt;</code>）で目次構造を表現する方式に全面改訂した。実働テーブル数はT-01〜T-23の21件となった（IDの欠番はT-02・T-07）。実働画面はS-16・S-17の追加により16件となった。</td></tr>
+      <tr><td>1.12</td><td>2026-08-20</td><td>レビュー指摘の修正。(1) T-10 questionsの<code>points</code>（配点）を廃止した。設問間の重み付けを行わず、教材全体の正答率（正解した設問数／全設問数）のみで合否判定する方式に単純化した（5.14節・8.3節）。(2) T-05 coursesを廃止した（IDは欠番として保持）。「コース」という固定リストの事前登録をやめ、T-06 materialsに<code>tags</code>（JSONB配列）を追加して教材に自由な複数タグを付与する方式に変更した。S-03の検索欄・タグチップでタグを横断的に絞り込める（4.5節）。(3) S-05目次編集タブ・S-17ページ編集の設問カードから「コピーして追加」ボタンを削除した（検討資料で承認したデザインに存在しなかった要素で、実装の必然性が薄いため）。実働テーブル数はT-01〜T-23の21件から1件減り20件になった（IDの欠番はT-02・T-05・T-07）。</td></tr>
+      <tr><td>1.13</td><td>2026-08-21</td><td>要件定義書v1.14（F-27 AI教材作成アシスト）に対応。教材の目次・ページ・問題の作成をブラウザ内チャットで対話的に行える新画面S-18を新設し、既存のClaude Code CLI往復（F-05）と並存させた（4.1・4.7b節）。新規テーブルT-24 ai_draft_sessions・T-25 ai_draft_messagesを追加し（6.2節）、下書きセッション開始・指示メッセージ送信・履歴取得のAPI（A-68〜A-70）を新設した（7.2.3節）。A-69のツール実行はA-20（CLI往復の書き戻し）と同じ内部の書き込みサービス関数を再利用する設計とし、経路によらず改訂履歴・AIレビュー等の下流機能が同じデータを扱えるようにした。処理方式は同期呼び出し（F-08と同様、9.1節）とし、AI利用ログはfeature='draft_assist'として記録する（9.3節・9.5節）。実働テーブル数はT-01〜T-23の20件から2件増え22件、実働画面数はS-18の追加により17件となった。</td></tr>
+      <tr><td>1.14</td><td>2026-08-21</td><td>要件定義書v1.15対応。S-14の新規教材作成の入口を「＋新規教材を作成」（S-05空編集画面へ）と「Claude Codeで作成」（S-18へ）の2ボタンから、S-18への1ボタンに統合した（4.7b節）。S-18の下書きプレビューは元々S-05目次編集タブと同じ入力欄で直接編集のみでも完結でき、チャットパネルも任意で閉じられる設計だったため、2つの入口を並置する必然性がなかった。S-18ヘッダーに「Claude Codeパネルを閉じる/開く」トグルを追加し、右ペインを非表示にして下書きプレビューを全幅表示できるようにした。S-18で下書きを保存した場合の遷移先はS-05（<code>#new</code>、新規作成直後の状態）に統一した。</td></tr>
+      <tr><td>1.15</td><td>2026-08-21</td><td>レビュー指摘の修正。(1) T-09 material_attachmentsに<code>node_id</code>（FK→material_nodes、nullable）を追加した。教材構造案（v1.11）採用後もT-09が教材単位のフラットな一覧のままで、S-16（ページ受講）の本文には特定ページに関連する資料が表示される一方、その資料がどのページのものかを表現できていなかった不整合を解消した。ページ固有の資料はS-17（ページ編集）に添付セクションを新設して管理し、教材全体の資料（特定ページに属さないシラバス等）はS-05「ファイル・リンク」タブで管理する2階層に整理した（5.6節・4.7・4.7a節）。A-28（一覧取得）・A-29（登録）に<code>node_id</code>パラメータを追加した。(2) S-18の下書きプレビューの各ページ行に「編集する」リンク（S-17へ）を追加した。AIが作成したページも含め、どのページも直接クリックして中身を確認・修正できることを明示するため（4.7b節）。</td></tr>
+      <tr><td>1.16</td><td>2026-08-21</td><td>レビュー指摘の修正。v1.15でT-09に<code>node_id</code>を追加し教材全体の資料（<code>node_id</code>未設定）とページ固有の資料を区別できるようにしたが、教材全体の資料をS-05で登録しても受講者側に表示する画面がどこにもなかった欠落を修正した。S-04（教材受講：目次）の進捗バーとページツリーの間に「教材全体の資料」セクションを追加し、A-28を<code>node_id</code>省略で呼び出して一覧表示するようにした（4.6節・5.6節）。</td></tr>
+      <tr><td>1.17</td><td>2026-08-21</td><td>検討資料での合意（20260821_問題形式・採点拡張案.html）を正式反映。(1) 合否判定・再受験の単位（受験単位）を教材ごとに教材全体/章/小見出し/ページから選べるようにした（T-06.attempt_scope、T-13.scope_node_id、5.14節）。あわせて再受験時の出題範囲（全問/誤答のみ）も教材ごとに設定できるようにした（T-06.retake_scope、A-71新設）。(2)「ドボン問題」（T-10.is_critical）を新設。1問でも不正解だと受験単位が正答率によらず不合格になり、理由をS-04に明示する。反復演習・誤答抽出では判定しない。(3) 設問ごとの回答必須／任意（T-10.required）、AI講評スタイル（正解提示/コードレビュー型/ヒント型。教材既定＋設問ごと上書き。T-06.default_feedback_style、T-10.feedback_style、5.20節）、AI採点・AIアシストへの共通指示（T-06.ai_context）を追加。(4) 問題種別に「並び替え」「スコア記録」を追加（T-10.type）。並び替えは正誤判定、スコア記録は正解の概念を持たず数値記録のみで、AI個人フィードバック（F-22）でスコア推移コメントを返す。(5) ランダム出題プール（T-23.quiz_mode/pool_draw_count、T-10.pool_group_id）を追加。(6) 受験後アンケート（T-26〜T-29新設）を追加。教材全体・章単位で任意設置でき、統計をF-21（AIつまずき分析）に合流させる。(7) 設問ごとの回答一覧・AI採点レビューを行う新画面S-19を新設（A-73）。従来<code>reviewed_by</code>を設定するための画面が存在しなかった欠落への対応を兼ねる。(8) これらはすべて既存テーブルへの列追加・type列挙値追加の範囲に収まり、F-05（CLI往復）・F-27（S-18ブラウザ内対話）のどちらでも作成・編集できることを8.3節に明記した。実働テーブル数はT-01〜T-25の22件から4件増え26件、実働画面数はS-19の追加により18件となった。</td></tr>
+      <tr><td>1.18</td><td>2026-08-21</td><td>記述式・コード記述式の採点方式にAI自動採点以外の選択肢を追加。対象教材が紐づくプロジェクトの管理者・編集者がAIを介さず直接採点する「手動採点」を新設し、AIは正誤判定を行わず採点結果の集計（F-21のつまずき分析）にのみ利用する方式とした（5.20節）。T-06 materialsに<code>grading_mode</code>（教材既定、既定値'ai'）、T-10 questionsに<code>grading_mode</code>（設問ごとの上書き）を追加した（6.2節）。手動採点の設問はAI講評スタイル（<code>feedback_style</code>）の対象外とし、S-05・S-17でその旨をグレーアウト表示する。S-19（設問別の回答・結果一覧）に、未採点の回答を「採点する」ボタンから初めて採点できるUIを追加した（従来の「採点を修正」はAI採点結果の訂正用）。既存のT-14 answersの<code>is_correct</code>・<code>ai_score_pct</code>・<code>ai_feedback</code>・<code>reviewed_by</code>・<code>reviewed_at</code>をそのまま流用でき、新規テーブルは不要（実働テーブル数は26件のまま）。8.3節フロントマタースキーマに<code>grading_mode</code>を追加し、F-05・F-27のどちらでも作成・編集できることを明記した。</td></tr>
+      <tr><td>1.19</td><td>2026-08-21</td><td>既存教材の改善時にClaude Codeチャットパネルを開く経路を、専用画面（S-18）への遷移から、S-05（目次編集）・S-17（ページ編集）の画面内トグルパネルに変更した。編集中の画面を離れずに対話的な修正ができるようにするための変更で、右ペインに開閉可能なチャットパネルを追加した（S-18と同じUI・A-68〜A-70を再利用）。S-05から開いた場合は<code>material_id</code>、S-17から開いた場合はさらに現在ページの<code>node_id</code>を初期コンテキストとしてセッションを開始する（5.28節）。S-18はS-14「＋新規教材を作成」から入る新規作成専用画面という位置づけに整理した（4.7・4.7a・4.7b節）。新規テーブル・APIの追加はなく、既存のA-68〜A-70・T-24・T-25をそのまま再利用する。</td></tr>
+      <tr><td>1.20</td><td>2026-08-21</td><td>F-27（AI教材作成アシスト。ブラウザ内対話生成）を廃止し、教材の作成・修正へのAI支援をF-05（Claude Code CLI連携）に一本化した。理由: F-27はe-learningのバックエンドがAnthropic Claude APIを直接呼び出す構造のため、利用のたびにe-learning側で従量課金が発生していた。F-05はClaude Code利用者本人の契約・APIキーで課金され、e-learning側の運用コストは発生しない。両者は似た体験を提供する代替経路だったが、コストの発生しないF-05に一本化することとした。専用画面S-18（教材編集：Claude Code下書き作成）、S-05・S-17の画面内チャットパネル（v1.19で追加）、API A-68〜A-70、テーブルT-24 ai_draft_sessions・T-25 ai_draft_messagesをすべて廃止した（画面ID・API番号・テーブルIDはいずれも欠番として保持）。S-14「＋新規教材を作成」は、この画面を経由せず空のS-05目次編集画面へ直接遷移する（v1.14以前の遷移に戻した）。実働するテーブル数はT-01〜T-29の26件から2件減り24件、実働画面数はS-18の廃止により17件となった。</td></tr>
+      <tr><td>1.21</td><td>2026-08-21</td><td>S-10「システム設定」タブの「今月のAI利用状況」を、合計値のみの表示から機能別（F-08 教材AIレビュー／F-20 AI記述式採点・講評／F-21 AIつまずき分析／F-22 AI個人フィードバック／F-23 AI組織レポート生成）の呼び出し件数・トークン数・概算コストの内訳表示に拡張した（4.12節）。管理者がどの機能がコストの大部分を占めているかを個別に確認できるようにするための変更。A-58（AI利用状況取得）の応答に機能別内訳を追加した（9.3節のT-19集計を<code>feature</code>でgroup byして取得。7.2.9節）。あわせて、教材の作成・修正（F-05、Claude Code CLI連携）は利用者本人の契約で課金されるためこの集計には含まれない旨を明記した。新規テーブル・カラムの追加は不要（既存のT-19 <code>ai_usage_logs.feature</code>を集計するのみ）。</td></tr>
     </tbody>
   </table>
 
@@ -73,7 +86,7 @@
     <thead><tr><th>要求ID</th><th>要求概要</th><th>本書での対応</th></tr></thead>
     <tbody>
       <tr><td>REQ-F-01</td><td>教材と問題を登録・修正できること</td><td>F-04（5.4節）、S-05（4章）、T-06・T-10（6章）</td></tr>
-      <tr><td>REQ-F-02</td><td>Claude Codeから教材・問題を登録・修正できること</td><td>F-05（5.5節）、8章 教材連携設計</td></tr>
+      <tr><td>REQ-F-02</td><td>Claude Codeから教材・問題を登録・修正できること</td><td>F-05（5.5節）、8章 教材連携設計<span class="rev-old">。F-27（5.28節、ブラウザ内対話生成の代替経路）、7.2.3節 A-68〜A-70（v1.20で廃止）</span></td></tr>
       <tr><td>REQ-F-03</td><td>動画・スライド等のファイルを教材として扱えること</td><td>F-06（5.6節）、T-09（6章）</td></tr>
       <tr><td>REQ-F-04</td><td>社員が自分で教材を作成・共有できること</td><td><span class="rev-old">F-07（5.7節）、3.4節（オーナー・共同編集者の認可レイヤー。個人教材）、F-25（5.26節）・3.5節（プロジェクトのローカルロール。プロジェクト教材）</span><span class="rev-new">F-25（5.26節）・3.5節（プロジェクトのローカルロール）。F-07・3.4節（オーナー・共同編集者による個人教材の認可レイヤー）はv1.5で廃止した（個人所有の教材モデルの廃止に伴う）</span></td></tr>
       <tr><td>REQ-F-05</td><td>公開前にAIが教材をレビューできること</td><td>F-08（5.8節）、9章 AI機能設計</td></tr>
@@ -315,23 +328,26 @@
   </div>
 
   <h3 class="rev-new">3.5 プロジェクトのローカルロールによる認可</h3>
-  <p class="rev-new">要件定義書7.3節が定める「プロジェクトのローカルロール」は、3.3節のシステム全体ロール（<span class="rev-old">learner/author/manager/admin</span><span class="rev-new">member/admin</span>）とは独立した、<strong>プロジェクト1件ごとの認可レイヤー</strong>である。<span class="rev-new">教材は必ずいずれかのプロジェクトに属するため（F-25）、教材編集権限の判定は本節のロジックのみで行い、3.4節（廃止）が定めていたオーナー・共同編集者モデルとの分岐は存在しない。</span>プロジェクトは誰でも新規作成でき（F-24）、作成時に T-04 <code>project_memberships</code> へ作成者を <code>role='admin'</code> で自動登録する。以降のメンバー追加・削除・ロール変更は、そのプロジェクトの管理者のみが行える（社員本人による自己申告は行わない）。</p>
+  <p class="rev-new">要件定義書7.3節が定める「プロジェクトのローカルロール」は、3.3節のシステム全体ロール（<span class="rev-old">learner/author/manager/admin</span><span class="rev-new">member/admin</span>）とは独立した、<strong>プロジェクト1件ごとの認可レイヤー</strong>である。<span class="rev-new">教材は必ずいずれかのプロジェクトに属するため（F-25）、教材編集権限の判定は本節のロジックのみで行い、3.4節（廃止）が定めていたオーナー・共同編集者モデルとの分岐は存在しない。</span>プロジェクトは誰でも新規作成でき（F-24）、作成時に T-04 <code>project_memberships</code> へ作成者を <code>role='admin', status='active'</code> で自動登録する。以降のメンバーの<span class="rev-old">追加</span><span class="rev-new">招待</span>・削除・ロール変更は、そのプロジェクトの管理者のみが行える（社員本人による自己申告は行わない）。<span class="rev-new">ただしメンバーの追加は招待制であり、招待された本人が承諾するまでは実際の権限を持たない（詳細は本節末尾のcallout参照）。</span></p>
   <table>
     <thead><tr><th class="rev-new">ローカルロール</th><th class="rev-new">できること</th></tr></thead>
     <tbody>
-      <tr class="rev-row"><td>管理者（admin）</td><td>プロジェクト情報の編集、メンバーの追加・削除・ロール設定、プロジェクトに紐づく教材の他プロジェクトへの共有（F-26）、自プロジェクトの受講状況確認（F-19）</td></tr>
+      <tr class="rev-row"><td>管理者（admin）</td><td>プロジェクト情報の編集、メンバーの<span class="rev-old">追加</span><span class="rev-new">招待</span>・削除・ロール設定、プロジェクトに紐づく教材の他プロジェクトへの共有<span class="rev-new">申請</span>（F-26）、自プロジェクトの受講状況確認（F-19）</td></tr>
       <tr class="rev-row"><td>編集者（editor）</td><td>プロジェクトに紐づく教材の作成・修正（F-25）</td></tr>
       <tr class="rev-row"><td>受講者（learner）</td><td>プロジェクトに紐づく教材の受講</td></tr>
     </tbody>
   </table>
   <ul class="rev-new">
-    <li><strong>判定ロジック:</strong> <code>auth_helpers.py</code> に <code>require_project_role(project_id, user, min_role)</code> 依存関数を設け、S-12（プロジェクト管理）・プロジェクトに紐づく教材の編集系API・F-19の自プロジェクト受講状況確認で共通利用する。ロールには 管理者 &gt; 編集者 &gt; 受講者 という階層を設け、<code>project_memberships</code> 上のロールが <code>min_role</code> 以上であれば許可する（例: <code>min_role='editor'</code> の判定は編集者・管理者を許可し、受講者は不可）。システム全体の <code>user.role == 'admin'</code> は、当該プロジェクトのローカルロールを持たない場合でも常に許可する（<span class="rev-old">3.4節のadmin保守権限と同じ位置づけ</span><span class="rev-new">3.3節のadmin保守権限と同じ位置づけ</span>）。</li>
-    <li><strong>プロジェクト作成時の自動付与:</strong> A-09（プロジェクト作成）の処理内で、作成した <code>projects</code> 行に対する <code>project_memberships</code> 行を <code>user_id=作成者, role='admin'</code> で同時に作成する。作成者を限定しない（F-24。運用上は部署長・PMの作成を想定するが、システムとしては制限しない）。</li>
-    <li><strong>メンバー管理:</strong> メンバーの追加・削除・ロール変更（A-11〜A-13）は、<code>require_project_role(project_id, user, min_role='admin')</code> を満たすユーザーのみ実行できる。唯一の管理者を削除・降格する操作は400で拒否する（プロジェクト管理者が不在になることを防ぐため。3.3節の「管理者不在防止」と同じ設計方針）。</li>
+    <li><strong>判定ロジック:</strong> <code>auth_helpers.py</code> に <code>require_project_role(project_id, user, min_role)</code> 依存関数を設け、S-12（プロジェクト管理）・プロジェクトに紐づく教材の編集系API・F-19の自プロジェクト受講状況確認で共通利用する。ロールには 管理者 &gt; 編集者 &gt; 受講者 という階層を設け、<code>project_memberships</code> 上のロールが <code>min_role</code> 以上、<span class="rev-new">かつ <code>status='active'</code>（招待を承諾済み）</span>であれば許可する（例: <code>min_role='editor'</code> の判定は編集者・管理者を許可し、受講者は不可。<span class="rev-new"><code>status='invited'</code>（承諾前）のメンバーはロールを問わず不許可</span>）。システム全体の <code>user.role == 'admin'</code> は、当該プロジェクトのローカルロールを持たない場合でも常に許可する（<span class="rev-old">3.4節のadmin保守権限と同じ位置づけ</span><span class="rev-new">3.3節のadmin保守権限と同じ位置づけ</span>）。</li>
+    <li><strong>プロジェクト作成時の自動付与:</strong> A-09（プロジェクト作成）の処理内で、作成した <code>projects</code> 行に対する <code>project_memberships</code> 行を <code>user_id=作成者, role='admin', status='active'</code> で同時に作成する（招待を経ず自動承諾扱い）。作成者を限定しない（F-24。運用上は部署長・PMの作成を想定するが、システムとしては制限しない）。</li>
+    <li><strong>メンバー<span class="rev-old">管理</span><span class="rev-new">の招待</span>:</strong> <span class="rev-old">メンバーの追加・削除・ロール変更（A-11〜A-13）は、</span><span class="rev-new">A-12（メンバー招待。<code>status='invited'</code>で作成）・A-13（削除・ロール変更）は、</span><code>require_project_role(project_id, user, min_role='admin')</code> を満たすユーザーのみ実行できる。唯一の管理者を削除・降格する操作は400で拒否する（プロジェクト管理者が不在になることを防ぐため。3.3節の「管理者不在防止」と同じ設計方針）。</li>
+    <li class="rev-new"><strong>招待への応答:</strong> 招待された本人が新設API A-67（<code>PUT /api/project-memberships/{id}/respond</code>）で承諾（<code>status='active'</code>、<code>joined_at=now()</code>）または辞退（<code>status='declined'</code>）する。この操作は招待された本人のみが行え、プロジェクト管理者は代行できない。承諾・辞退の一覧・応答はS-15（プロフィール編集）の「招待されているプロジェクト」セクションで行う。</li>
     <li><strong>教材編集権限判定:</strong> <span class="rev-old"><code>require_material_editor(material_id, user)</code>（3.4節）は、対象教材の <code>materials.project_id</code> を確認し、<code>NULL</code> なら3.4節の判定（オーナー・共同編集者）、非NULLなら本節の <code>require_project_role(project_id, user, min_role='editor')</code> に処理を委譲する。</span><span class="rev-new"><code>require_material_editor(material_id, user)</code> は、対象教材の <code>materials.project_id</code>（教材は必ずいずれかのプロジェクトに属するためNOT NULL。6章参照）に対して本節の <code>require_project_role(project_id, user, min_role='editor')</code> を呼び出すだけの処理となる。3.4節は廃止したため、個人教材（project_id IS NULL）向けの分岐は存在せず、教材編集権限の判定は常に本節のロジックのみで行う。</span>教材の受講可否（配信対象、F-09）とは別の判定である点に注意する。詳細は5.26節（F-25）参照。</li>
   </ul>
   <div class="callout rev-new">
-    <strong>なぜプロジェクト単位のローカルロールを導入したか:</strong> v1.3までの「オーナー・共同編集者」モデルは、プロジェクト単位で配信される教材でもオーナー個人に紐づくため、オーナーの異動・離任のたびに引き継ぎ操作が必要だった（3.4節）。v1.4はこれに加え、プロジェクトという単位そのものにロール（管理者/編集者/受講者）を持たせることで、「誰が管理者か」「誰が編集できるか」をプロジェクト側で一元管理できるようにした。またプロジェクトの新規登録をadmin限定から誰でも可能にしたことで、旧v1.3の「プロジェクト所属の自己申告制」（3.3節の権限マトリクスにあった行）は不要になった。メンバーの追加・削除・ロール設定という能動的な操作をプロジェクト管理者に一本化したためである。
+    <strong>なぜプロジェクト単位のローカルロールを導入したか:</strong> v1.3までの「オーナー・共同編集者」モデルは、プロジェクト単位で配信される教材でもオーナー個人に紐づくため、オーナーの異動・離任のたびに引き継ぎ操作が必要だった（3.4節）。v1.4はこれに加え、プロジェクトという単位そのものにロール（管理者/編集者/受講者）を持たせることで、「誰が管理者か」「誰が編集できるか」をプロジェクト側で一元管理できるようにした。またプロジェクトの新規登録をadmin限定から誰でも可能にしたことで、旧v1.3の「プロジェクト所属の自己申告制」（3.3節の権限マトリクスにあった行）は不要になった。メンバーの追加・削除・ロール設定という能動的な操作をプロジェクト管理者に一本化したためである。</div>
+  <div class="callout rev-new">
+    <strong>なぜメンバーの追加を招待制にしたか:</strong> 誰でもプロジェクトを新規作成できる方式（F-24）のもとで、当初は「プロジェクト管理者がメンバーを追加すれば即座に有効」という設計だった。しかしこれでは、管理者が本人の同意なしに一方的に他の社員をメンバーへ追加でき、追加された側は気づかないうちに教材の受講対象に加わり、管理者/編集者ロールで追加されれば編集権限まで持たされてしまう（5.27節のF-26で対応した「教材共有の一方的な押し付け」と同じ構造の欠陥）。そこでT-04 <code>project_memberships</code> に <code>status</code>（'invited'/'active'/'declined'）を追加し、追加は「招待」として <code>status='invited'</code> で作成するだけに留め、本人が承諾するまで <code>require_project_role</code> の判定を通さない（=いかなる権限も持たない）ようにした。プロジェクト作成者自身と「全社公開」への自動参加（いずれも本人の意思や全社的な合意に基づく）だけは、この性質上招待を経ず <code>status='active'</code> で作成する。
   </div>
 
   <!-- ============ 4. 画面設計 ============ -->
@@ -343,16 +359,23 @@
     <tbody>
       <tr><td>S-01</td><td>ログイン</td><td><code>/login</code></td><td>全員（未認証）</td><td>Googleでログインボタンのみのシンプルな画面</td></tr>
       <tr><td>S-02</td><td>マイ学習</td><td><code>/</code>（ログイン後の初期画面）</td><td>全員</td><td>自分が受けるべき必修・任意教材の一覧と進捗状況。期限が近い必修教材を強調表示<span class="rev-new">。教材ごとに所属プロジェクトを表示し、プロジェクトタブ（「全社公開」を含む）で絞り込める</span></td></tr>
-      <tr><td>S-03</td><td>教材一覧・検索</td><td><code>/materials</code></td><td>全員</td><td>公開されている教材の一覧・検索。単元・コース単位で表示<span class="rev-new">。テーブルに「プロジェクト」列を追加し、プロジェクトタブでも絞り込める</span></td></tr>
-      <tr><td>S-04</td><td>教材受講</td><td><code>/materials/:materialId</code></td><td>対象者（全員）</td><td>教材本文の閲覧、選択式・記述式問題への回答。通常受講／反復演習／誤答のみ抽出の3タブ</td></tr>
-      <tr><td>S-05</td><td>教材編集</td><td><code>/materials/:materialId/edit</code></td><td><span class="rev-old">対象教材のオーナー・共同編集者、対象教材が紐づくプロジェクトの管理者・編集者</span><span class="rev-new">対象教材が紐づくプロジェクトの管理者・編集者</span>、<span class="badge badge-admin">admin</span></td><td>本文・問題編集、単元/コース構成、ファイル・リンク添付、<span class="rev-old">共同編集者管理（個人教材の場合）／</span>プロジェクトメンバーの確認とS-12への導線<span class="rev-old">（プロジェクト教材の場合）</span>、AIレビュー結果・改訂履歴の確認<span class="rev-old">。個人教材（3.4節）とプロジェクトに紐づく教材（3.5節）の両方に対応する</span><span class="rev-new">。教材は必ずいずれかのプロジェクトに属するため（F-25）、アクセス可否・編集権限は常に3.5節のロジックのみで判定する。構成タブに所属プロジェクトの選択欄を持ち、新規作成時に未指定なら「全社公開」が既定選択となる</span></td></tr>
+      <tr><td>S-03</td><td>教材一覧・検索</td><td><code>/materials</code></td><td>全員</td><td>公開されている教材の一覧・検索。<span class="rev-old">単元・コース単位で表示</span><span class="rev-new">章・ページ数とタグで表示（v1.11、6.2節 T-23参照）</span><span class="rev-new">。テーブルに「プロジェクト」列を追加し、プロジェクトタブでも絞り込める。タグはハッシュタグ形式で複数付与でき、検索欄・タグチップで横断的に絞り込める（v1.12でコース〔T-05〕をタグに置き換え）</span></td></tr>
+      <tr><td>S-04</td><td><span class="rev-old">教材受講</span><span class="rev-new">教材受講：目次</span></td><td><code>/materials/:materialId</code></td><td>対象者（全員）</td><td><span class="rev-old">教材本文の閲覧、選択式・記述式問題への回答。通常受講／反復演習／誤答のみ抽出の3タブ</span><span class="rev-new">教材の目次（章・小見出し・ページの入れ子構造）と全体進捗、合否判定・再受験結果（<code>materials.attempt_scope</code>で定まる受験単位ごとに独立して判定。既定は教材全体。F-14は変更なし）を表示。目次／反復演習／誤答のみ抽出の3タブ。ページを選ぶとS-16へ遷移する（v1.11）。ドボン問題（<code>is_critical</code>）に起因する不合格は理由を明示。教材全体・章の受験後アンケート（任意設置時）もここで表示する（v1.17）</span></td></tr>
+      <tr><td>S-05</td><td><span class="rev-old">教材編集</span><span class="rev-new">教材編集：目次編集</span></td><td><code>/materials/:materialId/edit</code></td><td><span class="rev-old">対象教材のオーナー・共同編集者、対象教材が紐づくプロジェクトの管理者・編集者</span><span class="rev-new">対象教材が紐づくプロジェクトの管理者・編集者</span>、<span class="badge badge-admin">admin</span></td><td><span class="rev-old">本文・問題編集、単元/コース構成、</span><span class="rev-new">目次（章・小見出し・ページ）編集、タグ付け、合否判定・再受験設定、</span>ファイル・リンク添付、<span class="rev-old">共同編集者管理（個人教材の場合）／</span>プロジェクトメンバーの確認とS-12への導線<span class="rev-old">（プロジェクト教材の場合）</span>、AIレビュー結果・改訂履歴の確認<span class="rev-old">。個人教材（3.4節）とプロジェクトに紐づく教材（3.5節）の両方に対応する</span><span class="rev-new">。教材は必ずいずれかのプロジェクトに属するため（F-25）、アクセス可否・編集権限は常に3.5節のロジックのみで判定する。目次編集タブに所属プロジェクトの選択欄を持ち、新規作成時に未指定なら「全社公開」が既定選択となる。各ページの説明文・問題そのものの編集はS-17で行う（v1.11）</span><span class="rev-new">。受験単位（教材/章/小見出し/ページ）・再受験範囲（全問/誤答のみ）・AI講評スタイルの既定・AI採点コンテキスト・受験後アンケートの設置（教材全体・章ごと、任意）を目次編集タブで設定する（v1.17）</span></td></tr>
       <tr><td>S-06</td><td>配信設定</td><td><code>/admin/assignments</code></td><td><span class="rev-old"><span class="badge badge-admin">admin</span></span><span class="rev-new"><span class="badge badge-admin">admin</span>（全社スコープ）、対象プロジェクトの管理者（自プロジェクトのスコープ）</span></td><td>教材の配信対象（全社/<span class="rev-old">部署/</span>プロジェクト/個人）、必修/任意、受講期限の設定</td></tr>
       <tr class="rev-row"><td>S-07</td><td><span class="rev-old">組織管理</span></td><td><span class="rev-old"><code>/admin/organization</code></span></td><td><span class="rev-old"><span class="badge badge-admin">admin</span></span></td><td><span class="rev-old">部署の登録のみを扱う。プロジェクトの作成・メンバー管理はS-11・S-12へ移管した（誰でも作成できるため、管理者専用画面からは分離した）</span><span class="rev-new">廃止（v1.5）。部署（department）の概念をシステムから廃止したため、部署登録を行う画面自体が不要になった。プロジェクトの作成・管理はS-11・S-12を参照。画面ID・パスは欠番として保持する。</span></td></tr>
       <tr><td>S-08</td><td>受講状況ダッシュボード</td><td><code>/dashboard</code></td><td><span class="rev-old"><span class="badge badge-manager">manager</span> <span class="badge badge-admin">admin</span>、対象プロジェクトの管理者（自プロジェクト分のみ）</span><span class="rev-new"><span class="badge badge-admin">admin</span>（全社スコープ）、対象プロジェクトの管理者（自プロジェクトのスコープ）</span></td><td>担当範囲（<span class="rev-old">部署/</span>プロジェクト/全社）の受講率・合格率・未受講者の確認。AI組織レポートの表示</td></tr>
       <tr><td>S-09</td><td>個人学習レポート</td><td><code>/reports/:userId</code></td><td>本人, <span class="rev-old"><span class="badge badge-manager">manager</span> <span class="badge badge-admin">admin</span></span><span class="rev-new">対象者が所属するプロジェクトの管理者, <span class="badge badge-admin">admin</span></span></td><td>AIによる個人フィードバック（理解不足点・推奨教材）と学習履歴の表示</td></tr>
       <tr><td>S-10</td><td>管理</td><td><code>/admin/settings</code></td><td><span class="badge badge-admin">admin</span></td><td>タブ構成: 「ユーザー管理」（ロール変更・有効/無効）、「システム設定」（AI利用設定・Slack通知・猶予期間）</td></tr>
       <tr class="rev-row"><td>S-11</td><td>プロジェクト作成</td><td><code>/projects/new</code></td><td>全員</td><td>プロジェクト名・説明を入力して新規作成する。作成者は自動的にそのプロジェクトの管理者になる（F-24）</td></tr>
-      <tr class="rev-row"><td>S-12</td><td>プロジェクト管理</td><td><code>/projects/:projectId/manage</code></td><td>対象プロジェクトの管理者、<span class="badge badge-admin">admin</span></td><td>プロジェクト情報の編集、メンバーの追加・削除・ロール設定、プロジェクトに紐づく教材の他プロジェクトへの共有設定（F-24〜F-26）</td></tr>
+      <tr class="rev-row"><td>S-12</td><td>プロジェクト管理</td><td><code>/projects/:projectId/manage</code></td><td>対象プロジェクトの管理者、<span class="badge badge-admin">admin</span></td><td>プロジェクト情報の編集、メンバーの<span class="rev-old">追加</span><span class="rev-new">招待</span>・削除・ロール設定、プロジェクトに紐づく教材の他プロジェクトへの共有<span class="rev-new">申請</span>設定（F-24〜F-26）。<span class="rev-new">自プロジェクト宛ての共有リクエストの確認・承認・却下も行う</span></td></tr>
+      <tr class="rev-row"><td>S-13</td><td>教材編集：プロジェクト選択</td><td><code>/materials/edit-projects</code></td><td>全員</td><td>「教材編集」ナビの入口。編集する教材が属するプロジェクトをカードから選ぶ。全社員が「全社公開」の編集者を自動的に持つため常時表示される（v1.9）</td></tr>
+      <tr class="rev-row"><td>S-14</td><td>教材編集：教材一覧</td><td><code>/projects/:projectId/materials/edit</code></td><td>対象プロジェクトの編集者・管理者、<span class="badge badge-admin">admin</span></td><td>選んだプロジェクトの教材一覧（下書きを含む）。「＋新規教材を作成」「複製」「編集する」の起点。S-03と異なり公開済みでない教材も表示する</td></tr>
+      <tr class="rev-row"><td>S-15</td><td>プロフィール編集</td><td><code>/profile</code></td><td>全員</td><td>アイコン画像の設定、氏名・メールアドレス（Googleアカウント連動、参照のみ）の確認、所属プロジェクト一覧の確認。<span class="rev-new">自分宛てのプロジェクト招待（F-24）の一覧確認・承諾・辞退</span></td></tr>
+      <tr class="rev-row"><td>S-16</td><td>教材受講：ページ</td><td><code>/materials/:materialId/pages/:nodeId</code></td><td>対象者（全員）</td><td>1ページ分の説明文の閲覧、単一選択・複数選択・<span class="rev-new">並び替え・</span>記述式・コード記述式<span class="rev-new">・スコア記録</span>問題への回答。ページは説明のみ／問題のみ／両方のいずれもあり得る。S-04（目次）から遷移する（v1.11新設）。<span class="rev-new">設問ごとの回答必須／任意（<code>required</code>）、ドボン問題（<code>is_critical</code>）の明示、出題プール（<code>quiz_mode='pool'</code>）からのランダム出題に対応。受験後アンケート（任意設置時）をここで表示することもある（v1.17）</span></td></tr>
+      <tr class="rev-row"><td>S-17</td><td>教材編集：ページ編集</td><td><code>/materials/:materialId/pages/:nodeId/edit</code></td><td>対象教材が紐づくプロジェクトの管理者・編集者、<span class="badge badge-admin">admin</span></td><td>1ページ分の説明文（Markdown/HTML切替）と問題の編集。単一選択・複数選択は<code>correct_answer</code>を直接設定（AI非依存）、記述式・コード記述式は<code>scoring_criteria</code>を設定してAI採点に委ねる。保存するとS-05に戻る（v1.11新設）。<span class="rev-new">並び替え問題（正しい順序の登録）、スコア記録問題（単位のみ設定、正解の概念なし）、設問ごとの回答必須／任意・ドボン問題・AI講評スタイル上書き、出題プール設定を編集できる（v1.17）</span></td></tr>
+      <tr class="rev-row"><td>S-18</td><td><span class="rev-old">教材編集：Claude Code下書き作成</span></td><td><span class="rev-old"><code>/materials/draft-sessions/:sessionId</code></span></td><td><span class="rev-old">対象プロジェクトの編集者・管理者、admin</span></td><td><span class="rev-old">廃止（v1.20）。F-27（AI教材作成アシスト）の廃止に伴い画面も廃止した。F-27はe-learning側で従量課金が発生する経路だったが、代替のF-05（Claude Code CLI連携）は利用者本人の契約で課金されるため、e-learning側のコストが発生しないF-05に一本化した。S-14「＋新規教材を作成」は空のS-05目次編集画面へ直接遷移する。画面ID・パスは欠番として保持する。</span></td></tr>
+      <tr class="rev-row"><td>S-19</td><td>設問別の回答・結果一覧</td><td><code>/materials/:materialId/questions/:questionId/answers</code></td><td>対象教材が紐づくプロジェクトの管理者・編集者、<span class="badge badge-admin">admin</span></td><td>指定した設問への全受講者の回答・スコアを氏名付き一覧で表示する。記述式・コード記述式はAI採点結果の確認・<code>reviewed_by</code>修正を行える（従来抜けていたレビュー画面を兼ねる）。スコア記録型は最新スコア・推移の一覧になる。S-05・S-17から遷移する（v1.17新設）</td></tr>
     </tbody>
   </table>
 
@@ -471,26 +494,54 @@
 
   <h3>4.5 S-03 教材一覧・検索</h3>
   <ul>
-    <li><strong>検索パネル（開閉式）:</strong> キーワード（教材名・単元名・コース名）／コース／区分（必修/任意）のプルダウン、「未受講のみ表示」「自分が受講対象の教材のみ表示」チェックボックス。</li>
-    <li><strong>一覧テーブル列:</strong> 教材（タイトル＋単元数・問題種別・問題数）／コース／区分／所要時間（目安）／更新日／操作（受講する・続きから受講・復習する・反復演習）。表示件数選択とページネーションを備える。</li>
+    <li><strong>検索パネル（開閉式）:</strong> キーワード（教材名・見出し名・<span class="rev-old">コース名</span><span class="rev-new">#タグ</span>）<span class="rev-new">／タグチップ（クリックで絞り込み）</span>／区分（必修/任意）のプルダウン、「未受講のみ表示」「自分が受講対象の教材のみ表示」チェックボックス。</li>
+    <li><strong>一覧テーブル列:</strong> 教材（タイトル＋<span class="rev-new">章数・ページ数</span>・問題種別・問題数）／<span class="rev-old">コース</span><span class="rev-new">タグ（複数付与可）</span>／区分／所要時間（目安）／更新日／操作（受講する・続きから受講・復習する・反復演習）。表示件数選択とページネーションを備える。</li>
     <li><strong>操作:</strong> A-14（一覧・検索）を呼び出す。行選択・操作ボタンで S-04 へ遷移する。</li>
   </ul>
 
-  <h3>4.6 S-04 教材受講</h3>
+  <h3>4.6 <span class="rev-old">S-04 教材受講</span><span class="rev-new">S-04 教材受講：目次</span></h3>
   <ul>
-    <li><strong>タブ構成:</strong> 「通常受講」「反復演習」「誤答のみ抽出」の3タブ（4.1節ヘッダーに必修/任意バッジ・期限・単元位置を表示）。</li>
-    <li><strong>通常受講タブ:</strong> 前回の受験結果（不合格時は再受験可否・残り回数を表示）、記述式回答のAI採点結果（採点中/採点済みの状態表示）、進捗バー、単元本文、設問カード（回答済み・回答中・未解放の状態を視覚的に区別）。「一時中断する」「回答して次へ」ボタン。</li>
-    <li><strong>反復演習タブ:</strong> 実施履歴（正答数・所要時間）と「反復演習を開始」ボタン。合否には影響しない旨を明示。</li>
+    <li><strong>タブ構成:</strong> <span class="rev-old">「通常受講」</span><span class="rev-new">「目次」</span>「反復演習」「誤答のみ抽出」の3タブ（4.1節ヘッダーに必修/任意バッジ・期限・<span class="rev-old">単元位置</span><span class="rev-new">章・ページ数</span>を表示）。</li>
+    <li class="rev-new"><strong>目次タブ:</strong> <code>materials.attempt_scope</code>で定まる受験単位（教材全体/章/小見出し/ページ）ごとに独立した「前回の受験結果」パネルを表示（既定は教材全体で1枚。v1.17）。不合格時は再受験可否・残り回数を表示し、ドボン問題（<code>is_critical</code>）が原因の場合は該当設問名を理由として明示する。記述式回答のAI採点結果（採点中/採点済みの状態表示）、教材全体の進捗バー（完了ページ数/全ページ数）、<strong>教材全体の資料</strong>（特定ページに属さない添付ファイル・リンク。<code>node_id</code>未設定のT-09行。S-05「ファイル・リンク」タブで登録されたもの。v1.17追加）、章・小見出し・ページのツリー表示（各ページの完了/未完了マーク、種別バッジ〔説明／問題×N／説明＋問題×N／スコア記録〕）。ページ行を選ぶとS-16へ遷移する。「一時中断する」「続きから受講」ボタン。<strong>受験後アンケート</strong>（教材全体・該当する章に設置されている場合、対象の受験単位を完了した直後に表示。回答は任意でスキップ可。<code>repeat_mode='once'</code>なら2回目以降は表示しない。v1.17）。</li>
+    <li><strong>反復演習タブ:</strong> 実施履歴（正答数・所要時間）と「反復演習を開始」ボタン。合否には影響しない旨を明示。対象は教材内の全ページの問題。<span class="rev-new">ドボン問題（<code>is_critical</code>）の判定は行わない（合否に関わらないモードのため）。</span></li>
     <li><strong>誤答のみ抽出タブ:</strong> 出題範囲（この教材内の誤答のみ／全教材の誤答から出題）をラジオボタンで選択し「誤答問題を解く」ボタンで開始。</li>
-    <li><strong>操作:</strong> A-40（受験開始）→ A-41（回答保存、都度呼び出しで中断・再開を実現）→ A-42（提出、AI採点トリガーを含む）→ A-43（結果取得）。反復演習・誤答抽出は A-40 の <code>mode</code> パラメータ、A-44（誤答抽出出題取得）で実現する。</li>
+    <li><strong>操作:</strong> A-15（目次〔ツリー〕取得）、<span class="rev-new">A-28（<code>node_id</code>を指定せずに呼び出し、教材全体の資料を取得）、</span>A-40（受験開始）→ A-41（回答保存、都度呼び出しで中断・再開を実現）→ A-42（提出、AI採点トリガーを含む）→ A-43（結果取得）。反復演習・誤答抽出は A-40 の <code>mode</code> パラメータ、A-44（誤答抽出出題取得）で実現する。<span class="rev-new">再受験はA-71（<code>materials.retake_scope</code>に応じて全問または誤答のみを新しい試行に含める）、アンケート回答はA-72（v1.17）。</span></li>
   </ul>
 
-  <h3>4.7 S-05 教材編集</h3>
+  <h3 class="rev-new">4.6a S-16 教材受講：ページ</h3>
+  <ul class="rev-new">
+    <li><strong>表示項目:</strong> パンくず（教材名／章／小見出し）、教材全体の進捗バー、説明文パネル（ページに説明文がある場合のみ表示）、設問カード（ページに問題がある場合のみ表示。回答済み・回答中・未解放の状態を視覚的に区別）。「目次へ戻る」「回答して次のページへ」ボタン。<span class="rev-new">設問カードには種別に応じたUIを出す: 並び替え問題はドラッグ操作可能な項目リスト、スコア記録問題は数値入力欄＋「これまでの記録」表示（過去の<code>response.score</code>推移）。<code>required=false</code>の設問は「スキップ」操作を表示。<code>is_critical=true</code>の設問には「⚠ ドボン」バッジを表示する（v1.17）。</span></li>
+    <li><strong>操作:</strong> A-41（回答保存）、A-42（提出）。回答内容は都度保存され、中断してもS-04から同じページへ再開できる。</li>
+    <li><strong>アクセス制御:</strong> 対象教材の受講対象者（7.3節）。</li>
+  </ul>
+
+  <h3>4.7 <span class="rev-old">S-05 教材編集</span><span class="rev-new">S-05 教材編集：目次編集</span></h3>
   <ul>
-    <li><strong>ヘッダー:</strong> 教材タイトル・公開状態バッジ、<span class="rev-old">オーナー・共同編集者</span><span class="rev-new">教材が紐づくプロジェクトの管理者・編集者</span>のアバター表示、「プレビュー」「下書き保存」「公開する」ボタン。</li>
-    <li><strong>タブ構成:</strong> 「本文編集」（Markdown/HTML切替、エディタ＋プレビュー分割表示。<span class="rev-new">プレビューは未保存の入力内容であってもA-64でサーバー側サニタイズを経てから描画する（8.6節）</span>）、「問題編集」（単元ごとに単一選択/複数選択/記述式の設問を追加・編集・削除、記述式は模範解答・採点基準を入力）、「構成（単元/コース）」（所属コース選択、単元の追加・並び替え・削除、合否判定・再受験設定）、「ファイル・リンク」（添付済み一覧、ファイル選択・外部リンク追加フォーム）、「<span class="rev-old">共同編集者」（一覧・追加・削除・オーナー引き継ぎ）</span><span class="rev-new">プロジェクトメンバー」（管理者・編集者・受講者の一覧を表示する参照専用タブ。追加・削除・ロール変更はS-12で行うため本タブからS-12への導線を設ける）</span>、「AIレビュー結果」（実行ボタン・指摘/提案の一覧）、「改訂履歴」（日時・変更者・変更内容・経路の一覧）。</li>
-    <li><strong>操作:</strong> A-17/A-19/A-20（本文更新、画面用・Claude Code連携共通）、A-31（問題一括更新）、A-28/A-29（添付ファイル・リンク）、<span class="rev-old">A-23〜A-26（共同編集者・オーナー引き継ぎ）</span><span class="rev-new">A-11（プロジェクトメンバー一覧取得。参照のみ）、A-64（本文プレビュー。8.6節）</span>、A-32/A-33（AIレビュー）、A-22（改訂履歴取得）。</li>
+    <li><strong>ヘッダー:</strong> 教材タイトル・公開状態バッジ、<span class="rev-old">オーナー・共同編集者</span><span class="rev-new">教材が紐づくプロジェクトの管理者・編集者</span>のアバター表示、<span class="rev-old">「Claude Codeに相談」（クリックで画面右にチャットパネルを開閉するトグルボタン。画面を離れずに対話的な編集ができる。v1.19。F-27廃止に伴いv1.20で削除）</span>「プレビュー」「下書き保存」「公開する」「複製」ボタン。</li>
+    <li><strong>タブ構成:</strong> <span class="rev-old">「本文編集」（Markdown/HTML切替、エディタ＋プレビュー分割表示。プレビューは未保存の入力内容であってもA-64でサーバー側サニタイズを経てから描画する（8.6節））、「問題編集」（単元ごとに単一選択/複数選択/記述式の設問を追加・編集・削除、記述式は模範解答・採点基準を入力）、「構成（単元/コース）」（所属コース選択、単元の追加・並び替え・削除、合否判定・再受験設定）、</span><span class="rev-new">「目次編集」（教材タイトル・所属プロジェクト・タグの編集、章〔見出し〕・小見出し・ページのツリー編集（追加・並び替え・削除・入れ子）、合否判定・再受験設定〔<strong>受験単位</strong>: 教材/章/小見出し/ページ、<strong>再受験範囲</strong>: 全問/誤答のみ〕、<strong>採点方式の既定</strong>（記述式・コード記述式向け。AI自動採点／プロジェクト担当者〔管理者・編集者〕による手動採点。v1.18）、<strong>AI講評スタイルの既定</strong>（正解提示/コードレビュー型/ヒント型。採点方式=AI自動採点の設問にのみ適用）、<strong>AI採点・AIアシストへの指示</strong>（<code>ai_context</code>。言語・フレームワーク・禁止事項等の自由記述）、<strong>受験後アンケートの設置</strong>（教材全体・章ごとに任意でON/OFF、設置時は設問編集モーダルを開く）。各ページ行の「編集する」でS-17へ、「回答一覧」でS-19へ遷移する。v1.17で拡張）、</span>「ファイル・リンク」（<span class="rev-new">特定ページに属さない教材全体の資料〔シラバス等〕のみを扱う。ページ固有の資料はS-17で管理するため、ここには含めない。v1.14。</span>添付済み一覧、ファイル選択・外部リンク追加フォーム）、「<span class="rev-old">共同編集者」（一覧・追加・削除・オーナー引き継ぎ）</span><span class="rev-new">プロジェクトメンバー」（管理者・編集者・受講者の一覧を表示する参照専用タブ。追加・削除・ロール変更はS-12で行うため本タブからS-12への導線を設ける）</span>、「AIレビュー結果」（実行ボタン・指摘/提案の一覧）、「改訂履歴」（日時・変更者・変更内容・経路の一覧）。</li>
+    <li><strong>操作:</strong> <span class="rev-old">A-17/A-19/A-20（本文更新、画面用・Claude Code連携共通）、A-31（問題一括更新）、</span><span class="rev-new">A-15（目次取得）、A-16/A-17（教材新規作成・更新。目次構造・attempt_scope・retake_scope・default_feedback_style・ai_context・アンケート設置を含む）、</span>A-28/A-29（添付ファイル・リンク）、<span class="rev-old">A-23〜A-26（共同編集者・オーナー引き継ぎ）</span><span class="rev-new">A-11（プロジェクトメンバー一覧取得。参照のみ）</span>、A-32/A-33（AIレビュー）、A-22（改訂履歴取得）<span class="rev-old">、A-68〜A-70（「Claude Codeに相談」パネル。<code>material_id</code>を初期コンテキストにセッション開始。5.28節。v1.19。F-27廃止に伴いv1.20で削除）</span>。</li>
     <li><strong>アクセス制御:</strong> <span class="rev-old">対象教材のオーナー・共同編集者、または admin（3.4節）。ロールは問わない。</span><span class="rev-new">対象教材が紐づくプロジェクトの管理者・編集者、または admin（3.5節）。教材は必ずいずれかのプロジェクトに属するため（F-25）、システム全体のロールは問わない。</span></li>
+  </ul>
+
+  <h3 class="rev-new">4.7a S-17 教材編集：ページ編集</h3>
+  <ul class="rev-new">
+    <li><strong>ヘッダー:</strong> <span class="rev-old">「Claude Codeに相談」（画面右にチャットパネルを開閉するトグルボタン。<code>node_id</code>〔このページ〕を初期コンテキストにセッション開始。v1.19。F-27廃止に伴いv1.20で削除）</span>「目次編集に戻る」「プレビュー」「このページを保存」ボタン。</li>
+    <li><strong>表示項目:</strong> パンくず（教材名／章）、ページタイトル・概要入力欄、「説明文を含める」「問題を含める」の独立したチェックボックス（少なくとも一方は必須）、説明文エディタ（Markdown/HTML切替、エディタ＋プレビュー分割表示。プレビューは未保存の入力内容であってもA-64でサーバー側サニタイズを経てから描画する。8.6節）、設問編集カード（種別: 単一選択/複数選択/<strong>並び替え</strong>/記述式/コード記述式/<strong>スコア記録</strong>。選択式は正解にチェック、並び替えは正しい順序の項目リストを登録、記述式・コード記述式は模範解答・採点基準を入力、スコア記録は単位表記のみ設定〔正解の概念なし〕。<strong>回答必須／任意</strong>（<code>required</code>）、<strong>ドボン問題</strong>（<code>is_critical</code>。チェックで有効化。スコア記録型には設定不可）、<strong>採点方式</strong>（記述式・コード記述式のみ。教材既定に従う／AI自動採点／手動採点のいずれかで<code>grading_mode</code>を上書き。v1.18）、<strong>AI講評スタイル</strong>（教材既定を上書きする場合のみ選択。採点方式が手動採点の設問では無効化して表示）、<strong>出題プール</strong>（このページの問題をすべて出題／プールからランダムN問抽出のいずれかに切替。プール抽出数を設定）、「この設問の回答一覧」リンク（S-19へ）。v1.17で種別・属性を拡張、v1.18で採点方式を追加）、<strong>このページの添付ファイル・リンク</strong>（S-05「ファイル・リンク」タブと同じUIをこのページの<code>node_id</code>で絞り込んで表示。ここで登録した資料はS-16でこのページを開いたときにのみ表示される。v1.14追加）。</li>
+    <li><strong>操作:</strong> A-19/A-20（本文更新、画面用・Claude Code連携共通）、A-31（問題一括更新。<code>required</code>・<code>is_critical</code>・<code>feedback_style</code>・<code>pool_group_id</code>・<code>score_unit</code>・<code>grading_mode</code>を含む）、A-64（本文プレビュー。8.6節）、A-28/A-29（<code>node_id</code>にこのページのIDを指定して添付ファイル・リンクを取得・登録）、A-73（この設問の回答一覧をS-19で取得）<span class="rev-old">、A-68〜A-70（「Claude Codeに相談」パネル。5.28節。v1.19。F-27廃止に伴いv1.20で削除）</span>。保存後はS-05へ戻る。</li>
+    <li><strong>アクセス制御:</strong> 対象教材が紐づくプロジェクトの管理者・編集者、または admin（3.5節）。</li>
+  </ul>
+
+  <h3>4.7b S-18 <span class="rev-old">教材編集：Claude Code下書き作成</span></h3>
+  <div class="callout rev-old">
+    <strong>この画面は基本設計書v1.20で廃止されました。</strong> F-27（AI教材作成アシスト。ブラウザ内対話生成）の廃止に伴い、この画面も廃止した。F-27はe-learningのバックエンドがAnthropic Claude APIを直接呼び出す構造のため、利用のたびにe-learning側で従量課金が発生していたが、F-05（Claude Code CLI連携）はClaude Code利用者本人の契約で課金され、e-learning側の運用コストが発生しない。両者が似た体験を提供する代替経路だったため、コストの発生しないF-05に一本化することとした。教材の作成・修正へのAI支援はすべてF-05経由で行う（8章参照）。S-14「＋新規教材を作成」は、この画面を経由せず空のS-05目次編集画面へ直接遷移する（v1.14以前の遷移に戻した）。画面ID・パス・関連API（A-68〜A-70）・関連テーブル（T-24, T-25）はいずれも欠番として保持する。
+  </div>
+
+  <h3 class="rev-new">4.7c S-19 設問別の回答・結果一覧</h3>
+  <ul class="rev-new">
+    <li><strong>表示項目:</strong> パンくず（教材名／設問の所在）、対象設問の概要（設問文・種別・<span class="rev-new">採点方式が「手動採点」の場合はその旨のバッジ）</span>、受講者ごとの行を並べた一覧テーブル。<code>type</code>が単一選択/複数選択/並び替えなら「回答内容・正誤」列、記述式/コード記述式なら「回答内容・採点結果（点数は廃止済みのため正誤のみ）・講評・操作」列、<code>score_log</code>なら「最新スコア・推移（例: 45→52→58）・最終記録日」列に切り替わる。氏名列は常に表示する。<span class="rev-new">記述式・コード記述式で<code>grading_mode='manual'</code>の設問は、未採点の回答は正誤バッジの代わりに「未採点」バッジを表示する。</span></li>
+    <li><strong>操作:</strong> A-73（設問別回答一覧取得）。記述式・コード記述式の行では、<code>grading_mode='ai'</code>なら「採点を修正」、<code>grading_mode='manual'</code>で未採点なら「採点する」（採点済みなら「採点を修正」）ボタンから、<code>is_correct</code>・<code>ai_feedback</code>（担当者の講評として保存）を編集し、保存時に<code>reviewed_by</code>・<code>reviewed_at</code>を設定するAPI（詳細設計で定義）を呼ぶ。</li>
+    <li><strong>アクセス制御:</strong> 対象教材が紐づくプロジェクトの管理者・編集者、または admin（3.5節）。氏名付きで個々の回答を表示するため、受講者本人・一般のプロジェクトメンバーはアクセスできない。</li>
+    <li><strong>入口:</strong> S-05目次編集・S-17ページ編集の各設問カードに「この設問の回答一覧」リンクを設ける想定。</li>
   </ul>
 
   <h3>4.8 S-06 配信設定</h3>
@@ -522,7 +573,7 @@
 
   <h3>4.12 S-10 管理</h3>
   <ul>
-    <li><strong>タブ構成:</strong> 「ユーザー管理」（氏名・メール・ロール・有効/無効の一覧。ロール変更・有効/無効切替。自分自身の降格・無効化は不可）、「システム設定」（AI利用モデル選択・今月のAI利用状況概算、Slack Webhook URL・通知先チャンネル・テスト送信、プロジェクト所属の猶予期間日数）。</li>
+    <li><strong>タブ構成:</strong> 「ユーザー管理」（氏名・メール・ロール・有効/無効の一覧。ロール変更・有効/無効切替。自分自身の降格・無効化は不可）、「システム設定」（AI利用モデル選択、<span class="rev-new">今月のAI利用状況を機能別（F-08/F-20/F-21〜F-23）の呼び出し件数・トークン数・概算コストの内訳で表示（v1.21。9.3節のT-19集計を<code>feature</code>で group by して取得）。教材の作成・修正（F-05、Claude Code CLI連携）は利用者本人の契約で課金されるためこの集計には含まれない旨を明記する。</span>、Slack Webhook URL・通知先チャンネル・テスト送信、プロジェクト所属の猶予期間日数）。</li>
     <li><strong>操作:</strong> A-53/A-54（ユーザー一覧・更新）、A-55/A-56（設定取得・更新）、A-57（Slackテスト送信）、A-58（AI利用状況取得）。</li>
     <li><strong>アクセス制御:</strong> admin のみ。</li>
   </ul>
@@ -542,11 +593,11 @@
     <li><strong>アクセス制御:</strong> 対象プロジェクトの管理者、または admin（3.5節）。</li>
   </ul>
 
-  <p>画面IDはS-01〜S-12の体系とし、要件定義書4.1節の画面一覧と一致させている。S-11・S-12はv1.4（教材のプロジェクト単位管理、F-24〜F-26）で新設した。<span class="rev-new">S-07（組織管理）はv1.5（部署の概念の廃止）で廃止したためIDを欠番とし、実働する画面は11件（S-01〜S-06, S-08〜S-12）である。</span></p>
+  <p>画面IDは<span class="rev-old">S-01〜S-12</span><span class="rev-new">S-01〜S-19</span>の体系とし、要件定義書4.1節の画面一覧と一致させている。S-11・S-12はv1.4（教材のプロジェクト単位管理、F-24〜F-26）で新設した。<span class="rev-new">S-13〜S-15はv1.9〜v1.11（プロジェクト表示の改善、共有承認フロー、招待制メンバー追加）で新設した。S-16・S-17はv1.11（教材構造案の採用）でS-04・S-05からページ単位の受講・編集を分離する形で新設した。S-18はv1.12（F-27 AI教材作成アシスト）で新設した<span class="rev-old">が、F-27の廃止に伴いv1.20で廃止した</span>。S-19はv1.17（設問別回答一覧・レビュー画面の欠落への対応）で新設した。</span>S-07（組織管理）はv1.5（部署の概念の廃止）<span class="rev-old">、S-18（教材編集：Claude Code下書き作成）はv1.20（F-27の廃止）</span>で廃止したためIDを欠番とし、実働する画面は<span class="rev-old">11件（S-01〜S-06, S-08〜S-12）</span><span class="rev-old">18件（S-01〜S-06, S-08〜S-19）</span><span class="rev-new">17件（S-01〜S-06, S-08〜S-17, S-19）</span>である。</p>
 
   <!-- ============ 5. 機能設計 ============ -->
   <h2 id="sec5">5. 機能設計</h2>
-  <p>機能一覧（F-01〜<span class="rev-new">F-26</span>）ごとに処理概要・関連画面/API/テーブル・設計判断を示す。教材連携（F-05）の技術詳細は8章、AI連携機能（F-08, F-20〜F-23）の技術詳細は9章に譲り、本章では処理概要と他機能との関係を示すに留める。</p>
+  <p>機能一覧（F-01〜<span class="rev-new">F-28</span>、うちF-27はv1.20で廃止し欠番）ごとに処理概要・関連画面/API/テーブル・設計判断を示す。教材連携（F-05<span class="rev-old">, F-27</span>）の技術詳細は8章、AI連携機能（F-08, F-20〜F-23）の技術詳細は9章に譲り、本章では処理概要と他機能との関係を示すに留める。</p>
 
   <h3>5.1 F-01 Google認証</h3>
   <p><strong>処理概要:</strong> Google OAuth 2.0によるログイン。許可ドメイン制限、セッションJWT発行、初回ログイン時の自動ユーザー登録（role='learner'）を行う（対応要求: REQ-N-01）。詳細は3.1節参照。</p>
@@ -564,9 +615,9 @@
   </div>
 
   <h3>5.4 F-04 教材・問題管理</h3>
-  <p><strong>処理概要:</strong> 教材（説明文・図・資料）と問題の登録・修正（対応要求: REQ-F-01）。教材はコース（T-05 courses）に属し、本文はMarkdownまたはHTML形式（T-06 <code>format</code>）で記述する。A-16（新規作成）、A-17（更新）、A-18（削除）、A-31（問題一括更新）で操作する。</p>
+  <p><strong>処理概要:</strong> 教材（章・小見出し・ページの入れ子構造）と問題の登録・修正（対応要求: REQ-F-01）。<span class="rev-old">教材はコース（T-05 courses）に属し、本文はMarkdownまたはHTML形式（T-06 <code>format</code>）で記述する。</span><span class="rev-new">教材には自由なタグ（<code>materials.tags</code>）を複数付与でき、本文はページ単位でMarkdownまたはHTML形式（<code>material_nodes.format</code>）で記述する。コース（T-05 courses）はv1.12で廃止し、タグに置き換えた（6.2節）。</span>A-16（新規作成）、A-17（更新）、A-18（削除）、A-31（問題一括更新）で操作する。</p>
   <div class="callout">
-    <strong>設計判断（単元はテーブルを持たない）:</strong> 画面モックアップ（S-05「構成（単元/コース）」タブ）は教材内に複数の「単元」を持ち、単元ごとに本文・進捗を扱う構成を示している。本書では単元を独立したテーブル（T-xx）としては設けず、<strong>教材本文（Markdown の <code>##</code> 見出し／HTML の <code>&lt;h2&gt;</code>）から動的に抽出する構造</strong>とする。理由は、単元をテーブル化すると本文編集（Claude Codeでのテキスト往復を含む8章）と単元テーブルの整合を常に取る必要が生じ、8章の「テキスト1本を取得・書き戻しするだけで教材が完結する」というシンプルさが崩れるためである。単元の追加・並び替え・削除は本文中の見出し操作のみで完結し、S-05の「単元構成」タブはその見出し構造を可視化・編集するUIとして実装する。T-10 <code>questions</code> の <code>unit_index</code>（0始まり、本文中の見出し出現順）で各設問がどの単元に属するかを表現し、T-12 <code>enrollment_progress.current_position</code> には現在の単元インデックスを保持する。
+    <strong>設計判断（教材構造をツリーテーブルで表現する。v1.11で変更）:</strong> v1.0〜v1.10では、単元は独立したテーブルを持たず、教材本文（Markdown の <code>##</code> 見出し／HTML の <code>&lt;h2&gt;</code>）から動的に抽出する構造としていた（フラットな並びのみで、入れ子構造には対応できなかった）。要件定義書v1.12で教材の内部構造を「章／小見出し（任意）／ページ」の入れ子構造（教材構造案。検討資料/画面モック/20260820_教科書構造_検討まとめ.html参照）に刷新したことに伴い、本節の設計を全面的に見直す。新設の<strong>T-23 <code>material_nodes</code></strong>は自己参照ツリー（<code>parent_node_id</code>）で章・小見出し・ページを同一テーブル上に表現し、葉ノード（ページ）だけが実際のコンテンツ（説明文・問題）を持つ。「テキスト1本を取得・書き戻しするだけで教材が完結する」というClaude Code連携のシンプルさ（8章）は、教材1件分のフロントマター＋本文全体を引き続き1ファイルとして扱う方式（8.3節でノード構造をフロントマターの入れ子配列として表現）で両立させる。T-10 <code>questions</code> の <code>unit_index</code> は廃止し、<code>node_id</code>（FK→<code>material_nodes</code>、葉ノードのみを参照）に置き換える。T-12 <code>enrollment_progress.current_position</code> には現在の <code>node_id</code> を保持する。
   </div>
   <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
     <tbody><tr><td>S-03, S-05</td><td>A-14〜A-18, A-31</td><td>T-05, T-06, T-10</td></tr></tbody></table>
@@ -577,12 +628,14 @@
     <tbody><tr><td>（画面なし・API直接利用）</td><td>A-19〜A-22</td><td>T-06, T-08, T-10</td></tr></tbody></table>
 
   <h3>5.6 F-06 教材ファイル・リンク管理</h3>
-  <p><strong>処理概要:</strong> 動画・スライド・PDF等のファイルを教材に添付、または外部サービス上の資料へのリンクを教材として登録する（対応要求: REQ-F-03）。ファイルはSupabase Storageに保存し、T-09 <code>material_attachments.storage_key</code> にパスを記録する。外部リンクは <code>external_url</code> に保存する。A-30 で署名付きURLを発行してダウンロードさせる（アクセス制御は当該教材の受講対象者・<span class="rev-old">オーナー・共同編集者</span><span class="rev-new">対象教材が紐づくプロジェクトの管理者・編集者</span>・adminに限定し、URLの直接公開はしない）。</p>
+  <p><strong>処理概要:</strong> 動画・スライド・PDF等のファイルを教材に添付、または外部サービス上の資料へのリンクを教材として登録する（対応要求: REQ-F-03）。ファイルはSupabase Storageに保存し、T-09 <code>material_attachments.storage_key</code> にパスを記録する。外部リンクは <code>external_url</code> に保存する。A-30 で署名付きURLを発行してダウンロードさせる（アクセス制御は当該教材の受講対象者・<span class="rev-old">オーナー・共同編集者</span><span class="rev-new">対象教材が紐づくプロジェクトの管理者・編集者</span>・adminに限定し、URLの直接公開はしない）。<span class="rev-new">v1.14で<code>node_id</code>（nullable）を追加し、特定ページに紐づく添付（S-17で登録し、受講時はそのページ〔S-16〕にのみ表示）と、教材全体の参考資料（S-05「ファイル・リンク」タブで登録。特定ページに属さないシラバス等）を区別できるようにした（5.4節・4.7b節相当の設計判断コールアウト参照）。</span></p>
   <div class="callout">
     <strong>設計判断（アップロード容量の上限）:</strong> 要求定義書は容量上限を「基本設計フェーズで決定」としていた。本書では1ファイルあたり<strong>200MB</strong>を上限とする（Supabase Storageの標準的なプラン制約と、動画教材でも数分〜十数分程度のコンパクトな教材を想定する運用実態を踏まえた値）。上限は環境変数 <code>MAX_ATTACHMENT_SIZE_MB</code> で調整可能とし、超過時は413を返す。フェーズ5（要求定義書10章）での実アップロード対応時に再検討する。
   </div>
+  <div class="callout rev-new">
+    <strong>設計判断（添付ファイルもページ単位に紐づけられるようにした理由）:</strong> 教材構造案（v1.11）採用前は教材が1本文だったため、添付ファイルは自然に「教材1件に1セット」で足りていた。ページ分割後もT-09を教材単位のまま据え置いていたところ、S-16（ページ受講）の本文には特定ページに関連する資料へのリンクが表示される一方、T-09・S-05「ファイル・リンク」タブは教材全体をまとめた1つのフラットな一覧のままで、「このページの添付」という単位を表現できていなかった（レビュー指摘により発覚）。<code>node_id</code>を追加してこの不整合を解消し、ページ固有の資料はS-17で登録・S-16でそのページにのみ表示、特定ページに属さない教材全体の資料（シラバス等）はS-05「ファイル・リンク」タブで管理する、という2階層に整理した。<span class="rev-new">この整理を行った時点（v1.14）では、S-05で登録した教材全体の資料（<code>node_id</code>未設定）を受講者側のどこにも表示していないという2つ目の欠落があった（レビュー指摘により発覚）。v1.17でS-04（目次）に「教材全体の資料」セクションを追加し、教材単位・ページ単位どちらの添付も受講者が必ずどこかから閲覧できるようにした。</span></div>
   <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
-    <tbody><tr><td>S-04, S-05</td><td>A-27〜A-30</td><td>T-09</td></tr></tbody></table>
+    <tbody><tr><td>S-04, S-05, S-16, S-17</td><td>A-27〜A-30</td><td>T-09</td></tr></tbody></table>
 
   <h3 class="rev-row">5.7 F-07 <span class="rev-old">教材作成・共有</span></h3>
   <div class="callout rev-new">
@@ -627,8 +680,11 @@
 
   <h3>5.14 F-14 合否判定・再受験</h3>
   <p><strong>処理概要:</strong> 問題に合格基準（<code>pass_score_pct</code>）を設定して合否を判定する。不合格時は再受験でき、再受験の可否・回数は教材ごとに設定できる（対応要求: REQ-F-09）。A-42（提出）で T-13 <code>quiz_attempts.score_pct</code> を算出し、<code>pass_score_pct</code> と比較して <code>passed</code> を確定する（記述式のAI採点待ちの間は <code>passed</code> は NULL のまま「採点中」として扱う。9章参照）。<code>attempt_no</code> は同一教材・同一ユーザーの graded 試行の通し番号とし、<code>retake_limit</code> 到達後は新規受験を拒否する。</p>
+  <p class="rev-new"><strong>受験単位（v1.17）:</strong> <code>materials.attempt_scope</code>（'material'/'chapter'/'section'/'page'、既定'material'）が、合否判定・再受験の対象範囲を決める。'material'以外の場合、T-13 <code>quiz_attempts</code> は<code>scope_node_id</code>単位で複数並存し、それぞれ独立に合否判定・再受験回数を管理する。小見出しを使わない章で<code>attempt_scope='section'</code>の場合は、その章自身が受験単位になる（章直下のページをまとめて1つの<code>scope_node_id</code>として扱う）。<code>type='score_log'</code>の設問は正誤の概念を持たないため、<code>score_pct</code>算出の分母（対象設問数）に含めない。</p>
+  <p class="rev-new"><strong>ドボン問題（v1.17）:</strong> T-10 <code>questions.is_critical=true</code>の設問に不正解の場合、他の設問の正答率によらず<code>passed=false</code>とし、<code>quiz_attempts.fail_reason</code>に該当設問を記録する（A-42）。影響範囲は<code>attempt_scope</code>にそのまま従い、別立ての設定は持たない。<code>mode='practice'</code>（反復演習・誤答抽出）では判定しない。</p>
+  <p class="rev-new"><strong>再受験の出題範囲（v1.17）:</strong> <code>materials.retake_scope</code>が'wrong_only'の場合、A-71（再受験開始）は前回の<code>scope_node_id</code>内で不正解だった設問のみを新しい試行に含め、正解済みの設問IDを<code>carried_over_question_ids</code>に記録する。提出時（A-42）は今回の解答結果と<code>carried_over_question_ids</code>の正解を合算して<code>score_pct</code>を再計算する。</p>
   <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
-    <tbody><tr><td>S-04, S-05</td><td>A-40, A-42, A-43</td><td>T-11, T-13</td></tr></tbody></table>
+    <tbody><tr><td>S-04, S-05, S-16</td><td>A-40〜A-43, A-71</td><td>T-06, T-10, T-11, T-13</td></tr></tbody></table>
 
   <h3>5.15 F-15 学習進捗管理</h3>
   <p><strong>処理概要:</strong> 受講の中断・再開ができ、途中経過を保存する（対応要求: REQ-F-11）。T-12 <code>enrollment_progress</code> で教材全体の進捗（<code>status</code>・<code>current_position</code>）を管理し、A-41（回答保存）の都度、回答内容（T-14）と進捗（T-12）の両方を更新する。A-40（受験開始）で未提出の <code>quiz_attempts</code> が存在すればそれを返し、続きから再開させる。</p>
@@ -659,21 +715,25 @@
     <tbody><tr><td>S-08</td><td>A-45, A-46</td><td>T-01〜T-04, T-11〜T-13</td></tr></tbody></table>
 
   <h3>5.20 F-20 AI記述式採点・講評</h3>
-  <p><strong>処理概要:</strong> 記述式回答をAIが採点し、根拠を伴う講評を返す。採点結果は人が確認・修正できる（対応要求: REQ-F-16）。処理方式（非同期ジョブ）は9章参照。採点結果（<code>ai_score_pct</code>・<code>ai_feedback</code>）は T-14 <code>answers</code> に保存し、<span class="rev-old">教材のオーナー・共同編集者</span><span class="rev-new">対象教材が紐づくプロジェクトの管理者・編集者</span>が <code>reviewed_by</code>・<code>reviewed_at</code> を設定して修正できる。</p>
+  <p><strong>処理概要:</strong> 記述式回答をAIが採点し、根拠を伴う講評を返す。採点結果は人が確認・修正できる（対応要求: REQ-F-16）。処理方式（非同期ジョブ）は9章参照。採点結果（<code>ai_score_pct</code>・<code>ai_feedback</code>）は T-14 <code>answers</code> に保存し、<span class="rev-old">教材のオーナー・共同編集者</span><span class="rev-new">対象教材が紐づくプロジェクトの管理者・編集者</span>が <code>reviewed_by</code>・<code>reviewed_at</code> を設定して修正できる（S-19、v1.17）。</p>
+  <p class="rev-new"><strong>AI講評スタイル（v1.17）:</strong> 設問の<code>feedback_style</code>（未設定時は<code>materials.default_feedback_style</code>）に応じてプロンプトの指示を切り替える。<code>show_answer</code>（模範解答＋講評を提示。既定）、<code>review_only</code>（正解は提示せず、コード記述式なら問題箇所の指摘のみ）、<code>hint_only</code>（正解を見せず、考え方のヒントのみ）。<code>materials.ai_context</code>（言語・フレームワーク・「正解を直接教えない」等の教材共通の前提）が設定されている場合は、これもプロンプトに追加する。</p>
   <p class="rev-new"><strong>コード記述式問題（<code>type='code'</code>）の採点:</strong> 提出されたコード（T-14 <code>response</code>）・出題の模範解答/採点基準（T-10 <code>scoring_criteria</code>）・言語ヒント（<code>code_language</code>）をプロンプトに含め、Claude APIにコードを<strong>実行せず読解させ</strong>、想定される実行結果・エラーの有無を推論して正誤を判定させる。<code>ai_feedback</code>には正誤の判定根拠に加え、無駄な処理の簡略化など改善提案があれば含めるよう構造化出力のスキーマに項目を設ける（例: <code>{"correct": bool, "reasoning": str, "improvement_suggestions": str | null}</code>）。</p>
   <div class="callout warn rev-new">
     <strong>なぜコードを実行せず読解のみで採点するか:</strong> 提出されたコードを実際に実行するには、任意のコードを安全に動かせるサンドボックス実行環境（コンテナ分離・リソース制限・ネットワーク遮断等）が必要になり、2章で定めたUvicorn単一プロセス構成には収まらない、独立したインフラの新設を要する。要件定義書3.1節・3.2節は、対象を教育用の簡単な課題（数式処理・辞書操作等）に絞ることでAIの静的読解による採点を許容し、コード実行環境は初期実装の対象外としている。本設計もこれに従い、Claude APIへのコード読解のみで採点を行う。ループの繰り返し回数が多い・数値計算が精密といった、AIの読解精度が下がりやすい課題を出題する場合は、教材編集者が採点結果を確認・修正する運用（REQ-F-16）を徹底する。
   </div>
+  <p class="rev-new"><strong>手動採点（<code>grading_mode='manual'</code>、v1.18）:</strong> 記述式・コード記述式の設問は、教材既定（<code>materials.grading_mode</code>）または設問ごとの上書き（<code>questions.grading_mode</code>）で「AI自動採点」の代わりに「対象教材が紐づくプロジェクトの管理者・編集者による手動採点」を選べる。この場合、回答提出時にAI採点ジョブは実行されず、<code>answers.is_correct</code>・<code>ai_score_pct</code>・<code>ai_feedback</code>はNULLのまま（S-19では「未採点」表示）となる。プロジェクト管理者・編集者がS-19で内容を読んで正誤・講評を入力すると<code>reviewed_by</code>・<code>reviewed_at</code>が設定され、<code>ai_feedback</code>にはAIではなく担当者が入力した講評テキストが保持される。合否判定（F-14）・つまずき分析（F-21）は採点結果の由来（AI/人）を区別せず、確定した<code>is_correct</code>のみを見るため、既存のロジックへの影響はない。<code>feedback_style</code>（AI講評スタイル）は手動採点の設問には適用されない（AIが講評を生成しないため）。</p>
   <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
-    <tbody><tr><td>S-04</td><td>A-42, A-43</td><td>T-14, T-19</td></tr></tbody></table>
+    <tbody><tr><td>S-04<span class="rev-new">, S-19</span></td><td>A-42, A-43</td><td>T-14, T-19</td></tr></tbody></table>
 
   <h3>5.21 F-21 AIつまずき分析・教材改善提案</h3>
   <p><strong>処理概要:</strong> 正答率の低い設問や誤答傾向から受講者の理解不足箇所を分析し、教材のどこをどう直すべきかを提案する（対応要求: REQ-F-17）。F-05（Claude Code連携）と組み合わせ、A-35（結果取得）を Claude Code からも取得できるようにすることで「つまずき分析 → 改善提案 → Claude Codeでの修正 → 往復登録（A-20）」の循環を成立させる（8章参照）。</p>
+  <p class="rev-new"><strong>受験後アンケートとの合流（v1.17）:</strong> 対象の教材・章に受験後アンケート（T-26 <code>surveys</code>）が設置されている場合、T-28/T-29の集計（評価点の平均、自由記述のテキスト群）を分析入力に追加する。正答率データ（定量）とアンケートの自由記述（定性）を突き合わせることで、「なぜ間違えるのか」を受講者自身の言葉からも分析できる。アンケート未設置の教材・章は従来どおり正答率データのみで分析する。</p>
   <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
-    <tbody><tr><td>S-05</td><td>A-34, A-35</td><td>T-13, T-14, T-16, T-19</td></tr></tbody></table>
+    <tbody><tr><td>S-05</td><td>A-34, A-35</td><td>T-13, T-14, T-16, T-19<span class="rev-new">, T-26〜T-29</span></td></tr></tbody></table>
 
   <h3>5.22 F-22 AI個人フィードバック</h3>
   <p><strong>処理概要:</strong> 受講者ごとの回答傾向から、理解不足の点や次に学ぶとよい教材を本人に示す（対応要求: REQ-F-18）。個人学習レポート画面（S-09）を開いたとき、または受講完了時に非同期で生成し、T-17 <code>ai_personal_feedback</code> に保存する。</p>
+  <p class="rev-new"><strong>スコア記録型（<code>type='score_log'</code>）の推移コメント（v1.17）:</strong> 正誤の概念がないため、通常のつまずき分析（F-21）ではなく本機能の入力データに、対象者のスコア推移（<code>answers.response.score</code>の時系列）を加える。生成タイミングは通常のF-22と同じくS-09を開いたときとし、記録するたびに都度生成することはしない（例:「タイピング練習のスコアが着実に上がっています。直近3回で45→52→58 WPM」）。</p>
   <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
     <tbody><tr><td>S-09</td><td>A-51, A-52</td><td>T-12〜T-14, T-17, T-19</td></tr></tbody></table>
 
@@ -699,14 +759,14 @@
   </table>
 
   <h3 class="rev-new">5.25 F-24 プロジェクト管理</h3>
-  <p class="rev-new"><strong>処理概要:</strong> プロジェクトは誰でも新規作成でき（対応要求: REQ-F-06）、作成者は自動的にそのプロジェクトの管理者（ローカルロール、3.5節）になる。プロジェクト情報（名称・説明・状態）の編集、メンバーの追加・削除、メンバーのロール（管理者/編集者/受講者）の設定は、そのプロジェクトの管理者が行う。運用上は部署長・PMがプロジェクトを作成して管理者となることを想定するが、システムとして作成者を限定しない。</p>
+  <p class="rev-new"><strong>処理概要:</strong> プロジェクトは誰でも新規作成でき（対応要求: REQ-F-06）、作成者は自動的にそのプロジェクトの管理者（ローカルロール、3.5節）になる。プロジェクト情報（名称・説明・状態）の編集、メンバーの<span class="rev-old">追加</span><span class="rev-new">招待</span>・削除、メンバーのロール（管理者/編集者/受講者）の設定は、そのプロジェクトの管理者が行う。<span class="rev-new">メンバーの追加は招待制であり（A-12）、招待された本人がA-67で承諾するまでは <code>status='invited'</code> のままで実際の権限を持たない。詳細は3.5節を参照。</span>運用上は部署長・PMがプロジェクトを作成して管理者となることを想定するが、システムとして作成者を限定しない。</p>
   <p class="rev-new"><strong>「全社公開」プロジェクト:</strong> システムは初期データとして、削除不可の特別プロジェクト「全社公開」（<code>is_company_wide=true</code>、6章参照）を1行だけ保持する。新規ユーザーはA-02（初回ログイン）の処理内で、このプロジェクトへ自動的に<code>role='editor'</code>として登録される（<code>assigned_by</code>はNULL、システムによる自動付与）。このプロジェクトの管理者（<code>role='admin'</code>）はシステム管理者のみとし、通常のプロジェクト作成フロー（A-09）やメンバー管理API（A-12/A-13）では新たに作成・変更できない。用途は5.26節（F-25）を参照。</p>
-  <p class="rev-new"><strong>猶予期間の実現:</strong> プロジェクト管理者によるメンバー管理は、v1.3までの自己申告制と異なり、本人以外の操作で急にアクセスを失いうる。管理者による設定の反映が遅れたり対応が漏れたりする場合に備え、メンバーがプロジェクトから削除された場合は、T-21 <code>app_settings</code>（<code>key='project_leave_grace_period_days'</code>、既定30日、S-10で変更可）で定めた猶予期間中、旧プロジェクト単位で配信された教材への閲覧アクセスを継続する。判定は「現役メンバー（T-04 <code>project_memberships.left_at IS NULL</code>）」または「<code>left_at + 猶予日数 &gt;= 現在時刻</code>」のいずれかを満たすかで行い、F-09（配信対象設定）のアクセス可否判定に組み込む（v1.3の「離任（自己申告）」を「削除（管理者操作）」に読み替えた以外は、5.3節旧版の判定ロジックを踏襲する）。</p>
+  <p class="rev-new"><strong>猶予期間の実現:</strong> プロジェクト管理者によるメンバー管理は、v1.3までの自己申告制と異なり、本人以外の操作で急にアクセスを失いうる。管理者による設定の反映が遅れたり対応が漏れたりする場合に備え、メンバーがプロジェクトから削除された場合は、T-21 <code>app_settings</code>（<code>key='project_leave_grace_period_days'</code>、既定30日、S-10で変更可）で定めた猶予期間中、旧プロジェクト単位で配信された教材への閲覧アクセスを継続する。判定は「現役メンバー（T-04 <code>project_memberships.status='active' AND left_at IS NULL</code><span class="rev-new">。招待中〔status='invited'〕のメンバーは現役に含めない</span>）」または「<code>left_at + 猶予日数 &gt;= 現在時刻</code>」のいずれかを満たすかで行い、F-09（配信対象設定）のアクセス可否判定に組み込む（v1.3の「離任（自己申告）」を「削除（管理者操作）」に読み替えた以外は、5.3節旧版の判定ロジックを踏襲する）。</p>
   <div class="callout rev-new">
     <strong>設計判断（ロール降格時は猶予期間の対象外とする）:</strong> S-12モックアップの注記は「メンバーを削除、またはロールを『受講者』以外から変更した場合も、猶予期間中は旧プロジェクトの教材への閲覧アクセスを継続する」としている。しかし本設計では、プロジェクトに残ったままロールが編集者/管理者から受講者へ降格された場合は、受講者ロールが引き続き該当教材の受講権限を持つため、閲覧アクセスが途切れることはない。したがって猶予期間の判定対象は「プロジェクトから削除された（メンバーでなくなった）場合」のみとし、ロール降格それ自体では猶予期間を発生させない設計とした。降格に伴う編集権限の喪失は即時反映とする（誤操作による情報流出リスクを避けるため）。
   </div>
   <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
-    <tbody><tr><td>S-11, S-12</td><td>A-02, A-09〜A-13</td><td>T-01, T-03, T-04, T-21</td></tr></tbody></table>
+    <tbody><tr><td>S-11, S-12, <span class="rev-new">S-15</span></td><td>A-02, A-09〜A-13, <span class="rev-new">A-67</span></td><td>T-01, T-03, T-04, T-21</td></tr></tbody></table>
   <div class="callout rev-new">
     <strong>なぜ project_memberships に role を持たせたか:</strong> v1.3までの <code>project_memberships</code> は「所属しているか否か（<code>joined_at</code>/<code>left_at</code>）」のみを表現し、プロジェクト内での権限は区別しなかった。v1.4はプロジェクト単位で教材の編集権限を分離する要求（F-25）に対応するため、所属テーブル自体にロールを持たせる設計とした。プロジェクト・ユーザーの組み合わせごとに高々1つのロールしか持てない（UNIQUE制約、6.2節参照）ため複数ロールの併有は不可とし、「管理者は編集者・受講者の操作も行える」という階層関係（3.5節）で上位互換を表現する。
   </div>
@@ -720,18 +780,26 @@
   </div>
 
   <h3 class="rev-new">5.27 F-26 教材のプロジェクト間共有</h3>
-  <p class="rev-new"><strong>処理概要:</strong> プロジェクトに紐づく教材を、別のプロジェクトでも受講・参照できるよう共有できる（対応要求: REQ-F-06）。共有の可否を判断・実行する権限は、教材が紐づく元プロジェクトの管理者が持つ（<code>require_project_role(materials.project_id, user, min_role='admin')</code>）。共有はT-22 <code>material_project_shares</code> に行を追加することで表現し、共有先プロジェクトのメンバーは当該教材を受講対象として扱う（編集権限は共有によって移動せず、常に元プロジェクトの管理者・編集者が持つ）。下書き（<code>status='draft'</code>）の教材は共有できない。</p>
+  <p class="rev-new"><strong>処理概要:</strong> プロジェクトに紐づく教材を、別のプロジェクトでも受講・参照できるよう共有できる（対応要求: REQ-F-06）。共有の申請権限は、教材が紐づく元プロジェクトの管理者が持つ（<code>require_project_role(materials.project_id, user, min_role='admin')</code>）。<span class="rev-old">共有はT-22 <code>material_project_shares</code> に行を追加することで表現し、共有先プロジェクトのメンバーは当該教材を受講対象として扱う（編集権限は共有によって移動せず、常に元プロジェクトの管理者・編集者が持つ）。</span><span class="rev-new">申請するとT-22 <code>material_project_shares</code> に <code>status='pending'</code> の行が追加されるだけで、この時点では共有先プロジェクトの受講対象には反映されない。共有先プロジェクトの管理者（<code>require_project_role(shared_to_project_id, user, min_role='admin')</code>）が承認（<code>status='accepted'</code>）して初めて、共有先プロジェクトのメンバーが当該教材を受講対象として扱う。却下（<code>status='rejected'</code>）した場合は反映されない。承認・却下いずれの場合も編集権限は共有によって移動せず、常に元プロジェクトの管理者・編集者が持つ。承認待ち・承認済みいずれの共有も、共有元・共有先どちらのプロジェクト管理者からも解除できる。</span>下書き（<code>status='draft'</code>）の教材は共有申請できない。</p>
   <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
-    <tbody><tr><td>S-12</td><td>A-59〜A-61</td><td>T-06, T-22</td></tr></tbody></table>
+    <tbody><tr><td>S-12</td><td>A-59〜A-61<span class="rev-new">, A-65, A-66</span></td><td>T-06, T-22</td></tr></tbody></table>
   <div class="callout rev-new">
-    <strong>設計判断（共有は元プロジェクトの受講対象への追加として扱う）:</strong> 共有された教材の受講対象をF-09（配信設定 T-11 <code>assignments</code>）に都度書き込む方式も検討したが、それでは「どの教材がどのプロジェクトに元々紐づき、どこへ共有されているか」の全体像が <code>assignments</code> の行に埋もれてしまう。本設計ではT-22を独立テーブルとして持たせ、教材の受講可否判定（F-09の対象者算出ロジック）は「配信設定（<code>assignments</code>）に合致する」または「<code>materials.project_id</code> のプロジェクトメンバーである」または「<code>material_project_shares</code> で共有された先のプロジェクトのメンバーである」のいずれかを満たすか、というOR条件で拡張する。S-12の「教材の共有」タブがどの教材が・どこに共有されているかを一覧できるのは、この独立テーブル構成による。
+    <strong>設計判断（共有は元プロジェクトの受講対象への追加として扱う）:</strong> 共有された教材の受講対象をF-09（配信設定 T-11 <code>assignments</code>）に都度書き込む方式も検討したが、それでは「どの教材がどのプロジェクトに元々紐づき、どこへ共有されているか」の全体像が <code>assignments</code> の行に埋もれてしまう。本設計ではT-22を独立テーブルとして持たせ、教材の受講可否判定（F-09の対象者算出ロジック）は「配信設定（<code>assignments</code>）に合致する」または「<code>materials.project_id</code> のプロジェクトメンバーである」または「<code>material_project_shares</code> で<span class="rev-new">status='acceptedとして</span>共有された先のプロジェクトのメンバーである」のいずれかを満たすか、というOR条件で拡張する。S-12の「教材の共有」タブがどの教材が・どこに共有されているかを一覧できるのは、この独立テーブル構成による。
+  </div>
+  <div class="callout rev-new">
+    <strong>設計判断（共有元の一方的な判断だけで成立させない）:</strong> 当初の設計は「共有元プロジェクトの管理者の判断だけで共有が成立する」方式だった。しかしプロジェクトは誰でも新規作成できる（F-24）ため、この方式では質の低いプロジェクトの教材が、共有先の同意なしに真面目に運用されている別プロジェクトの受講対象へ一方的に追加されてしまう欠陥があった。共有先プロジェクトの管理者が自分のプロジェクトに何を含めるかを常にコントロールできるよう、共有元の「申請」と共有先の「承認」の2段階（T-22 <code>status</code>）に改めた。承認するまで受講対象に反映しないため、共有先が気づかないうちに教材が紛れ込むことはない。
+  </div>
+
+  <h3>5.28 F-27 <span class="rev-old">AI教材作成アシスト（ブラウザ内対話生成）</span></h3>
+  <div class="callout rev-old">
+    <strong>この機能は基本設計書v1.20で廃止されました。</strong> F-27はe-learningのバックエンドがAnthropic Claude APIを直接呼び出す構造のため、利用のたびにe-learning側で従量課金が発生していた。一方、既存のF-05（Claude Code CLIとの往復）はClaude Code利用者本人の契約・APIキーで課金され、e-learning側の運用コストは発生しない。両者は「AIが教材の目次・ページ・問題を対話的に作成する」という似た体験を提供する代替経路だったが、コストの発生しないF-05に一本化することとした。教材の作成・修正へのAI支援はすべてF-05経由で行う（8章参照）。専用画面S-18、S-05・S-17の画面内チャットパネル、A-68〜A-70、T-24 <code>ai_draft_sessions</code>・T-25 <code>ai_draft_messages</code>は、いずれも廃止しIDを欠番として保持する。
   </div>
 
   <!-- ============ 6. データベース設計 ============ -->
   <h2 id="sec6">6. データベース設計</h2>
 
   <h3>6.1 ER図</h3>
-  <p>PostgreSQL (Supabase) 上に<span class="rev-old">21〜22</span><span class="rev-new">実働20（IDはT-01〜T-22の22件、うちT-02 departments・T-07 material_co_editorsはv1.5で廃止し欠番）</span>のテーブルを配置する。全テーブルを1枚に収めることはせず、「組織・教材まわり」と「配信・受講記録まわり」の2枚に分けて示す。AI関連テーブル（T-15〜T-20）と T-21 app_settings は、各機能・users への参照のみを持つ独立性の高いテーブルであり、Keirekiの app_settings と同様の位置づけのため図示を省略し、6.2節の一覧表で示す。T-22 <code>material_project_shares</code>（F-26）は図Aに簡略な形で追記する。</p>
+  <p>PostgreSQL (Supabase) 上に<span class="rev-old">21〜22</span><span class="rev-old">実働26（IDはT-01〜T-29の29件、うちT-02 departments・T-05 courses・T-07 material_co_editorsは廃止し欠番）</span><span class="rev-new">実働24（IDはT-01〜T-29の29件、うちT-02 departments・T-05 courses・T-07 material_co_editors・T-24 ai_draft_sessions・T-25 ai_draft_messagesは廃止し欠番）</span>のテーブルを配置する。全テーブルを1枚に収めることはせず、「組織・教材まわり」と「配信・受講記録まわり」の2枚に分けて示す。AI関連テーブル（T-15〜T-20）と T-21 app_settings、<span class="rev-new">アンケート関連（T-26〜T-29）</span>は、各機能・users への参照のみを持つ独立性の高いテーブルであり、Keirekiの app_settings と同様の位置づけのため図示を省略し、6.2節の一覧表で示す。T-22 <code>material_project_shares</code>（F-26）は図Aに簡略な形で追記する。</p>
 
   <div class="diagram">
     <svg width="860" height="420" viewBox="0 0 860 420" font-family="'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif">
@@ -762,12 +830,9 @@
       <text x="365" y="276" text-anchor="middle" font-size="10.5" fill="#1a1d21">プロジェクトメンバー（ロール制）</text>
       <text x="365" y="291" text-anchor="middle" font-size="9.5" fill="#dc2626">role / joined_at / left_at</text>
 
-      <!-- courses -->
-      <rect x="560" y="30" width="150" height="55" rx="8" fill="#f5f7f9" stroke="#60656d" stroke-width="1.5"/>
-      <rect x="560" y="30" width="150" height="22" rx="8" fill="#e7eaee"/>
-      <text x="635" y="45" text-anchor="middle" font-size="11.5" font-weight="600" fill="#1a1d21">T-05 courses</text>
-      <text x="635" y="63" text-anchor="middle" font-size="10.5" fill="#1a1d21">コース</text>
-      <text x="635" y="78" text-anchor="middle" font-size="9.5" fill="#60656d">name / sort_order</text>
+      <!-- courses: v1.12でT-05 coursesは廃止（欠番）。materials.tagsに置き換え -->
+      <text x="635" y="55" text-anchor="middle" font-size="9.5" fill="#b91c1c">T-05 courses は廃止（v1.12、欠番）</text>
+      <text x="635" y="68" text-anchor="middle" font-size="9" fill="#b91c1c">タグ（materials.tags）に置き換え</text>
 
       <!-- materials -->
       <rect x="560" y="120" width="150" height="70" rx="8" fill="#eff6ff" stroke="#1e40af" stroke-width="1.5"/>
@@ -942,17 +1007,17 @@
       <tr><td>T-01</td><td><code>users</code></td><td>ユーザー</td><td>email（UNIQUE）、name、picture_url、role（<span class="rev-old">'learner'/'author'/'manager'/'admin'、DEFAULT 'learner'</span><span class="rev-new">'member'/'admin'、DEFAULT 'member'</span>）、<span class="rev-old">department_id（FK→departments、nullable）、</span>is_active（DEFAULT true）<span class="rev-new">。department_idはv1.5で削除した（部署の概念の廃止に伴う）</span></td></tr>
       <tr class="rev-row"><td>T-02</td><td><span class="rev-old"><code>departments</code></span></td><td><span class="rev-old">部署</span></td><td><span class="rev-old">name（UNIQUE）、head_user_id（FK→users、nullable。部署長。S-08の担当範囲判定に使用）</span><span class="rev-new">廃止（v1.5）。部署（department）の概念をシステムから廃止したため、本テーブルは廃止した。T-01 <code>users.department_id</code> も同時に削除した。IDは欠番として保持する。</span></td></tr>
       <tr class="rev-row"><td>T-03</td><td><code>projects</code></td><td>プロジェクト</td><td>name、description、status（'active'/'completed'、DEFAULT 'active'）、<strong>pm_user_id</strong>（FK→users、nullable。PM。S-08の担当範囲判定に使用）、created_by（FK→users）、<strong class="rev-new">is_company_wide</strong><span class="rev-new">（BOOLEAN NOT NULL DEFAULT false。「全社公開」プロジェクトを表すフラグ。trueの行は初期データとして1行のみ投入し、通常のAPI〔A-09/A-10〕からtrueに設定する手段は提供しない。5.25節参照）</span></td></tr>
-      <tr><td>T-04</td><td><code>project_memberships</code></td><td><span class="rev-new">プロジェクトメンバー</span><span class="rev-old">プロジェクト所属</span></td><td>project_id（FK）、user_id（FK）、<strong class="rev-new">role</strong><span class="rev-new">（'admin'/'editor'/'learner'、DEFAULT 'learner'。プロジェクトのローカルロール。3.5節参照）</span>、<strong class="rev-new">assigned_by</strong><span class="rev-new">（FK→users、nullable。ロールを設定したプロジェクト管理者。作成時の自動付与はNULL）</span>、joined_at、left_at（nullable。NULLが現役メンバー。<span class="rev-new">プロジェクト管理者によるメンバー削除時に設定し、削除後の猶予期間判定に使用（5.25節参照）</span><span class="rev-old">離任後の猶予期間判定に使用。5.3節参照</span>）。UNIQUE(project_id, user_id)。<span class="rev-old">自己申告制</span><span class="rev-new">メンバーの追加・削除・ロール設定はプロジェクト管理者が行う（3.5節）</span></td></tr>
-      <tr><td>T-05</td><td><code>courses</code></td><td>コース</td><td>name、description、sort_order。単元・コース構成の最上位単位</td></tr>
-      <tr><td>T-06</td><td><code>materials</code></td><td>教材</td><td>course_id（FK、nullable）、title、description（一覧表示用概要）、format（'markdown'/'html'）、body（本文。単元は本文中の見出しから抽出。5.4節参照）、<span class="rev-old">owner_id（FK→users）</span><span class="rev-new"><strong>created_by</strong>（FK→users。作成者を記録する用途のみで、編集権限判定には用いない。v1.5でowner_idから読み替えた）</span>、<strong>project_id</strong>（FK→projects、<span class="rev-old">nullable。個人教材はNULL、プロジェクトに紐づく教材は該当プロジェクトID。編集権限判定の分岐に用いる。</span><span class="rev-new">NOT NULL。教材は必ずいずれかのプロジェクトに属する（v1.5）。編集権限は常にこのプロジェクトのローカルロールで判定する。</span>3.5節・5.26節参照）、status（'draft'/'published'）、sort_order</td></tr>
+      <tr class="rev-row"><td>T-04</td><td><code>project_memberships</code></td><td><span class="rev-new">プロジェクトメンバー</span><span class="rev-old">プロジェクト所属</span></td><td>project_id（FK）、user_id（FK）、<strong class="rev-new">role</strong><span class="rev-new">（'admin'/'editor'/'learner'、DEFAULT 'learner'。プロジェクトのローカルロール。3.5節参照）</span>、<strong class="rev-new">assigned_by</strong><span class="rev-new">（FK→users、nullable。ロールを設定したプロジェクト管理者。作成時の自動付与はNULL）</span>、<strong class="rev-new">status</strong><span class="rev-new">（'invited'/'active'/'declined'、DEFAULT 'invited'。権限が有効になるのはactiveのみ。3.5節参照）</span>、joined_at<span class="rev-new">（nullable。招待の承諾時〔statusがactiveになった時点〕に設定。プロジェクト作成者・全社公開への自動参加は作成と同時に設定）</span>、left_at（nullable。NULLが現役メンバー。<span class="rev-new">プロジェクト管理者によるメンバー削除時に設定し、削除後の猶予期間判定に使用（5.25節参照）</span><span class="rev-old">離任後の猶予期間判定に使用。5.3節参照</span>）。UNIQUE(project_id, user_id)。<span class="rev-old">自己申告制</span><span class="rev-new">メンバーの招待・削除・ロール設定はプロジェクト管理者が行うが、招待の承諾・辞退は招待された本人のみが行う（3.5節）</span></td></tr>
+      <tr class="rev-row"><td>T-05</td><td><span class="rev-old"><code>courses</code></span></td><td><span class="rev-old">コース</span></td><td><span class="rev-old">name、description、sort_order。単元・コース構成の最上位単位</span><span class="rev-new">廃止（v1.12）。コースという固定リストの事前登録をやめ、教材に自由な複数タグ（<code>materials.tags</code>）を付与する方式に一本化した。学習順序のまとまりが必要な場面は、プロジェクト・タグの組み合わせで代替する。IDは欠番として保持する。</span></td></tr>
+      <tr><td>T-06</td><td><code>materials</code></td><td>教材</td><td><span class="rev-old">course_id（FK、nullable）、</span>title、description（一覧表示用概要）、<span class="rev-old">format（'markdown'/'html'）、body（本文。単元は本文中の見出しから抽出。5.4節参照）、</span><span class="rev-new">教材のメタ情報のみを持つ入れ物に変わり、本文フィールドは持たない（v1.11）。目次構造・各ページの本文はT-23が保持する。<strong>tags</strong>（JSONB配列、DEFAULT '[]'。自由なタグ文字列の配列。v1.12でcourse_idから置き換え。T-05 courses廃止）、</span><span class="rev-old">owner_id（FK→users）</span><span class="rev-new"><strong>created_by</strong>（FK→users。作成者を記録する用途のみで、編集権限判定には用いない。v1.5でowner_idから読み替えた）</span>、<strong>project_id</strong>（FK→projects、<span class="rev-old">nullable。個人教材はNULL、プロジェクトに紐づく教材は該当プロジェクトID。編集権限判定の分岐に用いる。</span><span class="rev-new">NOT NULL。教材は必ずいずれかのプロジェクトに属する（v1.5）。編集権限は常にこのプロジェクトのローカルロールで判定する。</span>3.5節・5.26節参照）、status（'draft'/'published'）、sort_order、<span class="rev-new"><strong>attempt_scope</strong>（'material'/'chapter'/'section'/'page'、DEFAULT 'material'。合否判定・再受験の単位〔受験単位〕。公開前に作成者が設定する。5.14節参照）、<strong>retake_scope</strong>（'all'/'wrong_only'、DEFAULT 'all'。再受験時に全問解き直すか前回の誤答のみか）、<strong>default_feedback_style</strong>（'show_answer'/'review_only'/'hint_only'、DEFAULT 'show_answer'。AI講評スタイルの教材既定。設問側のT-10.feedback_styleで上書き可）、<strong>ai_context</strong>（text、nullable。F-20・F-27のAI呼び出しに共通して追加する前提条件・制約の指示文。5.20節・5.28節参照）</span><span class="rev-new">、<strong>grading_mode</strong>（'ai'/'manual'、DEFAULT 'ai'。記述式・コード記述式の採点方式の教材既定。'manual'ではAIは正誤・点数を判定せず、対象教材が紐づくプロジェクトの管理者・編集者がS-19で採点する。設問側のT-10.grading_modeで上書き可。5.20節参照）</span></td></tr>
       <tr class="rev-row"><td>T-07</td><td><span class="rev-old"><code>material_co_editors</code></span></td><td><span class="rev-old">共同編集者</span></td><td><span class="rev-old">material_id（FK）、user_id（FK）、added_by（FK→users）。UNIQUE(material_id, user_id)</span><span class="rev-new">廃止（v1.5）。教材は必ずいずれかのプロジェクトに属する方式に一本化され、個人所有の教材（オーナー・共同編集者モデル）が廃止されたため、本テーブルは廃止した。IDは欠番として保持する。</span></td></tr>
       <tr><td>T-08</td><td><code>material_revisions</code></td><td>教材改訂履歴</td><td>material_id（FK）、body_snapshot、format、changed_by（FK→users）、changed_via（'web'/'claude_code'）、change_summary。8.4節参照</td></tr>
-      <tr><td>T-09</td><td><code>material_attachments</code></td><td>添付ファイル・リンク</td><td>material_id（FK）、kind（'file'/'link'）、storage_key（nullable。Supabase Storageのパス）、external_url（nullable）、filename、mime_type、size_bytes</td></tr>
-      <tr><td>T-10</td><td><code>questions</code></td><td>問題</td><td>material_id（FK）、<strong>unit_index</strong>（nullable int。本文中の単元出現順。5.4節参照）、type（'single'/'multi'/'free_text'<span class="rev-new">/'code'</span>）、prompt、options（JSONB）、correct_answer（JSONB）、<strong>scoring_criteria</strong>（text、nullable。記述式・<span class="rev-new">code</span>のAI採点基準）、<span class="rev-new"><strong>code_language</strong>（text、nullable。type='code'のときの言語ヒント。例: 'python'。AIへのプロンプトに含める）、</span><strong>points</strong>（int、DEFAULT 10。配点）、sort_order</td></tr>
+      <tr><td>T-09</td><td><code>material_attachments</code></td><td>添付ファイル・リンク</td><td>material_id（FK）、<span class="rev-new"><strong>node_id</strong>（FK→material_nodes、nullable。特定のページに紐づく場合はそのページのnode_id、教材全体の参考資料〔シラバスPDF等、特定ページに属さないもの〕はNULL。v1.14追加）、</span>kind（'file'/'link'）、storage_key（nullable。Supabase Storageのパス）、external_url（nullable）、filename、mime_type、size_bytes</td></tr>
+      <tr><td>T-10</td><td><code>questions</code></td><td>問題</td><td>material_id（FK）、<span class="rev-old"><strong>unit_index</strong>（nullable int。本文中の単元出現順。5.4節参照）</span><span class="rev-new"><strong>node_id</strong>（FK→material_nodes。問題が属する葉ノード〔ページ〕。v1.11でunit_indexから置き換え）</span>、type（'single'/'multi'/'free_text'<span class="rev-new">/'code'</span><span class="rev-new">/'reorder'/'score_log'</span>）、prompt、options（JSONB）、correct_answer（JSONB）、<strong>scoring_criteria</strong>（text、nullable。記述式・<span class="rev-new">code</span>のAI採点基準）、<span class="rev-new"><strong>code_language</strong>（text、nullable。type='code'のときの言語ヒント。例: 'python'。AIへのプロンプトに含める）、</span><span class="rev-old"><strong>points</strong>（int、DEFAULT 10。配点）、</span>sort_order<span class="rev-new">（<strong>points</strong>はv1.12で廃止。配点による重み付けは行わず、教材全体の正答率〔正解した設問数／全設問数〕のみで合否判定する。5.14節参照）</span>、<span class="rev-new"><strong>required</strong>（bool、DEFAULT true。回答必須／任意。falseの場合は未回答でも次のページへ進める）、<strong>is_critical</strong>（bool、DEFAULT false。「ドボン問題」。trueの設問に不正解だと、attempt_scopeで定まる受験単位が正答率によらず不合格になる。反復演習・誤答抽出モードでは判定しない）、<strong>feedback_style</strong>（'show_answer'/'review_only'/'hint_only'、nullable。materials.default_feedback_styleを上書きする場合のみ設定）、<strong>pool_group_id</strong>（自己参照、nullable。同じ値を持つ設問群が出題プールを構成する。material_nodes.quiz_mode='pool'のときに使用）、<strong>score_unit</strong>（text、nullable。type='score_log'のときの単位表記。例:'WPM'。type='score_log'ではcorrect_answer・is_criticalは使わない）</span><span class="rev-new">、<strong>grading_mode</strong>（'ai'/'manual'、nullable。materials.grading_modeを上書きする場合のみ設定。type='free_text'/'code'のときのみ意味を持つ。5.20節参照）</span></td></tr>
       <tr><td>T-11</td><td><code>assignments</code></td><td>配信設定</td><td>material_id（FK）、scope_type（<span class="rev-old">'company'/'department'/'project'/'individual'</span><span class="rev-new">'company'/'project'/'individual'。'department'はv1.5で削除した（部署の概念の廃止に伴う）</span>）、scope_id（nullable）、required（bool）、due_at（nullable）、pass_score_pct（nullable）、retake_allowed（bool）、retake_limit（nullable）、created_by（FK→users）。1教材に対し複数行を持ちうる（5.9節）<span class="rev-new">。scope_type='company'の行は、required値によって作成できる者が異なる（required=trueはadmin限定、required=falseは対象教材が紐づくプロジェクトの管理者も可。5.9節）</span></td></tr>
-      <tr><td>T-12</td><td><code>enrollment_progress</code></td><td>受講進捗</td><td>user_id（FK）、material_id（FK）、status（'not_started'/'in_progress'/'completed'）、current_position（単元インデックス等の再開位置）、started_at、completed_at。UNIQUE(user_id, material_id)</td></tr>
-      <tr><td>T-13</td><td><code>quiz_attempts</code></td><td>受験記録</td><td>user_id（FK）、material_id（FK）、mode（'graded'/'practice'）、attempt_no、score_pct、passed（bool、nullable。採点中はNULL）、question_order（JSONB）、started_at、submitted_at</td></tr>
-      <tr><td>T-14</td><td><code>answers</code></td><td>回答</td><td>attempt_id（FK）、question_id（FK）、response（JSONB）、is_correct（bool、nullable）、ai_score_pct（nullable）、ai_feedback（text、nullable）、reviewed_by（FK→users、nullable）、reviewed_at（nullable）</td></tr>
+      <tr><td>T-12</td><td><code>enrollment_progress</code></td><td>受講進捗</td><td>user_id（FK）、material_id（FK）、status（'not_started'/'in_progress'/'completed'）、<span class="rev-old">current_position（単元インデックス等の再開位置）</span><span class="rev-new"><strong>current_node_id</strong>（FK→material_nodes、nullable。再開位置となる現在のページ。v1.11でcurrent_positionから置き換え）、<strong>completed_node_ids</strong>（JSONB配列、DEFAULT '[]'。完了済みページのnode_id一覧。目次画面〔S-04〕の完了マーク・進捗率表示に使用）</span>、started_at、completed_at。UNIQUE(user_id, material_id)</td></tr>
+      <tr><td>T-13</td><td><code>quiz_attempts</code></td><td>受験記録</td><td>user_id（FK）、material_id（FK）、<span class="rev-new"><strong>scope_node_id</strong>（FK→material_nodes、nullable。materials.attempt_scopeが'material'以外のとき、どの章・小見出し・ページに対する受験かを表す。'material'のときはNULL）、</span>mode（'graded'/'practice'）、attempt_no、score_pct、passed（bool、nullable。採点中はNULL。<span class="rev-new">is_critical設問への不正解がある場合は正答率によらずfalse。5.14節参照</span>）、<span class="rev-new"><strong>fail_reason</strong>（text、nullable。ドボン問題起因で不合格の場合に該当設問を記録。S-04の不合格理由表示に使用）、</span>question_order（JSONB）、<span class="rev-new"><strong>carried_over_question_ids</strong>（JSONB配列、nullable。retake_scope='wrong_only'の再受験で、前回正解し今回は解き直していない設問のID一覧。正答率の再計算に用いる）、</span>started_at、submitted_at</td></tr>
+      <tr><td>T-14</td><td><code>answers</code></td><td>回答</td><td>attempt_id（FK）、question_id（FK）、response（JSONB）、is_correct（bool、nullable）、ai_score_pct（nullable）、ai_feedback（text、nullable）、reviewed_by（FK→users、nullable）、reviewed_at（nullable）<span class="rev-new">。対象設問のgrading_mode='manual'の場合、is_correct・ai_score_pct・ai_feedbackはAIによって自動設定されず、reviewed_by（採点したプロジェクト管理者・編集者）がS-19で入力するまでNULLのまま（「未採点」）となる。この場合ai_feedbackにはAIの講評ではなく担当者が入力した講評テキストを保持する。5.20節参照</span></td></tr>
       <tr><td>T-15</td><td><code>ai_material_reviews</code></td><td>AI教材レビュー結果</td><td>material_id（FK）、requested_by（FK→users）、findings（JSONB）。F-08</td></tr>
       <tr><td>T-16</td><td><code>ai_material_insights</code></td><td>AIつまずき分析結果</td><td>material_id（FK）、<span class="rev-new">requested_by（FK→users）、requested_at（TIMESTAMPTZ NOT NULL。9.2節のスタックジョブ検出に使用）、</span>weak_questions（JSONB<span class="rev-new">、nullable。完了時に設定</span>）、suggestions（text<span class="rev-new">、nullable。完了時に設定</span>）。F-21</td></tr>
       <tr><td>T-17</td><td><code>ai_personal_feedback</code></td><td>AI個人フィードバック</td><td>user_id（FK）、<span class="rev-new">requested_at（TIMESTAMPTZ NOT NULL。9.2節のスタックジョブ検出に使用）、</span>content（text<span class="rev-new">、nullable。完了時に設定</span>）。F-22</td></tr>
@@ -960,12 +1025,19 @@
       <tr><td>T-19</td><td><code>ai_usage_logs</code></td><td>AI利用ログ</td><td>user_id（FK、nullable）、feature、model、input_tokens、output_tokens、cost_estimate。Keireki T-09と同方針（質問・回答の内容は保存しない）。9.3節</td></tr>
       <tr><td>T-20</td><td><code>slack_notification_logs</code></td><td>Slack送信ログ</td><td>user_id（FK）、assignment_id（FK→assignments）、sent_at、status。F-12</td></tr>
       <tr><td>T-21</td><td><code>app_settings</code></td><td>システム設定</td><td>key（PK）、value_text、updated_by（FK→users、nullable）。AIモデル選択（<code>key='ai_model'</code>）、Slack Webhook URL（<code>key='slack_webhook_url'</code>）・通知先チャンネル（<code>key='slack_channel'</code>）、プロジェクト離任猶予期間日数（<code>key='project_leave_grace_period_days'</code>）等をkey-valueで保持。Keireki T-08と同方針</td></tr>
-      <tr class="rev-row"><td>T-22</td><td><code>material_project_shares</code></td><td>教材のプロジェクト間共有</td><td>material_id（FK→materials）、shared_to_project_id（FK→projects）、shared_by（FK→users。共有を実行したプロジェクト管理者）、shared_at（TIMESTAMPTZ NOT NULL DEFAULT now()）。UNIQUE(material_id, shared_to_project_id)。F-26（5.27節）</td></tr>
+      <tr class="rev-row"><td>T-22</td><td><code>material_project_shares</code></td><td>教材のプロジェクト間共有</td><td>material_id（FK→materials）、shared_to_project_id（FK→projects）、shared_by（FK→users。共有を申請した共有元プロジェクト管理者）、shared_at（TIMESTAMPTZ NOT NULL DEFAULT now()）、<strong class="rev-new">status</strong><span class="rev-new">（'pending'/'accepted'/'rejected'、DEFAULT 'pending'。受講対象に反映されるのはacceptedのみ）、<strong>responded_by</strong>（FK→users、nullable。承認・却下した共有先プロジェクト管理者）、<strong>responded_at</strong>（TIMESTAMPTZ、nullable）</span>。UNIQUE(material_id, shared_to_project_id)。F-26（5.27節）</td></tr>
+      <tr class="rev-row"><td>T-23</td><td><code>material_nodes</code></td><td>教材の目次ノード（章・小見出し・ページ）</td><td>material_id（FK→materials）、<strong>parent_node_id</strong>（FK→material_nodes、nullable。NULLはルート直下＝章）、title、<strong>kind</strong>（'chapter'/'section'/'page'。章・小見出し・ページの種別）、sort_order（同じparent_node_id内での並び順）、<strong>content_kind</strong>（'explanation'/'quiz'/'mixed'/NULL。kind='page'のときのみ設定。説明文のみ／問題のみ／両方）、<strong>format</strong>（'markdown'/'html'、nullable。kind='page'かつ説明文を含む場合のみ）、<strong>body</strong>（text、nullable。kind='page'かつ説明文を含む場合の本文）。葉ノード（kind='page'）だけが実際のコンテンツ（body・T-10 questions経由の問題）を持つ。章・小見出しはタイトルとツリー構造のみを持つ入れ物。CHECK制約でkind='chapter'の行はparent_node_idがNULLであることを保証する。v1.11新設（6.2節冒頭の設計判断コールアウト参照）。<span class="rev-new">章・ページとも自由にタイトルを付けられる汎用構造のため、特定の内容単元に属さない記録（例: 日々のタイピング練習）も、日付や活動名を章・ページのタイトルにするだけで表現でき、追加のカラム・制約緩和は不要（v1.17、5.13節参照）。</span><span class="rev-new"><strong>quiz_mode</strong>（'all'/'pool'、DEFAULT 'all'。kind='page'のときのみ意味を持つ。'pool'の場合、このページの問題はT-10のpool_group_idで束ねた設問群からランダム抽出する）、<strong>pool_draw_count</strong>（int、nullable。quiz_mode='pool'のときの1回あたり出題数）を追加（v1.17）。</span></td></tr>
+      <tr class="rev-row"><td>T-24</td><td><span class="rev-old"><code>ai_draft_sessions</code></span></td><td><span class="rev-old">Claude Code下書きセッション（F-27）</span></td><td><span class="rev-old">廃止（v1.20）。F-27（AI教材作成アシスト）の廃止に伴い不要になった。IDは欠番として保持する。</span></td></tr>
+      <tr class="rev-row"><td>T-25</td><td><span class="rev-old"><code>ai_draft_messages</code></span></td><td><span class="rev-old">Claude Code下書きセッションのメッセージ</span></td><td><span class="rev-old">廃止（v1.20）。F-27（AI教材作成アシスト）の廃止に伴い不要になった。IDは欠番として保持する。</span></td></tr>
+      <tr class="rev-row"><td>T-26</td><td><code>surveys</code></td><td>受験後アンケート</td><td>material_id（FK→materials）、node_id（FK→material_nodes、nullable。NULLは教材全体、設定時は対象の章）、title、is_active（bool、DEFAULT true）、<strong>repeat_mode</strong>（'once'/'every_time'、DEFAULT 'once'。同じ受講者に毎回表示するか初回のみか）。UNIQUE(material_id, node_id)で1箇所につき1アンケートまで。v1.17新設</td></tr>
+      <tr class="rev-row"><td>T-27</td><td><code>survey_questions</code></td><td>アンケート設問</td><td>survey_id（FK→surveys）、type（'rating_5'/'single_choice'/'free_text'）、prompt、options（JSONB、選択式のみ）、sort_order。T-10 questionsと異なりcorrect_answerは持たない（正誤のない設問のため）。v1.17新設</td></tr>
+      <tr class="rev-row"><td>T-28</td><td><code>survey_responses</code></td><td>アンケート回答（ヘッダー）</td><td>survey_id（FK→surveys）、user_id（FK→users、nullable。統計利用のみで個別表示はしないため匿名運用も想定しnullable）、submitted_at。v1.17新設</td></tr>
+      <tr class="rev-row"><td>T-29</td><td><code>survey_answers</code></td><td>アンケート回答（設問ごと）</td><td>response_id（FK→survey_responses）、survey_question_id（FK→survey_questions）、value（JSONB。評価点・選択値・自由記述文のいずれか）。v1.17新設</td></tr>
     </tbody>
   </table>
 
   <div class="callout">
-    <strong>与件からの調整点:</strong> 骨子で示されたテーブル構成に対し、次の<span class="rev-old">2〜4</span><span class="rev-new">4〜6</span>点を追加・変更した。(1) T-02 departments に <code>head_user_id</code>、T-03 projects に <code>pm_user_id</code> を追加した。S-08受講状況ダッシュボードで<span class="rev-old">manager</span><span class="rev-new">担当者</span>が確認できる「担当範囲」（部署長／PM）を判定するために必須のカラムであり、画面モックアップにも部署長・PM列が存在するため補った。<span class="rev-new">v1.5でT-02 departmentsを廃止したため<code>head_user_id</code>は消滅した。<code>pm_user_id</code>は残すが、S-08の担当範囲判定は5.19節のとおりプロジェクトのローカルロールのみで行うため、表示用の参考情報という位置づけに変わった。</span>(2) T-10 questions に <code>unit_index</code>・<code>scoring_criteria</code>・<code>points</code> を追加した。<code>unit_index</code> は5.4節の単元設計（見出しベース）に対応するため、<code>scoring_criteria</code>・<code>points</code> は画面モックアップ（S-05問題編集タブ）が示す記述式のAI採点基準入力・配点入力を保持するために必要である。(3) 要件定義書v1.4（教材のプロジェクト単位管理）に対応するため、T-04 project_memberships に <code>role</code>・<code>assigned_by</code> を追加した。旧v1.3の「自己申告制」の所属テーブルを、プロジェクト管理者がロールを設定するテーブルへ変更したことに伴う（3.5節・5.25節）。(4) T-06 materials に <code>project_id</code> を追加し、教材をプロジェクトに紐づけて管理できるようにした（F-25、5.26節）。また新規テーブル T-22 material_project_shares を追加し、教材のプロジェクト間共有（F-26、5.27節）を表現した。この(3)(4)により、テーブル数はT-01〜T-21（21件）からT-01〜T-22（22件）に増えた。<span class="rev-new">(5) 要件定義書v1.5（権限モデルの簡素化）に対応するため、T-02 departments・T-07 material_co_editors を廃止した（IDは欠番として保持）。あわせてT-01 users から <code>department_id</code> を、T-11 assignments の <code>scope_type</code> から <code>'department'</code> を削除した。(6) T-06 materials は、<code>owner_id</code> を編集権限判定に用いない作成者記録用の <code>created_by</code> に読み替え、<code>project_id</code> を nullable から NOT NULL に変更した（教材は必ずいずれかのプロジェクトに属するため）。この(5)(6)により、実働するテーブル数はT-01〜T-22の22件から2件減り20件になった（IDの欠番はT-02・T-07）。</span>いずれも既存テーブルへのカラム追加・変更、独立性の高い新規テーブルの追加、または不要になったテーブル・カラムの削除のみで対応しており、他テーブルの再設計は伴わない。
+    <strong>与件からの調整点:</strong> 骨子で示されたテーブル構成に対し、次の<span class="rev-old">2〜4</span><span class="rev-new">4〜6</span>点を追加・変更した。(1) T-02 departments に <code>head_user_id</code>、T-03 projects に <code>pm_user_id</code> を追加した。S-08受講状況ダッシュボードで<span class="rev-old">manager</span><span class="rev-new">担当者</span>が確認できる「担当範囲」（部署長／PM）を判定するために必須のカラムであり、画面モックアップにも部署長・PM列が存在するため補った。<span class="rev-new">v1.5でT-02 departmentsを廃止したため<code>head_user_id</code>は消滅した。<code>pm_user_id</code>は残すが、S-08の担当範囲判定は5.19節のとおりプロジェクトのローカルロールのみで行うため、表示用の参考情報という位置づけに変わった。</span>(2) T-10 questions に <code>unit_index</code>・<code>scoring_criteria</code>・<code>points</code> を追加した。<code>unit_index</code> は5.4節の単元設計（見出しベース）に対応するため、<code>scoring_criteria</code>・<code>points</code> は画面モックアップ（S-05問題編集タブ）が示す記述式のAI採点基準入力・配点入力を保持するために必要である。(3) 要件定義書v1.4（教材のプロジェクト単位管理）に対応するため、T-04 project_memberships に <code>role</code>・<code>assigned_by</code> を追加した。旧v1.3の「自己申告制」の所属テーブルを、プロジェクト管理者がロールを設定するテーブルへ変更したことに伴う（3.5節・5.25節）。(4) T-06 materials に <code>project_id</code> を追加し、教材をプロジェクトに紐づけて管理できるようにした（F-25、5.26節）。また新規テーブル T-22 material_project_shares を追加し、教材のプロジェクト間共有（F-26、5.27節）を表現した。この(3)(4)により、テーブル数はT-01〜T-21（21件）からT-01〜T-22（22件）に増えた。<span class="rev-new">(5) 要件定義書v1.5（権限モデルの簡素化）に対応するため、T-02 departments・T-07 material_co_editors を廃止した（IDは欠番として保持）。あわせてT-01 users から <code>department_id</code> を、T-11 assignments の <code>scope_type</code> から <code>'department'</code> を削除した。(6) T-06 materials は、<code>owner_id</code> を編集権限判定に用いない作成者記録用の <code>created_by</code> に読み替え、<code>project_id</code> を nullable から NOT NULL に変更した（教材は必ずいずれかのプロジェクトに属するため）。この(5)(6)により、実働するテーブル数はT-01〜T-22の22件から2件減り20件になった（IDの欠番はT-02・T-07）。</span><span class="rev-new">(7) 要件定義書v1.12（教材構造案の採用）に対応するため、新規テーブル T-23 material_nodes を追加した。教材の内部構造が「本文＋本文中の見出しから動的抽出する単元」から「章／小見出し（任意）／ページ」の自己参照ツリーに変わったことに伴い、T-06 materials から <code>format</code>・<code>body</code> を削除（目次・各ページの本文はT-23へ移管）し、T-10 questions の <code>unit_index</code> を <code>node_id</code>（FK→material_nodes）に、T-12 enrollment_progress の <code>current_position</code> を <code>current_node_id</code>・<code>completed_node_ids</code> に置き換えた。この(7)により、実働するテーブル数はT-01〜T-22の20件から1件増え21件になった（IDの欠番は引き続きT-02・T-07のみ）。</span><span class="rev-new">(8) レビュー指摘を踏まえ、T-05 courses を廃止した（IDは欠番として保持）。「コース」という固定リストの事前登録をやめ、T-06 materials に <code>tags</code>（JSONB配列）を追加して教材ごとに自由な複数タグを付与する方式に変更した。あわせてT-10 questions の <code>points</code>（配点）を廃止し、設問間の重み付けを行わず教材全体の正答率（正解した設問数／全設問数）のみで合否判定する方式に単純化した（5.14節）。この(8)により、実働するテーブル数はT-01〜T-23の21件から1件減り20件になった（IDの欠番はT-02・T-05・T-07）。</span><span class="rev-new">(9) 要件定義書v1.14（F-27 AI教材作成アシスト）に対応するため、新規テーブル T-24 ai_draft_sessions・T-25 ai_draft_messages を追加した。ブラウザ内チャットでのやりとりと、そのつどAIが実行したツール操作（章・ページの作成等）の履歴を保持するために必要である。この(9)により、実働するテーブル数はT-01〜T-25の20件から2件増え22件になった（IDの欠番は引き続きT-02・T-05・T-07）。</span><span class="rev-new">(10) 検討資料での合意（20260821_問題形式・採点拡張案.html）を反映し、以下を追加した。T-06 materialsに<code>attempt_scope</code>・<code>retake_scope</code>・<code>default_feedback_style</code>・<code>ai_context</code>を追加（受験単位・再受験範囲・AI講評スタイルの既定・AI採点コンテキストを教材ごとに設定できるようにするため）。T-10 questionsに<code>type</code>の追加値<code>'reorder'</code>・<code>'score_log'</code>と、<code>required</code>・<code>is_critical</code>（ドボン問題）・<code>feedback_style</code>（教材既定の上書き）・<code>pool_group_id</code>・<code>score_unit</code>を追加。T-13 quiz_attemptsに<code>scope_node_id</code>（受験単位が教材全体以外のときの対象ノード）・<code>fail_reason</code>・<code>carried_over_question_ids</code>を追加。T-23 material_nodesに<code>quiz_mode</code>・<code>pool_draw_count</code>を追加。新規テーブルT-26〜T-29（surveys・survey_questions・survey_responses・survey_answers）で受験後アンケートを表現した。設問ごとの回答一覧・AI採点レビューを行う新画面S-19も新設した（4.12a節）。この(10)により、実働するテーブル数はT-01〜T-25の22件から4件増え26件になった（IDの欠番は引き続きT-02・T-05・T-07）。</span><span class="rev-new">(11) 記述式・コード記述式の採点をプロジェクト担当者（管理者・編集者）が手動で行える選択肢を追加するため、T-06 materialsに<code>grading_mode</code>（'ai'/'manual'、教材既定）、T-10 questionsに<code>grading_mode</code>（設問ごとの上書き、nullable）を追加した。新規テーブルは伴わず、T-14 answersの既存カラム（<code>is_correct</code>・<code>ai_score_pct</code>・<code>ai_feedback</code>・<code>reviewed_by</code>・<code>reviewed_at</code>）をそのまま使い回せるため、この(11)による実働するテーブル数の変化はない（引き続き26件）。</span><span class="rev-new">(12) F-27（AI教材作成アシスト）を廃止したことに伴い、T-24 ai_draft_sessions・T-25 ai_draft_messagesを廃止した（IDは欠番として保持）。教材の作成・修正へのAI支援はF-05（Claude Code CLI連携）に一本化し、F-27固有のセッション・メッセージ履歴を保持する必要がなくなったため。この(12)により、実働するテーブル数はT-01〜T-29の26件から2件減り24件になった（IDの欠番はT-02・T-05・T-07・T-24・T-25）。</span>いずれも既存テーブルへのカラム追加・変更、独立性の高い新規テーブルの追加、または不要になったテーブル・カラムの削除のみで対応しており、他テーブルの再設計は伴わない。
   </div>
 
   <h3>6.3 共通設計方針</h3>
@@ -989,7 +1061,7 @@
   <p>ベースパスは <code>/api</code> とする。認証はセッションJWTとし、ブラウザからのリクエストはHttpOnly Cookie（3.2節）、Claude Code等のCLIクライアントからのリクエストは <code>Authorization: Bearer &lt;token&gt;</code> ヘッダーで送信する（トークンの発行方式は8.2節）。A-01・A-02・A-62（いずれもログイン開始系のエンドポイント）を除く全APIで認証を必須とする。レスポンス形式はJSONを基本とし、教材テキストの往復系API（A-19〜A-21）のみ <code>text/plain; charset=utf-8</code> を用いる（8.4節）。エラー形式はlcc_crm・Keirekiを踏襲し <code>{"detail": "メッセージ"}</code> とする。権限不足は403、対象なしは404、業務ルール違反（唯一の管理者の削除・降格等）は400、入力形式不正はFastAPI既定の422を返す。権限判定は全てサーバー側（<code>auth_helpers.py</code> の権限デコレーター・依存関数）で行い、下表の「権限」列は3.3節（システム全体ロール）・3.5節（プロジェクトのローカルロール）の判定ロジックに沿って表記する（凡例は7.3節）。</p>
 
   <h3>7.2 API一覧（ルーター構成別）</h3>
-  <p><code>routers/</code> 配下のファイル単位に、1〜6章で既出のAPI（A-01〜A-61）および本章・8章で新設するAPI（A-62〜A-64）をまとめて示す（2.4節のファイル構成に対応）。A-05〜A-08・A-23〜A-26は要件定義書v1.5対応（3.4節・5.3節・5.7節）で廃止した機能に対応するAPIであり、欠番として扱う。</p>
+  <p><code>routers/</code> 配下のファイル単位に、1〜6章で既出のAPI（A-01〜A-61）および本章・8章で新設するAPI（A-62〜A-64）、<span class="rev-new">共有承認フロー（F-26）で新設するAPI（A-65〜A-66）</span>をまとめて示す（2.4節のファイル構成に対応）。A-05〜A-08・A-23〜A-26は要件定義書v1.5対応（3.4節・5.3節・5.7節）で廃止した機能に対応するAPIであり、欠番として扱う。</p>
 
   <h4>7.2.1 auth.py（認証、A-01〜A-04, A-62〜A-63）</h4>
   <table>
@@ -1004,23 +1076,26 @@
     </tbody>
   </table>
 
-  <h4>7.2.2 organization.py（プロジェクト・メンバー・教材共有、A-05〜A-13, A-59〜A-61）</h4>
+  <h4>7.2.2 organization.py（プロジェクト・メンバー・教材共有、A-05〜A-13, A-59〜A-61, <span class="rev-new">A-65〜A-66</span>）</h4>
   <table>
     <thead><tr><th>API ID</th><th>メソッド</th><th>パス</th><th>権限</th><th>概要</th></tr></thead>
     <tbody>
       <tr><td>A-05〜A-08</td><td>―</td><td>―</td><td>―</td><td>廃止（欠番）。旧組織マスタ管理（部署の登録・一覧等）API。要件定義書v1.5対応で部署の概念を廃止したため欠番とする（3.3節・5.3節参照）</td></tr>
       <tr><td>A-09</td><td><span class="badge badge-post">POST</span></td><td><code>/api/projects</code></td><td><span class="badge badge-member">member</span> <span class="badge badge-admin">admin</span></td><td>プロジェクト作成。作成者を <code>project_memberships.role='admin'</code> で自動登録（3.5節・5.25節）</td></tr>
       <tr><td>A-10</td><td><span class="badge badge-put">PUT</span></td><td><code>/api/projects/{id}</code></td><td><span class="badge badge-projrole">対象プロジェクトの管理者</span> <span class="badge badge-admin">admin</span></td><td>プロジェクト情報（名称・説明・状態）更新</td></tr>
-      <tr><td>A-11</td><td><span class="badge badge-get">GET</span></td><td><code>/api/project-memberships</code></td><td>本人（<code>user_id</code>指定時）、<span class="badge badge-projrole">対象プロジェクトの管理者</span> <span class="badge badge-admin">admin</span>（<code>project_id</code>指定時）</td><td>メンバー一覧取得。<code>project_id</code>指定でそのプロジェクトの全メンバー、<code>user_id</code>指定で対象ユーザーの参加プロジェクト一覧（役割つき）を返す（いずれか必須）。S-11「自分が参加しているプロジェクト」一覧は <code>user_id=自分</code> で取得する</td></tr>
-      <tr><td>A-12</td><td><span class="badge badge-post">POST</span></td><td><code>/api/projects/{id}/members</code></td><td><span class="badge badge-projrole">対象プロジェクトの管理者</span> <span class="badge badge-admin">admin</span></td><td>メンバー追加（初期ロールを指定）</td></tr>
-      <tr><td>A-13</td><td><span class="badge badge-put">PUT</span></td><td><code>/api/projects/{id}/members/{user_id}</code></td><td><span class="badge badge-projrole">対象プロジェクトの管理者</span> <span class="badge badge-admin">admin</span></td><td>ロール変更、またはプロジェクトからの削除（<code>left_at</code>を設定する論理削除。5.25節）。唯一の管理者の削除・降格は400</td></tr>
-      <tr><td>A-59</td><td><span class="badge badge-get">GET</span></td><td><code>/api/materials/{id}/shares</code></td><td>教材が紐づく元プロジェクトの<span class="badge badge-projrole">管理者</span> <span class="badge badge-admin">admin</span></td><td>教材のプロジェクト間共有先一覧取得（5.27節）</td></tr>
-      <tr><td>A-60</td><td><span class="badge badge-post">POST</span></td><td><code>/api/materials/{id}/shares</code></td><td>教材が紐づく元プロジェクトの<span class="badge badge-projrole">管理者</span> <span class="badge badge-admin">admin</span></td><td>共有先プロジェクトを追加。下書き（<code>status='draft'</code>）教材は400で拒否</td></tr>
-      <tr><td>A-61</td><td><span class="badge badge-delete">DELETE</span></td><td><code>/api/materials/{id}/shares/{share_id}</code></td><td>教材が紐づく元プロジェクトの<span class="badge badge-projrole">管理者</span> <span class="badge badge-admin">admin</span></td><td>共有を解除</td></tr>
+      <tr><td>A-11</td><td><span class="badge badge-get">GET</span></td><td><code>/api/project-memberships</code></td><td>本人（<code>user_id</code>指定時）、<span class="badge badge-projrole">対象プロジェクトの管理者</span> <span class="badge badge-admin">admin</span>（<code>project_id</code>指定時）</td><td>メンバー一覧取得（<code>status</code>を含む）。<code>project_id</code>指定でそのプロジェクトの全メンバー、<code>user_id</code>指定で対象ユーザーの参加プロジェクト一覧（役割・statusつき）を返す（いずれか必須）。S-11「自分が参加しているプロジェクト」一覧は <code>user_id=自分</code> で取得する。<span class="rev-new">S-15「招待されているプロジェクト」一覧は <code>user_id=自分, status=invited</code> で取得する</span></td></tr>
+      <tr><td>A-12</td><td><span class="badge badge-post">POST</span></td><td><code>/api/projects/{id}/members</code></td><td><span class="badge badge-projrole">対象プロジェクトの管理者</span> <span class="badge badge-admin">admin</span></td><td>メンバーを<span class="rev-new">招待</span>（初期ロールを指定。<code>status='invited'</code>で作成、<span class="rev-new">3.5節</span>）</td></tr>
+      <tr><td>A-13</td><td><span class="badge badge-put">PUT</span></td><td><code>/api/projects/{id}/members/{user_id}</code></td><td><span class="badge badge-projrole">対象プロジェクトの管理者</span> <span class="badge badge-admin">admin</span></td><td>ロール変更、またはプロジェクトからの削除（<code>left_at</code>を設定する論理削除。5.25節）。招待中（<code>status='invited'</code>）のまま削除も可。唯一の管理者の削除・降格は400</td></tr>
+      <tr class="rev-row"><td>A-67</td><td><span class="badge badge-put">PUT</span></td><td><code>/api/project-memberships/{id}/respond</code></td><td>招待された本人</td><td>招待への応答。<code>{status: 'active'|'declined'}</code>。承諾時は<code>joined_at</code>を設定（3.5節）</td></tr>
+      <tr><td>A-59</td><td><span class="badge badge-get">GET</span></td><td><code>/api/materials/{id}/shares</code></td><td>教材が紐づく元プロジェクトの<span class="badge badge-projrole">管理者</span> <span class="badge badge-admin">admin</span></td><td>教材のプロジェクト間共有一覧取得（<code>status</code>を含む。5.27節）</td></tr>
+      <tr><td>A-60</td><td><span class="badge badge-post">POST</span></td><td><code>/api/materials/{id}/shares</code></td><td>教材が紐づく元プロジェクトの<span class="badge badge-projrole">管理者</span> <span class="badge badge-admin">admin</span></td><td>共有を申請（<code>status='pending'</code>で作成。5.27節）。下書き（<code>status='draft'</code>）教材は400で拒否</td></tr>
+      <tr><td>A-61</td><td><span class="badge badge-delete">DELETE</span></td><td><code>/api/materials/{id}/shares/{share_id}</code></td><td>教材が紐づく元プロジェクトの<span class="badge badge-projrole">管理者</span>、<span class="rev-new">または共有先プロジェクトの<span class="badge badge-projrole">管理者</span></span> <span class="badge badge-admin">admin</span></td><td>共有を解除（承認待ち・承認済みいずれも可）</td></tr>
+      <tr class="rev-row"><td>A-65</td><td><span class="badge badge-put">PUT</span></td><td><code>/api/materials/{id}/shares/{share_id}/respond</code></td><td>共有先プロジェクトの<span class="badge badge-projrole">管理者</span> <span class="badge badge-admin">admin</span></td><td>共有申請へ応答。<code>{status: 'accepted'|'rejected'}</code>を受け取り<code>responded_by</code>・<code>responded_at</code>を記録（5.27節）</td></tr>
+      <tr class="rev-row"><td>A-66</td><td><span class="badge badge-get">GET</span></td><td><code>/api/projects/{project_id}/incoming-shares</code></td><td>対象プロジェクトの<span class="badge badge-projrole">管理者</span> <span class="badge badge-admin">admin</span></td><td>自プロジェクト宛ての共有申請一覧取得（<code>status</code>で絞り込み可。S-12「共有リクエスト」表示用）</td></tr>
     </tbody>
   </table>
 
-  <h4>7.2.3 materials.py（教材・問題・添付・AI教材機能、A-14〜A-35, A-64）</h4>
+  <h4>7.2.3 materials.py（教材・問題・添付・AI教材機能、A-14〜A-35, A-64<span class="rev-old">, A-68〜A-70（v1.20で廃止）</span>）</h4>
   <table>
     <thead><tr><th>API ID</th><th>メソッド</th><th>パス</th><th>権限</th><th>概要</th></tr></thead>
     <tbody>
@@ -1035,8 +1110,8 @@
       <tr><td>A-22</td><td><span class="badge badge-get">GET</span></td><td><code>/api/materials/{id}/revisions</code></td><td>対象教材が紐づくプロジェクトの<span class="badge badge-projrole">管理者・編集者</span> <span class="badge badge-admin">admin</span></td><td>改訂履歴一覧取得（8.5節）</td></tr>
       <tr><td>A-23〜A-26</td><td>―</td><td>―</td><td>―</td><td>廃止（欠番）。旧共同編集者管理（追加・削除・オーナー引き継ぎ）API。要件定義書v1.5対応で個人所有教材モデルを廃止したため欠番とする（3.4節・5.7節参照）</td></tr>
       <tr><td>A-27</td><td><span class="badge badge-post">POST</span></td><td><code>/api/materials/{id}/attachments/upload-url</code></td><td>対象教材が紐づくプロジェクトの<span class="badge badge-projrole">編集者・管理者</span> <span class="badge badge-admin">admin</span></td><td>ファイルアップロード用の署名付きURLを発行（Supabase Storageへブラウザ/Claude Codeから直接アップロード）</td></tr>
-      <tr><td>A-28</td><td><span class="badge badge-get">GET</span></td><td><code>/api/materials/{id}/attachments</code></td><td>受講対象者、対象教材が紐づくプロジェクトの<span class="badge badge-projrole">管理者・編集者</span> <span class="badge badge-admin">admin</span></td><td>添付ファイル・リンク一覧取得</td></tr>
-      <tr><td>A-29</td><td><span class="badge badge-post">POST</span></td><td><code>/api/materials/{id}/attachments</code></td><td>対象教材が紐づくプロジェクトの<span class="badge badge-projrole">編集者・管理者</span> <span class="badge badge-admin">admin</span></td><td>添付登録（アップロード済みファイルのメタ登録、または<code>kind='link'</code>の外部リンク登録。S-05の「ファイル選択」「外部リンク追加」いずれもこのAPIを<code>kind</code>で使い分ける）</td></tr>
+      <tr><td>A-28</td><td><span class="badge badge-get">GET</span></td><td><code>/api/materials/{id}/attachments</code></td><td>受講対象者、対象教材が紐づくプロジェクトの<span class="badge badge-projrole">管理者・編集者</span> <span class="badge badge-admin">admin</span></td><td>添付ファイル・リンク一覧取得。<span class="rev-new">クエリ<code>node_id</code>で特定ページの添付のみに絞り込める（省略時は教材全体を返す。S-16は自ページの<code>node_id</code>で絞り込んで呼び出し、S-05「ファイル・リンク」タブは<code>node_id</code>未設定＝教材全体の資料のみ表示する）</span></td></tr>
+      <tr><td>A-29</td><td><span class="badge badge-post">POST</span></td><td><code>/api/materials/{id}/attachments</code></td><td>対象教材が紐づくプロジェクトの<span class="badge badge-projrole">編集者・管理者</span> <span class="badge badge-admin">admin</span></td><td>添付登録（アップロード済みファイルのメタ登録、または<code>kind='link'</code>の外部リンク登録。<code>node_id</code>（任意）で特定ページに紐づけるか、省略して教材全体の資料にするかを指定する。S-05「ファイル・リンク」タブ（<code>node_id</code>省略）・S-17ページ編集の添付セクション（対象ページの<code>node_id</code>を指定）いずれもこのAPIを使う）</td></tr>
       <tr><td>A-30</td><td><span class="badge badge-get">GET</span></td><td><code>/api/materials/{id}/attachments/{attachment_id}/download</code></td><td>受講対象者、対象教材が紐づくプロジェクトの<span class="badge badge-projrole">管理者・編集者</span> <span class="badge badge-admin">admin</span></td><td>署名付きダウンロードURLを発行</td></tr>
       <tr><td>A-31</td><td><span class="badge badge-put">PUT</span></td><td><code>/api/materials/{id}/questions</code></td><td>対象教材が紐づくプロジェクトの<span class="badge badge-projrole">編集者・管理者</span> <span class="badge badge-admin">admin</span></td><td>問題の一括更新（送信内容で全置換。5.4節）</td></tr>
       <tr><td>A-32</td><td><span class="badge badge-post">POST</span></td><td><code>/api/materials/{id}/ai-review</code></td><td>対象教材が紐づくプロジェクトの<span class="badge badge-projrole">編集者・管理者</span> <span class="badge badge-admin">admin</span></td><td>AIレビュー実行（同期呼び出し、9.1節）</td></tr>
@@ -1044,8 +1119,12 @@
       <tr><td>A-34</td><td><span class="badge badge-post">POST</span></td><td><code>/api/materials/{id}/ai-insights</code></td><td>対象教材が紐づくプロジェクトの<span class="badge badge-projrole">編集者・管理者</span> <span class="badge badge-admin">admin</span></td><td>AIつまずき分析を非同期実行（9.2節）</td></tr>
       <tr><td>A-35</td><td><span class="badge badge-get">GET</span></td><td><code>/api/materials/{id}/ai-insights</code></td><td>対象教材が紐づくプロジェクトの<span class="badge badge-projrole">編集者・管理者</span> <span class="badge badge-admin">admin</span>（Claude Codeからも取得可、8章）</td><td>分析結果取得。未完了時は404（pending）を返す</td></tr>
       <tr class="rev-row"><td>A-64</td><td><span class="badge badge-post">POST</span></td><td><code>/api/materials/{id}/preview</code></td><td>対象教材が紐づくプロジェクトの<span class="badge badge-projrole">編集者・管理者</span> <span class="badge badge-admin">admin</span></td><td>S-05本文編集タブのプレビュー用。body・formatを受け取り、保存せずに<code>html_sanitize.py</code>でサニタイズ済みHTMLを返す（8.6節）。未保存の編集中コンテンツを直接レンダリングしない</td></tr>
+      <tr><td>A-68〜A-70</td><td>―</td><td>―</td><td>―</td><td>廃止（欠番）。旧Claude Code下書きセッション開始・メッセージ送信・履歴取得API（F-27、S-18）。F-27の廃止（v1.20）に伴い欠番とする。教材の作成・修正へのAI支援はF-05（Claude Code CLI連携、A-19〜A-22）に一本化した</td></tr>
     </tbody>
   </table>
+  <div class="callout rev-old">
+    <strong>（廃止）A-69の内部設計判断（F-27はA-20と同じ書き込み層を再利用する）:</strong> A-69がツール実行で行う教材ノード操作は、A-20（フロントマター付きテキストの書き戻し）が内部で使う「目次ツリー・ページ本文・問題を書き込むサービス関数」を直接呼び出す形で実装し、書き込みロジックを2重に持たない設計だった。F-27の廃止（v1.20）に伴いA-69自体が欠番となったため、この設計判断も対象外となった。教材の書き込みはA-20（Claude Code CLI連携）・A-31（画面からの一括更新）の2経路に整理される。
+  </div>
 
   <h4>7.2.4 assignments.py（配信設定、A-36〜A-38）</h4>
   <table>
@@ -1057,16 +1136,19 @@
     </tbody>
   </table>
 
-  <h4>7.2.5 learning.py（受講・受験、A-39〜A-44）</h4>
+  <h4>7.2.5 learning.py（受講・受験、A-39〜A-44<span class="rev-new">, A-71〜A-73</span>）</h4>
   <table>
     <thead><tr><th>API ID</th><th>メソッド</th><th>パス</th><th>権限</th><th>概要</th></tr></thead>
     <tbody>
       <tr><td>A-39</td><td><span class="badge badge-get">GET</span></td><td><code>/api/my-learning</code></td><td>認証済（全員）</td><td>マイ学習一覧（必修・任意、進捗付き。S-02）</td></tr>
-      <tr><td>A-40</td><td><span class="badge badge-post">POST</span></td><td><code>/api/materials/{id}/attempts</code></td><td>対象教材の受講対象者</td><td>受験開始。未提出の試行があれば再開し、教材本文・単元・設問を含めて返す。<code>mode</code>: <code>graded</code> / <code>practice</code></td></tr>
-      <tr><td>A-41</td><td><span class="badge badge-put">PUT</span></td><td><code>/api/attempts/{attempt_id}/answers</code></td><td>当該試行の受験者本人</td><td>回答保存（都度呼び出しで中断・再開を実現）</td></tr>
-      <tr><td>A-42</td><td><span class="badge badge-post">POST</span></td><td><code>/api/attempts/{attempt_id}/submit</code></td><td>当該試行の受験者本人</td><td>提出。選択式は即時採点、記述式はAI採点を非同期起動（9.2節）</td></tr>
+      <tr><td>A-40</td><td><span class="badge badge-post">POST</span></td><td><code>/api/materials/{id}/attempts</code></td><td>対象教材の受講対象者</td><td>受験開始。未提出の試行があれば再開し、<span class="rev-old">教材本文・単元・設問を含めて返す。</span><span class="rev-new">教材の目次（T-23ツリー）・各ページの本文・設問を含めて返す（v1.11）。<code>scope_node_id</code>（任意）で、materials.attempt_scopeが'material'以外のとき対象の章・小見出し・ページを指定する。quiz_mode='pool'のページはこの呼び出し時にpool_group_idの中からpool_draw_count件をランダム抽出し、結果をquestion_orderに記録する（v1.17）。</span><code>mode</code>: <code>graded</code> / <code>practice</code></td></tr>
+      <tr><td>A-41</td><td><span class="badge badge-put">PUT</span></td><td><code>/api/attempts/{attempt_id}/answers</code></td><td>当該試行の受験者本人</td><td>回答保存（都度呼び出しで中断・再開を実現）。<span class="rev-new">type='score_log'の設問は<code>response: {"score": 数値}</code>として保存し、正誤判定は行わない（v1.17）。</span></td></tr>
+      <tr><td>A-42</td><td><span class="badge badge-post">POST</span></td><td><code>/api/attempts/{attempt_id}/submit</code></td><td>当該試行の受験者本人</td><td>提出。選択式は即時採点、記述式はAI採点を非同期起動（9.2節）。<span class="rev-new">is_critical=trueの設問に不正解があれば、他の設問の正答率によらず<code>passed=false</code>とし、<code>fail_reason</code>に該当設問を記録する（v1.17）。type='score_log'の設問は正答率の分母（全設問数）に数えない。</span></td></tr>
       <tr><td>A-43</td><td><span class="badge badge-get">GET</span></td><td><code>/api/attempts/{attempt_id}</code></td><td>当該試行の受験者本人、対象教材が紐づくプロジェクトの<span class="badge badge-projrole">管理者・編集者</span> <span class="badge badge-admin">admin</span></td><td>結果取得</td></tr>
-      <tr><td>A-44</td><td><span class="badge badge-post">POST</span></td><td><code>/api/materials/{id}/wrong-questions-attempts</code></td><td>対象教材の受講対象者</td><td>誤答抽出出題を開始（<code>scope</code>: <code>material</code> / <code>all</code>）。<code>mode='practice'</code>として記録</td></tr>
+      <tr><td>A-44</td><td><span class="badge badge-post">POST</span></td><td><code>/api/materials/{id}/wrong-questions-attempts</code></td><td>対象教材の受講対象者</td><td>誤答抽出出題を開始（<code>scope</code>: <code>material</code> / <code>all</code>）。<code>mode='practice'</code>として記録。<span class="rev-new">is_criticalの判定・fail_reasonの記録は<code>mode='practice'</code>では行わない（反復演習・誤答抽出は元々合否に影響しないため。v1.17）。</span></td></tr>
+      <tr class="rev-row"><td>A-71</td><td><span class="badge badge-post">POST</span></td><td><code>/api/attempts/{attempt_id}/retake</code></td><td>当該教材の受講対象者</td><td>再受験を開始する。materials.retake_scope='wrong_only'の場合、前回の試行で不正解だった設問のみを新しい試行に含め、正解済みの設問IDを<code>carried_over_question_ids</code>に記録する。'all'の場合は全問を再度含める（v1.17新設）</td></tr>
+      <tr class="rev-row"><td>A-72</td><td><span class="badge badge-post">POST</span></td><td><code>/api/surveys/{survey_id}/responses</code></td><td>対象教材の受講対象者</td><td>アンケート回答を送信（T-28・T-29に保存）。<code>survey.repeat_mode='once'</code>かつ2回目以降の場合は表示自体をフロント側でスキップする（S-04・S-16）。回答はスキップ可能で必須ではない（v1.17新設）</td></tr>
+      <tr class="rev-row"><td>A-73</td><td><span class="badge badge-get">GET</span></td><td><code>/api/questions/{question_id}/answers</code></td><td>対象教材が紐づくプロジェクトの<span class="badge badge-projrole">管理者・編集者</span> <span class="badge badge-admin">admin</span></td><td>指定した設問への全受講者の回答一覧を取得（S-19）。<code>type='score_log'</code>ならスコアと推移、それ以外なら回答内容・<code>is_correct</code>・AI採点結果を返す。氏名付きで返すためアクセス制御を限定する（v1.17新設）</td></tr>
     </tbody>
   </table>
 
@@ -1108,7 +1190,7 @@
       <tr><td>A-55</td><td><span class="badge badge-get">GET</span></td><td><code>/api/settings</code></td><td><span class="badge badge-admin">admin</span></td><td>システム設定取得（AIモデル・Slack設定・猶予期間日数等）</td></tr>
       <tr><td>A-56</td><td><span class="badge badge-put">PUT</span></td><td><code>/api/settings</code></td><td><span class="badge badge-admin">admin</span></td><td>システム設定更新</td></tr>
       <tr><td>A-57</td><td><span class="badge badge-post">POST</span></td><td><code>/api/settings/slack-test</code></td><td><span class="badge badge-admin">admin</span></td><td>Slackテスト送信</td></tr>
-      <tr><td>A-58</td><td><span class="badge badge-get">GET</span></td><td><code>/api/settings/ai-usage</code></td><td><span class="badge badge-admin">admin</span></td><td>AI利用状況取得（今月のトークン数・概算コスト、9.3節）</td></tr>
+      <tr><td>A-58</td><td><span class="badge badge-get">GET</span></td><td><code>/api/settings/ai-usage</code></td><td><span class="badge badge-admin">admin</span></td><td>AI利用状況取得（今月のトークン数・概算コスト。<span class="rev-new">機能〔<code>feature</code>〕別の呼び出し件数・トークン数・概算コストの内訳も返す（v1.21）。</span>9.3節）</td></tr>
     </tbody>
   </table>
 
@@ -1122,7 +1204,7 @@
       <tr><td><span class="badge badge-admin">admin</span></td><td><code>user.role == 'admin'</code>（3.3節）</td></tr>
       <tr><td><span class="badge badge-projrole">対象プロジェクトの管理者</span></td><td><code>require_project_role(project_id, user, min_role='admin')</code>（3.5節）。システム全体の <code>admin</code> は当該プロジェクトのローカルロールを持たなくても常に満たす</td></tr>
       <tr><td><span class="badge badge-projrole">対象プロジェクトの管理者・編集者</span></td><td><code>require_project_role(project_id, user, min_role='editor')</code></td></tr>
-      <tr><td>対象教材の受講対象者</td><td><code>require_project_role(materials.project_id, user, min_role='learner')</code> を満たすプロジェクトメンバー、<strong>または</strong> 配信設定（T-11 assignments、F-09）でその教材の対象者として個別に指定されている者、のいずれかを満たす</td></tr>
+      <tr><td>対象教材の受講対象者</td><td><code>require_project_role(materials.project_id, user, min_role='learner')</code> を満たすプロジェクトメンバー、<strong>または</strong> 配信設定（T-11 assignments、F-09）でその教材の対象者として個別に指定されている者、<strong>または</strong> <code class="rev-new">T-22 material_project_shares で status='accepted' として共有された先のプロジェクトについて require_project_role(shared_to_project_id, user, min_role='learner') を満たす者（F-26、5.27節）</code>、のいずれかを満たす</td></tr>
       <tr><td>本人</td><td>パス上の <code>user_id</code>／対象 <code>attempt_id</code> の所有者がログインユーザー自身と一致する</td></tr>
       <tr><td>対象者が所属するプロジェクトの管理者</td><td>対象ユーザー（<code>user_id</code>）が現役メンバーであるいずれかのプロジェクトについて <code>require_project_role(project_id, user=リクエスト者, min_role='admin')</code> を満たす（5.19節と同じ判定）</td></tr>
     </tbody>
@@ -1217,39 +1299,53 @@
   </div>
 
   <h3>8.3 フロントマタースキーマ</h3>
-  <p>教材はMarkdownまたはHTML本文の先頭にYAML形式のフロントマター（<code>---</code>で囲む）を付与したテキストとして表現する。フロントマターはT-06 <code>materials</code>のカラムに対応し、本文（<code>body</code>そのもの）とT-06の作成者・IDのように機械側で設定するフィールドは含まない。</p>
+  <p>教材はMarkdownまたはHTML本文の先頭にYAML形式のフロントマター（<code>---</code>で囲む）を付与したテキストとして表現する。フロントマターはT-06 <code>materials</code>のカラムに対応し、T-06の作成者・IDのように機械側で設定するフィールドは含まない。<span class="rev-new">v1.11で教材構造案（章／小見出し／ページの入れ子構造。6.2節 T-23参照）を採用したのに伴い、<code>format</code>・<code>body</code>はT-06からT-23（ページ単位）へ移管した。フロントマターに続く本文全体は、教材1件分の<strong>目次＋全ページの内容</strong>を見出しレベルで表現する（詳細は本節末尾）。</span></p>
   <table>
     <thead><tr><th>フィールド</th><th>対応カラム</th><th>要否</th><th>内容</th></tr></thead>
     <tbody>
       <tr><td><code>id</code></td><td><code>materials.id</code></td><td>更新時のみ必須</td><td>既存教材の更新対象ID。新規作成時は省略する（省略時はA-16相当の新規作成として扱う）</td></tr>
       <tr><td><code>project_id</code></td><td><code>materials.project_id</code></td><td>必須</td><td>所属プロジェクトのID（教材は必ずいずれかのプロジェクトに属する。F-25）。既存教材の付け替えはA-20では行わずA-17を使う（8.4節）</td></tr>
-      <tr><td><code>course_id</code></td><td><code>materials.course_id</code></td><td>任意</td><td>所属コースのID。省略時はいずれのコースにも属さない</td></tr>
+      <tr class="rev-row"><td><span class="rev-old"><code>course_id</code></span><span class="rev-new"><code>tags</code></span></td><td><span class="rev-old"><code>materials.course_id</code></span><span class="rev-new"><code>materials.tags</code></span></td><td>任意</td><td><span class="rev-old">所属コースのID。省略時はいずれのコースにも属さない</span><span class="rev-new">タグ文字列の配列（例: <code>["エンジニア基礎", "Git"]</code>）。「コース」という固定リストの事前登録は廃止し、教材ごとに自由な複数タグを付与する方式に変更した（v1.12。T-05 courses廃止）</span></td></tr>
       <tr><td><code>title</code></td><td><code>materials.title</code></td><td>必須</td><td>教材タイトル</td></tr>
       <tr><td><code>description</code></td><td><code>materials.description</code></td><td>任意</td><td>一覧表示用の概要文</td></tr>
-      <tr><td><code>format</code></td><td><code>materials.format</code></td><td>必須</td><td><code>markdown</code> または <code>html</code>。本文の記法とAPIの <code>Content-Type</code> 解釈を決める</td></tr>
+      <tr class="rev-row"><td><code>format</code></td><td><code>material_nodes.format</code>（葉ノード共通）</td><td>必須</td><td><code>markdown</code> または <code>html</code>。本文全体でどちらか一方に統一する（ページごとの切替は不可。v1.11でmaterials.formatから移管）</td></tr>
       <tr><td><code>status</code></td><td><code>materials.status</code></td><td>必須</td><td><code>draft</code> または <code>published</code></td></tr>
-      <tr><td><code>sort_order</code></td><td><code>materials.sort_order</code></td><td>任意</td><td>コース内の並び順</td></tr>
+      <tr><td><code>sort_order</code></td><td><code>materials.sort_order</code></td><td>任意</td><td><span class="rev-old">コース内の並び順</span><span class="rev-new">一覧表示時の並び順（v1.12でコース廃止に伴い意味を変更）</span></td></tr>
+      <tr class="rev-row"><td><code>attempt_scope</code></td><td><code>materials.attempt_scope</code></td><td>任意（既定<code>material</code>）</td><td><code>material</code>/<code>chapter</code>/<code>section</code>/<code>page</code>。合否判定・再受験の単位（受験単位。5.14節）</td></tr>
+      <tr class="rev-row"><td><code>retake_scope</code></td><td><code>materials.retake_scope</code></td><td>任意（既定<code>all</code>）</td><td><code>all</code>/<code>wrong_only</code>。再受験時に全問解き直すか誤答のみか</td></tr>
+      <tr class="rev-row"><td><code>default_feedback_style</code></td><td><code>materials.default_feedback_style</code></td><td>任意（既定<code>show_answer</code>）</td><td>AI講評スタイルの教材既定（5.20節）</td></tr>
+      <tr class="rev-row"><td><code>ai_context</code></td><td><code>materials.ai_context</code></td><td>任意</td><td>F-20のAI呼び出しに追加する前提条件・制約の自由記述<span class="rev-old">（当初はF-27にも共通適用していたが、F-27はv1.20で廃止）</span></td></tr>
+      <tr class="rev-row"><td><code>grading_mode</code></td><td><code>materials.grading_mode</code></td><td>任意（既定<code>ai</code>）</td><td><code>ai</code>/<code>manual</code>。記述式・コード記述式の採点方式の教材既定。<code>manual</code>ではAIは正誤・点数を判定せず対象教材が紐づくプロジェクトの管理者・編集者がS-19で採点する（5.20節）</td></tr>
     </tbody>
   </table>
-  <p>問題（T-10 <code>questions</code>）はフロントマターの配列としては持たせず、本文中の単元見出し（Markdownの<code>##</code>／HTMLの<code>&lt;h2&gt;</code>、5.4節）の直後に、専用のフェンス付きコードブロック（Markdown時は<code>```question</code>、HTML時は<code>&lt;!-- question ... --&gt;</code>コメント）として埋め込む。1つの見出しセクション内に複数の問題ブロックを置くことができる。</p>
+  <div class="callout rev-new">
+    <strong>目次構造（T-23 material_nodes）の表現方法:</strong> フロントマター直後の本文は、見出しレベルで章・小見出し・ページの入れ子を表す。<code>#</code>（Markdown）／<code>&lt;h1&gt;</code>（HTML）は常に新しい「章」を開始する。章の直下に <code>##</code>／<code>&lt;h2&gt;</code> が続けば「小見出し」（任意）を開始し、それ以降の <code>###</code>／<code>&lt;h3&gt;</code> はその小見出しの下の「ページ」になる。章の直下に <code>##</code> を挟まず直接 <code>###</code> が続けば、その章に直接ぶら下がる「ページ」になる（小見出しを使わない構成。5.4節・S-05目次編集タブ参照）。各見出しの直後には <code>&lt;!-- node:123 --&gt;</code> というHTMLコメント形式のノードID注記を置く（新規ノードは省略可。書き戻し時にサーバーが新規IDを採番し、以後のGETで注記付きの見出しを返す。T-10の問題ブロック<code>id</code>と同じ「更新時のみ既存IDを明示する」考え方）。<code>###</code>見出し直後、次の見出しまでのテキストがそのページの説明文（<code>material_nodes.body</code>）になる。<strong>ページ見出し1つにつき、説明文（任意）と問題ブロック（任意、複数可。どちらか一方は必須）の組み合わせが1件のページを構成する</strong>（content_kind: explanation/quiz/mixed はサーバー側で自動判定する）。この設計は5.4節旧版の「単元はテーブルを持たず本文中の見出しから動的に抽出する」という考え方を、3階層の見出しと明示的なノードID注記に拡張したものである（T-23はA-20書き戻し時に全置換で再構築する。A-31と同じ全置換セマンティクス）。
+  </div>
+  <p>問題（T-10 <code>questions</code>）はフロントマターの配列としては持たせず、<span class="rev-old">本文中の単元見出し（Markdownの<code>##</code>／HTMLの<code>&lt;h2&gt;</code>、5.4節）</span><span class="rev-new">本文中のページ見出し（Markdownの<code>###</code>／HTMLの<code>&lt;h3&gt;</code>）</span>の直後に、専用のフェンス付きコードブロック（Markdown時は<code>```question</code>、HTML時は<code>&lt;!-- question ... --&gt;</code>コメント）として埋め込む。1つの見出しセクション内に複数の問題ブロックを置くことができる。</p>
   <table>
     <thead><tr><th>フィールド（ブロック内YAML）</th><th>対応カラム</th><th>要否</th><th>内容</th></tr></thead>
     <tbody>
       <tr><td><code>id</code></td><td><code>questions.id</code></td><td>更新時のみ</td><td>既存問題の更新対象ID。新規追加時は省略またはnull</td></tr>
-      <tr><td><code>type</code></td><td><code>questions.type</code></td><td>必須</td><td><code>single</code> / <code>multi</code> / <code>free_text</code><span class="rev-new"> / <code>code</code></span></td></tr>
+      <tr><td><code>type</code></td><td><code>questions.type</code></td><td>必須</td><td><code>single</code> / <code>multi</code> / <code>free_text</code><span class="rev-new"> / <code>code</code></span><span class="rev-new"> / <code>reorder</code> / <code>score_log</code></span></td></tr>
       <tr><td><code>prompt</code></td><td><code>questions.prompt</code></td><td>必須</td><td>設問文</td></tr>
       <tr><td><code>options</code></td><td><code>questions.options</code></td><td><code>single</code>/<code>multi</code>で必須</td><td>選択肢の配列</td></tr>
-      <tr><td><code>correct_answer</code></td><td><code>questions.correct_answer</code></td><td><code>single</code>/<code>multi</code>で必須</td><td>正解（値または配列）</td></tr>
+      <tr><td><code>correct_answer</code></td><td><code>questions.correct_answer</code></td><td><code>single</code>/<code>multi</code>/<code>reorder</code>で必須</td><td>正解（値または配列。<code>reorder</code>は正しい順序の項目配列）</td></tr>
       <tr><td><code>scoring_criteria</code></td><td><code>questions.scoring_criteria</code></td><td><code>free_text</code>/<code>code</code>で必須</td><td>AI採点基準</td></tr>
       <tr class="rev-row"><td><code>code_language</code></td><td><code>questions.code_language</code></td><td><code>code</code>で必須</td><td>言語ヒント（例: <code>python</code>）</td></tr>
-      <tr><td><code>points</code></td><td><code>questions.points</code></td><td>任意（既定10）</td><td>配点</td></tr>
+      <tr class="rev-row"><td><code>required</code></td><td><code>questions.required</code></td><td>任意（既定true）</td><td>回答必須か任意か</td></tr>
+      <tr class="rev-row"><td><code>is_critical</code></td><td><code>questions.is_critical</code></td><td>任意（既定false）</td><td>ドボン問題フラグ。<code>score_log</code>では指定不可</td></tr>
+      <tr class="rev-row"><td><code>feedback_style</code></td><td><code>questions.feedback_style</code></td><td>任意</td><td><code>show_answer</code>/<code>review_only</code>/<code>hint_only</code>。教材既定（<code>materials.ai_context</code>近くのフロントマター<code>default_feedback_style</code>）を上書きする場合のみ</td></tr>
+      <tr class="rev-row"><td><code>pool_group</code></td><td><code>questions.pool_group_id</code></td><td>任意</td><td>同じ値を持つ設問群が出題プールを構成する（ページ側の<code>quiz_mode: pool</code>と併用）</td></tr>
+      <tr class="rev-row"><td><code>score_unit</code></td><td><code>questions.score_unit</code></td><td><code>score_log</code>で必須</td><td>スコアの単位表記（例: <code>WPM</code>）。<code>score_log</code>では<code>correct_answer</code>・<code>scoring_criteria</code>は使わない</td></tr>
+      <tr class="rev-row"><td><code>grading_mode</code></td><td><code>questions.grading_mode</code></td><td>任意</td><td><code>ai</code>/<code>manual</code>。<code>free_text</code>/<code>code</code>のみ有効。教材既定（フロントマター<code>grading_mode</code>）を上書きする場合のみ</td></tr>
     </tbody>
   </table>
-  <p>フロントマター全体の例（Markdown、単一選択・記述式の2問を含む）:</p>
+  <p class="table-notes"><code>points</code>（配点）はv1.12で廃止した。設問間の重み付けは行わず、教材全体の正答率（正解した設問数／全設問数）のみで合否判定する（5.14節参照）。<span class="rev-new">v1.17で追加した<code>required</code>・<code>is_critical</code>・<code>feedback_style</code>・<code>pool_group</code>・<code>score_unit</code>、およびページ見出し直後に置く<code>quiz_mode: pool</code>・<code>pool_draw_count</code>（材料ノードのフロントマター相当）・教材メタデータの<code>attempt_scope</code>・<code>retake_scope</code>・<code>default_feedback_style</code>・<code>ai_context</code>は、いずれもテキスト表現の拡張のみで実現でき、F-05（CLI往復）で作成・編集できる<span class="rev-old">・F-27（S-18のブラウザ内対話）のどちらでも作成・編集できる（5.28節参照）</span>。</span><span class="rev-new">v1.18で追加した<code>grading_mode</code>（教材既定・設問側の上書きとも）も同様にテキスト表現のみで実現でき、F-05で作成・編集できる<span class="rev-old">・F-27のどちらでも作成・編集できる</span>。</span></p>
+  <p>フロントマター全体の例（Markdown、章・小見出し・ページの入れ子と、単一選択・記述式・コード記述式の3問を含む）:</p>
   <pre><code>---
 id: 152
 project_id: 12
-course_id: 3
+tags: ["エンジニア基礎", "Python"]
 title: "Python基礎"
 description: "変数・制御構文・関数などPythonの基礎文法を学ぶ"
 format: markdown
@@ -1257,7 +1353,11 @@ status: draft
 sort_order: 10
 ---
 
-## 単元1: 変数と型
+# 第1章: Pythonの基礎文法
+&lt;!-- node:801 --&gt;
+
+### 変数と型
+&lt;!-- node:810 --&gt;
 
 Pythonの変数は型を宣言せずに使うことができる……
 
@@ -1269,10 +1369,13 @@ options:
   - "my_value"
   - "my-value"
 correct_answer: "my_value"
-points: 10
 ```
 
-## 単元2: 制御構文
+## 制御構文
+&lt;!-- node:820 --&gt;
+
+### for文とwhile文
+&lt;!-- node:821 --&gt;
 
 for文とwhile文は、どちらも繰り返し処理を行う構文である……
 
@@ -1283,10 +1386,13 @@ prompt: "for文とwhile文の使い分けについて、具体例を挙げて説
 scoring_criteria: |
   - for文・while文それぞれが適した場面に言及しているか
   - 具体例が示されているか
-points: 20
 ```
 
-## 単元3: 関数
+# 第2章: 関数
+&lt;!-- node:830 --&gt;
+
+### 関数の定義と再利用
+&lt;!-- node:831 --&gt;
 
 関数を使うと、同じ処理をまとめて再利用できる……
 
@@ -1298,11 +1404,11 @@ scoring_criteria: |
   - 辞書の値を正しく合計できているか（キーではなく値を対象にしているか）
   - 空の辞書を渡した場合に0を返せているか
   - 不要なループの重複など、簡略化できる冗長な処理がないか（改善提案として講評に含める）
-points: 15
 ```
 </code></pre>
+  <p class="table-notes">上記は第1章に小見出し「制御構文」を1つだけ使う例（「変数と型」は小見出しを使わず章に直接ぶら下がるページ）。第2章は小見出しを使わず、ページを直接章にぶら下げている。<code>node</code>番号は例示用の値で、新規ページ作成時は省略してよい（サーバーが採番し、次回GET時に付与済みの注記付きで返す）。</p>
   <div class="callout">
-    <strong>なぜ問題定義を本文中のフェンス付きブロックとして埋め込むか:</strong> 5.4節は「単元はテーブルを持たず、本文中の見出しから動的に抽出する」設計とした。問題を独立したフロントマター配列に持たせると、Claude Codeで見出しを並べ替えたときに配列側の<code>unit_index</code>が本文の見出し構造と食い違う恐れがある。問題ブロックを見出し直下の本文中に置くことで、書き戻し（A-20）時に「その問題ブロックの直前に何番目の見出しがあったか」を機械的に数えるだけで<code>unit_index</code>を導出でき、本文と問題の対応関係が常に一致する。この設計は5.4節の単元設計方針をそのまま問題定義にも拡張したものである。
+    <strong>なぜ問題定義を本文中のフェンス付きブロックとして埋め込むか:</strong> <span class="rev-old">5.4節は「単元はテーブルを持たず、本文中の見出しから動的に抽出する」設計とした。問題を独立したフロントマター配列に持たせると、Claude Codeで見出しを並べ替えたときに配列側の<code>unit_index</code>が本文の見出し構造と食い違う恐れがある。問題ブロックを見出し直下の本文中に置くことで、書き戻し（A-20）時に「その問題ブロックの直前に何番目の見出しがあったか」を機械的に数えるだけで<code>unit_index</code>を導出でき、本文と問題の対応関係が常に一致する。この設計は5.4節の単元設計方針をそのまま問題定義にも拡張したものである。</span><span class="rev-new">問題を独立したフロントマター配列に持たせると、Claude Codeで見出しを並べ替えたときに配列側の参照先ページが本文の見出し構造と食い違う恐れがある。問題ブロックをページ見出し直下の本文中に置くことで、書き戻し（A-20）時に「その問題ブロックがどのページ見出し〔<code>&lt;!-- node:.. --&gt;</code>で識別〕の直下にあったか」を機械的にたどるだけで<code>node_id</code>を導出でき、本文と問題の対応関係が常に一致する。この設計は旧5.4節の単元設計方針を、章・小見出し・ページの3階層とノードID注記に拡張したものである（v1.11）。</span>
   </div>
 
   <h3>8.4 取得・書き戻しAPI仕様（A-19〜A-22）</h3>
@@ -1332,8 +1438,8 @@ points: 15
   <p>要件定義書5.1節が定める「許可リスト方式でサニタイズする」方針を、以下のとおり実装レベルで具体化する。</p>
   <ul>
     <li><strong>ライブラリ:</strong> Python製の <code>nh3</code>（RustのAmmoniaライブラリのバインディング。許可リスト方式で高速・保守が活発）を採用する。旧来の<code>bleach</code>は開発が停滞しているため採用しない。</li>
-    <li><strong>サニタイズのタイミング（提供時のみ、原文は変更しない）:</strong> <code>materials.body</code>・T-08の<code>body_snapshot</code>には、著者（Web画面またはClaude Code）が入力した原文をそのまま保存する。サニタイズは、教材を<strong>閲覧させる（レンダリングする）境界すべて</strong>で、都度実行する。具体的には (1) 受講者への提供時（A-15、A-40のレスポンス生成時、S-04でのレンダリング直前）、(2) <span class="rev-new">S-05本文編集タブのプレビュー表示時（A-64。保存前の未確定コンテンツであっても例外なくサニタイズを通す。他の編集者・管理者が同じ教材を開いたときの閲覧経路でもあるため、書き手自身の入力だからといって省略しない）</span> の2箇所である。Markdown形式の教材は<code>markdown_render.py</code>でHTMLへレンダリングした結果を、HTML形式の教材は原文そのものを、共通の<code>html_sanitize.py</code>のサニタイズ関数に通してから返す。この際、本文中の問題ブロック（8.3節）はサニタイズ対象の本文から取り除き、対応するT-10のレコードに基づく問題カード（構造化UI）として別途表示する。<span class="rev-new">フロントエンドは<code>materials.body</code>や編集中の生テキストを<code>dangerouslySetInnerHTML</code>等で直接描画してはならず、必ずA-15/A-40/A-64のいずれかが返すサニタイズ済みHTMLのみを描画する。</span></li>
-    <li><strong>許可タグ:</strong> <code>p, br, strong, em, u, s, code, pre, blockquote, ul, ol, li, h3, h4, h5, h6, table, thead, tbody, tr, th, td, a, img, figure, figcaption</code>。<code>h1</code>・<code>h2</code>は許可しない（<code>h2</code>は5.4節で単元境界として予約済みであり、本文レンダリング後のHTMLでは単元見出し自体を別UIコンポーネントとして描画するため、本文内に残った生の<code>h2</code>は不要かつ構造を壊す）。</li>
+    <li><strong>サニタイズのタイミング（提供時のみ、原文は変更しない）:</strong> <span class="rev-old"><code>materials.body</code></span><span class="rev-new"><code>material_nodes.body</code>（v1.11でmaterials.bodyから移管）</span>・T-08の<code>body_snapshot</code>には、著者（Web画面またはClaude Code）が入力した原文をそのまま保存する。サニタイズは、教材を<strong>閲覧させる（レンダリングする）境界すべて</strong>で、都度実行する。具体的には (1) 受講者への提供時（A-15、A-40のレスポンス生成時、<span class="rev-old">S-04</span><span class="rev-new">S-16</span>でのレンダリング直前）、(2) <span class="rev-old">S-05本文編集タブのプレビュー表示時</span><span class="rev-new">S-17ページ編集の説明文プレビュー表示時</span>（A-64。保存前の未確定コンテンツであっても例外なくサニタイズを通す。他の編集者・管理者が同じ教材を開いたときの閲覧経路でもあるため、書き手自身の入力だからといって省略しない） の2箇所である。Markdown形式の教材は<code>markdown_render.py</code>でHTMLへレンダリングした結果を、HTML形式の教材は原文そのものを、共通の<code>html_sanitize.py</code>のサニタイズ関数に通してから返す。この際、本文中の問題ブロック（8.3節）はサニタイズ対象の本文から取り除き、対応するT-10のレコードに基づく問題カード（構造化UI）として別途表示する。<span class="rev-new">フロントエンドは<code>materials.body</code>や編集中の生テキストを<code>dangerouslySetInnerHTML</code>等で直接描画してはならず、必ずA-15/A-40/A-64のいずれかが返すサニタイズ済みHTMLのみを描画する。</span></li>
+    <li><strong>許可タグ:</strong> <code>p, br, strong, em, u, s, code, pre, blockquote, ul, ol, li, <span class="rev-old">h3, </span>h4, h5, h6, table, thead, tbody, tr, th, td, a, img, figure, figcaption</code>。<code>h1</code>・<code>h2</code><span class="rev-new">・<code>h3</code></span>は許可しない（<span class="rev-old"><code>h2</code>は5.4節で単元境界として予約済みであり、本文レンダリング後のHTMLでは単元見出し自体を別UIコンポーネントとして描画するため、本文内に残った生の<code>h2</code>は不要かつ構造を壊す</span><span class="rev-new"><code>h1</code>/<code>h2</code>/<code>h3</code>は8.3節で章・小見出し・ページの境界として予約済み。ページ本文（<code>material_nodes.body</code>）は該当ページ見出し直下のテキストだけを抽出して保存するため、本文内に生の見出しが残ることは想定しないが、防御的にレンダリング層でも除去する（v1.11）</span>）。</li>
     <li><strong>許可属性:</strong> <code>a[href, rel, target]</code>（<code>href</code>は<code>http:</code>/<code>https:</code>スキームのみ許可し<code>javascript:</code>等は除去。<code>rel="noopener noreferrer"</code>を強制付与）、<code>img[src, alt, width, height]</code>（<code>src</code>はSupabase Storageの署名付きURLまたは<code>https:</code>のみ）、<code>table</code>系要素の<code>colspan/rowspan</code>。それ以外の属性（<code>style</code>、<code>class</code>、<code>on*</code>イベントハンドラ等）はすべて除去する。</li>
     <li><strong>明示的に禁止:</strong> <code>script, style, iframe, object, embed, form, input, svg, foreignObject</code>タグ、およびあらゆるインラインイベントハンドラ属性。</li>
   </ul>
@@ -1345,7 +1451,7 @@ points: 15
   <h2 id="sec9">9. AI機能設計</h2>
 
   <h3>9.1 AI機能ごとの処理方式（概要）</h3>
-  <p>要件定義書6章が定める5つのAI機能を、2章で選定したAnthropic Claude API（Messages API）を用いて実装する。</p>
+  <p>要件定義書6章が定める<span class="rev-old">5つ</span><span class="rev-old">5つ（F-08, F-20〜F-23）に加え、5章のF-27（AI教材作成アシスト）を実質的に同種のAI連携機能として本章に含める。あわせて6つ</span><span class="rev-new">5つ（F-08, F-20〜F-23。F-27は本章の対象だったが、v1.20で廃止した）</span>のAI機能を、2章で選定したAnthropic Claude API（Messages API）を用いて実装する。</p>
   <table>
     <thead><tr><th>機能</th><th>呼び出しタイミング</th><th>処理方式</th><th>関連API</th></tr></thead>
     <tbody>
@@ -1354,6 +1460,7 @@ points: 15
       <tr><td>F-21 AIつまずき分析・教材改善提案</td><td>定期バッチ、または教材編集者・管理者・adminのオンデマンド実行</td><td>非同期ジョブ。結果はA-35でWeb・Claude Code双方から取得可（8章）</td><td>A-34, A-35</td></tr>
       <tr><td>F-22 AI個人フィードバック</td><td>S-09を開いたとき、または受講完了時</td><td>非同期ジョブ。生成中は「作成中」を表示</td><td>A-51, A-52</td></tr>
       <tr><td>F-23 AI組織レポート生成</td><td>S-08でレポート生成を実行したとき</td><td>非同期ジョブ</td><td>A-48, A-49</td></tr>
+      <tr><td>F-27 AI教材作成アシスト</td><td colspan="3">廃止（v1.20）。5.28節参照</td></tr>
     </tbody>
   </table>
 
@@ -1421,7 +1528,7 @@ points: 15
   <h3>9.3 AI利用ログ（T-19 ai_usage_logs）の記録方式</h3>
   <p>Claude APIの呼び出しは、必ず共通クライアント（<code>ai_client.py</code>）を経由させる。<code>ai_client.py</code>は呼び出しの成否によらず、呼び出し完了時にT-19へ1行記録する。</p>
   <ul>
-    <li><strong><code>feature</code>:</strong> 呼び出し元機能を識別する固定値（<code>material_review</code> / <code>grading</code> / <code>insight_analysis</code> / <code>personal_feedback</code> / <code>org_report</code>）。</li>
+    <li><strong><code>feature</code>:</strong> 呼び出し元機能を識別する固定値（<code>material_review</code> / <code>grading</code> / <code>insight_analysis</code> / <code>personal_feedback</code> / <code>org_report</code><span class="rev-old"> / <code>draft_assist</code>（F-27、A-69。F-27はv1.20で廃止したため今後この値が記録されることはない）</span>）。</li>
     <li><strong><code>model</code>:</strong> 実際に呼び出されたモデルID（9.4節の優先順位で解決された値）。</li>
     <li><strong><code>input_tokens</code>・<code>output_tokens</code>:</strong> Messages APIのレスポンスに含まれるトークン数をそのまま記録する。</li>
     <li><strong><code>cost_estimate</code>:</strong> <code>input_tokens × 単価_in + output_tokens × 単価_out</code>で概算する。モデルごとの単価は<code>ai_client.py</code>内の定数テーブルとして保持し、Anthropicの価格改定時にはこの定数を更新する（本書では具体的な単価は定めない）。通貨は画面モックアップ（S-10）に合わせ円（JPY）で表示する。</li>
@@ -1446,9 +1553,10 @@ points: 15
     <tbody>
       <tr><td>F-08 教材AIレビュー</td><td>教材本文・問題定義（T-06, T-10）</td><td>作成者・編集者の氏名等の個人情報、他教材の内容</td></tr>
       <tr><td>F-20 AI記述式採点</td><td>回答内容（T-14 <code>response</code>。<span class="rev-new">コード記述式問題の場合は提出コード本文と言語ヒント<code>code_language</code>を含む</span>）、出題の模範解答・採点基準（T-10）</td><td>受講者の氏名・メールアドレス（プロンプトには<code>user_id</code>を含めず、採点結果の保存時にのみ紐づける）</td></tr>
-      <tr><td>F-21 AIつまずき分析</td><td>設問ごとの正答率・誤答傾向の集計値（複数受講者の回答を集計したもの）</td><td>個々の受講者を特定できる回答・氏名</td></tr>
+      <tr><td>F-21 AIつまずき分析</td><td>設問ごとの正答率・誤答傾向の集計値（複数受講者の回答を集計したもの）<span class="rev-new">。受験後アンケート設置時は評価点の平均・自由記述のテキスト群（T-28/T-29の集計）も含む（v1.17）</span></td><td>個々の受講者を特定できる回答・氏名<span class="rev-new">（アンケートも回答者を特定せず集計値・テキストのみを送信）</span></td></tr>
       <tr><td>F-22 AI個人フィードバック</td><td>対象者本人の回答傾向データ（正誤・分野別集計、T-12〜T-14の集計）</td><td>氏名・メールアドレス（宛先としての氏名表示はフロントエンド側で付与する）</td></tr>
       <tr><td>F-23 AI組織レポート</td><td>プロジェクト単位・全社単位の集計データ（受講率・合格率等）</td><td>個人が特定できる粒度のデータ（常に集計後の数値のみを送信する）</td></tr>
+      <tr><td>F-27 AI教材作成アシスト</td><td colspan="2">廃止（v1.20）。5.28節参照</td></tr>
     </tbody>
   </table>
 

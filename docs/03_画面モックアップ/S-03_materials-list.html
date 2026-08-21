@@ -5,6 +5,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>S-03 教材一覧・検索 | e-learning 画面モックアップ</title>
 <link rel="stylesheet" href="mock.css">
+<style>
+  .tag-pill {
+    display:inline-block; font-size:11.5px; font-weight:600; color: var(--accent-600);
+    background: var(--accent-100); border-radius:999px; padding:2px 8px; margin:1px 2px 1px 0;
+  }
+  .tag-filter-row { display:flex; flex-wrap:wrap; gap:6px; }
+  .tag-filter-chip {
+    font-size:11.5px; font-weight:600; color: var(--text-muted); background: var(--bg-subtle);
+    border:1px solid var(--border-strong); border-radius:999px; padding:4px 10px; cursor:pointer;
+  }
+  .tag-filter-chip:hover { border-color: var(--accent-600); color: var(--accent-600); }
+</style>
 </head>
 <body>
 
@@ -29,14 +41,21 @@
         <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></span>
         教材一覧・検索
       </a>
-      <a class="nav-item" href="S-05_material-edit.html">
+      <a class="nav-item" href="S-13_material-edit-project-select.html">
         <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></span>
         教材編集
       </a>
-      <div class="nav-note">※ 対象教材が紐づくプロジェクトの管理者・編集者権限を持つ教材（例:「AWS基礎メモ」）がある場合のみ表示</div>
       <a class="nav-item" href="S-09_my-report.html">
         <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
         個人学習レポート
+      </a>
+      <a class="nav-item" href="S-11_project-create.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></span>
+        プロジェクト作成
+      </a>
+      <a class="nav-item" href="S-12_project-management.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg></span>
+        プロジェクト管理
       </a>
     </nav>
     <div class="sidebar-user">
@@ -47,6 +66,10 @@
           <div class="user-mail">k.sato@kogasoftware.com</div>
         </div>
       </div>
+      <a class="sidebar-logout" href="S-15_profile-edit.html">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        プロフィール編集
+      </a>
       <a class="sidebar-logout" href="S-01_login.html">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         ログアウト
@@ -89,17 +112,7 @@
           <div class="search-grid">
             <div class="field">
               <label for="q">キーワード</label>
-              <input type="search" id="q" placeholder="教材名、単元名、コース名">
-            </div>
-            <div class="field">
-              <label>コース</label>
-              <select>
-                <option selected>すべて</option>
-                <option>新人研修2026</option>
-                <option>全社必修研修</option>
-                <option>エンジニア基礎</option>
-                <option>フロントエンド基礎</option>
-              </select>
+              <input type="search" id="q" placeholder="教材名、見出し名、#タグ">
             </div>
             <div class="field">
               <label>区分</label>
@@ -108,6 +121,17 @@
                 <option>必修のみ</option>
                 <option>任意のみ</option>
               </select>
+            </div>
+          </div>
+
+          <div class="field" style="margin-bottom:10px">
+            <label>タグで絞り込む</label>
+            <div class="tag-filter-row">
+              <button type="button" class="tag-filter-chip">#新人研修2026</button>
+              <button type="button" class="tag-filter-chip">#エンジニア基礎</button>
+              <button type="button" class="tag-filter-chip">#フロントエンド基礎</button>
+              <button type="button" class="tag-filter-chip">#Git</button>
+              <button type="button" class="tag-filter-chip">#セキュリティ</button>
             </div>
           </div>
 
@@ -127,7 +151,7 @@
       </details>
 
       <div class="table-notes">
-        ※ 一覧には公開済みの教材のみ表示されます。「プロジェクト」は教材の所属・編集権限の単位、「コース」は学習順序のまとまりで、独立した軸です。
+        ※ 一覧には公開済みの教材のみ表示されます。「プロジェクト」は教材の所属・編集権限の単位、「タグ」は教材に自由に付けられる分類（複数付与可）で、独立した軸です。
       </div>
 
       <!-- 教材テーブル -->
@@ -137,7 +161,7 @@
             <tr>
               <th>教材</th>
               <th>プロジェクト</th>
-              <th>コース</th>
+              <th>タグ</th>
               <th style="width:80px">区分</th>
               <th style="width:100px">所要時間</th>
               <th style="width:110px">更新日</th>
@@ -148,10 +172,10 @@
             <tr>
               <td>
                 <div class="cell-main">AI開発研修 基礎編 — Claude Codeの使い方</div>
-                <div class="cell-sub">単元5構成 ／ 単一選択・記述式 全8問</div>
+                <div class="cell-sub">全5章・14ページ ／ 単一選択・記述式 全8問</div>
               </td>
               <td><span class="chip">新人研修2026運営</span></td>
-              <td>新人研修2026</td>
+              <td><span class="tag-pill">#新人研修2026</span></td>
               <td><span class="badge badge-required">必修</span></td>
               <td class="num">約90分</td>
               <td>2026-08-10</td>
@@ -160,10 +184,10 @@
             <tr>
               <td>
                 <div class="cell-main">ビジネスマナー研修</div>
-                <div class="cell-sub">単元3構成 ／ 単一選択 全6問</div>
+                <div class="cell-sub">全3章・8ページ ／ 単一選択 全6問</div>
               </td>
               <td><span class="chip">新人研修2026運営</span></td>
-              <td>新人研修2026</td>
+              <td><span class="tag-pill">#新人研修2026</span></td>
               <td><span class="badge badge-required">必修</span></td>
               <td class="num">約40分</td>
               <td>2026-07-20</td>
@@ -172,10 +196,10 @@
             <tr>
               <td>
                 <div class="cell-main">情報セキュリティ研修 2026</div>
-                <div class="cell-sub">単元4構成 ／ 単一選択・複数選択 全10問</div>
+                <div class="cell-sub">全4章・11ページ ／ 単一選択・複数選択 全10問</div>
               </td>
               <td><span class="chip">情報セキュリティ委員会</span></td>
-              <td>全社必修研修</td>
+              <td><span class="tag-pill">#セキュリティ</span></td>
               <td><span class="badge badge-required">必修</span></td>
               <td class="num">約60分</td>
               <td>2026-08-01</td>
@@ -184,10 +208,10 @@
             <tr>
               <td>
                 <div class="cell-main">ハラスメント防止研修</div>
-                <div class="cell-sub">単元2構成 ／ 単一選択 全4問</div>
+                <div class="cell-sub">全2章・5ページ ／ 単一選択 全4問</div>
               </td>
               <td><span class="chip">情報セキュリティ委員会</span></td>
-              <td>全社必修研修</td>
+              <td><span class="tag-pill">#セキュリティ</span></td>
               <td><span class="badge badge-required">必修</span></td>
               <td class="num">約30分</td>
               <td>2026-06-15</td>
@@ -196,10 +220,10 @@
             <tr>
               <td>
                 <div class="cell-main">新人向けGit入門</div>
-                <div class="cell-sub">単元4構成 ／ 記述式 全5問 ／ 作成: 鈴木 美咲</div>
+                <div class="cell-sub">全4章・9ページ ／ 記述式 全5問 ／ 作成: 鈴木 美咲</div>
               </td>
               <td><span class="chip">LCC CRM刷新</span></td>
-              <td>エンジニア基礎</td>
+              <td><span class="tag-pill">#エンジニア基礎</span> <span class="tag-pill">#Git</span></td>
               <td><span class="badge badge-optional">任意</span></td>
               <td class="num">約45分</td>
               <td>2026-08-14</td>
@@ -208,10 +232,10 @@
             <tr>
               <td>
                 <div class="cell-main">データベース設計入門</div>
-                <div class="cell-sub">単元5構成 ／ 単一選択・記述式 全9問 ／ 作成: 鈴木 美咲</div>
+                <div class="cell-sub">全5章・13ページ ／ 単一選択・記述式 全9問 ／ 作成: 鈴木 美咲</div>
               </td>
               <td><span class="chip">LCC CRM刷新</span></td>
-              <td>エンジニア基礎</td>
+              <td><span class="tag-pill">#エンジニア基礎</span></td>
               <td><span class="badge badge-optional">任意</span></td>
               <td class="num">約70分</td>
               <td>2026-08-12</td>
@@ -220,10 +244,10 @@
             <tr>
               <td>
                 <div class="cell-main">TypeScript入門</div>
-                <div class="cell-sub">単元6構成 ／ 単一選択・記述式 全12問</div>
+                <div class="cell-sub">全6章・17ページ ／ 単一選択・記述式 全12問</div>
               </td>
               <td><span class="chip">e-learning新規構築</span></td>
-              <td>フロントエンド基礎</td>
+              <td><span class="tag-pill">#フロントエンド基礎</span></td>
               <td><span class="badge badge-optional">任意</span></td>
               <td class="num">約100分</td>
               <td>2026-08-05</td>
@@ -232,10 +256,10 @@
             <tr>
               <td>
                 <div class="cell-main">React入門</div>
-                <div class="cell-sub">単元5構成 ／ 単一選択 全8問</div>
+                <div class="cell-sub">全5章・12ページ ／ 単一選択 全8問</div>
               </td>
               <td><span class="chip">e-learning新規構築</span></td>
-              <td>フロントエンド基礎</td>
+              <td><span class="tag-pill">#フロントエンド基礎</span></td>
               <td><span class="badge badge-optional">任意</span></td>
               <td class="num">約80分</td>
               <td>2026-08-05</td>
@@ -244,10 +268,10 @@
             <tr>
               <td>
                 <div class="cell-main">Python基礎ハンズオン資料</div>
-                <div class="cell-sub">単元2構成 ／ 記述式・コード記述式 全5問 ／ 作成: 高橋 大輔</div>
+                <div class="cell-sub">全2章・6ページ ／ 記述式・コード記述式 全5問 ／ 作成: 高橋 大輔</div>
               </td>
               <td><span class="chip chip-proj">📌 全社公開</span></td>
-              <td>—</td>
+              <td><span class="tag-pill">#Python</span></td>
               <td><span class="badge badge-optional">任意</span></td>
               <td class="num">約30分</td>
               <td>2026-08-17</td>
