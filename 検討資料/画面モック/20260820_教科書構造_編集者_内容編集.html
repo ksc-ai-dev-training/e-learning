@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>【検討中】教材構造案 編集者4/4: ページ内容編集 | e-learning</title>
+<link rel="stylesheet" href="../../docs/03_画面モックアップ/mock.css">
+<style>
+  .page-breadcrumb { font-size:12px; color:var(--text-subtle); margin-bottom:14px; }
+  .page-breadcrumb a { color: var(--accent-600); text-decoration:none; }
+  .kind-toggle { display:flex; gap:8px; margin-bottom:16px; }
+  .kind-toggle label {
+    display:flex; align-items:center; gap:6px; padding:8px 14px;
+    border:1px solid var(--border-strong); border-radius:8px; font-size:12.5px; cursor:pointer;
+  }
+  .kind-toggle input:checked + span { font-weight:700; color: var(--accent-600); }
+</style>
+</head>
+<body>
+
+<div style="background:#fef3c7;border-bottom:1px solid #fbbf24;color:#78350f;font-size:12px;font-weight:600;text-align:center;padding:6px;">
+  【検討中】教材構造案（プロジェクト＝学年・教材の中に見出し/小見出し/ページの入れ子構造） ／ 既存のS-03/S-04/S-05とは独立した別案です
+</div>
+
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-mark">e</div>
+      <div>
+        <div class="brand-name">e-learning</div>
+        <div class="brand-sub">社内学習管理システム</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-label">メニュー</div>
+      <a class="nav-item" href="#">マイ学習</a>
+      <a class="nav-item" href="#">教材一覧・検索</a>
+      <a class="nav-item active" href="20260820_教科書構造_編集者_プロジェクト選択.html">教材編集</a>
+      <a class="nav-item" href="#">個人学習レポート</a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="sidebar-user-row">
+        <span class="avatar">鈴</span>
+        <div>
+          <div class="user-name">鈴木 美咲 <span class="badge badge-role role-member">member</span></div>
+          <div class="user-mail">m.suzuki@kogasoftware.com</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="page-header">
+      <div>
+        <div class="page-title-group">
+          <h1>ページ編集 — Javaとは？</h1>
+          <span class="screen-id">検討中 4/4</span>
+        </div>
+      </div>
+      <div class="header-actions">
+        <a class="btn btn-secondary" href="20260820_教科書構造_編集者_目次編集.html">← 目次に戻る</a>
+        <button class="btn btn-secondary" type="button">プレビュー</button>
+        <button class="btn btn-primary" type="button">保存</button>
+      </div>
+    </header>
+
+    <div class="page-body">
+
+      <div class="page-breadcrumb">
+        Java研修 ／ 第1章 Java入門 ／ <strong style="color:var(--text)">Javaとは？</strong>
+      </div>
+
+      <div class="field" style="max-width:420px">
+        <label>ページタイトル</label>
+        <input type="text" value="Javaとは？">
+      </div>
+
+      <div class="field">
+        <label>このページの構成</label>
+        <div class="kind-toggle">
+          <label><input type="checkbox" checked> <span>説明文を含める</span></label>
+          <label><input type="checkbox"> <span>問題を含める</span></label>
+        </div>
+        <span class="field-help">作成者の判断で自由に組み合わせられる。説明文だけの「読み物ページ」、問題だけの「演習ページ」、両方を含む「説明＋確認問題」のいずれも作れる。少なくともどちらか一方は必須。</span>
+      </div>
+
+      <section class="panel">
+        <div class="panel-header">
+          <div class="panel-title">説明文</div>
+        </div>
+        <div class="panel-body">
+          <div class="field">
+            <label>記述形式</label>
+            <div class="segmented">
+              <button type="button" class="active">Markdown</button>
+              <button type="button">HTML</button>
+            </div>
+          </div>
+          <div class="editor-split">
+            <div class="editor-pane">
+              <div class="preview-label">本文（Markdown）</div>
+              <textarea>Javaは、1995年にSun Microsystems（現Oracle）が発表したプログラミング言語です。「一度書けば、どこでも動く（Write Once, Run Anywhere）」を掲げ、OSに依存しない実行環境（JVM）上で動作することが特徴です。
+
+## 主な特徴
+
+- オブジェクト指向言語である
+- JVM上で動作するため、Windows・Mac・Linuxで同じコードが動く
+- 大規模な業務システムからAndroidアプリまで幅広く使われている
+
+## 簡単なサンプルコード
+
+```
+public class Hello {
+    public static void main(String[] args) {
+        System.out.println("Hello, Java!");
+    }
+}
+```</textarea>
+            </div>
+            <div class="preview-pane">
+              <div class="preview-label">プレビュー</div>
+              <p>Javaは、1995年にSun Microsystems（現Oracle）が発表したプログラミング言語です。「一度書けば、どこでも動く（Write Once, Run Anywhere）」を掲げ、OSに依存しない実行環境（JVM）上で動作することが特徴です。</p>
+              <h3>主な特徴</h3>
+              <ul style="margin:0 0 10px 18px;color:var(--text-muted);font-size:13px">
+                <li>オブジェクト指向言語である</li>
+                <li>JVM上で動作するため、Windows・Mac・Linuxで同じコードが動く</li>
+                <li>大規模な業務システムからAndroidアプリまで幅広く使われている</li>
+              </ul>
+              <h3>簡単なサンプルコード</h3>
+              <pre style="background:#1e2530;color:#dce3ec;border-radius:6px;padding:10px 12px;font-size:12px">public class Hello {
+    public static void main(String[] args) {
+        System.out.println("Hello, Java!");
+    }
+}</pre>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" style="opacity:0.55">
+        <div class="panel-header">
+          <div class="panel-title">問題（このページでは未使用）</div>
+        </div>
+        <div class="panel-body">
+          <p style="font-size:12px;color:var(--text-subtle);margin:0 0 8px">「問題を含める」にチェックすると、S-05と同じ設問編集フォーム（種別・配点・選択肢・採点基準）がここに展開されます。</p>
+          <button class="add-row-btn" type="button" disabled>+ 設問を追加</button>
+        </div>
+      </section>
+
+      <div class="form-actions">
+        <button class="btn btn-primary" type="button">このページを保存</button>
+        <span class="actions-note">保存すると目次編集画面（3/4）に戻ります</span>
+      </div>
+
+      <div class="table-notes" style="margin-top:16px">
+        ※ 参考として、「演習問題」ページ（問題のみ）を開いた場合は上の「説明文」パネルが非表示になり、「問題」パネルだけが編集可能な状態で表示されます。「クラスとインスタンス」ページ（説明＋問題）の場合は両方のパネルが編集可能になります。
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="mock-note">検討中の改善案（教材構造・編集者側 4/4: ページ内容編集）</div>
+
+</body>
+</html>

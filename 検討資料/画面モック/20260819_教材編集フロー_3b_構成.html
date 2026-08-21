@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>【検討中】教材編集フロー 3b/5: 構成（単元選択） | e-learning</title>
+<link rel="stylesheet" href="../../docs/03_画面モックアップ/mock.css">
+<style>
+  .flow-nav { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+  .flow-nav .fn-step { font-size: 11px; padding: 3px 9px; border-radius: 999px; background: var(--bg-muted); color: var(--text-subtle); }
+  .flow-nav .fn-step.current { background: var(--accent-600); color: #fff; font-weight: 600; }
+  .breadcrumb-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; font-size: 12.5px; color: var(--text-muted); }
+  .breadcrumb-bar a { color: var(--accent-600); text-decoration: none; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div style="background:#fef3c7;border-bottom:1px solid #fbbf24;color:#78350f;font-size:12px;font-weight:600;text-align:center;padding:6px;">
+  【検討中】教材編集フロー（クリックして遷移を確認できます） ／ 正式版ではありません
+</div>
+
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-mark">e</div>
+      <div>
+        <div class="brand-name">e-learning</div>
+        <div class="brand-sub">社内学習管理システム</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-label">メニュー</div>
+      <a class="nav-item" href="#">マイ学習</a>
+      <a class="nav-item" href="#">教材一覧・検索</a>
+      <a class="nav-item active" href="20260819_教材編集フロー_1_プロジェクト選択.html">教材編集</a>
+      <a class="nav-item" href="#">個人学習レポート</a>
+      <a class="nav-item" href="#">プロジェクト作成</a>
+      <a class="nav-item" href="#">プロジェクト管理</a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="sidebar-user-row">
+        <span class="avatar">鈴</span>
+        <div>
+          <div class="user-name">鈴木 美咲 <span class="badge badge-role role-member">member</span></div>
+          <div class="user-mail">m.suzuki@kogasoftware.com</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="page-header">
+      <div class="page-title-group">
+        <h1>教材編集 — 新人向けGit入門</h1>
+        <span class="badge badge-status-on">公開中</span>
+        <span class="screen-id">検討中 3b/5</span>
+      </div>
+    </header>
+
+    <div class="page-body">
+
+      <div class="flow-nav">
+        <a class="fn-step" href="20260819_教材編集フロー_1_プロジェクト選択.html">1. プロジェクト選択</a>
+        <a class="fn-step" href="20260819_教材編集フロー_2_教材一覧.html">2. 教材一覧</a>
+        <span class="fn-step current">3b. 構成</span>
+        <span class="fn-step">4. 本文編集</span>
+      </div>
+
+      <div class="breadcrumb-bar">
+        <a href="20260819_教材編集フロー_2_教材一覧.html">← 教材一覧（LCC CRM刷新）に戻る</a>
+        <span>／</span>
+        <span>新人向けGit入門</span>
+      </div>
+
+      <div class="tabs" role="tablist">
+        <button class="tab active" type="button">構成（単元/コース）</button>
+        <button class="tab" type="button">問題編集</button>
+        <button class="tab" type="button">ファイル・リンク</button>
+        <button class="tab" type="button">プロジェクトメンバー</button>
+        <button class="tab" type="button">AIレビュー結果</button>
+        <button class="tab" type="button">改訂履歴</button>
+      </div>
+
+      <div class="tab-panel active">
+        <div class="field-row">
+          <div class="field">
+            <label>所属プロジェクト</label>
+            <select>
+              <option selected>LCC CRM刷新</option>
+              <option>📌 全社公開</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>所属コース</label>
+            <select>
+              <option selected>エンジニア基礎</option>
+              <option>新人研修2026</option>
+              <option style="font-weight:600;color:#2563eb">+ 新しいコースを作成...</option>
+            </select>
+          </div>
+        </div>
+
+        <section class="panel">
+          <div class="panel-header">
+            <div class="panel-title">単元構成</div>
+            <span class="panel-count">4単元 ／ クリックして本文を編集</span>
+          </div>
+          <div class="panel-body">
+            <div class="qual-row">
+              <span style="flex:1;font-size:13px">単元1: Gitの基本概念とセットアップ</span>
+              <a class="btn btn-primary btn-sm" href="20260819_教材編集フロー_4_本文編集.html">本文を編集</a>
+            </div>
+            <div class="qual-row">
+              <span style="flex:1;font-size:13px">単元2: ブランチとプルリクエストの基本</span>
+              <a class="btn btn-primary btn-sm" href="20260819_教材編集フロー_4_本文編集.html">本文を編集</a>
+            </div>
+            <div class="qual-row">
+              <span style="flex:1;font-size:13px">単元3: コンフリクトの解消</span>
+              <a class="btn btn-primary btn-sm" href="20260819_教材編集フロー_4_本文編集.html">本文を編集</a>
+            </div>
+            <div class="qual-row">
+              <span style="flex:1;font-size:13px">単元4: よく使うコマンドまとめ</span>
+              <a class="btn btn-primary btn-sm" href="20260819_教材編集フロー_4_本文編集.html">本文を編集</a>
+            </div>
+            <a class="add-row-btn" href="20260819_教材編集フロー_4_本文編集.html" style="margin-top:4px">+ 単元を追加</a>
+          </div>
+        </section>
+        <p class="tab-note">どの単元の「本文を編集」を押しても、次の画面（4/5）に遷移する。実際の画面ではその単元の本文が表示されるが、この検討案では単元1の内容を例として1画面だけ用意している。</p>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="mock-note">検討中の改善案（教材編集フロー 3b/5: 構成・単元選択）</div>
+
+</body>
+</html>

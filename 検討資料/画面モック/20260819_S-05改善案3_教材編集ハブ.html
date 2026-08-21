@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>【検討中】S-05改善案3: 教材編集ハブ（単元カード起点） | e-learning</title>
+<link rel="stylesheet" href="../../docs/03_画面モックアップ/mock.css">
+<style>
+  .hub-section { margin-bottom: 26px; }
+  .hub-section-title { font-size: 13px; font-weight: 700; margin-bottom: 10px; color: var(--text); }
+  .unit-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .unit-card {
+    border: 1px solid var(--border-strong); border-radius: 10px; background: #fff;
+    padding: 14px 16px; display: flex; flex-direction: column; gap: 8px;
+  }
+  .unit-card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  .unit-card-title { font-size: 13.5px; font-weight: 600; }
+  .unit-card-desc { font-size: 12px; color: var(--text-muted); line-height: 1.6; flex: 1; }
+  .unit-card-meta { display: flex; gap: 10px; font-size: 11px; color: var(--text-subtle); }
+  .unit-card-meta .warn { color: #b45309; font-weight: 600; }
+  .unit-card-actions { display: flex; gap: 6px; margin-top: 4px; }
+  .quick-cards { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+  .quick-card {
+    border: 1px solid var(--border-strong); border-radius: 10px; background: #fff;
+    padding: 12px; text-align: center; font-size: 12px; color: var(--text-muted);
+    text-decoration: none; display: flex; flex-direction: column; align-items: center; gap: 6px;
+  }
+  .quick-card:hover { border-color: var(--accent-600); color: var(--accent-600); }
+  .quick-card .qc-icon { width: 20px; height: 20px; }
+  .breadcrumb-bar {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 14px;
+    font-size: 12.5px; color: var(--text-muted);
+  }
+  .breadcrumb-bar a { color: var(--accent-600); text-decoration: none; font-weight: 600; }
+  .breadcrumb-bar .current-unit { font-weight: 700; color: var(--text); }
+</style>
+</head>
+<body>
+
+<div style="background:#fef3c7;border-bottom:1px solid #fbbf24;color:#78350f;font-size:12px;font-weight:600;text-align:center;padding:6px;">
+  【検討中】案3: 教材編集ハブ。単元カード一覧が起点で、教材全体の設定は別カードとして分離 ／ 正式版ではありません
+</div>
+
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-mark">e</div>
+      <div>
+        <div class="brand-name">e-learning</div>
+        <div class="brand-sub">社内学習管理システム</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-label">メニュー</div>
+      <a class="nav-item" href="#">マイ学習</a>
+      <a class="nav-item" href="#">教材一覧・検索</a>
+      <a class="nav-item active" href="#">教材編集</a>
+      <a class="nav-item" href="#">個人学習レポート</a>
+      <a class="nav-item" href="#">プロジェクト作成</a>
+      <a class="nav-item" href="#">プロジェクト管理</a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="sidebar-user-row">
+        <span class="avatar">鈴</span>
+        <div>
+          <div class="user-name">鈴木 美咲 <span class="badge badge-role role-member">member</span></div>
+          <div class="user-mail">m.suzuki@kogasoftware.com</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="page-header">
+      <div>
+        <div class="page-title-group">
+          <h1>教材編集 — 新人向けGit入門</h1>
+          <span class="badge badge-status-off">下書き修正中</span>
+          <span class="screen-id">検討中</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:4px;font-size:12px;color:var(--text-subtle);flex-wrap:wrap">
+          所属プロジェクト: <a href="#">LCC CRM刷新</a>
+          ／ 所属コース: エンジニア基礎
+          ／ あなたのロール: <span class="badge badge-projrole projrole-editor">編集者</span>
+        </div>
+      </div>
+      <div class="header-actions">
+        <a class="btn btn-secondary" href="#">← 教材編集の一覧に戻る</a>
+        <button class="btn btn-primary" type="button">公開する</button>
+      </div>
+    </header>
+
+    <div class="page-body">
+
+      <div class="callout" style="margin-bottom:14px">
+        <strong>案3のポイント:</strong> 「タブを7つ並べて中身は混在」という今の構造をやめ、まず単元カードが並ぶ「ハブ」画面に着地する。単元カードの「編集する」を押すと、その単元専用のフォーカスした編集画面（下部の画面2枚目）に入る。「問題編集」「ファイル・リンク」等、単元に紐づかない教材全体の設定は、下部の「教材全体の設定」カード群として明確に分離した。
+      </div>
+
+      <div class="hub-section">
+        <div class="hub-section-title">単元（クリックして本文を編集）</div>
+        <div class="unit-cards">
+          <div class="unit-card">
+            <div class="unit-card-head">
+              <span class="unit-card-title">単元1: Gitの基本概念とセットアップ</span>
+            </div>
+            <div class="unit-card-desc">バージョン管理の考え方と、ローカル環境でのGitセットアップを学びます</div>
+            <div class="unit-card-meta"><span>設問2問</span><span>更新: 2026-07-05</span></div>
+            <div class="unit-card-actions">
+              <a class="btn btn-primary btn-sm" href="#unit-editor">本文を編集</a>
+              <button class="icon-btn" type="button" title="上へ">↑</button>
+              <button class="icon-btn" type="button" title="下へ">↓</button>
+            </div>
+          </div>
+          <div class="unit-card">
+            <div class="unit-card-head">
+              <span class="unit-card-title">単元2: ブランチとプルリクエストの基本</span>
+            </div>
+            <div class="unit-card-desc">作業ブランチの作成からプルリクエスト作成までの一連の流れを学びます</div>
+            <div class="unit-card-meta"><span>設問2問</span><span>更新: 2026-08-16</span></div>
+            <div class="unit-card-actions">
+              <a class="btn btn-primary btn-sm" href="#unit-editor">本文を編集</a>
+              <button class="icon-btn" type="button" title="上へ">↑</button>
+              <button class="icon-btn" type="button" title="下へ">↓</button>
+            </div>
+          </div>
+          <div class="unit-card">
+            <div class="unit-card-head">
+              <span class="unit-card-title">単元3: コンフリクトの解消</span>
+            </div>
+            <div class="unit-card-desc">複数人での作業時に発生するコンフリクトの原因と解消手順を学びます</div>
+            <div class="unit-card-meta"><span class="warn">設問0問（要対応）</span><span>更新: 2026-07-05</span></div>
+            <div class="unit-card-actions">
+              <a class="btn btn-primary btn-sm" href="#unit-editor">本文を編集</a>
+              <button class="icon-btn" type="button" title="上へ">↑</button>
+              <button class="icon-btn" type="button" title="下へ">↓</button>
+            </div>
+          </div>
+          <div class="unit-card" style="align-items:center;justify-content:center;border-style:dashed;color:var(--text-subtle)">
+            <button class="add-row-btn" type="button">+ 単元を追加</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="hub-section">
+        <div class="hub-section-title">教材全体の設定（単元に紐づかない項目）</div>
+        <div class="quick-cards">
+          <a class="quick-card" href="#">
+            <svg class="qc-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+            合否判定・再受験設定
+          </a>
+          <a class="quick-card" href="#">
+            <svg class="qc-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            ファイル・リンク（3件）
+          </a>
+          <a class="quick-card" href="#">
+            <svg class="qc-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            プロジェクトメンバー（4名）
+          </a>
+          <a class="quick-card" href="#">
+            <svg class="qc-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+            AIレビュー結果（指摘2件）
+          </a>
+          <a class="quick-card" href="#">
+            <svg class="qc-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            改訂履歴
+          </a>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- 画面2枚目: 単元1「本文を編集」を押した後のフォーカス編集画面 -->
+    <!-- ============================================================ -->
+    <div class="page-body" id="unit-editor" style="border-top:8px solid var(--bg-subtle);margin-top:8px;padding-top:24px">
+      <div class="callout" style="margin-bottom:14px;border-color:#bfdbfe;background:#eff6ff">
+        ↓ ここから単元カード「単元1」の「本文を編集」を押した後の画面。他の単元・教材全体設定のタブは表示せず、この単元の編集に集中できる画面構成にする。
+      </div>
+
+      <div class="breadcrumb-bar">
+        <a href="#">← 教材編集ハブに戻る</a>
+        <span>／</span>
+        <span>編集中の単元: <span class="current-unit">単元1: Gitの基本概念とセットアップ</span></span>
+        <span>／</span>
+        <a href="#">次の単元へ（単元2）→</a>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label>単元タイトル</label>
+          <input type="text" value="単元1: Gitの基本概念とセットアップ">
+        </div>
+        <div class="field">
+          <label>概要（一覧表示用）</label>
+          <input type="text" value="バージョン管理の考え方と、ローカル環境でのGitセットアップを学びます">
+        </div>
+      </div>
+
+      <div class="field">
+        <label>記述形式</label>
+        <div class="segmented">
+          <button type="button" class="active">Markdown</button>
+          <button type="button">HTML</button>
+        </div>
+      </div>
+
+      <div class="editor-split">
+        <div class="editor-pane">
+          <div class="preview-label">本文（Markdown）</div>
+          <textarea>## Gitとは
+
+複数人での開発において、変更履歴を管理するための分散型バージョン管理システムです。
+
+## セットアップ
+
+```
+git config --global user.name "あなたの名前"
+git config --global user.email "you@example.com"
+```</textarea>
+        </div>
+        <div class="preview-pane">
+          <div class="preview-label">プレビュー</div>
+          <h3>Gitとは</h3>
+          <p>複数人での開発において、変更履歴を管理するための分散型バージョン管理システムです。</p>
+          <h3>セットアップ</h3>
+          <pre style="background:#1e2530;color:#dce3ec;border-radius:6px;padding:10px 12px;font-size:12px">git config --global user.name "あなたの名前"
+git config --global user.email "you@example.com"</pre>
+        </div>
+      </div>
+
+      <section class="panel" style="margin-top:16px">
+        <div class="panel-header">
+          <div class="panel-title">この単元の設問（2問）</div>
+          <span class="panel-count">単元専用の問題編集もこの画面内で完結</span>
+        </div>
+        <div class="panel-body">
+          <div class="edit-card">
+            <div class="edit-card-head">
+              <span class="edit-card-title">設問1</span>
+              <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
+            </div>
+            <div class="field">
+              <label>設問文</label>
+              <textarea rows="2">Gitを初めて使う端末で最初に行う設定コマンドはどれか。</textarea>
+            </div>
+          </div>
+          <button class="add-row-btn" type="button">+ この単元に設問を追加</button>
+        </div>
+      </section>
+
+      <div class="form-actions">
+        <button class="btn btn-primary" type="button">本文を保存</button>
+        <span class="actions-note">問題編集もこの単元専用画面に統合し、「どの単元の問題を今編集しているか」が常に明確になるようにした</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="mock-note">検討中の改善案3（教材編集ハブ）／ 1ファイル内に「ハブ」と「単元フォーカス編集（遷移後）」の2状態を続けて掲載</div>
+
+</body>
+</html>

@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>【検討中】教材構造案 受講者1/3: 教材一覧 | e-learning</title>
+<link rel="stylesheet" href="../../docs/03_画面モックアップ/mock.css">
+<style>
+  .book-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 4px; }
+  .book-card {
+    display: flex; flex-direction: column; gap: 10px;
+    border: 1px solid var(--border-strong); border-radius: 10px; background: #fff;
+    padding: 18px; text-decoration: none; color: inherit;
+  }
+  .book-card:hover { border-color: var(--accent-600); box-shadow: var(--shadow-sm); }
+  .book-cover {
+    height: 64px; border-radius: 8px; display: flex; align-items: center; justify-content: center;
+    font-size: 22px; font-weight: 700; color: #fff;
+  }
+  .book-title { font-size: 14px; font-weight: 700; }
+  .book-meta { font-size: 11.5px; color: var(--text-subtle); }
+  .book-progress-track { height: 6px; border-radius: 3px; background: var(--bg-muted); overflow: hidden; }
+  .book-progress-fill { height: 100%; background: var(--accent-600); }
+  .flow-step { display:flex; gap:6px; margin-bottom:16px; }
+  .flow-step span { font-size: 11px; padding: 3px 9px; border-radius: 999px; background: var(--bg-muted); color: var(--text-subtle); }
+  .flow-step span.current { background: var(--accent-600); color: #fff; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div style="background:#fef3c7;border-bottom:1px solid #fbbf24;color:#78350f;font-size:12px;font-weight:600;text-align:center;padding:6px;">
+  【検討中】教材構造案（プロジェクト＝学年・教材の中に見出し/小見出し/ページの入れ子構造） ／ 既存のS-03/S-04/S-05とは独立した別案です
+</div>
+
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-mark">e</div>
+      <div>
+        <div class="brand-name">e-learning</div>
+        <div class="brand-sub">社内学習管理システム</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-label">メニュー</div>
+      <a class="nav-item" href="#">マイ学習</a>
+      <a class="nav-item active" href="20260820_教科書構造_受講者_教材一覧.html">教材一覧・検索</a>
+      <a class="nav-item" href="#">教材編集</a>
+      <a class="nav-item" href="#">個人学習レポート</a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="sidebar-user-row">
+        <span class="avatar">佐</span>
+        <div>
+          <div class="user-name">佐藤 健一 <span class="badge badge-role role-member">member</span></div>
+          <div class="user-mail">k.sato@kogasoftware.com</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="page-header">
+      <div class="page-title-group">
+        <h1>教材一覧 — 新人研修2027</h1>
+        <span class="screen-id">検討中 1/3</span>
+      </div>
+    </header>
+
+    <div class="page-body">
+
+      <div class="flow-step">
+        <span class="current">1. 教材を選ぶ</span>
+        <span>2. 目次（見出し・小見出し）を選ぶ</span>
+        <span>3. ページの中身を学ぶ</span>
+      </div>
+
+      <div class="callout" style="margin-bottom:16px">
+        <strong>この案のポイント:</strong> 「プロジェクト」を学年・クラスに見立てる。1プロジェクトの中に複数の教材が並び、1冊の教材の中に見出し・小見出しという章立てがあり、その末端のページに実際の説明文・問題が置かれる、という入れ子構造。プロジェクト＝新人研修2027の中に5冊の教材が並んでいる状態を例示。
+      </div>
+
+      <div class="proj-tabs" role="tablist" aria-label="所属プロジェクトの切替" style="margin-bottom:20px">
+        <button class="proj-tab active" type="button">新人研修2027</button>
+        <button class="proj-tab pinned" type="button">📌 全社公開</button>
+        <button class="proj-tab" type="button">LCC CRM刷新</button>
+      </div>
+
+      <div class="book-grid">
+        <a class="book-card" href="#">
+          <div class="book-cover" style="background:#334155">Git</div>
+          <div>
+            <div class="book-title">Git研修</div>
+            <div class="book-meta">見出し3・ページ9 ／ 未着手</div>
+          </div>
+          <div class="book-progress-track"><div class="book-progress-fill" style="width:0%"></div></div>
+        </a>
+        <a class="book-card" href="20260820_教科書構造_受講者_目次.html">
+          <div class="book-cover" style="background:#b45309">Java</div>
+          <div>
+            <div class="book-title">Java研修</div>
+            <div class="book-meta">見出し3・小見出し2・ページ12 ／ 進行中</div>
+          </div>
+          <div class="book-progress-track"><div class="book-progress-fill" style="width:35%"></div></div>
+        </a>
+        <a class="book-card" href="#">
+          <div class="book-cover" style="background:#15803d">Web</div>
+          <div>
+            <div class="book-title">WEBアプリ研修</div>
+            <div class="book-meta">見出し4・ページ14 ／ 未着手</div>
+          </div>
+          <div class="book-progress-track"><div class="book-progress-fill" style="width:0%"></div></div>
+        </a>
+        <a class="book-card" href="#">
+          <div class="book-cover" style="background:#7c3aed">AWS</div>
+          <div>
+            <div class="book-title">AWS研修</div>
+            <div class="book-meta">見出し3・ページ8 ／ 未着手</div>
+          </div>
+          <div class="book-progress-track"><div class="book-progress-fill" style="width:0%"></div></div>
+        </a>
+        <a class="book-card" href="#">
+          <div class="book-cover" style="background:#0e7490">AI</div>
+          <div>
+            <div class="book-title">AI開発研修</div>
+            <div class="book-meta">見出し5・ページ18 ／ 完了</div>
+          </div>
+          <div class="book-progress-track"><div class="book-progress-fill" style="width:100%"></div></div>
+        </a>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="mock-note">検討中の改善案（教材構造・受講者側 1/3: 教材一覧）</div>
+
+</body>
+</html>

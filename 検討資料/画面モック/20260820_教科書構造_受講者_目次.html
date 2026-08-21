@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>【検討中】教材構造案 受講者2/3: 目次 | e-learning</title>
+<link rel="stylesheet" href="../../docs/03_画面モックアップ/mock.css">
+<style>
+  .flow-step { display:flex; gap:6px; margin-bottom:16px; }
+  .flow-step span { font-size: 11px; padding: 3px 9px; border-radius: 999px; background: var(--bg-muted); color: var(--text-subtle); }
+  .flow-step span.current { background: var(--accent-600); color: #fff; font-weight: 600; }
+  .toc-book-header { display:flex; align-items:center; gap:14px; margin-bottom:20px; }
+  .toc-book-cover { width:56px; height:56px; border-radius:8px; background:#b45309; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:18px; flex-shrink:0; }
+  .toc-chapter { margin-bottom: 4px; }
+  .toc-chapter-head {
+    display:flex; align-items:center; gap:10px; padding:10px 14px;
+    background: var(--bg-subtle); border:1px solid var(--border); border-radius:8px;
+    font-size:13.5px; font-weight:700; margin-bottom:2px;
+  }
+  .toc-chapter-num { color: var(--accent-600); }
+  .toc-chapter-meta { margin-left:auto; font-size:11px; font-weight:400; color:var(--text-subtle); }
+  .toc-section { margin: 6px 0 6px 20px; }
+  .toc-section-head { font-size:12.5px; font-weight:600; color:var(--text-muted); padding:4px 0 4px 10px; border-left:2px solid var(--border-strong); }
+  .toc-page-list { list-style:none; margin:0; padding:0; }
+  .toc-page {
+    display:flex; align-items:center; gap:10px;
+    padding:8px 12px 8px 30px; border-radius:6px; text-decoration:none; color: var(--text);
+    font-size:12.5px;
+  }
+  .toc-page:hover { background: var(--bg-subtle); }
+  .toc-page .toc-page-icon { width:14px; height:14px; flex-shrink:0; color: var(--text-subtle); }
+  .toc-page.done .toc-page-icon { color:#15803d; }
+  .toc-page-kind { margin-left:auto; font-size:10.5px; color:var(--text-subtle); }
+</style>
+</head>
+<body>
+
+<div style="background:#fef3c7;border-bottom:1px solid #fbbf24;color:#78350f;font-size:12px;font-weight:600;text-align:center;padding:6px;">
+  【検討中】教材構造案（プロジェクト＝学年・教材の中に見出し/小見出し/ページの入れ子構造） ／ 既存のS-03/S-04/S-05とは独立した別案です
+</div>
+
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-mark">e</div>
+      <div>
+        <div class="brand-name">e-learning</div>
+        <div class="brand-sub">社内学習管理システム</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-label">メニュー</div>
+      <a class="nav-item" href="#">マイ学習</a>
+      <a class="nav-item active" href="20260820_教科書構造_受講者_教材一覧.html">教材一覧・検索</a>
+      <a class="nav-item" href="#">教材編集</a>
+      <a class="nav-item" href="#">個人学習レポート</a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="sidebar-user-row">
+        <span class="avatar">佐</span>
+        <div>
+          <div class="user-name">佐藤 健一 <span class="badge badge-role role-member">member</span></div>
+          <div class="user-mail">k.sato@kogasoftware.com</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="page-header">
+      <div class="page-title-group">
+        <h1>Java研修</h1>
+        <span class="screen-id">検討中 2/3</span>
+      </div>
+    </header>
+
+    <div class="page-body">
+
+      <div class="flow-step">
+        <a class="fn-step" href="20260820_教科書構造_受講者_教材一覧.html" style="text-decoration:none"><span>1. 教材一覧に戻る</span></a>
+        <span class="current">2. 目次（見出し・小見出し）を選ぶ</span>
+        <span>3. ページの中身を学ぶ</span>
+      </div>
+
+      <div class="toc-book-header">
+        <div class="toc-book-cover">Java</div>
+        <div>
+          <div style="font-size:15px;font-weight:700">Java研修</div>
+          <div style="font-size:12px;color:var(--text-subtle)">プロジェクト: 新人研修2027 ／ 見出し3・小見出し2・ページ12 ／ 進捗 35%（4/12ページ完了）</div>
+        </div>
+      </div>
+
+      <!-- 見出し1: Java入門（小見出しなし・直下にページ） -->
+      <div class="toc-chapter">
+        <div class="toc-chapter-head">
+          <span class="toc-chapter-num">第1章</span> Java入門
+          <span class="toc-chapter-meta">3ページ ／ 完了</span>
+        </div>
+        <ul class="toc-page-list">
+          <li>
+            <a class="toc-page done" href="20260820_教科書構造_受講者_コンテンツ.html">
+              <svg class="toc-page-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+              Javaとは？
+              <span class="toc-page-kind">説明</span>
+            </a>
+          </li>
+          <li>
+            <a class="toc-page done" href="#">
+              <svg class="toc-page-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+              開発環境のセットアップ
+              <span class="toc-page-kind">説明</span>
+            </a>
+          </li>
+          <li>
+            <a class="toc-page done" href="#">
+              <svg class="toc-page-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+              演習問題
+              <span class="toc-page-kind">問題×3</span>
+            </a>
+          </li>
+        </ul>
+      </div>
+
+      <!-- 見出し2: Java基本（小見出しあり） -->
+      <div class="toc-chapter">
+        <div class="toc-chapter-head">
+          <span class="toc-chapter-num">第2章</span> Java基本
+          <span class="toc-chapter-meta">2節・6ページ ／ 進行中</span>
+        </div>
+
+        <div class="toc-section">
+          <div class="toc-section-head">2.1 変数と型</div>
+          <ul class="toc-page-list">
+            <li>
+              <a class="toc-page done" href="#">
+                <svg class="toc-page-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                変数の宣言と型の説明
+                <span class="toc-page-kind">説明</span>
+              </a>
+            </li>
+            <li>
+              <a class="toc-page" href="#">
+                <svg class="toc-page-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/></svg>
+                演習問題
+                <span class="toc-page-kind">問題×2</span>
+              </a>
+            </li>
+          </ul>
+        </div>
+
+        <div class="toc-section">
+          <div class="toc-section-head">2.2 制御構文</div>
+          <ul class="toc-page-list">
+            <li>
+              <a class="toc-page" href="#">
+                <svg class="toc-page-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/></svg>
+                if文・for文の説明
+                <span class="toc-page-kind">説明</span>
+              </a>
+            </li>
+            <li>
+              <a class="toc-page" href="#">
+                <svg class="toc-page-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/></svg>
+                演習問題
+                <span class="toc-page-kind">問題×4</span>
+              </a>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- 見出し3: Javaオブジェクト指向（説明と問題が1ページに複合） -->
+      <div class="toc-chapter">
+        <div class="toc-chapter-head">
+          <span class="toc-chapter-num">第3章</span> Javaオブジェクト指向
+          <span class="toc-chapter-meta">3ページ ／ 未着手</span>
+        </div>
+        <ul class="toc-page-list">
+          <li>
+            <a class="toc-page" href="#">
+              <svg class="toc-page-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/></svg>
+              クラスとインスタンス
+              <span class="toc-page-kind">説明＋問題×2</span>
+            </a>
+          </li>
+          <li>
+            <a class="toc-page" href="#">
+              <svg class="toc-page-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/></svg>
+              継承とポリモーフィズム
+              <span class="toc-page-kind">説明＋問題×3</span>
+            </a>
+          </li>
+          <li>
+            <a class="toc-page" href="#">
+              <svg class="toc-page-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/></svg>
+              総合演習
+              <span class="toc-page-kind">問題×5</span>
+            </a>
+          </li>
+        </ul>
+      </div>
+
+      <div class="table-notes" style="margin-top:12px">
+        ※ 「見出し」（第1〜3章）は教材の中の大分類、「小見出し」（2.1・2.2）は任意でさらに一段細かく分ける場合に使う。ページ（一番下の項目）が実際に受講者が学ぶ単位で、作成者の判断により「説明のみ」「問題のみ」「説明＋問題」のいずれにもなる。小見出しを使うかどうかは見出しごとに自由（第1章・第3章は使わず直接ページを並べている）。
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="mock-note">検討中の改善案（教材構造・受講者側 2/3: 目次）</div>
+
+</body>
+</html>

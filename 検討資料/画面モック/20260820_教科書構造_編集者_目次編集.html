@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>【検討中】教材構造案 編集者3/4: 目次編集 | e-learning</title>
+<link rel="stylesheet" href="../../docs/03_画面モックアップ/mock.css">
+<style>
+  .toc-edit-chapter { border:1px solid var(--border-strong); border-radius:8px; margin-bottom:10px; background:#fff; }
+  .toc-edit-chapter-head {
+    display:flex; align-items:center; gap:8px; padding:10px 12px;
+    background: var(--bg-subtle); border-radius:8px 8px 0 0; border-bottom:1px solid var(--border);
+  }
+  .toc-edit-chapter-head input { flex:1; border:none; background:transparent; font-size:13.5px; font-weight:700; padding:4px 6px; }
+  .toc-edit-chapter-head input:focus { outline:1px solid var(--accent-600); border-radius:4px; background:#fff; }
+  .toc-edit-body { padding:10px 12px; }
+  .toc-edit-section { border:1px dashed var(--border-strong); border-radius:6px; margin: 8px 0 8px 20px; padding:8px 10px; }
+  .toc-edit-section-head { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+  .toc-edit-section-head input { flex:1; border:none; background:transparent; font-size:12.5px; font-weight:600; color:var(--text-muted); padding:3px 6px; }
+  .toc-edit-section-head input:focus { outline:1px solid var(--accent-600); border-radius:4px; background:#fff; }
+  .toc-edit-page-row {
+    display:flex; align-items:center; gap:8px; padding:6px 8px; margin: 4px 0 4px 20px;
+    border-radius:6px; background: var(--bg-subtle);
+  }
+  .toc-edit-page-row.no-indent { margin-left:0; }
+  .toc-edit-page-row input[type=text] { flex:1; border:none; background:transparent; font-size:12.5px; padding:3px 6px; }
+  .toc-edit-page-row input[type=text]:focus { outline:1px solid var(--accent-600); border-radius:4px; background:#fff; }
+  .toc-edit-page-kind { font-size:10.5px; color:var(--text-subtle); flex-shrink:0; min-width:76px; }
+  .toc-add-row { display:flex; gap:8px; margin: 6px 0 6px 20px; }
+  .toc-new-badge {
+    font-size:10px; font-weight:700; color:#fff; background: var(--accent-600);
+    border-radius:999px; padding:1px 8px; margin-left:6px;
+  }
+  .toc-demo-note {
+    border:1px dashed #fbbf24; background:#fffbeb; border-radius:6px;
+    padding:8px 10px; margin: 6px 0 10px 20px; font-size:11.5px; color:#78350f; line-height:1.7;
+  }
+  .toc-empty-state {
+    border:1px dashed var(--border-strong); border-radius:10px; padding:32px 20px;
+    text-align:center; color: var(--text-subtle); font-size:13px;
+  }
+  .toc-empty-state p { margin: 0 0 14px; }
+</style>
+</head>
+<body>
+
+<div style="background:#fef3c7;border-bottom:1px solid #fbbf24;color:#78350f;font-size:12px;font-weight:600;text-align:center;padding:6px;">
+  【検討中】教材構造案（プロジェクト＝学年・教材の中に見出し/小見出し/ページの入れ子構造） ／ 既存のS-03/S-04/S-05とは独立した別案です
+</div>
+
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-mark">e</div>
+      <div>
+        <div class="brand-name">e-learning</div>
+        <div class="brand-sub">社内学習管理システム</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-label">メニュー</div>
+      <a class="nav-item" href="#">マイ学習</a>
+      <a class="nav-item" href="#">教材一覧・検索</a>
+      <a class="nav-item active" href="20260820_教科書構造_編集者_プロジェクト選択.html">教材編集</a>
+      <a class="nav-item" href="#">個人学習レポート</a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="sidebar-user-row">
+        <span class="avatar">鈴</span>
+        <div>
+          <div class="user-name">鈴木 美咲 <span class="badge badge-role role-member">member</span></div>
+          <div class="user-mail">m.suzuki@kogasoftware.com</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div id="duplicated-banner" style="display:none;background:#eff6ff;border-bottom:1px solid #bfdbfe;color:#1e3a8a;font-size:12.5px;padding:8px 20px;">
+      「Java研修」を複製しました。タイトルは「Java研修 のコピー」、状態は下書きとして新規作成されています（章・小見出し・ページの目次と、各ページの中身はすべてコピー済み）。内容を確認・編集してから公開してください。このモックでは複製元と同じ目次を表示しています。
+    </div>
+    <div id="new-banner" style="display:none;background:#f0fdf4;border-bottom:1px solid #bbf7d0;color:#166534;font-size:12.5px;padding:8px 20px;">
+      新規教材を作成しました（下書き）。実際にはタイトルも目次も空の状態から始まります。下の「＋見出しを追加」で第1章から組み立てていきます。
+    </div>
+    <header class="page-header">
+      <div>
+        <div class="page-title-group">
+          <h1 id="page-title">教材編集 — Java研修</h1>
+          <span class="screen-id">検討中 3/4</span>
+          <span id="draft-badge" class="badge badge-status-off" style="display:none">下書き</span>
+        </div>
+        <div style="font-size:12px;color:var(--text-subtle);margin-top:4px">プロジェクト: 新人研修2027 ／ あなたのロール: <span class="badge badge-projrole projrole-editor">編集者</span></div>
+      </div>
+      <div class="header-actions">
+        <a class="btn btn-secondary" href="20260820_教科書構造_編集者_教材一覧.html">← 教材一覧に戻る</a>
+        <button class="btn btn-secondary" type="button">プレビュー</button>
+        <button class="btn btn-primary" type="button">保存</button>
+      </div>
+    </header>
+
+    <div class="page-body">
+
+      <div class="callout" style="margin-bottom:16px">
+        <strong>この案のポイント:</strong> 教材の中身をツリー構造で編集する。「＋見出しを追加」で章を追加、見出しの中に「＋小見出しを追加」または直接「＋ページを追加」のどちらも選べる（第1章・第3章のように小見出しを使わない構成も可）。各ページ行の「編集する」を押すと、そのページの実際の中身（説明文・問題）を編集する画面（4/4）に入る。</div>
+
+      <div id="chapter-tree">
+
+      <!-- 第1章: 小見出しなし -->
+      <div class="toc-edit-chapter">
+        <div class="toc-edit-chapter-head">
+          <span style="color:var(--accent-600);font-size:12px;font-weight:700">第1章</span>
+          <input type="text" value="Java入門">
+          <button class="icon-btn" type="button" title="上へ">↑</button>
+          <button class="icon-btn" type="button" title="下へ">↓</button>
+          <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
+        </div>
+        <div class="toc-edit-body">
+          <div class="toc-edit-page-row">
+            <input type="text" value="Javaとは？">
+            <span class="toc-edit-page-kind">説明</span>
+            <a class="btn btn-secondary btn-sm" href="20260820_教科書構造_編集者_内容編集.html">編集する</a>
+            <button class="icon-btn" type="button" title="上へ">↑</button>
+            <button class="icon-btn" type="button" title="下へ">↓</button>
+            <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
+          </div>
+          <div class="toc-edit-page-row">
+            <input type="text" value="開発環境のセットアップ">
+            <span class="toc-edit-page-kind">説明</span>
+            <a class="btn btn-secondary btn-sm" href="20260820_教科書構造_編集者_内容編集.html">編集する</a>
+            <button class="icon-btn" type="button" title="上へ">↑</button>
+            <button class="icon-btn" type="button" title="下へ">↓</button>
+            <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
+          </div>
+          <div class="toc-edit-page-row">
+            <input type="text" value="演習問題">
+            <span class="toc-edit-page-kind">問題×3</span>
+            <a class="btn btn-secondary btn-sm" href="20260820_教科書構造_編集者_内容編集.html">編集する</a>
+            <button class="icon-btn" type="button" title="上へ">↑</button>
+            <button class="icon-btn" type="button" title="下へ">↓</button>
+            <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
+          </div>
+
+          <div class="toc-edit-section">
+            <div class="toc-edit-section-head">
+              <span style="font-size:11px;color:var(--text-subtle)">1.1</span>
+              <input type="text" placeholder="（小見出しのタイトルを入力）">
+              <span class="toc-new-badge">追加直後</span>
+              <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
+            </div>
+            <button class="add-row-btn" type="button" style="margin-top:4px">+ ページを追加</button>
+          </div>
+          <div class="toc-demo-note">
+            ↑ ここが「第1章」で「＋小見出しを追加」を押した直後の状態の例。上にある3件のページ（Javaとは？／開発環境のセットアップ／演習問題）はそのまま変わらず残り、その下に空の小見出し「1.1」が1つ増えるだけ。第2章・第3章など他の章はこの操作の影響を受けない。
+          </div>
+
+          <div class="toc-add-row">
+            <button class="add-row-btn" type="button">+ ページを追加</button>
+            <button class="add-row-btn" type="button">+ 小見出しを追加</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 第2章: 小見出しあり -->
+      <div class="toc-edit-chapter">
+        <div class="toc-edit-chapter-head">
+          <span style="color:var(--accent-600);font-size:12px;font-weight:700">第2章</span>
+          <input type="text" value="Java基本">
+          <button class="icon-btn" type="button" title="上へ">↑</button>
+          <button class="icon-btn" type="button" title="下へ">↓</button>
+          <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
+        </div>
+        <div class="toc-edit-body">
+          <div class="toc-edit-section">
+            <div class="toc-edit-section-head">
+              <span style="font-size:11px;color:var(--text-subtle)">2.1</span>
+              <input type="text" value="変数と型">
+              <button class="icon-btn" type="button" title="上へ">↑</button>
+              <button class="icon-btn" type="button" title="下へ">↓</button>
+              <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
+            </div>
+            <div class="toc-edit-page-row no-indent">
+              <input type="text" value="変数の宣言と型の説明">
+              <span class="toc-edit-page-kind">説明</span>
+              <a class="btn btn-secondary btn-sm" href="20260820_教科書構造_編集者_内容編集.html">編集する</a>
+              <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
+            </div>
+            <div class="toc-edit-page-row no-indent">
+              <input type="text" value="演習問題">
+              <span class="toc-edit-page-kind">問題×2</span>
+              <a class="btn btn-secondary btn-sm" href="20260820_教科書構造_編集者_内容編集.html">編集する</a>
+              <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
+            </div>
+            <button class="add-row-btn" type="button" style="margin-top:4px">+ ページを追加</button>
+          </div>
+
+          <div class="toc-edit-section">
+            <div class="toc-edit-section-head">
+              <span style="font-size:11px;color:var(--text-subtle)">2.2</span>
+              <input type="text" value="制御構文">
+              <button class="icon-btn" type="button" title="上へ">↑</button>
+              <button class="icon-btn" type="button" title="下へ">↓</button>
+              <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
+            </div>
+            <div class="toc-edit-page-row no-indent">
+              <input type="text" value="if文・for文の説明">
+              <span class="toc-edit-page-kind">説明</span>
+              <a class="btn btn-secondary btn-sm" href="20260820_教科書構造_編集者_内容編集.html">編集する</a>
+              <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
+            </div>
+            <div class="toc-edit-page-row no-indent">
+              <input type="text" value="演習問題">
+              <span class="toc-edit-page-kind">問題×4</span>
+              <a class="btn btn-secondary btn-sm" href="20260820_教科書構造_編集者_内容編集.html">編集する</a>
+              <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
+            </div>
+            <button class="add-row-btn" type="button" style="margin-top:4px">+ ページを追加</button>
+          </div>
+
+          <div class="toc-add-row">
+            <button class="add-row-btn" type="button">+ ページを追加</button>
+            <button class="add-row-btn" type="button">+ 小見出しを追加</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 第3章 -->
+      <div class="toc-edit-chapter">
+        <div class="toc-edit-chapter-head">
+          <span style="color:var(--accent-600);font-size:12px;font-weight:700">第3章</span>
+          <input type="text" value="Javaオブジェクト指向">
+          <button class="icon-btn" type="button" title="上へ">↑</button>
+          <button class="icon-btn" type="button" title="下へ">↓</button>
+          <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
+        </div>
+        <div class="toc-edit-body">
+          <div class="toc-edit-page-row">
+            <input type="text" value="クラスとインスタンス">
+            <span class="toc-edit-page-kind">説明＋問題×2</span>
+            <a class="btn btn-secondary btn-sm" href="20260820_教科書構造_編集者_内容編集.html">編集する</a>
+            <button class="icon-btn" type="button" title="上へ">↑</button>
+            <button class="icon-btn" type="button" title="下へ">↓</button>
+            <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
+          </div>
+          <div class="toc-edit-page-row">
+            <input type="text" value="継承とポリモーフィズム">
+            <span class="toc-edit-page-kind">説明＋問題×3</span>
+            <a class="btn btn-secondary btn-sm" href="20260820_教科書構造_編集者_内容編集.html">編集する</a>
+            <button class="icon-btn" type="button" title="上へ">↑</button>
+            <button class="icon-btn" type="button" title="下へ">↓</button>
+            <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
+          </div>
+          <div class="toc-edit-page-row">
+            <input type="text" value="総合演習">
+            <span class="toc-edit-page-kind">問題×5</span>
+            <a class="btn btn-secondary btn-sm" href="20260820_教科書構造_編集者_内容編集.html">編集する</a>
+            <button class="icon-btn" type="button" title="上へ">↑</button>
+            <button class="icon-btn" type="button" title="下へ">↓</button>
+            <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
+          </div>
+          <div class="toc-add-row">
+            <button class="add-row-btn" type="button">+ ページを追加</button>
+            <button class="add-row-btn" type="button">+ 小見出しを追加</button>
+          </div>
+        </div>
+      </div>
+
+      <button class="add-row-btn" type="button" style="margin-top:6px">+ 見出しを追加（第4章）</button>
+
+      </div><!-- /#chapter-tree -->
+
+      <div id="empty-state" class="toc-empty-state" style="display:none">
+        <p>まだ章がありません。「＋見出しを追加」から第1章を作成してください。</p>
+        <button class="btn btn-primary" type="button">+ 見出しを追加（第1章）</button>
+      </div>
+
+      <div class="table-notes" style="margin-top:16px">
+        ※ 「編集する」を押すと、そのページ1件分の中身（説明文・問題）を編集する画面に移動する（4/4）。目次の並び替え・見出しの追加/削除はこの画面だけで完結し、中身の編集とは分離している。
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="mock-note">検討中の改善案（教材構造・編集者側 3/4: 目次編集）</div>
+
+<script>
+function updateActionBanner() {
+  var isNew = window.location.hash === '#new';
+  var isDup = window.location.hash === '#duplicated';
+  document.getElementById('new-banner').style.display = isNew ? 'block' : 'none';
+  document.getElementById('duplicated-banner').style.display = isDup ? 'block' : 'none';
+  document.getElementById('chapter-tree').style.display = isNew ? 'none' : 'block';
+  document.getElementById('empty-state').style.display = isNew ? 'block' : 'none';
+  document.getElementById('draft-badge').style.display = (isNew || isDup) ? 'inline-flex' : 'none';
+  document.getElementById('page-title').textContent =
+    isNew ? '教材編集 — （新規教材）' :
+    isDup ? '教材編集 — Java研修 のコピー' :
+    '教材編集 — Java研修';
+}
+updateActionBanner();
+window.addEventListener('hashchange', updateActionBanner);
+</script>
+
+</body>
+</html>

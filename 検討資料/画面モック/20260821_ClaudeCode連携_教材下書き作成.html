@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>【検討中】Claude Code連携 教材下書き作成 | e-learning</title>
+<link rel="stylesheet" href="../../docs/03_画面モックアップ/mock.css">
+<style>
+  .cc-layout { display:grid; grid-template-columns: 1fr 420px; gap:16px; align-items:start; }
+  @media (max-width: 1100px) { .cc-layout { grid-template-columns: 1fr; } }
+
+  .cc-draft-panel { border:1px solid var(--border-strong); border-radius:10px; background:#fff; overflow:hidden; }
+  .cc-draft-head {
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    padding:10px 14px; background: var(--bg-subtle); border-bottom:1px solid var(--border);
+  }
+  .cc-draft-head-title { font-size:13px; font-weight:700; }
+  .cc-draft-body { padding:14px; }
+
+  .toc-edit-chapter { border:1px solid var(--border-strong); border-radius:8px; margin-bottom:10px; background:#fff; }
+  .toc-edit-chapter.ai-added { border-color:#93c5fd; background:#f5f9ff; }
+  .toc-edit-chapter-head {
+    display:flex; align-items:center; gap:8px; padding:9px 12px;
+    background: var(--bg-subtle); border-radius:8px 8px 0 0; border-bottom:1px solid var(--border);
+  }
+  .toc-edit-chapter.ai-added .toc-edit-chapter-head { background:#eff6ff; }
+  .toc-edit-chapter-head .chapter-no { font-size:12px; font-weight:700; color:var(--accent-600); flex-shrink:0; }
+  .toc-edit-chapter-head input { flex:1; border:none; background:transparent; font-size:13px; font-weight:700; padding:3px 6px; }
+  .toc-edit-body { padding:8px 10px; }
+  .toc-edit-page-row {
+    display:flex; align-items:center; gap:8px; padding:5px 8px; margin:3px 0;
+    border-radius:6px; background: var(--bg-subtle); font-size:12px;
+  }
+  .toc-edit-page-row.ai-added { background:#eff6ff; }
+  .toc-edit-page-row input[type=text] { flex:1; border:none; background:transparent; font-size:12px; padding:2px 4px; }
+  .toc-edit-page-kind { font-size:10px; color:var(--text-subtle); flex-shrink:0; min-width:70px; }
+  .ai-added-badge {
+    font-size:9.5px; font-weight:700; color:#fff; background:#3b82f6; border-radius:999px;
+    padding:1px 7px; flex-shrink:0;
+  }
+  .toc-empty-hint {
+    border:1px dashed var(--border-strong); border-radius:8px; padding:22px; text-align:center;
+    color: var(--text-subtle); font-size:12.5px;
+  }
+
+  .cc-chat-panel { border:1px solid var(--border-strong); border-radius:10px; background:#fff; display:flex; flex-direction:column; height:640px; }
+  .cc-chat-head {
+    display:flex; align-items:center; gap:8px; padding:10px 14px; background:#1e2530; color:#fff;
+    border-radius:10px 10px 0 0; font-size:12.5px; font-weight:700;
+  }
+  .cc-chat-head svg { flex-shrink:0; }
+  .cc-chat-status { margin-left:auto; font-size:10.5px; font-weight:600; color:#86efac; display:flex; align-items:center; gap:4px; }
+  .cc-chat-status .dot { width:6px; height:6px; border-radius:50%; background:#22c55e; display:inline-block; }
+  .cc-chat-log { flex:1; overflow-y:auto; padding:14px; display:flex; flex-direction:column; gap:12px; background:#fafbfc; }
+
+  .cc-msg { max-width:92%; }
+  .cc-msg-user { align-self:flex-end; }
+  .cc-msg-user .cc-bubble { background: var(--accent-600); color:#fff; border-radius:10px 10px 2px 10px; }
+  .cc-msg-ai { align-self:flex-start; }
+  .cc-msg-ai .cc-bubble { background:#fff; border:1px solid var(--border-strong); border-radius:10px 10px 10px 2px; }
+  .cc-bubble { padding:9px 12px; font-size:12.5px; line-height:1.7; }
+  .cc-msg-label { font-size:10px; color: var(--text-subtle); margin-bottom:3px; display:flex; align-items:center; gap:5px; }
+  .cc-tool-call {
+    font-family: 'SFMono-Regular', Consolas, monospace; font-size:11px; background:#0f172a; color:#a5f3fc;
+    border-radius:6px; padding:6px 10px; margin:4px 0;
+  }
+  .cc-tool-result { font-size:11.5px; color: var(--text-muted); padding:2px 2px 2px 10px; border-left:2px solid #86efac; margin:2px 0 6px; }
+
+  .cc-chat-input-row { display:flex; gap:8px; padding:12px; border-top:1px solid var(--border); }
+  .cc-chat-input-row textarea {
+    flex:1; resize:none; border:1px solid var(--border-strong); border-radius:8px; padding:8px 10px;
+    font-size:12.5px; font-family:inherit; height:44px;
+  }
+
+  .cc-mode-tabs { display:flex; gap:6px; margin-bottom:14px; }
+  .cc-mode-tab {
+    font-size:12px; font-weight:600; padding:6px 14px; border-radius:999px; border:1px solid var(--border-strong);
+    background:#fff; color: var(--text-muted); cursor:pointer;
+  }
+  .cc-mode-tab.active { background: var(--accent-600); color:#fff; border-color: var(--accent-600); }
+</style>
+</head>
+<body>
+
+<div style="background:#fef3c7;border-bottom:1px solid #fbbf24;color:#78350f;font-size:12px;font-weight:600;text-align:center;padding:6px;">
+  【検討中】Claude Code連携による教材下書き作成案 ／ REQ-F-02・F-05（8章）を、ブラウザ内から使えるようにする新しい方式の検討。既存のS-05/S-17とは独立した別案です
+</div>
+
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-mark">e</div>
+      <div>
+        <div class="brand-name">e-learning</div>
+        <div class="brand-sub">社内学習管理システム</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-label">メニュー</div>
+      <a class="nav-item" href="#">マイ学習</a>
+      <a class="nav-item" href="#">教材一覧・検索</a>
+      <a class="nav-item active" href="#">教材編集</a>
+      <a class="nav-item" href="#">個人学習レポート</a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="sidebar-user-row">
+        <span class="avatar">鈴</span>
+        <div>
+          <div class="user-name">鈴木 美咲 <span class="badge badge-role role-member">member</span></div>
+          <div class="user-mail">m.suzuki@kogasoftware.com</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="page-header">
+      <div>
+        <div class="page-title-group">
+          <h1>Claude Codeで教材を作成</h1>
+          <span class="badge badge-status-off">下書き</span>
+          <span class="screen-id">検討中</span>
+        </div>
+        <div style="font-size:12px;color:var(--text-subtle);margin-top:4px">プロジェクト: LCC CRM刷新 ／ 新規教材（未保存） ／ S-14「＋新規教材を作成」の隣に追加する想定の入口</div>
+      </div>
+      <div class="header-actions">
+        <a class="btn btn-secondary" href="#">キャンセル</a>
+        <button class="btn btn-primary" type="button">この内容で下書きを保存 → 目次編集（S-05）へ</button>
+      </div>
+    </header>
+
+    <div class="page-body">
+
+      <div class="callout" style="margin-bottom:16px">
+        <strong>この案のポイント:</strong> 「＋新規教材を作成」から入るこの画面は、左側が実際の教材の下書き（目次ツリー）、右側がClaude Codeとのやりとりです。右側でおおまかな指示を出すとClaude Codeが左側のひな形を埋めていき（章・小見出し・ページの粒度は指示に応じて自由）、追加された箇所は青くハイライトされます。左側は常に直接編集もできるので、「全部チャットで指示」「全部手入力」「途中まで指示して残りは自分で調整」のどれでも進められます。最後に「下書きを保存」を押すとS-05（目次編集）に反映されます。
+      </div>
+
+      <div class="cc-layout">
+
+        <!-- 左: 下書きプレビュー（直接編集も可能） -->
+        <div class="cc-draft-panel">
+          <div class="cc-draft-head">
+            <span class="cc-draft-head-title">下書きプレビュー（クリックして直接編集も可能）</span>
+            <span style="font-size:11px;color:var(--text-subtle)">3章・6ページ</span>
+          </div>
+          <div class="cc-draft-body">
+
+            <div class="field" style="max-width:420px;margin-bottom:14px">
+              <label>教材タイトル</label>
+              <input type="text" value="Python基礎">
+            </div>
+
+            <div class="toc-edit-chapter ai-added">
+              <div class="toc-edit-chapter-head">
+                <span class="chapter-no">第1章</span>
+                <input type="text" value="変数と型">
+                <span class="ai-added-badge">AI作成</span>
+              </div>
+              <div class="toc-edit-body">
+                <div class="toc-edit-page-row ai-added">
+                  <input type="text" value="変数の宣言と型の説明">
+                  <span class="toc-edit-page-kind">説明</span>
+                  <span class="ai-added-badge">AI作成</span>
+                </div>
+                <div class="toc-edit-page-row ai-added">
+                  <input type="text" value="確認問題">
+                  <span class="toc-edit-page-kind">問題×2</span>
+                  <span class="ai-added-badge">AI作成</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="toc-edit-chapter ai-added">
+              <div class="toc-edit-chapter-head">
+                <span class="chapter-no">第2章</span>
+                <input type="text" value="制御構文">
+                <span class="ai-added-badge">AI作成</span>
+              </div>
+              <div class="toc-edit-body">
+                <div class="toc-edit-page-row ai-added">
+                  <input type="text" value="if文とfor文の説明">
+                  <span class="toc-edit-page-kind">説明</span>
+                  <span class="ai-added-badge">AI作成</span>
+                </div>
+                <div class="toc-edit-page-row ai-added">
+                  <input type="text" value="確認問題">
+                  <span class="toc-edit-page-kind">問題×2</span>
+                  <span class="ai-added-badge">AI作成</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="toc-edit-chapter">
+              <div class="toc-edit-chapter-head">
+                <span class="chapter-no">第3章</span>
+                <input type="text" value="関数" placeholder="（作成中…）">
+              </div>
+              <div class="toc-edit-body">
+                <div class="toc-edit-page-row">
+                  <input type="text" value="関数の定義と再利用">
+                  <span class="toc-edit-page-kind">説明</span>
+                </div>
+                <div class="toc-edit-page-row" style="opacity:0.5">
+                  <input type="text" placeholder="（Claude Codeが作成中…）" disabled>
+                  <span class="toc-edit-page-kind">問題</span>
+                </div>
+              </div>
+            </div>
+
+            <button class="add-row-btn" type="button" style="margin-top:4px">+ 見出しを追加（第4章）</button>
+
+          </div>
+        </div>
+
+        <!-- 右: Claude Codeチャットパネル -->
+        <div class="cc-chat-panel">
+          <div class="cc-chat-head">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+            Claude Code
+            <span class="cc-chat-status"><span class="dot"></span>作業中</span>
+          </div>
+          <div class="cc-chat-log">
+
+            <div class="cc-msg cc-msg-user">
+              <div class="cc-msg-label">鈴木 美咲</div>
+              <div class="cc-bubble">Python基礎の教材を作って。変数と型、制御構文、関数の3章構成で、各章に説明ページを1つと確認問題ページ（選択式2問）を1つずつ入れて。</div>
+            </div>
+
+            <div class="cc-msg cc-msg-ai">
+              <div class="cc-msg-label">Claude Code</div>
+              <div class="cc-bubble">
+                承知しました。3章構成（変数と型／制御構文／関数）、各章「説明ページ＋確認問題ページ（選択式2問）」で下書きを作成します。まず目次を組み立てます。
+                <div class="cc-tool-call">material_nodes.create × 6（章3・ページ6）</div>
+                <div class="cc-tool-result">✓ 第1章「変数と型」を作成 → ページ2件（node:910, node:911）</div>
+                <div class="cc-tool-result">✓ 第2章「制御構文」を作成 → ページ2件（node:920, node:921）</div>
+                第1・2章の説明文と確認問題を書き込みました。左のプレビューに反映されています（青いハイライトがAIによる追加分です）。続けて第3章「関数」を作成しています…
+              </div>
+            </div>
+
+            <div class="cc-msg cc-msg-ai">
+              <div class="cc-msg-label">Claude Code</div>
+              <div class="cc-bubble">
+                <div class="cc-tool-call">material_nodes.create（第3章 説明ページ）</div>
+                <div class="cc-tool-result">✓ 「関数の定義と再利用」を作成（node:930）</div>
+                残るは第3章の確認問題ページです。このまま自動で仕上げますか？それとも設問の難易度・出題範囲を指定しますか？
+              </div>
+            </div>
+
+            <div class="cc-msg cc-msg-user">
+              <div class="cc-msg-label">鈴木 美咲</div>
+              <div class="cc-bubble">そのまま自動でお願い。あと第1章の確認問題、選択肢がちょっと簡単すぎる気がするから見直して。</div>
+            </div>
+
+            <div class="cc-msg cc-msg-ai">
+              <div class="cc-msg-label">Claude Code</div>
+              <div class="cc-bubble">
+                承知しました。第3章の確認問題を作成し、第1章の設問は誤答の選択肢をより紛らわしいものに修正します。少々お待ちください…
+              </div>
+            </div>
+
+          </div>
+          <div class="cc-chat-input-row">
+            <textarea placeholder="Claude Codeへの指示を入力（例: 第2章にサンプルコードを追加して）"></textarea>
+            <button class="btn btn-primary btn-sm" type="button" style="align-self:flex-end">送信</button>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="table-notes" style="margin-top:16px">
+        ※ これは「教材の新規作成」を例にしていますが、既存教材の改善（S-05目次編集・S-17ページ編集を開いた状態から「Claude Codeに相談」で同じチャットパネルを呼び出す）にも同じ仕組みを使える想定です。「直接編集」タブに切り替えれば、チャットを使わず手入力だけで完結させることもできます（下の切替イメージ参照）。
+      </div>
+
+      <div class="cc-mode-tabs" style="margin-top:18px">
+        <button type="button" class="cc-mode-tab active">チャットで指示 + プレビュー編集（現在の画面）</button>
+        <button type="button" class="cc-mode-tab">直接編集のみ（チャットパネルを閉じて全画面プレビュー）</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="mock-note">検討中の改善案（Claude Code連携 教材下書き作成）</div>
+
+</body>
+</html>

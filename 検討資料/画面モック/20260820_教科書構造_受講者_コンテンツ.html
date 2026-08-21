@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>【検討中】教材構造案 受講者3/3: ページ内容 | e-learning</title>
+<link rel="stylesheet" href="../../docs/03_画面モックアップ/mock.css">
+<style>
+  .flow-step { display:flex; gap:6px; margin-bottom:16px; }
+  .flow-step span { font-size: 11px; padding: 3px 9px; border-radius: 999px; background: var(--bg-muted); color: var(--text-subtle); }
+  .flow-step span.current { background: var(--accent-600); color: #fff; font-weight: 600; }
+  .page-breadcrumb { font-size:12px; color:var(--text-subtle); margin-bottom:10px; }
+  .page-breadcrumb a { color: var(--accent-600); text-decoration:none; }
+  .page-content-body { font-size:13.5px; line-height:1.9; color: var(--text); }
+  .page-content-body h3 { font-size:14px; margin:18px 0 8px; }
+  .page-content-body pre { background:#1e2530; color:#dce3ec; border-radius:6px; padding:12px 14px; font-size:12.5px; margin:10px 0; overflow-x:auto; }
+  .page-nav { display:flex; justify-content:space-between; align-items:center; margin-top:28px; padding-top:16px; border-top:1px solid var(--border); }
+  .page-nav a { font-size:12.5px; color: var(--accent-600); text-decoration:none; }
+  .page-nav .nav-side { display:flex; flex-direction:column; gap:2px; }
+  .page-nav .nav-label { font-size:10.5px; color:var(--text-subtle); }
+  .ref-example { border:1px dashed var(--border-strong); border-radius:8px; padding:14px; margin-top:10px; background: var(--bg-subtle); }
+  .ref-example-title { font-size:11.5px; font-weight:700; color: var(--text-subtle); margin-bottom:8px; }
+</style>
+</head>
+<body>
+
+<div style="background:#fef3c7;border-bottom:1px solid #fbbf24;color:#78350f;font-size:12px;font-weight:600;text-align:center;padding:6px;">
+  【検討中】教材構造案（プロジェクト＝学年・教材の中に見出し/小見出し/ページの入れ子構造） ／ 既存のS-03/S-04/S-05とは独立した別案です
+</div>
+
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-mark">e</div>
+      <div>
+        <div class="brand-name">e-learning</div>
+        <div class="brand-sub">社内学習管理システム</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-label">メニュー</div>
+      <a class="nav-item" href="#">マイ学習</a>
+      <a class="nav-item active" href="20260820_教科書構造_受講者_教材一覧.html">教材一覧・検索</a>
+      <a class="nav-item" href="#">教材編集</a>
+      <a class="nav-item" href="#">個人学習レポート</a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="sidebar-user-row">
+        <span class="avatar">佐</span>
+        <div>
+          <div class="user-name">佐藤 健一 <span class="badge badge-role role-member">member</span></div>
+          <div class="user-mail">k.sato@kogasoftware.com</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="page-header">
+      <div class="page-title-group">
+        <h1>Javaとは？</h1>
+        <span class="badge badge-optional">説明ページ</span>
+        <span class="screen-id">検討中 3/3</span>
+      </div>
+    </header>
+
+    <div class="page-body">
+
+      <div class="flow-step">
+        <a class="fn-step" href="20260820_教科書構造_受講者_教材一覧.html" style="text-decoration:none"><span>1. 教材一覧に戻る</span></a>
+        <a class="fn-step" href="20260820_教科書構造_受講者_目次.html" style="text-decoration:none"><span>2. 目次に戻る</span></a>
+        <span class="current">3. ページの中身を学ぶ</span>
+      </div>
+
+      <div class="page-breadcrumb">
+        <a href="20260820_教科書構造_受講者_目次.html">Java研修</a> ／ 第1章 Java入門 ／ <strong style="color:var(--text)">Javaとは？</strong>
+      </div>
+
+      <div class="page-content-body">
+        <p>Javaは、1995年にSun Microsystems（現Oracle）が発表したプログラミング言語です。「一度書けば、どこでも動く（Write Once, Run Anywhere）」を掲げ、OSに依存しない実行環境（JVM）上で動作することが特徴です。</p>
+
+        <h3>主な特徴</h3>
+        <ul style="margin:0 0 12px 20px">
+          <li>オブジェクト指向言語である</li>
+          <li>JVM（Java Virtual Machine）上で動作するため、Windows・Mac・Linuxで同じコードが動く</li>
+          <li>大規模な業務システムからAndroidアプリまで幅広く使われている</li>
+        </ul>
+
+        <h3>簡単なサンプルコード</h3>
+        <pre>public class Hello {
+    public static void main(String[] args) {
+        System.out.println("Hello, Java!");
+    }
+}</pre>
+        <p>このコードを実行すると、コンソールに「Hello, Java!」と表示されます。次のページから、実際に開発環境をセットアップしていきます。</p>
+      </div>
+
+      <div class="page-nav">
+        <div class="nav-side">
+          <span class="nav-label">← 前のページ</span>
+          <a href="#">（第1章の最初のページです）</a>
+        </div>
+        <button class="btn btn-primary btn-sm" type="button">読了として記録する</button>
+        <div class="nav-side" style="text-align:right">
+          <span class="nav-label">次のページ →</span>
+          <a href="#">開発環境のセットアップ</a>
+        </div>
+      </div>
+
+      <div class="ref-example">
+        <div class="ref-example-title">参考: 同じ画面構成で「問題のみ」のページを開いた場合（第2章 演習問題）</div>
+        <div class="edit-card" style="margin:0">
+          <div class="edit-card-head">
+            <span class="edit-card-title">設問1</span>
+          </div>
+          <div class="field">
+            <label>変数 x に整数 10 を代入する正しい宣言はどれか。</label>
+            <div class="checkbox-group" style="flex-direction:column;align-items:flex-start">
+              <label class="checkbox-line"><input type="radio" name="q1"> int x = "10";</label>
+              <label class="checkbox-line"><input type="radio" name="q1"> int x = 10;</label>
+              <label class="checkbox-line"><input type="radio" name="q1"> x int = 10;</label>
+            </div>
+          </div>
+        </div>
+        <p style="font-size:11.5px;color:var(--text-subtle);margin-top:8px">※ このページには説明文がなく、問題だけが並ぶ。ページ内で複数の設問を回答してから「読了として記録する」を押す想定（S-04の出題UIをそのまま流用できる）。</p>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="mock-note">検討中の改善案（教材構造・受講者側 3/3: ページ内容）</div>
+
+</body>
+</html>

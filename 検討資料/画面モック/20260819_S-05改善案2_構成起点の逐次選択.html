@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>【検討中】S-05改善案2: 構成タブ起点で単元を選んでから本文編集 | e-learning</title>
+<link rel="stylesheet" href="../../docs/03_画面モックアップ/mock.css">
+<style>
+  .unit-edit-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: #fff;
+    margin-bottom: 8px;
+  }
+  .unit-edit-row .unit-name { flex: 1; font-size: 13px; font-weight: 500; }
+  .unit-edit-row .unit-meta { font-size: 11px; color: var(--text-subtle); }
+  .breadcrumb-bar {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 14px;
+    font-size: 12.5px; color: var(--text-muted);
+  }
+  .breadcrumb-bar a { color: var(--accent-600); text-decoration: none; font-weight: 600; }
+  .breadcrumb-bar .current-unit { font-weight: 700; color: var(--text); }
+</style>
+</head>
+<body>
+
+<div style="background:#fef3c7;border-bottom:1px solid #fbbf24;color:#78350f;font-size:12px;font-weight:600;text-align:center;padding:6px;">
+  【検討中】案2: 「構成」タブが入口。単元を選んでから本文編集画面に遷移する ／ 正式版ではありません
+</div>
+
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-mark">e</div>
+      <div>
+        <div class="brand-name">e-learning</div>
+        <div class="brand-sub">社内学習管理システム</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-label">メニュー</div>
+      <a class="nav-item" href="#">マイ学習</a>
+      <a class="nav-item" href="#">教材一覧・検索</a>
+      <a class="nav-item active" href="#">教材編集</a>
+      <a class="nav-item" href="#">個人学習レポート</a>
+      <a class="nav-item" href="#">プロジェクト作成</a>
+      <a class="nav-item" href="#">プロジェクト管理</a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="sidebar-user-row">
+        <span class="avatar">鈴</span>
+        <div>
+          <div class="user-name">鈴木 美咲 <span class="badge badge-role role-member">member</span></div>
+          <div class="user-mail">m.suzuki@kogasoftware.com</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="page-header">
+      <div>
+        <div class="page-title-group">
+          <h1>教材編集 — 新人向けGit入門</h1>
+          <span class="badge badge-status-off">下書き修正中</span>
+          <span class="screen-id">検討中</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:4px;font-size:12px;color:var(--text-subtle);flex-wrap:wrap">
+          紐づくプロジェクト: <a href="#">LCC CRM刷新</a>
+          ／ あなたのロール: <span class="badge badge-projrole projrole-editor">編集者</span>
+        </div>
+      </div>
+      <div class="header-actions">
+        <a class="btn btn-secondary" href="#">← 教材編集の一覧に戻る</a>
+        <button class="btn btn-primary" type="button">公開する</button>
+      </div>
+    </header>
+
+    <div class="page-body">
+
+      <div class="callout" style="margin-bottom:14px">
+        <strong>案2のポイント:</strong> S-05に入ると「構成（単元/コース）」タブがデフォルトで開き、まず教材全体の見取り図（単元一覧・所属プロジェクト・コース）が見える。単元ごとの「本文を編集」ボタンを押して初めて、その単元専用の本文編集画面に遷移する（画面2枚目）。ページ最上部に「← 構成に戻る」を常設し、迷わず一覧に戻れるようにする。
+      </div>
+
+      <div class="tabs" role="tablist">
+        <button class="tab active" type="button">構成（単元/コース）</button>
+        <button class="tab" type="button">問題編集</button>
+        <button class="tab" type="button">ファイル・リンク</button>
+        <button class="tab" type="button">プロジェクトメンバー</button>
+        <button class="tab" type="button">AIレビュー結果</button>
+        <button class="tab" type="button">改訂履歴</button>
+      </div>
+
+      <!-- 構成タブ（デフォルト表示） -->
+      <div class="tab-panel active">
+        <div class="field-row">
+          <div class="field">
+            <label>所属プロジェクト</label>
+            <select>
+              <option selected>LCC CRM刷新</option>
+              <option>📌 全社公開</option>
+              <option>新人研修2026運営</option>
+            </select>
+            <span class="field-help">教材の編集権限を持つ単位です。</span>
+          </div>
+          <div class="field">
+            <label>所属コース</label>
+            <select>
+              <option selected>エンジニア基礎</option>
+              <option>新人研修2026</option>
+            </select>
+            <span class="field-help">学習順序のまとまりです。プロジェクトとは独立した任意項目です。</span>
+          </div>
+        </div>
+
+        <section class="panel">
+          <div class="panel-header">
+            <div class="panel-title">単元構成</div>
+            <span class="panel-count">4単元 ／ クリックして本文を編集</span>
+          </div>
+          <div class="panel-body">
+            <div class="unit-edit-row">
+              <span class="unit-name">単元1: Gitの基本概念とセットアップ</span>
+              <span class="unit-meta">設問2問</span>
+              <button class="btn btn-secondary btn-sm" type="button" title="上へ">↑</button>
+              <button class="btn btn-secondary btn-sm" type="button" title="下へ">↓</button>
+              <a class="btn btn-primary btn-sm" href="#unit-editor">本文を編集</a>
+            </div>
+            <div class="unit-edit-row">
+              <span class="unit-name">単元2: ブランチとプルリクエストの基本</span>
+              <span class="unit-meta">設問2問</span>
+              <button class="btn btn-secondary btn-sm" type="button" title="上へ">↑</button>
+              <button class="btn btn-secondary btn-sm" type="button" title="下へ">↓</button>
+              <a class="btn btn-primary btn-sm" href="#unit-editor">本文を編集</a>
+            </div>
+            <div class="unit-edit-row">
+              <span class="unit-name">単元3: コンフリクトの解消</span>
+              <span class="unit-meta" style="color:#b45309">設問0問</span>
+              <button class="btn btn-secondary btn-sm" type="button" title="上へ">↑</button>
+              <button class="btn btn-secondary btn-sm" type="button" title="下へ">↓</button>
+              <a class="btn btn-primary btn-sm" href="#unit-editor">本文を編集</a>
+            </div>
+            <div class="unit-edit-row">
+              <span class="unit-name">単元4: よく使うコマンドまとめ</span>
+              <span class="unit-meta">設問1問</span>
+              <button class="btn btn-secondary btn-sm" type="button" title="上へ">↑</button>
+              <button class="btn btn-secondary btn-sm" type="button" title="下へ">↓</button>
+              <a class="btn btn-primary btn-sm" href="#unit-editor">本文を編集</a>
+            </div>
+            <button class="add-row-btn" type="button" style="margin-top:4px">+ 単元を追加</button>
+          </div>
+        </section>
+      </div>
+
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- 画面2枚目: 単元1の「本文を編集」を押した後に遷移する本文編集画面 -->
+    <!-- ============================================================ -->
+    <div class="page-body" id="unit-editor" style="border-top:8px solid var(--bg-subtle);margin-top:8px;padding-top:24px">
+      <div class="callout" style="margin-bottom:14px;border-color:#bfdbfe;background:#eff6ff">
+        ↓ ここから「単元1: Gitの基本概念とセットアップ」の「本文を編集」を押した後の画面（案2の遷移先）
+      </div>
+
+      <div class="breadcrumb-bar">
+        <a href="#">← 構成に戻る</a>
+        <span>／</span>
+        <span>編集中の単元: <span class="current-unit">単元1: Gitの基本概念とセットアップ</span></span>
+        <span>／</span>
+        <a href="#">次の単元へ（単元2）→</a>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label>単元タイトル</label>
+          <input type="text" value="単元1: Gitの基本概念とセットアップ">
+        </div>
+        <div class="field">
+          <label>概要（一覧表示用）</label>
+          <input type="text" value="バージョン管理の考え方と、ローカル環境でのGitセットアップを学びます">
+        </div>
+      </div>
+
+      <div class="field">
+        <label>記述形式</label>
+        <div class="segmented">
+          <button type="button" class="active">Markdown</button>
+          <button type="button">HTML</button>
+        </div>
+      </div>
+
+      <div class="editor-split">
+        <div class="editor-pane">
+          <div class="preview-label">本文（Markdown）</div>
+          <textarea>## Gitとは
+
+複数人での開発において、変更履歴を管理するための分散型バージョン管理システムです。
+
+## セットアップ
+
+```
+git config --global user.name "あなたの名前"
+git config --global user.email "you@example.com"
+```</textarea>
+        </div>
+        <div class="preview-pane">
+          <div class="preview-label">プレビュー</div>
+          <h3>Gitとは</h3>
+          <p>複数人での開発において、変更履歴を管理するための分散型バージョン管理システムです。</p>
+          <h3>セットアップ</h3>
+          <pre style="background:#1e2530;color:#dce3ec;border-radius:6px;padding:10px 12px;font-size:12px">git config --global user.name "あなたの名前"
+git config --global user.email "you@example.com"</pre>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button class="btn btn-primary" type="button">本文を保存</button>
+        <span class="actions-note">保存後は自動的に「構成」の一覧に戻ります（次の単元へのリンクからは戻らず連続編集も可能）</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="mock-note">検討中の改善案2（構成タブ起点の逐次選択）／ 1ファイル内に「構成」と「本文編集（遷移後）」の2状態を続けて掲載</div>
+
+</body>
+</html>
