@@ -79,6 +79,9 @@
 
   <!-- メインエリア -->
   <div class="main">
+    <div id="context-banner" style="display:none;background:#eff6ff;border-bottom:1px solid #bfdbfe;color:#1e3a8a;font-size:12.5px;padding:8px 20px;">
+      <a href="S-09_my-report.html" style="color:inherit;font-weight:600">← 個人学習レポート</a> から表示しています。「未受講のみ表示」「区分: 必修のみ」で絞り込み、未受講の必修教材のみを表示しています。
+    </div>
     <header class="page-header">
       <div class="page-title-group">
         <h1>教材一覧・検索</h1>
@@ -116,7 +119,7 @@
             </div>
             <div class="field">
               <label>区分</label>
-              <select>
+              <select id="filter-required">
                 <option selected>すべて</option>
                 <option>必修のみ</option>
                 <option>任意のみ</option>
@@ -136,7 +139,7 @@
           </div>
 
           <div class="checkbox-group" style="margin-bottom:10px">
-            <label class="checkbox-line"><input type="checkbox"> 未受講のみ表示</label>
+            <label class="checkbox-line"><input type="checkbox" id="filter-incomplete-only"> 未受講のみ表示</label>
             <label class="checkbox-line"><input type="checkbox"> 自分が受講対象の教材のみ表示</label>
           </div>
 
@@ -168,8 +171,8 @@
               <th style="width:110px">操作</th>
             </tr>
           </thead>
-          <tbody>
-            <tr>
+          <tbody id="materials-tbody">
+            <tr data-required="true" data-status="not_started">
               <td>
                 <div class="cell-main">AI開発研修 基礎編 — Claude Codeの使い方</div>
                 <div class="cell-sub">全5章・14ページ ／ 単一選択・記述式 全8問</div>
@@ -181,7 +184,7 @@
               <td>2026-08-10</td>
               <td><a class="btn btn-secondary btn-sm" href="S-04_material-view.html">受講する</a></td>
             </tr>
-            <tr>
+            <tr data-required="true" data-status="not_started">
               <td>
                 <div class="cell-main">ビジネスマナー研修</div>
                 <div class="cell-sub">全3章・8ページ ／ 単一選択 全6問</div>
@@ -193,7 +196,7 @@
               <td>2026-07-20</td>
               <td><a class="btn btn-secondary btn-sm" href="S-04_material-view.html">受講する</a></td>
             </tr>
-            <tr>
+            <tr data-required="true" data-status="not_started">
               <td>
                 <div class="cell-main">情報セキュリティ研修 2026</div>
                 <div class="cell-sub">全4章・11ページ ／ 単一選択・複数選択 全10問</div>
@@ -205,7 +208,7 @@
               <td>2026-08-01</td>
               <td><a class="btn btn-secondary btn-sm" href="S-04_material-view.html">受講する</a></td>
             </tr>
-            <tr>
+            <tr data-required="true" data-status="completed">
               <td>
                 <div class="cell-main">ハラスメント防止研修</div>
                 <div class="cell-sub">全2章・5ページ ／ 単一選択 全4問</div>
@@ -217,7 +220,7 @@
               <td>2026-06-15</td>
               <td><a class="btn btn-ghost btn-sm" href="S-04_material-view.html">復習する</a></td>
             </tr>
-            <tr>
+            <tr data-required="false" data-status="completed">
               <td>
                 <div class="cell-main">新人向けGit入門</div>
                 <div class="cell-sub">全4章・9ページ ／ 記述式 全5問 ／ 作成: 鈴木 美咲</div>
@@ -229,7 +232,7 @@
               <td>2026-08-14</td>
               <td><a class="btn btn-ghost btn-sm" href="S-04_material-view.html">反復演習</a></td>
             </tr>
-            <tr>
+            <tr data-required="false" data-status="not_started">
               <td>
                 <div class="cell-main">データベース設計入門</div>
                 <div class="cell-sub">全5章・13ページ ／ 単一選択・記述式 全9問 ／ 作成: 鈴木 美咲</div>
@@ -241,7 +244,7 @@
               <td>2026-08-12</td>
               <td><a class="btn btn-secondary btn-sm" href="S-04_material-view.html">受講する</a></td>
             </tr>
-            <tr>
+            <tr data-required="false" data-status="in_progress">
               <td>
                 <div class="cell-main">TypeScript入門</div>
                 <div class="cell-sub">全6章・17ページ ／ 単一選択・記述式 全12問</div>
@@ -253,7 +256,7 @@
               <td>2026-08-05</td>
               <td><a class="btn btn-secondary btn-sm" href="S-04_material-view.html">続きから受講</a></td>
             </tr>
-            <tr>
+            <tr data-required="false" data-status="not_started">
               <td>
                 <div class="cell-main">React入門</div>
                 <div class="cell-sub">全5章・12ページ ／ 単一選択 全8問</div>
@@ -265,7 +268,7 @@
               <td>2026-08-05</td>
               <td><a class="btn btn-secondary btn-sm" href="S-04_material-view.html">受講する</a></td>
             </tr>
-            <tr>
+            <tr data-required="false" data-status="not_started">
               <td>
                 <div class="cell-main">Python基礎ハンズオン資料</div>
                 <div class="cell-sub">全2章・6ページ ／ 記述式・コード記述式 全5問 ／ 作成: 高橋 大輔</div>
@@ -288,7 +291,7 @@
           <option>50件</option>
           <option>100件</option>
         </select>
-        <span class="total-count"><strong>1 - 9</strong> / 9件</span>
+        <span class="total-count" id="total-count-text"><strong>1 - 9</strong> / 9件</span>
         <div class="pagination">
           <button class="page-btn" type="button" disabled>«</button>
           <button class="page-btn current" type="button">1</button>
@@ -301,6 +304,35 @@
 </div>
 
 <div class="mock-note">画面モックアップ（S-03）/ 研修サンプル</div>
+
+<script>
+// 個人学習レポート（S-09）の統計カードから遷移してきた場合、
+// 「未受講のみ表示」「区分: 必修のみ」を適用した状態を静的モックで再現する
+// （実際にはA-14へのクエリパラメータで絞り込む。7章参照）
+function applyIncompleteRequiredFilter() {
+  var active = window.location.hash === '#incomplete-required';
+
+  document.getElementById('context-banner').style.display = active ? 'block' : 'none';
+  document.getElementById('filter-incomplete-only').checked = active;
+  document.getElementById('filter-required').value = active ? '必修のみ' : 'すべて';
+
+  var rows = document.querySelectorAll('#materials-tbody tr');
+  var visibleCount = 0;
+  rows.forEach(function (row) {
+    var matches = !active ||
+      (row.getAttribute('data-required') === 'true' && row.getAttribute('data-status') === 'not_started');
+    row.style.display = matches ? '' : 'none';
+    if (matches) visibleCount++;
+  });
+
+  var totalText = document.getElementById('total-count-text');
+  totalText.innerHTML = active
+    ? '<strong>1 - ' + visibleCount + '</strong> / ' + visibleCount + '件（未受講の必修教材のみ）'
+    : '<strong>1 - ' + rows.length + '</strong> / ' + rows.length + '件';
+}
+applyIncompleteRequiredFilter();
+window.addEventListener('hashchange', applyIncompleteRequiredFilter);
+</script>
 
 </body>
 </html>

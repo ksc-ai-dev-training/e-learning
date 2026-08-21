@@ -363,7 +363,7 @@
               <label>AI採点・AIアシストへの指示（任意）</label>
               <textarea rows="3">言語: Python 3.12 / フレームワークは使用しない標準ライブラリのみを対象とする。
 記述式・コード記述式の採点では、正解や完成コードを直接提示しないこと。</textarea>
-              <span class="field-help">記述式・コード記述式のAI採点（F-20）と、Claude Codeでの下書き作成（F-27）の両方に共通して反映されます。</span>
+              <span class="field-help">記述式・コード記述式のAI採点（F-20）に反映されます。教材の作成・修正はClaude Code CLI連携（F-05）で行いますが、これは利用者自身のClaude Codeセッションでの作業であり、e-learning側からAIを呼び出すものではないため、この指示は適用されません。</span>
             </div>
           </div>
         </section>
@@ -432,7 +432,7 @@
               <div class="file-pick">
                 <input type="file">
               </div>
-              <span class="field-help">動画・スライド・PDFに対応（容量上限は基本設計フェーズで決定予定）</span>
+              <span class="field-help">動画・スライド・PDFに対応（1ファイルあたり200MBまで）</span>
             </div>
             <div class="field" style="margin-bottom:0">
               <label>または外部リンクを追加</label>
@@ -529,26 +529,23 @@
       <!-- 改訂履歴タブ -->
       <div class="tab-panel" id="panel-history">
         <p class="tab-note">教材の改訂履歴です。Claude Code連携API経由の更新も含め、いつ・誰が・何を変更したかを記録します。編集が続く教材ほど件数が増え続けるため、既定では直近1ヶ月に絞って表示します。</p>
-        <div class="field-row" style="align-items:flex-end">
-          <div class="field" style="max-width:140px">
-            <label>年</label>
-            <select>
-              <option selected>2026年</option>
-              <option>2025年</option>
-            </select>
+        <div style="display:flex;align-items:flex-end;gap:20px;flex-wrap:wrap;margin-bottom:14px">
+          <div class="field" style="margin-bottom:0">
+            <label>対象年月</label>
+            <div style="display:flex;gap:8px">
+              <select style="width:110px">
+                <option selected>2026年</option>
+                <option>2025年</option>
+              </select>
+              <select style="width:100px">
+                <option>すべて</option>
+                <option selected>8月</option>
+                <option>7月</option>
+                <option>6月</option>
+              </select>
+            </div>
           </div>
-          <div class="field" style="max-width:140px">
-            <label>月</label>
-            <select>
-              <option>すべて</option>
-              <option selected>8月</option>
-              <option>7月</option>
-              <option>6月</option>
-            </select>
-          </div>
-          <div class="field" style="max-width:160px;margin-bottom:0">
-            <button class="btn btn-secondary" type="button">全期間を表示</button>
-          </div>
+          <button class="btn btn-secondary" type="button">全期間を表示</button>
         </div>
         <div class="table-wrap">
           <table class="table">

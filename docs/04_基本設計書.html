@@ -16,7 +16,7 @@
     <p class="subtitle">社内学習管理システム（e-learning）</p>
     <div class="meta">
       <span>作成日: 2026-08-18</span>
-      <span>版数: 1.21</span>
+      <span>版数: 1.22</span>
       <span>作成: コガソフトウェア株式会社</span>
     </div>
     <p class="note">本ドキュメントは新人社員向けAI開発研修のサンプル成果物です</p>
@@ -49,6 +49,7 @@
       <tr><td>1.19</td><td>2026-08-21</td><td>既存教材の改善時にClaude Codeチャットパネルを開く経路を、専用画面（S-18）への遷移から、S-05（目次編集）・S-17（ページ編集）の画面内トグルパネルに変更した。編集中の画面を離れずに対話的な修正ができるようにするための変更で、右ペインに開閉可能なチャットパネルを追加した（S-18と同じUI・A-68〜A-70を再利用）。S-05から開いた場合は<code>material_id</code>、S-17から開いた場合はさらに現在ページの<code>node_id</code>を初期コンテキストとしてセッションを開始する（5.28節）。S-18はS-14「＋新規教材を作成」から入る新規作成専用画面という位置づけに整理した（4.7・4.7a・4.7b節）。新規テーブル・APIの追加はなく、既存のA-68〜A-70・T-24・T-25をそのまま再利用する。</td></tr>
       <tr><td>1.20</td><td>2026-08-21</td><td>F-27（AI教材作成アシスト。ブラウザ内対話生成）を廃止し、教材の作成・修正へのAI支援をF-05（Claude Code CLI連携）に一本化した。理由: F-27はe-learningのバックエンドがAnthropic Claude APIを直接呼び出す構造のため、利用のたびにe-learning側で従量課金が発生していた。F-05はClaude Code利用者本人の契約・APIキーで課金され、e-learning側の運用コストは発生しない。両者は似た体験を提供する代替経路だったが、コストの発生しないF-05に一本化することとした。専用画面S-18（教材編集：Claude Code下書き作成）、S-05・S-17の画面内チャットパネル（v1.19で追加）、API A-68〜A-70、テーブルT-24 ai_draft_sessions・T-25 ai_draft_messagesをすべて廃止した（画面ID・API番号・テーブルIDはいずれも欠番として保持）。S-14「＋新規教材を作成」は、この画面を経由せず空のS-05目次編集画面へ直接遷移する（v1.14以前の遷移に戻した）。実働するテーブル数はT-01〜T-29の26件から2件減り24件、実働画面数はS-18の廃止により17件となった。</td></tr>
       <tr><td>1.21</td><td>2026-08-21</td><td>S-10「システム設定」タブの「今月のAI利用状況」を、合計値のみの表示から機能別（F-08 教材AIレビュー／F-20 AI記述式採点・講評／F-21 AIつまずき分析／F-22 AI個人フィードバック／F-23 AI組織レポート生成）の呼び出し件数・トークン数・概算コストの内訳表示に拡張した（4.12節）。管理者がどの機能がコストの大部分を占めているかを個別に確認できるようにするための変更。A-58（AI利用状況取得）の応答に機能別内訳を追加した（9.3節のT-19集計を<code>feature</code>でgroup byして取得。7.2.9節）。あわせて、教材の作成・修正（F-05、Claude Code CLI連携）は利用者本人の契約で課金されるためこの集計には含まれない旨を明記した。新規テーブル・カラムの追加は不要（既存のT-19 <code>ai_usage_logs.feature</code>を集計するのみ）。</td></tr>
+      <tr class="rev-row"><td>1.22</td><td>2026-08-21</td><td>画面モックアップ一式のレビューにより判明した仕様の未整備・不整合を解消。(1) S-15（プロフィール編集）について、要件定義書・本書とも氏名を「Googleアカウント連動、参照のみ」としていたが、画面モックには当初からアイコン画像の設定操作が用意されており、氏名についても利用者が直接編集できる想定で運用したいという実務判断を受け、表示名の自己編集を正式に機能化した。T-01 <code>users.name</code>は<strong>初回登録時のみ</strong>Googleプロフィールの氏名で初期化し、以降はログインのたびに上書きしない（本人がS-15で変更した値を維持する）よう3.1節のログインフローを修正した。あわせて、要件定義書の時点から画面要件として存在しながら対応するAPI・テーブルを欠いていたアイコン画像アップロードに対応するため、T-01に<code>custom_picture_key</code>列を追加し、A-75（PUT /api/auth/me、表示名・アイコンの確定）・A-76（POST /api/auth/me/icon/upload-url、アイコンアップロード用署名付きURL発行）・A-77（DELETE /api/auth/me/icon、Googleプロフィール画像に戻す）を新設した（3.1節・6.2節・7.2.1節）。画面設計に4.14a節（S-15プロフィール編集）を新設した。(2) S-19（設問別の回答・結果一覧）の採点結果保存APIとして、従来「詳細設計で定義する」としていたものをA-74（PUT /api/answers/{answer_id}/review）として正式に定義した（4.7c節・5.20節・7.2.5節）。(3) S-05の合否判定・再受験設定（合格基準・再受験可否・回数）はA-17（教材メタデータ更新）から入力し、対象教材の全T-11 <code>assignments</code>行へ同一値を反映する（5.9節callout「複製して保持する」運用）ことをA-17の処理内容として明記した（7.2.3節）。(4) 画面モックアップの内部不整合を修正: S-14「＋新規教材を作成」ボタンがv1.20で廃止済みのS-18を指していた誤りをS-05（空の目次編集画面）へ修正、S-05のAI採点コンテキストの説明文がv1.20で廃止済みのF-27を参照していた誤りを修正、S-10のAIモデル設定の説明文が実在しない「機能ごとの個別モデル割り当て」を示唆していた誤りを修正した。</td></tr>
     </tbody>
   </table>
 
@@ -269,11 +270,14 @@
     <li>ユーザーがGoogleアカウントで認証・同意すると、Googleは認可コード付きで A-02 <code>GET /api/auth/callback</code> にリダイレクトする。</li>
     <li>バックエンドは認可コードをアクセストークン・IDトークンに交換し、ユーザーのメールアドレス・氏名・プロフィール画像を取得する。</li>
     <li>メールアドレスのドメインを <code>ALLOWED_DOMAINS</code>（既定: kogasoftware.com）と照合する。許可ドメイン外は認証を拒否する（REQ-N-01）。</li>
-    <li>T-01 users をメールアドレスで検索する。未登録なら <span class="rev-old">role='learner'</span><span class="rev-new">role='member'</span> で自動登録する（初回ログイン）。登録済みで <code>is_active=false</code> の場合はログインを拒否する。</li>
+    <li>T-01 users をメールアドレスで検索する。未登録なら <span class="rev-old">role='learner'</span><span class="rev-new">role='member'</span> で自動登録する（初回ログイン）。<span class="rev-new">この初回登録時のみ、Googleプロフィールの氏名を<code>name</code>の初期値として設定する。</span>登録済みで <code>is_active=false</code> の場合はログインを拒否する。<span class="rev-new">登録済みユーザーの再ログイン時は<code>name</code>を更新しない（S-15で本人が変更した表示名を、Googleアカウント側の氏名変更で意図せず上書きしないため。3.1節末尾のcallout・4.14a節参照）。</span></li>
     <li>ユーザーID・ロールを含むセッションJWTを発行し、HttpOnly Cookie にセットして <code>/</code> へリダイレクトする。</li>
-    <li>SPAは起動時に A-04 <code>GET /api/auth/me</code> でログイン中ユーザー情報（id, email, name, role, picture_url<span class="rev-old">, department_id</span>）を取得し、ロールに応じた画面制御を行う。<span class="rev-new">部署（department）の概念はv1.5でシステムから廃止したため、department_idは含まない。</span></li>
+    <li>SPAは起動時に A-04 <code>GET /api/auth/me</code> でログイン中ユーザー情報（id, email, name, role, picture_url<span class="rev-old">, department_id</span>）を取得し、ロールに応じた画面制御を行う。<span class="rev-new">部署（department）の概念はv1.5でシステムから廃止したため、department_idは含まない。</span><span class="rev-new">picture_urlは、T-01 <code>custom_picture_key</code>が設定されていればそのアイコン画像の署名付きURL、未設定であればGoogleプロフィール画像のURLを返す（4.14a節）。</span></li>
     <li>ログアウトは A-03 <code>POST /api/auth/logout</code> でセッションCookieを破棄する。</li>
   </ol>
+  <div class="callout rev-new">
+    <strong>表示名の同期タイミングを「初回登録時のみ」とした理由（v1.22）:</strong> 当初はKeirekiと同様に「既存ユーザーもログインのたびにGoogleプロフィールの氏名・画像で上書きする」運用を想定していたが、S-15（プロフィール編集）で表示名を自己編集できる機能を新設したことに伴い、この運用のままでは<strong>本人が変更した表示名が次回ログイン時にGoogle側の氏名で意図せず上書きされてしまう</strong>という欠陥が生じる。これは「氏名を変更したはずなのに、ログインし直すと元に戻る」という体験になり、自己編集機能そのものを無意味にする。そこで<code>name</code>は初回登録時（Googleプロフィールの氏名を初期値として使う場面）にのみ設定し、以降の再ログインでは更新しない方式に改めた。Googleアカウント側で氏名を変更した場合でも、本システムの表示名は本人がS-15で明示的に変更するまで変わらない。<code>picture_url</code>（Googleプロフィール画像）は逆に「独自アイコン未設定の場合のフォールバック」として毎回参照する値であるため、こちらは引き続き常に最新のGoogle側の値を返す（値をDBにコピー・キャッシュしない）。
+  </div>
 
   <h3>3.2 セッション管理</h3>
   <table>
@@ -371,7 +375,7 @@
       <tr class="rev-row"><td>S-12</td><td>プロジェクト管理</td><td><code>/projects/:projectId/manage</code></td><td>対象プロジェクトの管理者、<span class="badge badge-admin">admin</span></td><td>プロジェクト情報の編集、メンバーの<span class="rev-old">追加</span><span class="rev-new">招待</span>・削除・ロール設定、プロジェクトに紐づく教材の他プロジェクトへの共有<span class="rev-new">申請</span>設定（F-24〜F-26）。<span class="rev-new">自プロジェクト宛ての共有リクエストの確認・承認・却下も行う</span></td></tr>
       <tr class="rev-row"><td>S-13</td><td>教材編集：プロジェクト選択</td><td><code>/materials/edit-projects</code></td><td>全員</td><td>「教材編集」ナビの入口。編集する教材が属するプロジェクトをカードから選ぶ。全社員が「全社公開」の編集者を自動的に持つため常時表示される（v1.9）</td></tr>
       <tr class="rev-row"><td>S-14</td><td>教材編集：教材一覧</td><td><code>/projects/:projectId/materials/edit</code></td><td>対象プロジェクトの編集者・管理者、<span class="badge badge-admin">admin</span></td><td>選んだプロジェクトの教材一覧（下書きを含む）。「＋新規教材を作成」「複製」「編集する」の起点。S-03と異なり公開済みでない教材も表示する</td></tr>
-      <tr class="rev-row"><td>S-15</td><td>プロフィール編集</td><td><code>/profile</code></td><td>全員</td><td>アイコン画像の設定、氏名・メールアドレス（Googleアカウント連動、参照のみ）の確認、所属プロジェクト一覧の確認。<span class="rev-new">自分宛てのプロジェクト招待（F-24）の一覧確認・承諾・辞退</span></td></tr>
+      <tr class="rev-row"><td>S-15</td><td>プロフィール編集</td><td><code>/profile</code></td><td>全員</td><td><span class="rev-old">アイコン画像の設定、氏名・メールアドレス（Googleアカウント連動、参照のみ）の確認、</span><span class="rev-new">表示名・アイコン画像の変更（v1.22。4.14a節）、メールアドレス（Googleアカウント連動、参照のみ）の確認、</span>所属プロジェクト一覧の確認。<span class="rev-new">自分宛てのプロジェクト招待（F-24）の一覧確認・承諾・辞退</span></td></tr>
       <tr class="rev-row"><td>S-16</td><td>教材受講：ページ</td><td><code>/materials/:materialId/pages/:nodeId</code></td><td>対象者（全員）</td><td>1ページ分の説明文の閲覧、単一選択・複数選択・<span class="rev-new">並び替え・</span>記述式・コード記述式<span class="rev-new">・スコア記録</span>問題への回答。ページは説明のみ／問題のみ／両方のいずれもあり得る。S-04（目次）から遷移する（v1.11新設）。<span class="rev-new">設問ごとの回答必須／任意（<code>required</code>）、ドボン問題（<code>is_critical</code>）の明示、出題プール（<code>quiz_mode='pool'</code>）からのランダム出題に対応。受験後アンケート（任意設置時）をここで表示することもある（v1.17）</span></td></tr>
       <tr class="rev-row"><td>S-17</td><td>教材編集：ページ編集</td><td><code>/materials/:materialId/pages/:nodeId/edit</code></td><td>対象教材が紐づくプロジェクトの管理者・編集者、<span class="badge badge-admin">admin</span></td><td>1ページ分の説明文（Markdown/HTML切替）と問題の編集。単一選択・複数選択は<code>correct_answer</code>を直接設定（AI非依存）、記述式・コード記述式は<code>scoring_criteria</code>を設定してAI採点に委ねる。保存するとS-05に戻る（v1.11新設）。<span class="rev-new">並び替え問題（正しい順序の登録）、スコア記録問題（単位のみ設定、正解の概念なし）、設問ごとの回答必須／任意・ドボン問題・AI講評スタイル上書き、出題プール設定を編集できる（v1.17）</span></td></tr>
       <tr class="rev-row"><td>S-18</td><td><span class="rev-old">教材編集：Claude Code下書き作成</span></td><td><span class="rev-old"><code>/materials/draft-sessions/:sessionId</code></span></td><td><span class="rev-old">対象プロジェクトの編集者・管理者、admin</span></td><td><span class="rev-old">廃止（v1.20）。F-27（AI教材作成アシスト）の廃止に伴い画面も廃止した。F-27はe-learning側で従量課金が発生する経路だったが、代替のF-05（Claude Code CLI連携）は利用者本人の契約で課金されるため、e-learning側のコストが発生しないF-05に一本化した。S-14「＋新規教材を作成」は空のS-05目次編集画面へ直接遷移する。画面ID・パスは欠番として保持する。</span></td></tr>
@@ -539,7 +543,7 @@
   <h3 class="rev-new">4.7c S-19 設問別の回答・結果一覧</h3>
   <ul class="rev-new">
     <li><strong>表示項目:</strong> パンくず（教材名／設問の所在）、対象設問の概要（設問文・種別・<span class="rev-new">採点方式が「手動採点」の場合はその旨のバッジ）</span>、受講者ごとの行を並べた一覧テーブル。<code>type</code>が単一選択/複数選択/並び替えなら「回答内容・正誤」列、記述式/コード記述式なら「回答内容・採点結果（点数は廃止済みのため正誤のみ）・講評・操作」列、<code>score_log</code>なら「最新スコア・推移（例: 45→52→58）・最終記録日」列に切り替わる。氏名列は常に表示する。<span class="rev-new">記述式・コード記述式で<code>grading_mode='manual'</code>の設問は、未採点の回答は正誤バッジの代わりに「未採点」バッジを表示する。</span></li>
-    <li><strong>操作:</strong> A-73（設問別回答一覧取得）。記述式・コード記述式の行では、<code>grading_mode='ai'</code>なら「採点を修正」、<code>grading_mode='manual'</code>で未採点なら「採点する」（採点済みなら「採点を修正」）ボタンから、<code>is_correct</code>・<code>ai_feedback</code>（担当者の講評として保存）を編集し、保存時に<code>reviewed_by</code>・<code>reviewed_at</code>を設定するAPI（詳細設計で定義）を呼ぶ。</li>
+    <li><strong>操作:</strong> A-73（設問別回答一覧取得）。記述式・コード記述式の行では、<code>grading_mode='ai'</code>なら「採点を修正」、<code>grading_mode='manual'</code>で未採点なら「採点する」（採点済みなら「採点を修正」）ボタンから、<code>is_correct</code>・<code>ai_feedback</code>（担当者の講評として保存）を編集し、保存時に<code>reviewed_by</code>・<code>reviewed_at</code>を設定する<span class="rev-new">A-74（v1.22新設）</span>を呼ぶ。</li>
     <li><strong>アクセス制御:</strong> 対象教材が紐づくプロジェクトの管理者・編集者、または admin（3.5節）。氏名付きで個々の回答を表示するため、受講者本人・一般のプロジェクトメンバーはアクセスできない。</li>
     <li><strong>入口:</strong> S-05目次編集・S-17ページ編集の各設問カードに「この設問の回答一覧」リンクを設ける想定。</li>
   </ul>
@@ -593,11 +597,19 @@
     <li><strong>アクセス制御:</strong> 対象プロジェクトの管理者、または admin（3.5節）。</li>
   </ul>
 
+  <h3 class="rev-new">4.14a S-15 プロフィール編集</h3>
+  <ul class="rev-new">
+    <li><strong>表示項目:</strong> 現在のアイコン画像（独自アップロード分があればそれ、無ければGoogleプロフィール画像）、表示名の入力欄、メールアドレス（参照専用）、システムロールのバッジ表示、所属プロジェクト一覧、招待されているプロジェクト一覧（承諾・辞退操作。F-24）。</li>
+    <li><strong>操作:</strong> 表示名を編集して保存するとA-75（PUT /api/auth/me）を呼ぶ。アイコンを選択するとA-76（POST /api/auth/me/icon/upload-url）で署名付きURLを取得してアップロードし、A-75で確定する。「Googleの画像に戻す」でA-77（DELETE /api/auth/me/icon）を呼ぶ。所属プロジェクト一覧はA-11（<code>user_id</code>=自分, <code>status='active'</code>）、招待一覧はA-11（<code>user_id</code>=自分, <code>status='invited'</code>）と応答用のA-67を使用する（5.25節）。</li>
+    <li><strong>アクセス制御:</strong> 全員（自分自身の情報のみ操作可）。</li>
+    <li><strong>変更履歴の扱い:</strong> 表示名・アイコンの変更はT-08 material_revisions（教材専用）の対象外であり、専用の履歴保持は行わない（変更前の値を追跡する要求が無いため）。</li>
+  </ul>
+
   <p>画面IDは<span class="rev-old">S-01〜S-12</span><span class="rev-new">S-01〜S-19</span>の体系とし、要件定義書4.1節の画面一覧と一致させている。S-11・S-12はv1.4（教材のプロジェクト単位管理、F-24〜F-26）で新設した。<span class="rev-new">S-13〜S-15はv1.9〜v1.11（プロジェクト表示の改善、共有承認フロー、招待制メンバー追加）で新設した。S-16・S-17はv1.11（教材構造案の採用）でS-04・S-05からページ単位の受講・編集を分離する形で新設した。S-18はv1.12（F-27 AI教材作成アシスト）で新設した<span class="rev-old">が、F-27の廃止に伴いv1.20で廃止した</span>。S-19はv1.17（設問別回答一覧・レビュー画面の欠落への対応）で新設した。</span>S-07（組織管理）はv1.5（部署の概念の廃止）<span class="rev-old">、S-18（教材編集：Claude Code下書き作成）はv1.20（F-27の廃止）</span>で廃止したためIDを欠番とし、実働する画面は<span class="rev-old">11件（S-01〜S-06, S-08〜S-12）</span><span class="rev-old">18件（S-01〜S-06, S-08〜S-19）</span><span class="rev-new">17件（S-01〜S-06, S-08〜S-17, S-19）</span>である。</p>
 
   <!-- ============ 5. 機能設計 ============ -->
   <h2 id="sec5">5. 機能設計</h2>
-  <p>機能一覧（F-01〜<span class="rev-new">F-28</span>、うちF-27はv1.20で廃止し欠番）ごとに処理概要・関連画面/API/テーブル・設計判断を示す。教材連携（F-05<span class="rev-old">, F-27</span>）の技術詳細は8章、AI連携機能（F-08, F-20〜F-23）の技術詳細は9章に譲り、本章では処理概要と他機能との関係を示すに留める。</p>
+  <p>機能一覧（F-01〜<span class="rev-new">F-29</span>、うちF-27はv1.20で廃止し欠番）ごとに処理概要・関連画面/API/テーブル・設計判断を示す。教材連携（F-05<span class="rev-old">, F-27</span>）の技術詳細は8章、AI連携機能（F-08, F-20〜F-23）の技術詳細は9章に譲り、本章では処理概要と他機能との関係を示すに留める。<span class="rev-new">F-29（プロフィール自己編集）はv1.22で新設した。</span></p>
 
   <h3>5.1 F-01 Google認証</h3>
   <p><strong>処理概要:</strong> Google OAuth 2.0によるログイン。許可ドメイン制限、セッションJWT発行、初回ログイン時の自動ユーザー登録（role='learner'）を行う（対応要求: REQ-N-01）。詳細は3.1節参照。</p>
@@ -653,7 +665,7 @@
     <strong>設計判断（全社スコープをrequiredで権限分岐する理由）:</strong> 要件定義書v1.5でF-25（プロジェクト単位教材管理）に一本化されたことで、社員が「気軽に社内へ共有する」（REQ-F-04）ための唯一の経路は、自分のプロジェクトで教材を作り、それを他の人にも見えるようにすることになった。ここで全社スコープの作成を一律adminに限定すると、必修教材の配信（重要な運用で一元管理すべき）だけでなく、単なる任意共有までadminのボトルネックを経由することになり、REQ-F-04の趣旨に反する。そこで新しいscope_typeを追加するのではなく、既存の<code>required</code>フラグで権限を分岐させる: <code>scope_type='company'</code>かつ<code>required=true</code>の行の作成・更新は管理者専用のAPI権限判定（3.3節のadmin判定）とし、<code>required=false</code>の行は対象教材のプロジェクトの管理者判定（<code>require_project_role(project_id, user, min_role='admin')</code>、3.5節）でも許可する。既存のscope_type列挙値・テーブル構造を変えずに、最小限の権限判定の分岐だけで実現できる。
   </div>
   <div class="callout">
-    <strong>設計判断（複数スコープはOR結合）:</strong> 画面モックアップ（S-06）は「<span class="rev-old">部署Xかつ</span><span class="rev-new">特定プロジェクトAかつ別の</span>プロジェクトを組み合わせて指定できる」という複合条件のUIを示しているが、要求定義書は複数単位を「組み合わせて指定できる」とのみ規定し、AND/ORいずれで結合するかまでは規定していない。本書では実装をシンプルに保つため、<strong>1教材に対して複数の T-11 <code>assignments</code> 行（scope_type×scope_idの組み合わせ数分）を持たせ、行間はOR結合（いずれかの条件に合致すれば対象者）とする</strong>。真に「<span class="rev-old">部署Xの中でもプロジェクトYのメンバーのみ</span><span class="rev-new">プロジェクトXのメンバーのうちプロジェクトYのメンバーでもある者のみ</span>」というAND条件が必要な場合は、対象者を個人（individual）スコープとして展開して登録する運用とし、AND専用のスコープ種別は設けない。合否判定・再受験の条件（<code>pass_score_pct</code>・<code>retake_allowed</code>・<code>retake_limit</code>）は教材単位で1つに定める運用とし、複数スコープを設定する場合も同一教材内では同じ値を複製して保持する。
+    <strong>設計判断（複数スコープはOR結合）:</strong> 画面モックアップ（S-06）は「<span class="rev-old">部署Xかつ</span><span class="rev-new">特定プロジェクトAかつ別の</span>プロジェクトを組み合わせて指定できる」という複合条件のUIを示しているが、要求定義書は複数単位を「組み合わせて指定できる」とのみ規定し、AND/ORいずれで結合するかまでは規定していない。本書では実装をシンプルに保つため、<strong>1教材に対して複数の T-11 <code>assignments</code> 行（scope_type×scope_idの組み合わせ数分）を持たせ、行間はOR結合（いずれかの条件に合致すれば対象者）とする</strong>。真に「<span class="rev-old">部署Xの中でもプロジェクトYのメンバーのみ</span><span class="rev-new">プロジェクトXのメンバーのうちプロジェクトYのメンバーでもある者のみ</span>」というAND条件が必要な場合は、対象者を個人（individual）スコープとして展開して登録する運用とし、AND専用のスコープ種別は設けない。合否判定・再受験の条件（<code>pass_score_pct</code>・<code>retake_allowed</code>・<code>retake_limit</code>）は教材単位で1つに定める運用とし、複数スコープを設定する場合も同一教材内では同じ値を複製して保持する。<span class="rev-new">これらの値は配信設定（S-06、scopeごとの設定画面）ではなく、教材の作成者が決める性質の値であるため、S-05「合否判定・再受験設定」・A-17（教材メタデータ更新）から入力し、対象教材の全T-11行へ同一値を書き込む（7.2.3節A-17参照。v1.22で実施主体を明記）。</span>
   </div>
   <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
     <tbody><tr><td>S-06</td><td>A-36〜A-38</td><td>T-04, T-11</td></tr></tbody></table>
@@ -794,6 +806,19 @@
   <div class="callout rev-old">
     <strong>この機能は基本設計書v1.20で廃止されました。</strong> F-27はe-learningのバックエンドがAnthropic Claude APIを直接呼び出す構造のため、利用のたびにe-learning側で従量課金が発生していた。一方、既存のF-05（Claude Code CLIとの往復）はClaude Code利用者本人の契約・APIキーで課金され、e-learning側の運用コストは発生しない。両者は「AIが教材の目次・ページ・問題を対話的に作成する」という似た体験を提供する代替経路だったが、コストの発生しないF-05に一本化することとした。教材の作成・修正へのAI支援はすべてF-05経由で行う（8章参照）。専用画面S-18、S-05・S-17の画面内チャットパネル、A-68〜A-70、T-24 <code>ai_draft_sessions</code>・T-25 <code>ai_draft_messages</code>は、いずれも廃止しIDを欠番として保持する。
   </div>
+
+  <h3 class="rev-new">5.29 F-29 プロフィール自己編集（表示名・アイコン）</h3>
+  <p class="rev-new"><strong>処理概要:</strong> 利用者が自分自身の表示名・アイコン画像をS-15（プロフィール編集）から変更できる（v1.22新設）。対応する要求ID・機能要件は無く、要件定義書4章のS-15画面要件（「アイコン画像の設定、氏名・メールアドレスの確認」）に当初から存在していた要素を、実際に動作する機能として具体化したものである。</p>
+  <ul class="rev-new">
+    <li><strong>表示名:</strong> T-01 <code>users.name</code>を対象とする。初回登録時（A-02）にGoogleプロフィールの氏名を初期値として設定し、以降は本人がA-75で明示的に変更するまでシステム側では変更しない（3.1節参照）。100文字以内。</li>
+    <li><strong>アイコン画像:</strong> T-01 <code>users.custom_picture_key</code>（nullable。Supabase Storageのパス）を対象とする。未設定時はGoogleプロフィール画像（<code>picture_url</code>相当）をフォールバックとして使用する。PNG/JPEGのみ、2MBまで（環境変数<code>MAX_ICON_SIZE_MB</code>で調整可）。A-76で署名付きアップロードURLを発行し、A-75でメタデータを確定する2段階方式とする（教材添付ファイル、A-27/A-29と同じパターン）。A-77で独自アイコンを削除しGoogle画像へ差し戻せる。</li>
+    <li><strong>変更不可の項目:</strong> メールアドレス（<code>email</code>）はGoogleアカウントに連動する不変の識別子であり、この機能の対象外。システムロール（<code>role</code>）・有効/無効（<code>is_active</code>）はadmin専用（F-02）のまま変更しない。</li>
+  </ul>
+  <div class="callout rev-new">
+    <strong>設計判断（アイコンをT-01の列として保持し、教材添付〔T-09〕とは別の仕組みにする理由）:</strong> ユーザーアイコンは教材コンテンツとは無関係な小さな画像（数百KB程度）であり、対象教材やプロジェクトへの紐づけを持たない1ユーザー1枚の設定値である。T-09 <code>material_attachments</code>は教材・ページへの紐づけを前提とした設計のため転用せず、Keireki T-08 <code>app_settings</code>（会社ロゴ）と同様に、対象エンティティ（この場合はユーザー本人）に直接列として持たせる方式とした。ただし複数ユーザー分の画像を1テーブルに集約するapp_settingsのkey-value方式とは異なり、ユーザーごとに1行存在するT-01に直接列を追加する方が自然であるため、T-01への列追加を選んだ。
+  </div>
+  <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
+    <tbody><tr><td>S-15</td><td>A-04, A-75, A-76, A-77</td><td>T-01</td></tr></tbody></table>
 
   <!-- ============ 6. データベース設計 ============ -->
   <h2 id="sec6">6. データベース設計</h2>
@@ -1004,12 +1029,12 @@
   <table>
     <thead><tr><th>ID</th><th>物理名</th><th>論理名</th><th>概要</th></tr></thead>
     <tbody>
-      <tr><td>T-01</td><td><code>users</code></td><td>ユーザー</td><td>email（UNIQUE）、name、picture_url、role（<span class="rev-old">'learner'/'author'/'manager'/'admin'、DEFAULT 'learner'</span><span class="rev-new">'member'/'admin'、DEFAULT 'member'</span>）、<span class="rev-old">department_id（FK→departments、nullable）、</span>is_active（DEFAULT true）<span class="rev-new">。department_idはv1.5で削除した（部署の概念の廃止に伴う）</span></td></tr>
+      <tr><td>T-01</td><td><code>users</code></td><td>ユーザー</td><td>email（UNIQUE）、<strong>name</strong>（<span class="rev-new">初回登録時にGoogleプロフィールの氏名を初期値とし、以降は本人がS-15で変更するまでシステム側では更新しない。v1.22。3.1節参照</span>）、picture_url（<span class="rev-new">Googleプロフィール画像のURL。DBに保存せず<code>custom_picture_key</code>未設定時のフォールバックとして参照のたびに取得する</span>）、role（<span class="rev-old">'learner'/'author'/'manager'/'admin'、DEFAULT 'learner'</span><span class="rev-new">'member'/'admin'、DEFAULT 'member'</span>）、<span class="rev-old">department_id（FK→departments、nullable）、</span>is_active（DEFAULT true）<span class="rev-new">。department_idはv1.5で削除した（部署の概念の廃止に伴う）</span><span class="rev-new">、<strong>custom_picture_key</strong>（text、nullable。Supabase Storageのパス。本人がS-15でアップロードした独自アイコン。v1.22追加。5.29節参照）</span></td></tr>
       <tr class="rev-row"><td>T-02</td><td><span class="rev-old"><code>departments</code></span></td><td><span class="rev-old">部署</span></td><td><span class="rev-old">name（UNIQUE）、head_user_id（FK→users、nullable。部署長。S-08の担当範囲判定に使用）</span><span class="rev-new">廃止（v1.5）。部署（department）の概念をシステムから廃止したため、本テーブルは廃止した。T-01 <code>users.department_id</code> も同時に削除した。IDは欠番として保持する。</span></td></tr>
       <tr class="rev-row"><td>T-03</td><td><code>projects</code></td><td>プロジェクト</td><td>name、description、status（'active'/'completed'、DEFAULT 'active'）、<strong>pm_user_id</strong>（FK→users、nullable。PM。S-08の担当範囲判定に使用）、created_by（FK→users）、<strong class="rev-new">is_company_wide</strong><span class="rev-new">（BOOLEAN NOT NULL DEFAULT false。「全社公開」プロジェクトを表すフラグ。trueの行は初期データとして1行のみ投入し、通常のAPI〔A-09/A-10〕からtrueに設定する手段は提供しない。5.25節参照）</span></td></tr>
       <tr class="rev-row"><td>T-04</td><td><code>project_memberships</code></td><td><span class="rev-new">プロジェクトメンバー</span><span class="rev-old">プロジェクト所属</span></td><td>project_id（FK）、user_id（FK）、<strong class="rev-new">role</strong><span class="rev-new">（'admin'/'editor'/'learner'、DEFAULT 'learner'。プロジェクトのローカルロール。3.5節参照）</span>、<strong class="rev-new">assigned_by</strong><span class="rev-new">（FK→users、nullable。ロールを設定したプロジェクト管理者。作成時の自動付与はNULL）</span>、<strong class="rev-new">status</strong><span class="rev-new">（'invited'/'active'/'declined'、DEFAULT 'invited'。権限が有効になるのはactiveのみ。3.5節参照）</span>、joined_at<span class="rev-new">（nullable。招待の承諾時〔statusがactiveになった時点〕に設定。プロジェクト作成者・全社公開への自動参加は作成と同時に設定）</span>、left_at（nullable。NULLが現役メンバー。<span class="rev-new">プロジェクト管理者によるメンバー削除時に設定し、削除後の猶予期間判定に使用（5.25節参照）</span><span class="rev-old">離任後の猶予期間判定に使用。5.3節参照</span>）。UNIQUE(project_id, user_id)。<span class="rev-old">自己申告制</span><span class="rev-new">メンバーの招待・削除・ロール設定はプロジェクト管理者が行うが、招待の承諾・辞退は招待された本人のみが行う（3.5節）</span></td></tr>
       <tr class="rev-row"><td>T-05</td><td><span class="rev-old"><code>courses</code></span></td><td><span class="rev-old">コース</span></td><td><span class="rev-old">name、description、sort_order。単元・コース構成の最上位単位</span><span class="rev-new">廃止（v1.12）。コースという固定リストの事前登録をやめ、教材に自由な複数タグ（<code>materials.tags</code>）を付与する方式に一本化した。学習順序のまとまりが必要な場面は、プロジェクト・タグの組み合わせで代替する。IDは欠番として保持する。</span></td></tr>
-      <tr><td>T-06</td><td><code>materials</code></td><td>教材</td><td><span class="rev-old">course_id（FK、nullable）、</span>title、description（一覧表示用概要）、<span class="rev-old">format（'markdown'/'html'）、body（本文。単元は本文中の見出しから抽出。5.4節参照）、</span><span class="rev-new">教材のメタ情報のみを持つ入れ物に変わり、本文フィールドは持たない（v1.11）。目次構造・各ページの本文はT-23が保持する。<strong>tags</strong>（JSONB配列、DEFAULT '[]'。自由なタグ文字列の配列。v1.12でcourse_idから置き換え。T-05 courses廃止）、</span><span class="rev-old">owner_id（FK→users）</span><span class="rev-new"><strong>created_by</strong>（FK→users。作成者を記録する用途のみで、編集権限判定には用いない。v1.5でowner_idから読み替えた）</span>、<strong>project_id</strong>（FK→projects、<span class="rev-old">nullable。個人教材はNULL、プロジェクトに紐づく教材は該当プロジェクトID。編集権限判定の分岐に用いる。</span><span class="rev-new">NOT NULL。教材は必ずいずれかのプロジェクトに属する（v1.5）。編集権限は常にこのプロジェクトのローカルロールで判定する。</span>3.5節・5.26節参照）、status（'draft'/'published'）、sort_order、<span class="rev-new"><strong>attempt_scope</strong>（'material'/'chapter'/'section'/'page'、DEFAULT 'material'。合否判定・再受験の単位〔受験単位〕。公開前に作成者が設定する。5.14節参照）、<strong>retake_scope</strong>（'all'/'wrong_only'、DEFAULT 'all'。再受験時に全問解き直すか前回の誤答のみか）、<strong>default_feedback_style</strong>（'show_answer'/'review_only'/'hint_only'、DEFAULT 'show_answer'。AI講評スタイルの教材既定。設問側のT-10.feedback_styleで上書き可）、<strong>ai_context</strong>（text、nullable。F-20・F-27のAI呼び出しに共通して追加する前提条件・制約の指示文。5.20節・5.28節参照）</span><span class="rev-new">、<strong>grading_mode</strong>（'ai'/'manual'、DEFAULT 'ai'。記述式・コード記述式の採点方式の教材既定。'manual'ではAIは正誤・点数を判定せず、対象教材が紐づくプロジェクトの管理者・編集者がS-19で採点する。設問側のT-10.grading_modeで上書き可。5.20節参照）</span></td></tr>
+      <tr><td>T-06</td><td><code>materials</code></td><td>教材</td><td><span class="rev-old">course_id（FK、nullable）、</span>title、description（一覧表示用概要）、<span class="rev-old">format（'markdown'/'html'）、body（本文。単元は本文中の見出しから抽出。5.4節参照）、</span><span class="rev-new">教材のメタ情報のみを持つ入れ物に変わり、本文フィールドは持たない（v1.11）。目次構造・各ページの本文はT-23が保持する。<strong>tags</strong>（JSONB配列、DEFAULT '[]'。自由なタグ文字列の配列。v1.12でcourse_idから置き換え。T-05 courses廃止）、</span><span class="rev-old">owner_id（FK→users）</span><span class="rev-new"><strong>created_by</strong>（FK→users。作成者を記録する用途のみで、編集権限判定には用いない。v1.5でowner_idから読み替えた）</span>、<strong>project_id</strong>（FK→projects、<span class="rev-old">nullable。個人教材はNULL、プロジェクトに紐づく教材は該当プロジェクトID。編集権限判定の分岐に用いる。</span><span class="rev-new">NOT NULL。教材は必ずいずれかのプロジェクトに属する（v1.5）。編集権限は常にこのプロジェクトのローカルロールで判定する。</span>3.5節・5.26節参照）、status（'draft'/'published'）、sort_order、<span class="rev-new"><strong>attempt_scope</strong>（'material'/'chapter'/'section'/'page'、DEFAULT 'material'。合否判定・再受験の単位〔受験単位〕。公開前に作成者が設定する。5.14節参照）、<strong>retake_scope</strong>（'all'/'wrong_only'、DEFAULT 'all'。再受験時に全問解き直すか前回の誤答のみか）、<strong>default_feedback_style</strong>（'show_answer'/'review_only'/'hint_only'、DEFAULT 'show_answer'。AI講評スタイルの教材既定。設問側のT-10.feedback_styleで上書き可）、<strong>ai_context</strong>（text、nullable。F-20のAI呼び出しに追加する前提条件・制約の指示文。5.20節参照。<span class="rev-new">当初はF-27にも共通適用していたが、F-27はv1.20で廃止した（5.28節参照）</span>）</span><span class="rev-new">、<strong>grading_mode</strong>（'ai'/'manual'、DEFAULT 'ai'。記述式・コード記述式の採点方式の教材既定。'manual'ではAIは正誤・点数を判定せず、対象教材が紐づくプロジェクトの管理者・編集者がS-19で採点する。設問側のT-10.grading_modeで上書き可。5.20節参照）</span></td></tr>
       <tr class="rev-row"><td>T-07</td><td><span class="rev-old"><code>material_co_editors</code></span></td><td><span class="rev-old">共同編集者</span></td><td><span class="rev-old">material_id（FK）、user_id（FK）、added_by（FK→users）。UNIQUE(material_id, user_id)</span><span class="rev-new">廃止（v1.5）。教材は必ずいずれかのプロジェクトに属する方式に一本化され、個人所有の教材（オーナー・共同編集者モデル）が廃止されたため、本テーブルは廃止した。IDは欠番として保持する。</span></td></tr>
       <tr><td>T-08</td><td><code>material_revisions</code></td><td>教材改訂履歴</td><td>material_id（FK）、body_snapshot、format、changed_by（FK→users）、changed_via（'web'/'claude_code'）、change_summary。8.4節参照</td></tr>
       <tr><td>T-09</td><td><code>material_attachments</code></td><td>添付ファイル・リンク</td><td>material_id（FK）、<span class="rev-new"><strong>node_id</strong>（FK→material_nodes、nullable。特定のページに紐づく場合はそのページのnode_id、教材全体の参考資料〔シラバスPDF等、特定ページに属さないもの〕はNULL。v1.14追加）、</span>kind（'file'/'link'）、storage_key（nullable。Supabase Storageのパス）、external_url（nullable）、filename、mime_type、size_bytes</td></tr>
@@ -1061,9 +1086,9 @@
   <p>ベースパスは <code>/api</code> とする。認証はセッションJWTとし、ブラウザからのリクエストはHttpOnly Cookie（3.2節）、Claude Code等のCLIクライアントからのリクエストは <code>Authorization: Bearer &lt;token&gt;</code> ヘッダーで送信する（トークンの発行方式は8.2節）。A-01・A-02・A-62（いずれもログイン開始系のエンドポイント）を除く全APIで認証を必須とする。レスポンス形式はJSONを基本とし、教材テキストの往復系API（A-19〜A-21）のみ <code>text/plain; charset=utf-8</code> を用いる（8.4節）。エラー形式はlcc_crm・Keirekiを踏襲し <code>{"detail": "メッセージ"}</code> とする。権限不足は403、対象なしは404、業務ルール違反（唯一の管理者の削除・降格等）は400、入力形式不正はFastAPI既定の422を返す。権限判定は全てサーバー側（<code>auth_helpers.py</code> の権限デコレーター・依存関数）で行い、下表の「権限」列は3.3節（システム全体ロール）・3.5節（プロジェクトのローカルロール）の判定ロジックに沿って表記する（凡例は7.3節）。</p>
 
   <h3>7.2 API一覧（ルーター構成別）</h3>
-  <p><code>routers/</code> 配下のファイル単位に、1〜6章で既出のAPI（A-01〜A-61）および本章・8章で新設するAPI（A-62〜A-64）、<span class="rev-new">共有承認フロー（F-26）で新設するAPI（A-65〜A-66）</span>をまとめて示す（2.4節のファイル構成に対応）。A-05〜A-08・A-23〜A-26は要件定義書v1.5対応（3.4節・5.3節・5.7節）で廃止した機能に対応するAPIであり、欠番として扱う。</p>
+  <p><code>routers/</code> 配下のファイル単位に、1〜6章で既出のAPI（A-01〜A-61）および本章・8章で新設するAPI（A-62〜A-64）、<span class="rev-new">共有承認フロー（F-26）で新設するAPI（A-65〜A-66）</span>、<span class="rev-new">S-19採点保存API（A-74）・プロフィール自己編集API（A-75〜A-77、v1.22新設）</span>をまとめて示す（2.4節のファイル構成に対応）。A-05〜A-08・A-23〜A-26は要件定義書v1.5対応（3.4節・5.3節・5.7節）で廃止した機能に対応するAPIであり、欠番として扱う。</p>
 
-  <h4>7.2.1 auth.py（認証、A-01〜A-04, A-62〜A-63）</h4>
+  <h4>7.2.1 auth.py（認証、A-01〜A-04, A-62〜A-63, <span class="rev-new">A-75〜A-77</span>）</h4>
   <table>
     <thead><tr><th>API ID</th><th>メソッド</th><th>パス</th><th>権限</th><th>概要</th></tr></thead>
     <tbody>
@@ -1073,6 +1098,9 @@
       <tr><td>A-04</td><td><span class="badge badge-get">GET</span></td><td><code>/api/auth/me</code></td><td>認証済</td><td>ログイン中ユーザー情報（id, email, name, role, picture_url）取得</td></tr>
       <tr><td>A-62</td><td><span class="badge badge-get">GET</span></td><td><code>/api/auth/cli/login</code></td><td>不要</td><td>CLI用ログイン開始。ブラウザでA-01と同じGoogle OAuthフローを開き、成功後にlocalhostコールバックへ長期JWT（CLIトークン）を返す（8.2節）</td></tr>
       <tr><td>A-63</td><td><span class="badge badge-post">POST</span></td><td><code>/api/auth/cli/revoke</code></td><td>認証済（CLIトークン）</td><td>発行済みCLIトークンの失効</td></tr>
+      <tr class="rev-row"><td>A-75</td><td><span class="badge badge-put">PUT</span></td><td><code>/api/auth/me</code></td><td>本人</td><td>表示名の変更、およびA-76でアップロード済みのアイコンの確定（S-15。5.29節）</td></tr>
+      <tr class="rev-row"><td>A-76</td><td><span class="badge badge-post">POST</span></td><td><code>/api/auth/me/icon/upload-url</code></td><td>本人</td><td>アイコン画像アップロード用の署名付きURLを発行（A-27と同じ方式）。PNG/JPEGのみ、<code>MAX_ICON_SIZE_MB</code>（既定2MB）まで</td></tr>
+      <tr class="rev-row"><td>A-77</td><td><span class="badge badge-delete">DELETE</span></td><td><code>/api/auth/me/icon</code></td><td>本人</td><td>独自アイコンを削除しGoogleプロフィール画像に戻す（<code>custom_picture_key</code>をNULLに更新）</td></tr>
     </tbody>
   </table>
 
@@ -1102,7 +1130,7 @@
       <tr><td>A-14</td><td><span class="badge badge-get">GET</span></td><td><code>/api/materials</code></td><td>認証済（全員）</td><td>教材一覧・検索（S-03）。クエリ: <code>q</code>, <code>course_id</code>, <code>required</code>, <code>incomplete_only</code>, <code>my_assignments_only</code>, <code>page</code>, <code>per_page</code></td></tr>
       <tr><td>A-15</td><td><span class="badge badge-get">GET</span></td><td><code>/api/materials/{id}</code></td><td>受講対象者、対象教材が紐づくプロジェクトの<span class="badge badge-projrole">管理者・編集者</span> <span class="badge badge-admin">admin</span></td><td>教材詳細取得（構造化JSON。本文・問題を含む。下書きは編集権限保持者のみ閲覧可）</td></tr>
       <tr class="rev-row"><td>A-16</td><td><span class="badge badge-post">POST</span></td><td><code>/api/materials</code></td><td>対象プロジェクトの<span class="badge badge-projrole">編集者・管理者</span> <span class="badge badge-admin">admin</span></td><td>新規作成。<span class="rev-new"><code>project_id</code>省略時は「全社公開」プロジェクトのIDを既定値として補完する（5.26節）。指定する場合は指定したプロジェクトの編集者以上であること。</span></td></tr>
-      <tr><td>A-17</td><td><span class="badge badge-put">PUT</span></td><td><code>/api/materials/{id}</code></td><td>対象教材が紐づくプロジェクトの<span class="badge badge-projrole">管理者・編集者</span> <span class="badge badge-admin">admin</span></td><td>メタデータ更新（タイトル・状態・<code>course_id</code>・<code>project_id</code>付け替え含む。付け替えは変更前後どちらのプロジェクトについても編集権限を満たす者に限定。5.26節）</td></tr>
+      <tr><td>A-17</td><td><span class="badge badge-put">PUT</span></td><td><code>/api/materials/{id}</code></td><td>対象教材が紐づくプロジェクトの<span class="badge badge-projrole">管理者・編集者</span> <span class="badge badge-admin">admin</span></td><td>メタデータ更新（タイトル・状態・<code>tags</code>・<code>project_id</code>付け替え・<code>attempt_scope</code>・<code>retake_scope</code>・<code>default_feedback_style</code>・<code>ai_context</code>・<code>grading_mode</code>を含む。付け替えは変更前後どちらのプロジェクトについても編集権限を満たす者に限定。5.26節）。<span class="rev-new">S-05「合否判定・再受験設定」の合格基準（<code>pass_score_pct</code>）・再受験可否（<code>retake_allowed</code>）・回数（<code>retake_limit</code>）もここで受け取り、対象教材の既存T-11 <code>assignments</code>行全てへ同一値を反映する（5.9節callout「複製して保持する」運用の実施主体。v1.22で明記）</span></td></tr>
       <tr><td>A-18</td><td><span class="badge badge-delete">DELETE</span></td><td><code>/api/materials/{id}</code></td><td>対象教材が紐づくプロジェクトの<span class="badge badge-projrole">管理者</span> <span class="badge badge-admin">admin</span></td><td>削除</td></tr>
       <tr><td>A-19</td><td><span class="badge badge-get">GET</span></td><td><code>/api/materials/{id}/source</code></td><td>対象教材が紐づくプロジェクトの<span class="badge badge-projrole">管理者・編集者</span> <span class="badge badge-admin">admin</span></td><td>フロントマター付きテキスト取得（画面のMarkdown/HTMLエディタ・Claude Code共通、8.4節）</td></tr>
       <tr><td>A-20</td><td><span class="badge badge-put">PUT</span></td><td><code>/api/materials/{id}/source</code></td><td>対象教材が紐づくプロジェクトの<span class="badge badge-projrole">管理者・編集者</span> <span class="badge badge-admin">admin</span></td><td>フロントマター付きテキストで本文・問題を書き戻し（画面・Claude Code共通、8.4節）</td></tr>
@@ -1136,7 +1164,7 @@
     </tbody>
   </table>
 
-  <h4>7.2.5 learning.py（受講・受験、A-39〜A-44<span class="rev-new">, A-71〜A-73</span>）</h4>
+  <h4>7.2.5 learning.py（受講・受験、A-39〜A-44<span class="rev-new">, A-71〜A-74</span>）</h4>
   <table>
     <thead><tr><th>API ID</th><th>メソッド</th><th>パス</th><th>権限</th><th>概要</th></tr></thead>
     <tbody>
@@ -1149,6 +1177,7 @@
       <tr class="rev-row"><td>A-71</td><td><span class="badge badge-post">POST</span></td><td><code>/api/attempts/{attempt_id}/retake</code></td><td>当該教材の受講対象者</td><td>再受験を開始する。materials.retake_scope='wrong_only'の場合、前回の試行で不正解だった設問のみを新しい試行に含め、正解済みの設問IDを<code>carried_over_question_ids</code>に記録する。'all'の場合は全問を再度含める（v1.17新設）</td></tr>
       <tr class="rev-row"><td>A-72</td><td><span class="badge badge-post">POST</span></td><td><code>/api/surveys/{survey_id}/responses</code></td><td>対象教材の受講対象者</td><td>アンケート回答を送信（T-28・T-29に保存）。<code>survey.repeat_mode='once'</code>かつ2回目以降の場合は表示自体をフロント側でスキップする（S-04・S-16）。回答はスキップ可能で必須ではない（v1.17新設）</td></tr>
       <tr class="rev-row"><td>A-73</td><td><span class="badge badge-get">GET</span></td><td><code>/api/questions/{question_id}/answers</code></td><td>対象教材が紐づくプロジェクトの<span class="badge badge-projrole">管理者・編集者</span> <span class="badge badge-admin">admin</span></td><td>指定した設問への全受講者の回答一覧を取得（S-19）。<code>type='score_log'</code>ならスコアと推移、それ以外なら回答内容・<code>is_correct</code>・AI採点結果を返す。氏名付きで返すためアクセス制御を限定する（v1.17新設）</td></tr>
+      <tr class="rev-row"><td>A-74</td><td><span class="badge badge-put">PUT</span></td><td><code>/api/answers/{answer_id}/review</code></td><td>対象教材が紐づくプロジェクトの<span class="badge badge-projrole">管理者・編集者</span> <span class="badge badge-admin">admin</span></td><td>設問1件の採点結果を確定・修正する（S-19「採点する」「採点を修正」）。<code>is_correct</code>・<code>ai_feedback</code>（担当者の講評として保存）を受け取り、<code>reviewed_by</code>・<code>reviewed_at</code>を設定する。<code>grading_mode='ai'</code>の設問はAI採点結果の訂正、<code>grading_mode='manual'</code>の設問は担当者による新規採点のいずれも本APIで扱う。保存後、当該<code>attempt_id</code>のA-42と同じロジックで<code>score_pct</code>・<code>passed</code>を再計算する（v1.22新設。従来「詳細設計で定義する」としていたAPIを正式化）</td></tr>
     </tbody>
   </table>
 
@@ -1205,7 +1234,7 @@
       <tr><td><span class="badge badge-projrole">対象プロジェクトの管理者</span></td><td><code>require_project_role(project_id, user, min_role='admin')</code>（3.5節）。システム全体の <code>admin</code> は当該プロジェクトのローカルロールを持たなくても常に満たす</td></tr>
       <tr><td><span class="badge badge-projrole">対象プロジェクトの管理者・編集者</span></td><td><code>require_project_role(project_id, user, min_role='editor')</code></td></tr>
       <tr><td>対象教材の受講対象者</td><td><code>require_project_role(materials.project_id, user, min_role='learner')</code> を満たすプロジェクトメンバー、<strong>または</strong> 配信設定（T-11 assignments、F-09）でその教材の対象者として個別に指定されている者、<strong>または</strong> <code class="rev-new">T-22 material_project_shares で status='accepted' として共有された先のプロジェクトについて require_project_role(shared_to_project_id, user, min_role='learner') を満たす者（F-26、5.27節）</code>、のいずれかを満たす</td></tr>
-      <tr><td>本人</td><td>パス上の <code>user_id</code>／対象 <code>attempt_id</code> の所有者がログインユーザー自身と一致する</td></tr>
+      <tr><td>本人</td><td>パス上の <code>user_id</code>／対象 <code>attempt_id</code> の所有者がログインユーザー自身と一致する。<span class="rev-new">A-04・A-75〜A-77のようにパスにIDを取らずJWTのユーザーIDのみを対象とするAPIも同様に「本人」と表記する</span></td></tr>
       <tr><td>対象者が所属するプロジェクトの管理者</td><td>対象ユーザー（<code>user_id</code>）が現役メンバーであるいずれかのプロジェクトについて <code>require_project_role(project_id, user=リクエスト者, min_role='admin')</code> を満たす（5.19節と同じ判定）</td></tr>
     </tbody>
   </table>
@@ -1668,8 +1697,8 @@ scoring_criteria: |
   </ul>
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（e-learning）基本設計書 v1.7</span>
-    <span>コガソフトウェア株式会社 / 2026-08-18</span>
+    <span>社内学習管理システム（e-learning）基本設計書 v1.22</span>
+    <span>コガソフトウェア株式会社 / 2026-08-21</span>
   </footer>
 
 </div>

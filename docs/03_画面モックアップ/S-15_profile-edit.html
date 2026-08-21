@@ -88,7 +88,7 @@
 
     <div class="page-body">
 
-      <p class="tab-note">自分のアイコン画像を設定できます。氏名・メールアドレスはGoogleアカウントと連動しており、この画面からは変更できません（変更する場合はGoogleアカウント側で行ってください）。</p>
+      <p class="tab-note">表示名・アイコン画像は自分で変更できます。メールアドレスはGoogleアカウントと連動しており、この画面からは変更できません。</p>
 
       <section class="panel">
         <div class="panel-header">
@@ -113,17 +113,18 @@
       <section class="panel">
         <div class="panel-header">
           <div class="panel-title">アカウント情報</div>
-          <span class="panel-count">Googleアカウントと連動（参照のみ）</span>
         </div>
         <div class="panel-body">
           <div class="field-row">
             <div class="field">
-              <label>表示名</label>
-              <input type="text" value="佐藤 健一" disabled>
+              <label for="display-name">表示名</label>
+              <input type="text" id="display-name" value="佐藤 健一" maxlength="100">
+              <span class="field-help">初回登録時はGoogleアカウントの氏名が設定されます。ここで変更した表示名は、Googleアカウント側の氏名が変わっても上書きされません。</span>
             </div>
             <div class="field">
               <label>メールアドレス</label>
               <input type="text" value="k.sato@kogasoftware.com" disabled>
+              <span class="field-help">Googleアカウントと連動しており、この画面からは変更できません。</span>
             </div>
           </div>
           <div class="field-row" style="margin-bottom:0">

@@ -83,14 +83,16 @@
     <div class="page-body">
 
       <div class="stat-row">
-        <div class="stat">
+        <a class="stat stat-link" href="#learning-history" title="受講済み教材の一覧へ">
           <div class="stat-label">受講済み教材数</div>
           <div class="stat-value">5<span class="stat-unit">件</span></div>
-        </div>
-        <div class="stat stat-warn">
+          <span class="stat-link-hint">一覧を見る <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+        </a>
+        <a class="stat stat-warn stat-link" href="S-03_materials-list.html#incomplete-required" title="未受講の必修教材の一覧へ">
           <div class="stat-label">未受講の必修教材</div>
           <div class="stat-value">1<span class="stat-unit">件</span></div>
-        </div>
+          <span class="stat-link-hint">一覧を見る <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+        </a>
         <div class="stat">
           <div class="stat-label">平均正答率</div>
           <div class="stat-value">74<span class="stat-unit">%</span></div>
@@ -139,9 +141,10 @@
       </section>
 
       <!-- 学習履歴 -->
-      <section class="panel">
+      <section class="panel" id="learning-history">
         <div class="panel-header">
           <div class="panel-title">学習履歴</div>
+          <span class="panel-count">受講済み 5件</span>
         </div>
         <div class="table-wrap" style="box-shadow:none;border:none">
           <table class="table">
