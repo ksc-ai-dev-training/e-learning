@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>S-18 廃止（教材編集：Claude Code下書き作成） | e-learning 画面モックアップ</title>
+<title>S-18 廃止（教材編集：Claude Code下書き作成） | Manabi 画面モックアップ</title>
 <link rel="stylesheet" href="mock.css">
 </head>
 <body>
@@ -13,9 +13,9 @@
   <!-- サイドバー（プロジェクト編集者: 鈴木 美咲） -->
   <aside class="sidebar">
     <div class="sidebar-brand">
-      <div class="brand-mark">e</div>
+      <div class="brand-mark">M</div>
       <div>
-        <div class="brand-name">e-learning</div>
+        <div class="brand-name">Manabi</div>
         <div class="brand-sub">社内学習管理システム</div>
       </div>
     </div>
@@ -79,7 +79,7 @@
 
       <div class="callout">
         <strong>この画面は基本設計書v1.20で廃止されました。</strong><br>
-        F-27（AI教材作成アシスト。ブラウザ内対話生成）の廃止に伴い、この画面も廃止されました。F-27はe-learningのバックエンドがAnthropic Claude APIを直接呼び出す構造のため、利用のたびにe-learning側で従量課金が発生していました。代替のF-05（Claude Code CLI連携）はClaude Code利用者本人の契約・APIキーで課金され、e-learning側の運用コストは発生しません。「AIが教材の目次・ページ・問題を対話的に作成する」という似た体験を提供する2つの経路のうち、コストの発生しないF-05に一本化することとしました。<br><br>
+        F-27（AI教材作成アシスト。ブラウザ内対話生成）の廃止に伴い、この画面も廃止されました。F-27はManabiのバックエンドがAnthropic Claude APIを直接呼び出す構造のため、利用のたびにManabi側で従量課金が発生していました。代替のF-05（Claude Code CLI連携）はClaude Code利用者本人の契約・APIキーで課金され、Manabi側の運用コストは発生しません。「AIが教材の目次・ページ・問題を対話的に作成する」という似た体験を提供する2つの経路のうち、コストの発生しないF-05に一本化することとしました。<br><br>
         教材の作成・修正へのAI支援は、すべてClaude Code CLI（F-05、8章参照）を通じて行ってください。<br><br>
         S-14「＋新規教材を作成」は、この画面を経由せず空のS-05（目次編集）画面へ直接遷移します。既存教材の改善はS-05・S-17を直接開いて編集してください。<br><br>
         画面ID・パス（<code>/materials/draft-sessions/:sessionId</code>）・関連API（A-68〜A-70）・関連テーブル（T-24 <code>ai_draft_sessions</code>・T-25 <code>ai_draft_messages</code>）はいずれも欠番として保持し、本モックアップのファイルも参照用に残しています（基本設計書4.7b節・5.28節参照）。

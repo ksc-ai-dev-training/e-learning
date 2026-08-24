@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>基本設計書 | 社内学習管理システム（e-learning）</title>
+<title>基本設計書 | 社内学習管理システム（Manabi）</title>
 <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
@@ -12,11 +12,11 @@
   <!-- ============ 表紙 ============ -->
   <div class="cover">
     <span class="doc-type">基本設計書</span>
-    <h1>社内学習管理システム（e-learning）基本設計書</h1>
-    <p class="subtitle">社内学習管理システム（e-learning）</p>
+    <h1>社内学習管理システム（Manabi）基本設計書</h1>
+    <p class="subtitle">社内学習管理システム（Manabi）</p>
     <div class="meta">
       <span>作成日: 2026-08-18</span>
-      <span>版数: 1.22</span>
+      <span>版数: 1.23</span>
       <span>作成: コガソフトウェア株式会社</span>
     </div>
     <p class="note">本ドキュメントは新人社員向けAI開発研修のサンプル成果物です</p>
@@ -47,9 +47,10 @@
       <tr><td>1.17</td><td>2026-08-21</td><td>検討資料での合意（20260821_問題形式・採点拡張案.html）を正式反映。(1) 合否判定・再受験の単位（受験単位）を教材ごとに教材全体/章/小見出し/ページから選べるようにした（T-06.attempt_scope、T-13.scope_node_id、5.14節）。あわせて再受験時の出題範囲（全問/誤答のみ）も教材ごとに設定できるようにした（T-06.retake_scope、A-71新設）。(2)「ドボン問題」（T-10.is_critical）を新設。1問でも不正解だと受験単位が正答率によらず不合格になり、理由をS-04に明示する。反復演習・誤答抽出では判定しない。(3) 設問ごとの回答必須／任意（T-10.required）、AI講評スタイル（正解提示/コードレビュー型/ヒント型。教材既定＋設問ごと上書き。T-06.default_feedback_style、T-10.feedback_style、5.20節）、AI採点・AIアシストへの共通指示（T-06.ai_context）を追加。(4) 問題種別に「並び替え」「スコア記録」を追加（T-10.type）。並び替えは正誤判定、スコア記録は正解の概念を持たず数値記録のみで、AI個人フィードバック（F-22）でスコア推移コメントを返す。(5) ランダム出題プール（T-23.quiz_mode/pool_draw_count、T-10.pool_group_id）を追加。(6) 受験後アンケート（T-26〜T-29新設）を追加。教材全体・章単位で任意設置でき、統計をF-21（AIつまずき分析）に合流させる。(7) 設問ごとの回答一覧・AI採点レビューを行う新画面S-19を新設（A-73）。従来<code>reviewed_by</code>を設定するための画面が存在しなかった欠落への対応を兼ねる。(8) これらはすべて既存テーブルへの列追加・type列挙値追加の範囲に収まり、F-05（CLI往復）・F-27（S-18ブラウザ内対話）のどちらでも作成・編集できることを8.3節に明記した。実働テーブル数はT-01〜T-25の22件から4件増え26件、実働画面数はS-19の追加により18件となった。</td></tr>
       <tr><td>1.18</td><td>2026-08-21</td><td>記述式・コード記述式の採点方式にAI自動採点以外の選択肢を追加。対象教材が紐づくプロジェクトの管理者・編集者がAIを介さず直接採点する「手動採点」を新設し、AIは正誤判定を行わず採点結果の集計（F-21のつまずき分析）にのみ利用する方式とした（5.20節）。T-06 materialsに<code>grading_mode</code>（教材既定、既定値'ai'）、T-10 questionsに<code>grading_mode</code>（設問ごとの上書き）を追加した（6.2節）。手動採点の設問はAI講評スタイル（<code>feedback_style</code>）の対象外とし、S-05・S-17でその旨をグレーアウト表示する。S-19（設問別の回答・結果一覧）に、未採点の回答を「採点する」ボタンから初めて採点できるUIを追加した（従来の「採点を修正」はAI採点結果の訂正用）。既存のT-14 answersの<code>is_correct</code>・<code>ai_score_pct</code>・<code>ai_feedback</code>・<code>reviewed_by</code>・<code>reviewed_at</code>をそのまま流用でき、新規テーブルは不要（実働テーブル数は26件のまま）。8.3節フロントマタースキーマに<code>grading_mode</code>を追加し、F-05・F-27のどちらでも作成・編集できることを明記した。</td></tr>
       <tr><td>1.19</td><td>2026-08-21</td><td>既存教材の改善時にClaude Codeチャットパネルを開く経路を、専用画面（S-18）への遷移から、S-05（目次編集）・S-17（ページ編集）の画面内トグルパネルに変更した。編集中の画面を離れずに対話的な修正ができるようにするための変更で、右ペインに開閉可能なチャットパネルを追加した（S-18と同じUI・A-68〜A-70を再利用）。S-05から開いた場合は<code>material_id</code>、S-17から開いた場合はさらに現在ページの<code>node_id</code>を初期コンテキストとしてセッションを開始する（5.28節）。S-18はS-14「＋新規教材を作成」から入る新規作成専用画面という位置づけに整理した（4.7・4.7a・4.7b節）。新規テーブル・APIの追加はなく、既存のA-68〜A-70・T-24・T-25をそのまま再利用する。</td></tr>
-      <tr><td>1.20</td><td>2026-08-21</td><td>F-27（AI教材作成アシスト。ブラウザ内対話生成）を廃止し、教材の作成・修正へのAI支援をF-05（Claude Code CLI連携）に一本化した。理由: F-27はe-learningのバックエンドがAnthropic Claude APIを直接呼び出す構造のため、利用のたびにe-learning側で従量課金が発生していた。F-05はClaude Code利用者本人の契約・APIキーで課金され、e-learning側の運用コストは発生しない。両者は似た体験を提供する代替経路だったが、コストの発生しないF-05に一本化することとした。専用画面S-18（教材編集：Claude Code下書き作成）、S-05・S-17の画面内チャットパネル（v1.19で追加）、API A-68〜A-70、テーブルT-24 ai_draft_sessions・T-25 ai_draft_messagesをすべて廃止した（画面ID・API番号・テーブルIDはいずれも欠番として保持）。S-14「＋新規教材を作成」は、この画面を経由せず空のS-05目次編集画面へ直接遷移する（v1.14以前の遷移に戻した）。実働するテーブル数はT-01〜T-29の26件から2件減り24件、実働画面数はS-18の廃止により17件となった。</td></tr>
+      <tr><td>1.20</td><td>2026-08-21</td><td>F-27（AI教材作成アシスト。ブラウザ内対話生成）を廃止し、教材の作成・修正へのAI支援をF-05（Claude Code CLI連携）に一本化した。理由: F-27はManabiのバックエンドがAnthropic Claude APIを直接呼び出す構造のため、利用のたびにManabi側で従量課金が発生していた。F-05はClaude Code利用者本人の契約・APIキーで課金され、Manabi側の運用コストは発生しない。両者は似た体験を提供する代替経路だったが、コストの発生しないF-05に一本化することとした。専用画面S-18（教材編集：Claude Code下書き作成）、S-05・S-17の画面内チャットパネル（v1.19で追加）、API A-68〜A-70、テーブルT-24 ai_draft_sessions・T-25 ai_draft_messagesをすべて廃止した（画面ID・API番号・テーブルIDはいずれも欠番として保持）。S-14「＋新規教材を作成」は、この画面を経由せず空のS-05目次編集画面へ直接遷移する（v1.14以前の遷移に戻した）。実働するテーブル数はT-01〜T-29の26件から2件減り24件、実働画面数はS-18の廃止により17件となった。</td></tr>
       <tr><td>1.21</td><td>2026-08-21</td><td>S-10「システム設定」タブの「今月のAI利用状況」を、合計値のみの表示から機能別（F-08 教材AIレビュー／F-20 AI記述式採点・講評／F-21 AIつまずき分析／F-22 AI個人フィードバック／F-23 AI組織レポート生成）の呼び出し件数・トークン数・概算コストの内訳表示に拡張した（4.12節）。管理者がどの機能がコストの大部分を占めているかを個別に確認できるようにするための変更。A-58（AI利用状況取得）の応答に機能別内訳を追加した（9.3節のT-19集計を<code>feature</code>でgroup byして取得。7.2.9節）。あわせて、教材の作成・修正（F-05、Claude Code CLI連携）は利用者本人の契約で課金されるためこの集計には含まれない旨を明記した。新規テーブル・カラムの追加は不要（既存のT-19 <code>ai_usage_logs.feature</code>を集計するのみ）。</td></tr>
       <tr class="rev-row"><td>1.22</td><td>2026-08-21</td><td>画面モックアップ一式のレビューにより判明した仕様の未整備・不整合を解消。(1) S-15（プロフィール編集）について、要件定義書・本書とも氏名を「Googleアカウント連動、参照のみ」としていたが、画面モックには当初からアイコン画像の設定操作が用意されており、氏名についても利用者が直接編集できる想定で運用したいという実務判断を受け、表示名の自己編集を正式に機能化した。T-01 <code>users.name</code>は<strong>初回登録時のみ</strong>Googleプロフィールの氏名で初期化し、以降はログインのたびに上書きしない（本人がS-15で変更した値を維持する）よう3.1節のログインフローを修正した。あわせて、要件定義書の時点から画面要件として存在しながら対応するAPI・テーブルを欠いていたアイコン画像アップロードに対応するため、T-01に<code>custom_picture_key</code>列を追加し、A-75（PUT /api/auth/me、表示名・アイコンの確定）・A-76（POST /api/auth/me/icon/upload-url、アイコンアップロード用署名付きURL発行）・A-77（DELETE /api/auth/me/icon、Googleプロフィール画像に戻す）を新設した（3.1節・6.2節・7.2.1節）。画面設計に4.14a節（S-15プロフィール編集）を新設した。(2) S-19（設問別の回答・結果一覧）の採点結果保存APIとして、従来「詳細設計で定義する」としていたものをA-74（PUT /api/answers/{answer_id}/review）として正式に定義した（4.7c節・5.20節・7.2.5節）。(3) S-05の合否判定・再受験設定（合格基準・再受験可否・回数）はA-17（教材メタデータ更新）から入力し、対象教材の全T-11 <code>assignments</code>行へ同一値を反映する（5.9節callout「複製して保持する」運用）ことをA-17の処理内容として明記した（7.2.3節）。(4) 画面モックアップの内部不整合を修正: S-14「＋新規教材を作成」ボタンがv1.20で廃止済みのS-18を指していた誤りをS-05（空の目次編集画面）へ修正、S-05のAI採点コンテキストの説明文がv1.20で廃止済みのF-27を参照していた誤りを修正、S-10のAIモデル設定の説明文が実在しない「機能ごとの個別モデル割り当て」を示唆していた誤りを修正した。</td></tr>
+      <tr class="rev-row"><td>1.23</td><td>2026-08-21</td><td>要求仕様書（<code>docs/01_要求仕様書.html</code>）を正式にdocs/へ取り込んだことに伴い、本書全体の呼称を要求仕様書どおり「Manabi」に統一した（従来「e-learning」としていた箇所をすべて置き換え）。要求仕様書との照合を行い、REQ-F-01〜REQ-F-19・REQ-N-01〜REQ-N-06の対応関係（1.2節）に齟齬がないことを確認した。配信対象の単位について、要求仕様書REQ-F-06は「部署」を含めているが、本書は要件定義書v1.5に基づき「全社・プロジェクト・個人」の3種のまま維持する（意図的な設計判断であり、要求仕様書の記述を変更する意図はない）。</td></tr>
     </tbody>
   </table>
 
@@ -75,7 +76,7 @@
   <h2 id="sec1">1. はじめに</h2>
 
   <h3>1.1 本書の位置づけ</h3>
-  <p>本書は、社内学習管理システム（e-learning）の基本設計書である。<span class="rev-old">要件定義書（v1.4）</span><span class="rev-new">要件定義書（v1.5）</span>で定義された要求事項（REQ-F-01〜REQ-F-19、REQ-N-01〜REQ-N-06）を実現するためのシステム構成・認証認可方式・画面・機能・データベース・API・教材連携・AI連携の設計方針を定める。実装レベルの詳細（カラム単位の入出力仕様、リクエスト/レスポンスのフィールド定義、バリデーション規則、フロントマターの完全な文法など）は後続の詳細設計書で定義する。</p>
+  <p>本書は、社内学習管理システム（Manabi）の基本設計書である。<span class="rev-old">要件定義書（v1.4）</span><span class="rev-new">要件定義書（v1.5）</span>で定義された要求事項（REQ-F-01〜REQ-F-19、REQ-N-01〜REQ-N-06）を実現するためのシステム構成・認証認可方式・画面・機能・データベース・API・教材連携・AI連携の設計方針を定める。実装レベルの詳細（カラム単位の入出力仕様、リクエスト/レスポンスのフィールド定義、バリデーション規則、フロントマターの完全な文法など）は後続の詳細設計書で定義する。</p>
   <p>本システムは、社員経歴書管理システム「Keireki」と同じ研修シリーズの一部であり、デザインシステム・ドキュメント形式・ID体系（REQ-xx=要求 / F-xx=機能 / S-xx=画面 / T-xx=テーブル / A-xx=API）・技術スタックの多くをKeirekiから踏襲する。画面の詳細レイアウトは、実際に作り込まれた画面モックアップ「<a href="03_画面モックアップ/index.html">03_画面モックアップ/</a>」を参照する。</p>
   <div class="callout rev-new">
     <strong>教材作成者（author）ロールの権限論点について（v1.4で解消、v1.5でロール自体を統合）:</strong> 「author ロールが受講者（learner）と権限的にほぼ同一で、実質的な追加権限が何かという設計論点」は、v1.0執筆時点ではユーザーとの議論が保留中だった。要件定義書v1.4が導入したプロジェクトのローカルロール（管理者/編集者/受講者。F-24、要件定義書7.3節）により、教材の編集権限はオーナー・共同編集者ではなくプロジェクトのローカルロールで判定される割合が大きくなり、システム全体の「教材作成者（author）」ロールは編集権限の判定に用いられなくなった。要件定義書v1.5は、この経緯を踏まえて受講者(learner)・教材作成者(author)・部署長/PM(manager)の3ロールを廃止し、システム全体のロールをmember（一般ユーザー）／adminの2種に統合した（要件定義書7章）。あわせて教材は必ずいずれかのプロジェクトに属する方式に一本化され、個人所有の教材（オーナー・共同編集者モデル）も廃止された。本論点は、ロールと個人教材モデルの両方が整理されたことで完全に解消された。本書もこれに合わせてロール名称をmember/adminに更新し、3.4節（オーナー・共同編集者による認可）を廃止して設計している。詳細は3.3節・3.5節を参照。
@@ -212,7 +213,7 @@
       <text x="400" y="270" text-anchor="middle" font-size="10.5" fill="#8a8f98">トークン交換・検証</text>
 
       <!-- タイトル -->
-      <text x="430" y="30" text-anchor="middle" font-size="14" font-weight="600" fill="#1e3a8a">e-learning システム構成（本番）</text>
+      <text x="430" y="30" text-anchor="middle" font-size="14" font-weight="600" fill="#1e3a8a">Manabi システム構成（本番）</text>
     </svg>
   </div>
 
@@ -378,7 +379,7 @@
       <tr class="rev-row"><td>S-15</td><td>プロフィール編集</td><td><code>/profile</code></td><td>全員</td><td><span class="rev-old">アイコン画像の設定、氏名・メールアドレス（Googleアカウント連動、参照のみ）の確認、</span><span class="rev-new">表示名・アイコン画像の変更（v1.22。4.14a節）、メールアドレス（Googleアカウント連動、参照のみ）の確認、</span>所属プロジェクト一覧の確認。<span class="rev-new">自分宛てのプロジェクト招待（F-24）の一覧確認・承諾・辞退</span></td></tr>
       <tr class="rev-row"><td>S-16</td><td>教材受講：ページ</td><td><code>/materials/:materialId/pages/:nodeId</code></td><td>対象者（全員）</td><td>1ページ分の説明文の閲覧、単一選択・複数選択・<span class="rev-new">並び替え・</span>記述式・コード記述式<span class="rev-new">・スコア記録</span>問題への回答。ページは説明のみ／問題のみ／両方のいずれもあり得る。S-04（目次）から遷移する（v1.11新設）。<span class="rev-new">設問ごとの回答必須／任意（<code>required</code>）、ドボン問題（<code>is_critical</code>）の明示、出題プール（<code>quiz_mode='pool'</code>）からのランダム出題に対応。受験後アンケート（任意設置時）をここで表示することもある（v1.17）</span></td></tr>
       <tr class="rev-row"><td>S-17</td><td>教材編集：ページ編集</td><td><code>/materials/:materialId/pages/:nodeId/edit</code></td><td>対象教材が紐づくプロジェクトの管理者・編集者、<span class="badge badge-admin">admin</span></td><td>1ページ分の説明文（Markdown/HTML切替）と問題の編集。単一選択・複数選択は<code>correct_answer</code>を直接設定（AI非依存）、記述式・コード記述式は<code>scoring_criteria</code>を設定してAI採点に委ねる。保存するとS-05に戻る（v1.11新設）。<span class="rev-new">並び替え問題（正しい順序の登録）、スコア記録問題（単位のみ設定、正解の概念なし）、設問ごとの回答必須／任意・ドボン問題・AI講評スタイル上書き、出題プール設定を編集できる（v1.17）</span></td></tr>
-      <tr class="rev-row"><td>S-18</td><td><span class="rev-old">教材編集：Claude Code下書き作成</span></td><td><span class="rev-old"><code>/materials/draft-sessions/:sessionId</code></span></td><td><span class="rev-old">対象プロジェクトの編集者・管理者、admin</span></td><td><span class="rev-old">廃止（v1.20）。F-27（AI教材作成アシスト）の廃止に伴い画面も廃止した。F-27はe-learning側で従量課金が発生する経路だったが、代替のF-05（Claude Code CLI連携）は利用者本人の契約で課金されるため、e-learning側のコストが発生しないF-05に一本化した。S-14「＋新規教材を作成」は空のS-05目次編集画面へ直接遷移する。画面ID・パスは欠番として保持する。</span></td></tr>
+      <tr class="rev-row"><td>S-18</td><td><span class="rev-old">教材編集：Claude Code下書き作成</span></td><td><span class="rev-old"><code>/materials/draft-sessions/:sessionId</code></span></td><td><span class="rev-old">対象プロジェクトの編集者・管理者、admin</span></td><td><span class="rev-old">廃止（v1.20）。F-27（AI教材作成アシスト）の廃止に伴い画面も廃止した。F-27はManabi側で従量課金が発生する経路だったが、代替のF-05（Claude Code CLI連携）は利用者本人の契約で課金されるため、Manabi側のコストが発生しないF-05に一本化した。S-14「＋新規教材を作成」は空のS-05目次編集画面へ直接遷移する。画面ID・パスは欠番として保持する。</span></td></tr>
       <tr class="rev-row"><td>S-19</td><td>設問別の回答・結果一覧</td><td><code>/materials/:materialId/questions/:questionId/answers</code></td><td>対象教材が紐づくプロジェクトの管理者・編集者、<span class="badge badge-admin">admin</span></td><td>指定した設問への全受講者の回答・スコアを氏名付き一覧で表示する。記述式・コード記述式はAI採点結果の確認・<code>reviewed_by</code>修正を行える（従来抜けていたレビュー画面を兼ねる）。スコア記録型は最新スコア・推移の一覧になる。S-05・S-17から遷移する（v1.17新設）</td></tr>
     </tbody>
   </table>
@@ -474,7 +475,7 @@
       <text x="95" y="374" text-anchor="middle" font-size="9.5" fill="#8a8f98">S-12は自分が管理者であるプロジェクトがある場合に表示</text>
       <text x="275" y="374" text-anchor="middle" font-size="9.5" fill="#8a8f98">作成すると自動的に管理者になりS-12を開ける</text>
 
-      <text x="410" y="18" text-anchor="middle" font-size="13" font-weight="600" fill="#1e3a8a">e-learning 画面遷移</text>
+      <text x="410" y="18" text-anchor="middle" font-size="13" font-weight="600" fill="#1e3a8a">Manabi 画面遷移</text>
     </svg>
   </div>
 
@@ -486,7 +487,7 @@
 
   <h3>4.3 S-01 ログイン</h3>
   <ul>
-    <li><strong>表示項目:</strong> システム名（社内学習管理システム e-learning）、「Googleでログイン」ボタン、@kogasoftware.com アカウントのみ利用可の旨、研修サンプルである旨の注記。</li>
+    <li><strong>表示項目:</strong> システム名（社内学習管理システム Manabi）、「Googleでログイン」ボタン、@kogasoftware.com アカウントのみ利用可の旨、研修サンプルである旨の注記。</li>
     <li><strong>操作:</strong> ボタン押下で A-01 へ遷移しGoogle OAuth 2.0フローを開始する。認証エラー時は本画面にエラーメッセージを表示する。</li>
   </ul>
 
@@ -537,7 +538,7 @@
 
   <h3>4.7b S-18 <span class="rev-old">教材編集：Claude Code下書き作成</span></h3>
   <div class="callout rev-old">
-    <strong>この画面は基本設計書v1.20で廃止されました。</strong> F-27（AI教材作成アシスト。ブラウザ内対話生成）の廃止に伴い、この画面も廃止した。F-27はe-learningのバックエンドがAnthropic Claude APIを直接呼び出す構造のため、利用のたびにe-learning側で従量課金が発生していたが、F-05（Claude Code CLI連携）はClaude Code利用者本人の契約で課金され、e-learning側の運用コストが発生しない。両者が似た体験を提供する代替経路だったため、コストの発生しないF-05に一本化することとした。教材の作成・修正へのAI支援はすべてF-05経由で行う（8章参照）。S-14「＋新規教材を作成」は、この画面を経由せず空のS-05目次編集画面へ直接遷移する（v1.14以前の遷移に戻した）。画面ID・パス・関連API（A-68〜A-70）・関連テーブル（T-24, T-25）はいずれも欠番として保持する。
+    <strong>この画面は基本設計書v1.20で廃止されました。</strong> F-27（AI教材作成アシスト。ブラウザ内対話生成）の廃止に伴い、この画面も廃止した。F-27はManabiのバックエンドがAnthropic Claude APIを直接呼び出す構造のため、利用のたびにManabi側で従量課金が発生していたが、F-05（Claude Code CLI連携）はClaude Code利用者本人の契約で課金され、Manabi側の運用コストが発生しない。両者が似た体験を提供する代替経路だったため、コストの発生しないF-05に一本化することとした。教材の作成・修正へのAI支援はすべてF-05経由で行う（8章参照）。S-14「＋新規教材を作成」は、この画面を経由せず空のS-05目次編集画面へ直接遷移する（v1.14以前の遷移に戻した）。画面ID・パス・関連API（A-68〜A-70）・関連テーブル（T-24, T-25）はいずれも欠番として保持する。
   </div>
 
   <h3 class="rev-new">4.7c S-19 設問別の回答・結果一覧</h3>
@@ -804,7 +805,7 @@
 
   <h3>5.28 F-27 <span class="rev-old">AI教材作成アシスト（ブラウザ内対話生成）</span></h3>
   <div class="callout rev-old">
-    <strong>この機能は基本設計書v1.20で廃止されました。</strong> F-27はe-learningのバックエンドがAnthropic Claude APIを直接呼び出す構造のため、利用のたびにe-learning側で従量課金が発生していた。一方、既存のF-05（Claude Code CLIとの往復）はClaude Code利用者本人の契約・APIキーで課金され、e-learning側の運用コストは発生しない。両者は「AIが教材の目次・ページ・問題を対話的に作成する」という似た体験を提供する代替経路だったが、コストの発生しないF-05に一本化することとした。教材の作成・修正へのAI支援はすべてF-05経由で行う（8章参照）。専用画面S-18、S-05・S-17の画面内チャットパネル、A-68〜A-70、T-24 <code>ai_draft_sessions</code>・T-25 <code>ai_draft_messages</code>は、いずれも廃止しIDを欠番として保持する。
+    <strong>この機能は基本設計書v1.20で廃止されました。</strong> F-27はManabiのバックエンドがAnthropic Claude APIを直接呼び出す構造のため、利用のたびにManabi側で従量課金が発生していた。一方、既存のF-05（Claude Code CLIとの往復）はClaude Code利用者本人の契約・APIキーで課金され、Manabi側の運用コストは発生しない。両者は「AIが教材の目次・ページ・問題を対話的に作成する」という似た体験を提供する代替経路だったが、コストの発生しないF-05に一本化することとした。教材の作成・修正へのAI支援はすべてF-05経由で行う（8章参照）。専用画面S-18、S-05・S-17の画面内チャットパネル、A-68〜A-70、T-24 <code>ai_draft_sessions</code>・T-25 <code>ai_draft_messages</code>は、いずれも廃止しIDを欠番として保持する。
   </div>
 
   <h3 class="rev-new">5.29 F-29 プロフィール自己編集（表示名・アイコン）</h3>
@@ -1318,7 +1319,7 @@
     <thead><tr><th>項目</th><th>ブラウザセッション（既存、3.2節）</th><th>CLIトークン（新設）</th></tr></thead>
     <tbody>
       <tr><td>発行経路</td><td>A-01/A-02（通常のGoogle OAuthフロー）</td><td>A-62。ブラウザでA-01と同じOAuthフローを開始し、認可完了後にlocalhostの一時的なコールバックサーバー（Claude Code / 詳細設計で定めるCLIヘルパーが起動）へトークンを渡す（<code>gh auth login</code>等と同様の方式）</td></tr>
-      <tr><td>搬送方法</td><td>HttpOnly Cookie</td><td><code>Authorization: Bearer &lt;token&gt;</code> ヘッダー。CLIツールがローカル（例: <code>~/.config/e-learning/credentials</code>）に保存し、以降のAPI呼び出しに自動付与する</td></tr>
+      <tr><td>搬送方法</td><td>HttpOnly Cookie</td><td><code>Authorization: Bearer &lt;token&gt;</code> ヘッダー。CLIツールがローカル（例: <code>~/.config/Manabi/credentials</code>）に保存し、以降のAPI呼び出しに自動付与する</td></tr>
       <tr><td>JWTペイロード</td><td>ユーザー識別子・ロール・有効期限・<code>token_type='session'</code></td><td>同左＋<code>token_type='cli'</code>。有効期限はセッションJWTより長期（例: 90日）とし、A-63で失効可能</td></tr>
       <tr><td>検証・権限判定</td><td colspan="2">同一の検証ミドルウェア・<code>auth_helpers.py</code>の依存関数（<code>require_project_role</code>等）で共通に処理する。JWTのユーザー識別子・ロールは発行経路によらず同じ意味を持つため、Claude Codeから呼び出しても本人の実際の権限（3.5節のプロジェクトのローカルロール）でしか操作できない</td></tr>
     </tbody>
@@ -1697,7 +1698,7 @@ scoring_criteria: |
   </ul>
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（e-learning）基本設計書 v1.22</span>
+    <span>社内学習管理システム（Manabi）基本設計書 v1.23</span>
     <span>コガソフトウェア株式会社 / 2026-08-21</span>
   </footer>
 

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>【検討中】詳細設計書（仮） | 社内学習管理システム（e-learning）</title>
+<title>【検討中】詳細設計書（仮） | 社内学習管理システム（Manabi）</title>
 <link rel="stylesheet" href="../docs/assets/style.css">
 <style>
   .status-bar { background:#fef3c7; border-bottom:1px solid #fbbf24; color:#78350f; font-size:13px; font-weight:600; text-align:center; padding:8px; }
@@ -15,11 +15,11 @@
 
   <div class="cover">
     <span class="doc-type">詳細設計書（仮・検討中）</span>
-    <h1>社内学習管理システム（e-learning）詳細設計書（仮）</h1>
-    <p class="subtitle">社内学習管理システム（e-learning） ／ 検討資料</p>
+    <h1>社内学習管理システム（Manabi）詳細設計書（仮）</h1>
+    <p class="subtitle">社内学習管理システム（Manabi） ／ 検討資料</p>
     <div class="meta">
       <span>作成日: 2026-08-21</span>
-      <span>版数: 検討稿1.0</span>
+      <span>版数: 検討稿1.1</span>
       <span>作成: コガソフトウェア株式会社</span>
     </div>
     <p class="note">本ドキュメントは新人社員向けAI開発研修のサンプル成果物です。本ファイルは検討資料であり、docs/ 配下の正式な詳細設計書ではありません。</p>
@@ -30,6 +30,7 @@
     <thead><tr><th>版数</th><th>日付</th><th>改訂内容</th></tr></thead>
     <tbody>
       <tr><td>1.0</td><td>2026-08-21</td><td>初版。要件定義書（v1.18）・基本設計書（v1.21）で定めた機能（F-01〜F-28、実働25件）・画面（S-01〜S-19、実働17件）・API（A-01〜A-74、実働63件。A-74はS-19採点保存APIとして本書で新設）・テーブル（T-01〜T-29、実働24件）を、実装可能なレベルまで詳細化した。</td></tr>
+      <tr><td>1.1</td><td>2026-08-21</td><td>要求仕様書（<code>docs/01_要求仕様書.html</code>、v1.0）・要件定義書v1.20・基本設計書v1.23への追随、および呼称のManabi統一。基本設計書v1.22で新設されたF-29（プロフィール自己編集）・A-75〜A-77（表示名変更・アイコンアップロード・削除）・T-01 <code>custom_picture_key</code>を反映し、ログインフロー（4.1節）を「氏名は初回登録時のみGoogle同期」に更新した。基本設計書v1.22で正式化したA-74（S-19採点保存API）は初版から反映済み。実働する機能はF-01〜F-29の26件、APIはA-01〜A-77の66件になった。</td></tr>
     </tbody>
   </table>
 
@@ -53,12 +54,12 @@
   <h2 id="sec1">1. はじめに</h2>
 
   <h3>1.1 本書の位置づけ</h3>
-  <p>本書は、社内学習管理システム（コードネーム: e-learning）の基本設計書（v1.21）で定めた機能（F-01〜F-28）・画面（S-01〜S-19）・API（A-01〜A-74。A-74はS-19採点保存APIとして本書で新設）・テーブル（T-01〜T-29）を、<strong>実装可能なレベルまで詳細化</strong>するものである。対象読者は本システムの実装担当者とする。</p>
+  <p>本書は、社内学習管理システム（コードネーム: Manabi）の要求仕様書（v1.0）・要件定義書（v1.20）・基本設計書（v1.23）で定めた機能（F-01〜F-29）・画面（S-01〜S-19）・API（A-01〜A-77）・テーブル（T-01〜T-29）を、<strong>実装可能なレベルまで網羅的に詳細化</strong>するものである。対象読者は本システムの実装担当者とする。</p>
   <ul>
-    <li>ID体系（REQ-xx=要求 / F-xx=機能 / S-xx=画面 / T-xx=テーブル / A-xx=API）は要件定義書・基本設計書と共通であり、本書ではIDを用いて相互参照する。廃止・欠番のIDは基本設計書の扱いをそのまま引き継ぐ（F-03, F-07, F-27／S-07, S-18／T-02, T-05, T-07, T-24, T-25／A-05〜A-08, A-23〜A-26, A-68〜A-70）。</li>
-    <li><strong>要求仕様に相当する文書について:</strong> 本プロジェクトでは要求事項の整理（REQ-F-01〜REQ-F-19、REQ-N-01〜REQ-N-06）は要件定義書1章に統合されており、独立した「要求仕様書」は別文書として発行していない（keireki等の別プロジェクトでは要求仕様書と要求定義書を分けて発行しているが、本プロジェクトの要件定義書v1.4の改訂履歴が示すとおり、当初「要求定義書」としていた文書を「要件定義書」に改称し1文書に一本化した経緯がある）。本書は要件定義書（v1.18）・基本設計書（v1.21）の2文書を上流文書として詳細化する。</li>
+    <li>ID体系（REQ-xx=要求 / F-xx=機能 / S-xx=画面 / T-xx=テーブル / A-xx=API）は要求仕様書・要件定義書・基本設計書と共通であり、本書ではIDを用いて相互参照する。廃止・欠番のIDは基本設計書の扱いをそのまま引き継ぐ（F-03, F-07, F-27／S-07, S-18／T-02, T-05, T-07, T-24, T-25／A-05〜A-08, A-23〜A-26, A-68〜A-70）。</li>
+    <li>上流文書は要求仕様書（<code>docs/01_要求仕様書.html</code>）・要件定義書（<code>docs/02_要件定義書.html</code>）・基本設計書（<code>docs/04_基本設計書.html</code>）の3文書とする。</li>
     <li>技術スタックは既存システム LCC CRM・Keireki を踏襲する（REQ-N-06）。Frontend: React 19 + TypeScript + Vite 6 + Tailwind CSS 4 + react-router 7 + SWR + Lucide React、Backend: FastAPI (Python 3.10+) + Uvicorn + asyncpg、Database: PostgreSQL (Supabase)、ファイルストレージ: Supabase Storage、AI連携: Anthropic Claude API（Messages API）、通知: Slack Incoming Webhook、ホスティング: Koyeb。</li>
-    <li>本書は研修サンプルであるため、網羅性よりも「読んで実装イメージが湧くこと」を優先する。CRUD系APIは代表例を詳述し、類似の操作は差分・要点のみを表形式で示す（keirekiの詳細設計書と同方針）。</li>
+    <li>本書は実装担当者がそのまま実装に移せることを目的とし、機能・画面・API・テーブルを網羅する。CRUD系のように処理が定型的なものは記載を簡潔にするが、対象から省略することはしない。</li>
     <li>各テーブルのカラム詳細（型・NULL可否・制約・既定値の全定義）、API詳細、画面項目定義、教材連携・AI機能の実装レベルの仕様は本書で定める。画面レイアウトそのものは画面モックアップ「<a href="../docs/03_画面モックアップ/index.html">03_画面モックアップ/</a>」を正とし、本書では重複して図示しない。</li>
   </ul>
 
@@ -89,7 +90,7 @@
   <h2 id="sec2">2. 実装構成</h2>
 
   <p>ディレクトリ構成はLCC CRM・Keirekiのコード規約に準拠する。バックエンドはルーター分割方式、フロントエンドは pages / components / hooks 分割方式とする（基本設計書2.4節を詳細化）。</p>
-  <pre><code>e-learning/
+  <pre><code>Manabi/
 ├── backend/
 │   ├── main.py               # FastAPIアプリ生成、ルーター登録、静的配信（本番SPA）、CORS/起動設定、lifespanでスタックジョブ・スイープを起動（8.2節）
 │   ├── database.py           # asyncpg接続プール管理、SCHEMA定義（CREATE TABLE文・RLS有効化文、3章）、初期データ投入（「全社公開」プロジェクト）
@@ -104,7 +105,7 @@
 │   ├── slack_client.py       # Slack Incoming Webhook送信
 │   ├── job_sweep.py          # スタックジョブ・スイープ（8.3節）
 │   ├── routers/
-│   │   ├── auth.py           # A-01〜A-04, A-62〜A-63 認証系API
+│   │   ├── auth.py           # A-01〜A-04, A-62〜A-63, A-75〜A-77 認証系API・プロフィール自己編集API
 │   │   ├── organization.py   # A-09〜A-13, A-59〜A-61, A-65〜A-67 プロジェクト・メンバー・教材共有API
 │   │   ├── materials.py      # A-14〜A-22, A-27〜A-35, A-64 教材・問題・添付・AI教材機能API
 │   │   ├── assignments.py    # A-36〜A-38 配信設定API
@@ -171,9 +172,10 @@
     <tbody>
       <tr><td>id</td><td>BIGINT</td><td>NO</td><td>IDENTITY</td><td>PK</td></tr>
       <tr><td>email</td><td>TEXT</td><td>NO</td><td>—</td><td>UNIQUE。Googleアカウントのメールアドレス</td></tr>
-      <tr><td>name</td><td>TEXT</td><td>NO</td><td>—</td><td>氏名（Googleプロフィール由来、変更可）</td></tr>
+      <tr><td>name</td><td>TEXT</td><td>NO</td><td>—</td><td>表示名。初回登録時のみGoogleプロフィールの氏名で初期化し、以降は本人がA-75（S-15）で変更するまでシステム側では更新しない（F-29。基本設計書v1.22・3.1節）</td></tr>
       <tr><td>role</td><td>TEXT</td><td>NO</td><td>'member'</td><td>'member' / 'admin'。CHECK制約（3.3節）</td></tr>
-      <tr><td>picture_url</td><td>TEXT</td><td>YES</td><td>—</td><td>Googleプロフィール画像URL</td></tr>
+      <tr><td>picture_url</td><td>TEXT</td><td>YES</td><td>—</td><td>Googleプロフィール画像URL。DBに保存せず、参照のたびにGoogleプロフィールから取得する想定値（<code>custom_picture_key</code>未設定時のフォールバック）</td></tr>
+      <tr><td>custom_picture_key</td><td>TEXT</td><td>YES</td><td>—</td><td>Supabase Storageのパス。本人がS-15でアップロードした独自アイコン（F-29。A-76で発行した署名付きURLへアップロード後、A-75で確定）</td></tr>
       <tr><td>is_active</td><td>BOOLEAN</td><td>NO</td><td>true</td><td>falseでログイン不可（5.1節）</td></tr>
       <tr><td>created_at / updated_at</td><td>TIMESTAMPTZ</td><td>NO</td><td>now()</td><td></td></tr>
     </tbody>
@@ -664,25 +666,29 @@ ALTER TABLE surveys ENABLE ROW LEVEL SECURITY;</code></pre>
   <h2 id="sec4">4. API詳細設計</h2>
   <p>ベースパスは<code>/api</code>。認証はセッションJWT（HttpOnly Cookie）またはCLIトークン（<code>Authorization: Bearer</code>、7.4節）。エラー形式は<code>{"detail": "メッセージ"}</code>に統一する（9章）。403は権限不足、404は対象なし、400は業務ルール違反、422はPydanticバリデーションエラーを表す。権限列の表記は基本設計書7.3節の凡例（<code>require_project_role</code>等）に対応する。<strong>本章は router ファイル単位に基本設計書7.2節の一覧を実装レベルへ詳細化する。処理が単純なCRUD（作成・単純更新・削除・単純一覧）は一覧表の「リクエスト／レスポンス」列で仕様を尽くし、業務ロジックを伴うAPIのみ個別に処理フローを記す</strong>（研修サンプルとしての方針、1.1節）。</p>
 
-  <h3>4.1 auth.py（認証、A-01〜A-04, A-62〜A-63）</h3>
+  <h3>4.1 auth.py（認証、A-01〜A-04, A-62〜A-63, A-75〜A-77）</h3>
   <table>
     <thead><tr><th>API</th><th>メソッド／パス</th><th>権限</th><th>リクエスト</th><th>レスポンス</th></tr></thead>
     <tbody>
       <tr><td>A-01</td><td>GET <code>/api/auth/login</code></td><td>不要</td><td>—</td><td>302。Google認可URLへ（<code>state</code>を10分間有効・HttpOnlyの短命Cookieに保存）</td></tr>
       <tr><td>A-02</td><td>GET <code>/api/auth/callback</code></td><td>不要</td><td>クエリ <code>code</code>, <code>state</code></td><td>302 → <code>/</code>（成功）／302 → <code>/login?error=&lt;種別&gt;</code>（失敗）。下記処理フロー参照</td></tr>
       <tr><td>A-03</td><td>POST <code>/api/auth/logout</code></td><td>認証済</td><td>ボディなし</td><td>200 <code>{"detail": "ログアウトしました"}</code>。Set-CookieでMax-Age=0削除</td></tr>
-      <tr><td>A-04</td><td>GET <code>/api/auth/me</code></td><td>認証済</td><td>—</td><td>200 <code>{"id": int, "email": str, "name": str, "role": "member"|"admin", "picture_url": str|null}</code></td></tr>
+      <tr><td>A-04</td><td>GET <code>/api/auth/me</code></td><td>認証済</td><td>—</td><td>200 <code>{"id": int, "email": str, "name": str, "role": "member"|"admin", "picture_url": str}</code>。<code>picture_url</code>は<code>custom_picture_key</code>があれば署名付きURL、無ければGoogleプロフィール画像のURL</td></tr>
       <tr><td>A-62</td><td>GET <code>/api/auth/cli/login</code></td><td>不要</td><td>クエリ <code>callback_port</code>（CLIヘルパーが起動したlocalhost一時サーバーのポート）</td><td>302。A-01と同じGoogle OAuthフローを開始し、成功後にlocalhostの一時コールバックへCLIトークンをリダイレクトパラメータで渡す</td></tr>
       <tr><td>A-63</td><td>POST <code>/api/auth/cli/revoke</code></td><td>認証済（CLIトークン）</td><td>ボディなし（Authorizationヘッダーのトークンを対象とする）</td><td>200 <code>{"detail": "トークンを失効しました"}</code></td></tr>
+      <tr><td>A-75</td><td>PUT <code>/api/auth/me</code></td><td>本人</td><td><code>{"name": str(1-100文字)|omit, "icon_storage_key": str|omit}</code>（いずれか一方または両方）</td><td>200（更新後のA-04と同形式）。<code>icon_storage_key</code>はA-76で発行されたキーのみ受け付け、他ユーザーのキーを指定した場合は403</td></tr>
+      <tr><td>A-76</td><td>POST <code>/api/auth/me/icon/upload-url</code></td><td>本人</td><td><code>{"filename": str, "mime_type": "image/png"|"image/jpeg", "size_bytes": int}</code></td><td>200 <code>{"upload_url": str, "storage_key": str}</code>。<code>size_bytes</code>が<code>MAX_ICON_SIZE_MB</code>（既定2MB）超過は413</td></tr>
+      <tr><td>A-77</td><td>DELETE <code>/api/auth/me/icon</code></td><td>本人</td><td>ボディなし</td><td>204。<code>custom_picture_key</code>をNULLに更新（Googleプロフィール画像へ差し戻し）</td></tr>
     </tbody>
   </table>
+  <p><strong>A-75/A-76 処理フロー（アイコンアップロードの2段階方式）:</strong> (1) フロントエンドはファイル選択後、A-76へ<code>filename</code>・<code>mime_type</code>・<code>size_bytes</code>を送信し、Supabase Storageへの署名付きアップロードURLと<code>storage_key</code>（<code>user-icons/{user_id}/{uuid}.png</code>形式）を受け取る。(2) 受け取ったURLへブラウザから直接ファイルをアップロードする（バックエンドを経由しない、A-27と同じ方式）。(3) アップロード完了後、A-75へ<code>icon_storage_key</code>を送信して<code>users.custom_picture_key</code>を確定する。(2)が失敗した場合、(3)を呼ばなければ<code>custom_picture_key</code>は更新されず、Storage上には孤立したオブジェクトが残る（教材添付ファイルと同様、当面は許容し、必要になった時点で未参照オブジェクトの定期削除バッチを検討する）。</p>
   <p><strong>A-02 処理フロー（基本設計書3.1節・8.2節を実装レベルへ）:</strong></p>
   <ol>
     <li>state をCookie保存値と定数時間比較で照合。不一致・欠落は<code>error=invalid_request</code>でリダイレクト（Googleと通信しない）</li>
     <li>code をGoogleトークンエンドポイントでIDトークンに交換し、署名（JWKS・RS256）・発行者・audienceを検証</li>
     <li><code>email_verified</code>がtrueであることを検証（falseは<code>error=forbidden</code>）</li>
     <li>emailのドメインを<code>ALLOWED_DOMAINS</code>（既定 <code>kogasoftware.com</code>）と照合（不一致は<code>error=domain</code>）</li>
-    <li>T-01 usersをemailで検索（大文字小文字を区別しない）。存在しなければ<code>role='member', is_active=true</code>で新規登録（初回ログイン）。存在すれば name / picture_url をGoogleプロフィールで更新</li>
+    <li>T-01 usersをemailで検索（大文字小文字を区別しない）。存在しなければ<code>role='member', is_active=true</code>で新規登録し、この初回登録時のみGoogleプロフィールの氏名を<code>name</code>の初期値として設定する（初回ログイン）。既存ユーザーの場合は<code>name</code>を更新しない（本人がS-15で変更した表示名をGoogle側の氏名変更で上書きしないため。F-29、基本設計書v1.22）。<code>picture_url</code>相当のGoogleプロフィール画像はDBに保存せず、A-04・A-75で参照する都度Googleから取得する</li>
     <li><strong>初回登録の場合のみ:</strong> トランザクション内でT-04 project_membershipsに、is_company_wide=trueのプロジェクトIDに対する<code>role='editor', status='active', joined_at=now(), assigned_by=NULL</code>の行を追加する（基本設計書5.25節）</li>
     <li><code>is_active=false</code>のユーザーはログイン拒否（<code>error=inactive</code>）</li>
     <li>JWT（<code>sub</code>=users.id, <code>role</code>, <code>token_type='session'</code>, 有効期限）をJWT_SECRETで署名し、HttpOnly / Secure（本番） / SameSite=Lax のCookieに設定</li>
@@ -867,7 +873,7 @@ ALTER TABLE surveys ENABLE ROW LEVEL SECURITY;</code></pre>
   <table>
     <thead><tr><th>router</th><th>使用する依存関数</th></tr></thead>
     <tbody>
-      <tr><td>auth.py</td><td>A-03, A-04: require_auth／A-63: require_auth（token_type='cli'を追加検証）</td></tr>
+      <tr><td>auth.py</td><td>A-03, A-04: require_auth／A-63: require_auth（token_type='cli'を追加検証）／A-75〜A-77: require_auth（対象は常にリクエスト者自身のため、追加のリソース所有者チェックは不要）</td></tr>
       <tr><td>organization.py</td><td>A-09: require_auth／A-10, A-12, A-13: require_project_role(min_role='admin')／A-11: require_auth（本人判定はハンドラ内）／A-67: require_auth（本人判定はハンドラ内）／A-59〜A-61, A-65, A-66: require_project_role(min_role='admin')</td></tr>
       <tr><td>materials.py</td><td>A-14: require_auth／A-15, A-19, A-28, A-30, A-43: require_material_access（編集権限者は追加でrequire_material_editor相当のOR）／A-16: require_project_role(min_role='editor')（対象project_idに対して）／A-17, A-20, A-21, A-22, A-27, A-29, A-31〜A-35, A-64: require_material_editor／A-18, A-59: require_project_role(min_role='admin')</td></tr>
       <tr><td>assignments.py</td><td>A-36, A-37: require_project_role(min_role='admin')（自プロジェクト分に絞り込み）またはrequire_roles("admin")／A-38: 4.4節callout参照</td></tr>
@@ -1073,10 +1079,10 @@ SELECT ta.material_id,
 
   <h3>7.1 CLIトークン発行フロー（A-62〜A-63）</h3>
   <ol>
-    <li>利用者がClaude Code環境で<code>e-learning login</code>相当のCLIヘルパーを実行すると、ヘルパーはlocalhostの空きポートで一時HTTPサーバー（例: <code>http://127.0.0.1:{port}/callback</code>）を起動し、既定ブラウザで<code>GET /api/auth/cli/login?callback_port={port}</code>を開く</li>
+    <li>利用者がClaude Code環境で<code>Manabi login</code>相当のCLIヘルパーを実行すると、ヘルパーはlocalhostの空きポートで一時HTTPサーバー（例: <code>http://127.0.0.1:{port}/callback</code>）を起動し、既定ブラウザで<code>GET /api/auth/cli/login?callback_port={port}</code>を開く</li>
     <li>バックエンドは<code>state</code>に<code>callback_port</code>を埋め込んだうえでA-01と同じGoogle OAuthフローを開始する</li>
     <li>Google認証完了後、A-02相当のコールバック処理（ドメイン検証・ユーザー登録/取得は共通）を行い、<strong>ブラウザCookieへのセット代わりに</strong>、<code>token_type='cli'</code>・有効期限90日のJWTを発行し、<code>http://127.0.0.1:{callback_port}/callback?token=...</code>へリダイレクトする</li>
-    <li>CLIヘルパーが一時サーバーでトークンを受け取り、<code>~/.config/e-learning/credentials</code>（パーミッション600）に保存し、一時サーバーを終了する</li>
+    <li>CLIヘルパーが一時サーバーでトークンを受け取り、<code>~/.config/Manabi/credentials</code>（パーミッション600）に保存し、一時サーバーを終了する</li>
     <li>以降のCLIからのAPI呼び出しは<code>Authorization: Bearer &lt;token&gt;</code>ヘッダーを自動付与する</li>
     <li>A-63（<code>POST /api/auth/cli/revoke</code>）は、失効させたいトークンの<code>jti</code>（JWT ID。発行時にランダム値を採番）をT-21 <code>app_settings</code>とは別の<strong>失効リスト</strong>（<code>revoked_cli_tokens</code>、jti・失効日時のみを持つ簡易テーブル。詳細設計の対象だがテーブル一覧6.2節には含めない運用テーブルとして<code>database.py</code>に追加する）へ記録する。認証ミドルウェアは<code>token_type='cli'</code>のJWT検証時にこのリストを参照し、失効済みなら401とする。</li>
   </ol>
@@ -1393,9 +1399,9 @@ def estimate_cost_jpy(model: str, input_tokens: int, output_tokens: int) -&gt; f
     <tbody>
       <tr><td>400</td><td>リクエスト不正・業務ルール違反</td><td>唯一の管理者の削除・降格拒否（A-13）、重複招待（A-12）、下書き教材への共有申請（A-60）、プロジェクト付け替え時の権限不足（A-20）、自分自身のadmin降格・無効化（A-54）</td></tr>
       <tr><td>401</td><td>未認証（Cookie/トークンなし・JWT無効・失効済みCLIトークン）</td><td>認証が必要です</td></tr>
-      <tr><td>403</td><td>権限不足</td><td>受講対象外の教材へのアクセス（learning.py全般）、招待未承諾のプロジェクトへの編集操作、他人の招待への応答（A-67）</td></tr>
+      <tr><td>403</td><td>権限不足</td><td>受講対象外の教材へのアクセス（learning.py全般）、招待未承諾のプロジェクトへの編集操作、他人の招待への応答（A-67）、他ユーザーの<code>storage_key</code>を指定したアイコン確定（A-75）</td></tr>
       <tr><td>404</td><td>対象なし、またはAI非同期ジョブが処理中（pending）</td><td>存在しない<code>material_id</code>/<code>user_id</code>、A-35/A-49/A-52の未完了時</td></tr>
-      <tr><td>413</td><td>アップロードサイズ超過</td><td>A-27で<code>MAX_ATTACHMENT_SIZE_MB</code>（既定200MB）を超えるファイル</td></tr>
+      <tr><td>413</td><td>アップロードサイズ超過</td><td>A-27で<code>MAX_ATTACHMENT_SIZE_MB</code>（既定200MB）を超えるファイル、A-76で<code>MAX_ICON_SIZE_MB</code>（既定2MB）を超える画像</td></tr>
       <tr><td>422</td><td>Pydanticバリデーションエラー</td><td>型不一致・形式違反。A-20/A-31はフロントマター・問題ブロックのスキーマ違反（7.2節）</td></tr>
       <tr><td>502</td><td>外部サービス（Claude API・Slack Webhook）の呼び出し失敗</td><td>A-32（同期AIレビュー）のリトライ全滅時、A-57（Slackテスト送信）の失敗時</td></tr>
     </tbody>
@@ -1616,8 +1622,9 @@ def estimate_cost_jpy(model: str, input_tokens: int, output_tokens: int) -&gt; f
   <table>
     <thead><tr><th>項目名</th><th>型</th><th>必須</th><th>バリデーション</th><th>対応API</th></tr></thead>
     <tbody>
-      <tr><td>アイコン画像</td><td>ファイル</td><td>—</td><td>PNG/JPEG、2MBまで</td><td>詳細設計対象（users.picture_urlの手動上書き。基本設計書には明記なくGoogleプロフィール由来が既定のため、本項目は任意拡張として扱う）</td></tr>
-      <tr><td>氏名・メールアドレス</td><td>参照表示</td><td>—</td><td>Googleアカウント連動、編集不可</td><td>A-04</td></tr>
+      <tr><td>アイコン画像</td><td>ファイル</td><td>—</td><td>PNG/JPEG、2MBまで。「Googleの画像に戻す」ボタンで独自アイコンを削除しGoogleプロフィール画像へ差し戻す</td><td>A-76（アップロードURL発行）→A-75（確定）／A-77（削除）</td></tr>
+      <tr><td>表示名</td><td>テキスト</td><td>○</td><td>1〜100文字。初回登録時はGoogleアカウントの氏名が初期値だが、以降は自由に変更でき、Google側の氏名変更では上書きされない</td><td>A-75 name</td></tr>
+      <tr><td>メールアドレス</td><td>参照表示</td><td>—</td><td>Googleアカウント連動、編集不可</td><td>A-04</td></tr>
       <tr><td>所属プロジェクト一覧</td><td>表示</td><td>—</td><td>プロジェクト名・自分のロール・参加日</td><td>A-11 user_id=自分, status=active</td></tr>
       <tr><td>招待されているプロジェクト</td><td>表示＋ボタン</td><td>—</td><td>プロジェクト名・招待されたロール・「承諾」「辞退」ボタン</td><td>A-11 user_id=自分, status=invited／A-67</td></tr>
     </tbody>
@@ -1692,9 +1699,9 @@ def estimate_cost_jpy(model: str, input_tokens: int, output_tokens: int) -&gt; f
   <ol>
     <li>【ブラウザ】S-14「＋新規教材を作成」押下 → A-16（<code>project_id</code>省略。「全社公開」が既定補完）→ 201、下書き教材IDを取得 → S-05へ遷移</li>
     <li>【ブラウザ】S-05目次編集タブでタイトルのみ入力し「下書き保存」→ A-17でtitleを更新</li>
-    <li>【利用者端末】Claude Codeで<code>e-learning materials get {id}</code>相当のCLIコマンドを実行 → CLIヘルパーが保存済みのCLIトークン（7.1節）でA-19（GET /source）を呼ぶ → フロントマター＋空の本文（目次未作成のためタイトルのみ）を<code>text/plain</code>で取得</li>
+    <li>【利用者端末】Claude Codeで<code>Manabi materials get {id}</code>相当のCLIコマンドを実行 → CLIヘルパーが保存済みのCLIトークン（7.1節）でA-19（GET /source）を呼ぶ → フロントマター＋空の本文（目次未作成のためタイトルのみ）を<code>text/plain</code>で取得</li>
     <li>【利用者】ローカルでMarkdownファイルとして章・小見出し・ページ・問題を執筆（基本設計書8.3節のスキーマに従う）</li>
-    <li>【利用者端末】<code>e-learning materials update {id}</code>相当のコマンド → A-20（PUT /source）を実行</li>
+    <li>【利用者端末】<code>Manabi materials update {id}</code>相当のコマンド → A-20（PUT /source）を実行</li>
     <li>【backend/materials.py】require_material_editorで権限判定 → 7.2節の手順でパース → 7.3節の手順でトランザクション内にてmaterials更新・material_nodes全置換・questions全置換 → T-08へ<code>changed_via='claude_code'</code>で改訂履歴行を追加（7.4節）→ 200で新規採番済みのソーステキストを返す</li>
     <li>【ブラウザ】S-05を再読み込みすると、目次編集タブに新しい章・ページ構成が反映されている（画面とClaude Codeが同一データを共有）</li>
     <li>【ブラウザ】「AIレビュー結果」タブでA-32を実行 → 同期でClaude APIを呼び出し（8.6節F-08）→ 指摘事項一覧を表示</li>
@@ -1739,9 +1746,21 @@ def estimate_cost_jpy(model: str, input_tokens: int, output_tokens: int) -&gt; f
     <li>【backend/dashboard.py】対象者ごとにT-20 slack_notification_logsを参照し24時間以内の送信済みをスキップ（4.6節callout）→ 未送信の対象者へ<code>slack_client.py</code>経由でWebhook送信 → 送信結果（sent/failed）をT-20へ記録 → <code>{"sent": N, "skipped": M}</code>を返す</li>
   </ol>
 
+  <h3>11.7 表示名・アイコンの自己編集（F-29、S-15）</h3>
+  <ol>
+    <li>【ブラウザ】S-15を開く → A-04で現在の<code>name</code>・<code>picture_url</code>を取得し表示名欄・アイコンに反映</li>
+    <li>【ブラウザ】表示名欄を「佐藤 健一」から「佐藤 健一（新人研修担当）」に編集し「保存」押下 → A-75（<code>{"name": "佐藤 健一（新人研修担当）"}</code>）</li>
+    <li>【backend/routers/auth.py】require_auth → <code>name</code>が1〜100文字であることを検証 → T-01 <code>users.name</code>を更新 → 200で更新後の値を返す</li>
+    <li>【ブラウザ】続けてアイコン画像ファイルを選択 → A-76（<code>{"filename", "mime_type": "image/jpeg", "size_bytes"}</code>）→ 200で<code>upload_url</code>・<code>storage_key</code>を取得</li>
+    <li>【ブラウザ】取得した<code>upload_url</code>へファイルを直接PUT（Supabase Storageへ、バックエンドを経由しない）</li>
+    <li>【ブラウザ】アップロード成功後、A-75（<code>{"icon_storage_key": storage_key}</code>）を呼び確定 → backendは<code>storage_key</code>が当該ユーザー宛てに発行されたものであることを検証し<code>custom_picture_key</code>を更新 → 200</li>
+    <li>【ブラウザ】以降、A-04・サイドバーのアバター表示は<code>custom_picture_key</code>から生成した署名付きURLを表示する</li>
+    <li>【本人・後日】Googleアカウント側のプロフィール名を変更してもログイン時に上書きされないことを確認（3.1節・4.1節A-02処理フロー参照）。元に戻したい場合はS-15で「Googleの画像に戻す」→ A-77を呼び<code>custom_picture_key</code>をNULLに戻す</li>
+  </ol>
+
   <!-- FOOTER -->
   <footer class="doc-footer">
-    <span>社内学習管理システム（e-learning） 詳細設計書（仮・検討中） 検討稿1.0</span>
+    <span>社内学習管理システム（Manabi） 詳細設計書（仮・検討中） 検討稿1.1</span>
     <span>コガソフトウェア株式会社</span>
   </footer>
 
