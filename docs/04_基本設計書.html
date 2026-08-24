@@ -16,7 +16,7 @@
     <p class="subtitle">社内学習管理システム（Manabi）</p>
     <div class="meta">
       <span>作成日: 2026-08-18</span>
-      <span>版数: 1.23</span>
+      <span>版数: 1.24</span>
       <span>作成: コガソフトウェア株式会社</span>
     </div>
     <p class="note">本ドキュメントは新人社員向けAI開発研修のサンプル成果物です</p>
@@ -51,6 +51,7 @@
       <tr><td>1.21</td><td>2026-08-21</td><td>S-10「システム設定」タブの「今月のAI利用状況」を、合計値のみの表示から機能別（F-08 教材AIレビュー／F-20 AI記述式採点・講評／F-21 AIつまずき分析／F-22 AI個人フィードバック／F-23 AI組織レポート生成）の呼び出し件数・トークン数・概算コストの内訳表示に拡張した（4.12節）。管理者がどの機能がコストの大部分を占めているかを個別に確認できるようにするための変更。A-58（AI利用状況取得）の応答に機能別内訳を追加した（9.3節のT-19集計を<code>feature</code>でgroup byして取得。7.2.9節）。あわせて、教材の作成・修正（F-05、Claude Code CLI連携）は利用者本人の契約で課金されるためこの集計には含まれない旨を明記した。新規テーブル・カラムの追加は不要（既存のT-19 <code>ai_usage_logs.feature</code>を集計するのみ）。</td></tr>
       <tr class="rev-row"><td>1.22</td><td>2026-08-21</td><td>画面モックアップ一式のレビューにより判明した仕様の未整備・不整合を解消。(1) S-15（プロフィール編集）について、要件定義書・本書とも氏名を「Googleアカウント連動、参照のみ」としていたが、画面モックには当初からアイコン画像の設定操作が用意されており、氏名についても利用者が直接編集できる想定で運用したいという実務判断を受け、表示名の自己編集を正式に機能化した。T-01 <code>users.name</code>は<strong>初回登録時のみ</strong>Googleプロフィールの氏名で初期化し、以降はログインのたびに上書きしない（本人がS-15で変更した値を維持する）よう3.1節のログインフローを修正した。あわせて、要件定義書の時点から画面要件として存在しながら対応するAPI・テーブルを欠いていたアイコン画像アップロードに対応するため、T-01に<code>custom_picture_key</code>列を追加し、A-75（PUT /api/auth/me、表示名・アイコンの確定）・A-76（POST /api/auth/me/icon/upload-url、アイコンアップロード用署名付きURL発行）・A-77（DELETE /api/auth/me/icon、Googleプロフィール画像に戻す）を新設した（3.1節・6.2節・7.2.1節）。画面設計に4.14a節（S-15プロフィール編集）を新設した。(2) S-19（設問別の回答・結果一覧）の採点結果保存APIとして、従来「詳細設計で定義する」としていたものをA-74（PUT /api/answers/{answer_id}/review）として正式に定義した（4.7c節・5.20節・7.2.5節）。(3) S-05の合否判定・再受験設定（合格基準・再受験可否・回数）はA-17（教材メタデータ更新）から入力し、対象教材の全T-11 <code>assignments</code>行へ同一値を反映する（5.9節callout「複製して保持する」運用）ことをA-17の処理内容として明記した（7.2.3節）。(4) 画面モックアップの内部不整合を修正: S-14「＋新規教材を作成」ボタンがv1.20で廃止済みのS-18を指していた誤りをS-05（空の目次編集画面）へ修正、S-05のAI採点コンテキストの説明文がv1.20で廃止済みのF-27を参照していた誤りを修正、S-10のAIモデル設定の説明文が実在しない「機能ごとの個別モデル割り当て」を示唆していた誤りを修正した。</td></tr>
       <tr class="rev-row"><td>1.23</td><td>2026-08-21</td><td>要求仕様書（<code>docs/01_要求仕様書.html</code>）を正式にdocs/へ取り込んだことに伴い、本書全体の呼称を要求仕様書どおり「Manabi」に統一した（従来「e-learning」としていた箇所をすべて置き換え）。要求仕様書との照合を行い、REQ-F-01〜REQ-F-19・REQ-N-01〜REQ-N-06の対応関係（1.2節）に齟齬がないことを確認した。配信対象の単位について、要求仕様書REQ-F-06は「部署」を含めているが、本書は要件定義書v1.5に基づき「全社・プロジェクト・個人」の3種のまま維持する（意図的な設計判断であり、要求仕様書の記述を変更する意図はない）。</td></tr>
+      <tr class="rev-row"><td>1.24</td><td>2026-08-21</td><td>網羅性の観点で全体を再点検し、S-05「受験後アンケートの設置」（教材全体・章ごとのアンケート作成・設問編集・解除）に対応するAPIが存在しない不整合を解消した。GET/PUT <code>/api/materials/{id}/surveys</code>（A-78・A-79）を新設し、T-26〜T-27（surveys, survey_questions）のCRUDを全置換方式（A-31と同方式）で行う（7.2.3節）。従来S-05の操作説明（4.7節）がA-17でアンケート設置まで扱えるように読める記述だったが、T-26は独立テーブルでありA-17（materialsのメタデータ更新）では作成・更新できないため、A-78・A-79を実施主体として明記するよう修正した。</td></tr>
     </tbody>
   </table>
 
@@ -524,7 +525,7 @@
   <ul>
     <li><strong>ヘッダー:</strong> 教材タイトル・公開状態バッジ、<span class="rev-old">オーナー・共同編集者</span><span class="rev-new">教材が紐づくプロジェクトの管理者・編集者</span>のアバター表示、<span class="rev-old">「Claude Codeに相談」（クリックで画面右にチャットパネルを開閉するトグルボタン。画面を離れずに対話的な編集ができる。v1.19。F-27廃止に伴いv1.20で削除）</span>「プレビュー」「下書き保存」「公開する」「複製」ボタン。</li>
     <li><strong>タブ構成:</strong> <span class="rev-old">「本文編集」（Markdown/HTML切替、エディタ＋プレビュー分割表示。プレビューは未保存の入力内容であってもA-64でサーバー側サニタイズを経てから描画する（8.6節））、「問題編集」（単元ごとに単一選択/複数選択/記述式の設問を追加・編集・削除、記述式は模範解答・採点基準を入力）、「構成（単元/コース）」（所属コース選択、単元の追加・並び替え・削除、合否判定・再受験設定）、</span><span class="rev-new">「目次編集」（教材タイトル・所属プロジェクト・タグの編集、章〔見出し〕・小見出し・ページのツリー編集（追加・並び替え・削除・入れ子）、合否判定・再受験設定〔<strong>受験単位</strong>: 教材/章/小見出し/ページ、<strong>再受験範囲</strong>: 全問/誤答のみ〕、<strong>採点方式の既定</strong>（記述式・コード記述式向け。AI自動採点／プロジェクト担当者〔管理者・編集者〕による手動採点。v1.18）、<strong>AI講評スタイルの既定</strong>（正解提示/コードレビュー型/ヒント型。採点方式=AI自動採点の設問にのみ適用）、<strong>AI採点・AIアシストへの指示</strong>（<code>ai_context</code>。言語・フレームワーク・禁止事項等の自由記述）、<strong>受験後アンケートの設置</strong>（教材全体・章ごとに任意でON/OFF、設置時は設問編集モーダルを開く）。各ページ行の「編集する」でS-17へ、「回答一覧」でS-19へ遷移する。v1.17で拡張）、</span>「ファイル・リンク」（<span class="rev-new">特定ページに属さない教材全体の資料〔シラバス等〕のみを扱う。ページ固有の資料はS-17で管理するため、ここには含めない。v1.14。</span>添付済み一覧、ファイル選択・外部リンク追加フォーム）、「<span class="rev-old">共同編集者」（一覧・追加・削除・オーナー引き継ぎ）</span><span class="rev-new">プロジェクトメンバー」（管理者・編集者・受講者の一覧を表示する参照専用タブ。追加・削除・ロール変更はS-12で行うため本タブからS-12への導線を設ける）</span>、「AIレビュー結果」（実行ボタン・指摘/提案の一覧）、「改訂履歴」（日時・変更者・変更内容・経路の一覧）。</li>
-    <li><strong>操作:</strong> <span class="rev-old">A-17/A-19/A-20（本文更新、画面用・Claude Code連携共通）、A-31（問題一括更新）、</span><span class="rev-new">A-15（目次取得）、A-16/A-17（教材新規作成・更新。目次構造・attempt_scope・retake_scope・default_feedback_style・ai_context・アンケート設置を含む）、</span>A-28/A-29（添付ファイル・リンク）、<span class="rev-old">A-23〜A-26（共同編集者・オーナー引き継ぎ）</span><span class="rev-new">A-11（プロジェクトメンバー一覧取得。参照のみ）</span>、A-32/A-33（AIレビュー）、A-22（改訂履歴取得）<span class="rev-old">、A-68〜A-70（「Claude Codeに相談」パネル。<code>material_id</code>を初期コンテキストにセッション開始。5.28節。v1.19。F-27廃止に伴いv1.20で削除）</span>。</li>
+    <li><strong>操作:</strong> <span class="rev-old">A-17/A-19/A-20（本文更新、画面用・Claude Code連携共通）、A-31（問題一括更新）、</span><span class="rev-new">A-15（目次取得）、A-16/A-17（教材新規作成・更新。目次構造・attempt_scope・retake_scope・default_feedback_style・ai_contextを含む）、A-78/A-79（受験後アンケートの取得・設置/解除。v1.24）、</span>A-28/A-29（添付ファイル・リンク）、<span class="rev-old">A-23〜A-26（共同編集者・オーナー引き継ぎ）</span><span class="rev-new">A-11（プロジェクトメンバー一覧取得。参照のみ）</span>、A-32/A-33（AIレビュー）、A-22（改訂履歴取得）<span class="rev-old">、A-68〜A-70（「Claude Codeに相談」パネル。<code>material_id</code>を初期コンテキストにセッション開始。5.28節。v1.19。F-27廃止に伴いv1.20で削除）</span>。</li>
     <li><strong>アクセス制御:</strong> <span class="rev-old">対象教材のオーナー・共同編集者、または admin（3.4節）。ロールは問わない。</span><span class="rev-new">対象教材が紐づくプロジェクトの管理者・編集者、または admin（3.5節）。教材は必ずいずれかのプロジェクトに属するため（F-25）、システム全体のロールは問わない。</span></li>
   </ul>
 
@@ -1124,7 +1125,7 @@
     </tbody>
   </table>
 
-  <h4>7.2.3 materials.py（教材・問題・添付・AI教材機能、A-14〜A-35, A-64<span class="rev-old">, A-68〜A-70（v1.20で廃止）</span>）</h4>
+  <h4>7.2.3 materials.py（教材・問題・添付・AI教材機能、A-14〜A-35, A-64, <span class="rev-new">A-78〜A-79</span><span class="rev-old">, A-68〜A-70（v1.20で廃止）</span>）</h4>
   <table>
     <thead><tr><th>API ID</th><th>メソッド</th><th>パス</th><th>権限</th><th>概要</th></tr></thead>
     <tbody>
@@ -1149,8 +1150,13 @@
       <tr><td>A-35</td><td><span class="badge badge-get">GET</span></td><td><code>/api/materials/{id}/ai-insights</code></td><td>対象教材が紐づくプロジェクトの<span class="badge badge-projrole">編集者・管理者</span> <span class="badge badge-admin">admin</span>（Claude Codeからも取得可、8章）</td><td>分析結果取得。未完了時は404（pending）を返す</td></tr>
       <tr class="rev-row"><td>A-64</td><td><span class="badge badge-post">POST</span></td><td><code>/api/materials/{id}/preview</code></td><td>対象教材が紐づくプロジェクトの<span class="badge badge-projrole">編集者・管理者</span> <span class="badge badge-admin">admin</span></td><td>S-05本文編集タブのプレビュー用。body・formatを受け取り、保存せずに<code>html_sanitize.py</code>でサニタイズ済みHTMLを返す（8.6節）。未保存の編集中コンテンツを直接レンダリングしない</td></tr>
       <tr><td>A-68〜A-70</td><td>―</td><td>―</td><td>―</td><td>廃止（欠番）。旧Claude Code下書きセッション開始・メッセージ送信・履歴取得API（F-27、S-18）。F-27の廃止（v1.20）に伴い欠番とする。教材の作成・修正へのAI支援はF-05（Claude Code CLI連携、A-19〜A-22）に一本化した</td></tr>
+      <tr class="rev-row"><td>A-78</td><td><span class="badge badge-get">GET</span></td><td><code>/api/materials/{id}/surveys</code></td><td>対象教材が紐づくプロジェクトの<span class="badge badge-projrole">編集者・管理者</span> <span class="badge badge-admin">admin</span></td><td>教材に設置されている受験後アンケート（教材全体・各章。T-26〜T-27）を設問付きで取得する（S-05目次編集タブでの表示・編集モーダル用）</td></tr>
+      <tr class="rev-row"><td>A-79</td><td><span class="badge badge-put">PUT</span></td><td><code>/api/materials/{id}/surveys</code></td><td>対象教材が紐づくプロジェクトの<span class="badge badge-projrole">編集者・管理者</span> <span class="badge badge-admin">admin</span></td><td>アンケートの設置・設問編集・解除。送信内容で当該教材のT-26〜T-27を全置換する（A-31と同じ全置換方式）。送信されなかった<code>(material_id, node_id)</code>の組み合わせは解除（削除）扱いとする。既存の回答（T-28・T-29）はアンケート行の削除に伴いCASCADE削除されるため、解除は取り消し操作である旨を画面側で確認する</td></tr>
     </tbody>
   </table>
+  <div class="callout rev-new">
+    <strong>設計判断（受験後アンケートのCRUD APIを新設した理由。v1.24）:</strong> 要件定義書v1.16・基本設計書v1.17でF-28（受験後アンケート）とT-26〜T-29を新設した際、アンケートへの<strong>回答</strong>を送信するAPI（A-72）は定義したが、S-05目次編集タブの「受験後アンケートの設置」操作（アンケートの作成・設問編集・解除）に対応するAPIの定義が漏れていた。画面モックアップには当初から編集モーダルを開く操作が用意されていたため、これに対応するA-78（取得）・A-79（全置換）を新設し、画面とAPI設計の不整合を解消する。
+  </div>
   <div class="callout rev-old">
     <strong>（廃止）A-69の内部設計判断（F-27はA-20と同じ書き込み層を再利用する）:</strong> A-69がツール実行で行う教材ノード操作は、A-20（フロントマター付きテキストの書き戻し）が内部で使う「目次ツリー・ページ本文・問題を書き込むサービス関数」を直接呼び出す形で実装し、書き込みロジックを2重に持たない設計だった。F-27の廃止（v1.20）に伴いA-69自体が欠番となったため、この設計判断も対象外となった。教材の書き込みはA-20（Claude Code CLI連携）・A-31（画面からの一括更新）の2経路に整理される。
   </div>
@@ -1698,7 +1704,7 @@ scoring_criteria: |
   </ul>
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）基本設計書 v1.23</span>
+    <span>社内学習管理システム（Manabi）基本設計書 v1.24</span>
     <span>コガソフトウェア株式会社 / 2026-08-21</span>
   </footer>
 
