@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>7. 教材連携詳細（Claude Code連携） | 詳細設計書 | 社内学習管理システム（Manabi）</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<script src="../_sidenav.js"></script>
+<div class="doc">
+
+<p class="chapter-nav" style="display:flex;justify-content:space-between;font-size:13px;margin:0 0 16px"><a href="06_検索受講対象判定処理詳細.html">← 6. 検索・受講対象判定処理詳細</a><a href="index.html">目次</a><a href="08_AI機能実装詳細.html">8. AI機能実装詳細 →</a></p>
+
+  <h2 id="sec7">7. 教材連携詳細（Claude Code連携）</h2>
+  <p>基本設計書8章（教材連携設計）を実装レベルへ詳細化する。フロントマタースキーマ自体は基本設計書8.3節で確定済みのため、本章では<strong>パース・書き戻しのアルゴリズム</strong>を中心に記す。</p>
+
+  <h3>7.1 CLIトークン発行フロー（A-62〜A-63）</h3>
+  <ol>
+    <li>利用者がClaude Code環境で<code>Manabi login</code>相当のCLIヘルパーを実行すると、ヘルパーはlocalhostの空きポートで一時HTTPサーバー（例: <code>http://127.0.0.1:{port}/callback</code>）を起動し、既定ブラウザで<code>GET /api/auth/cli/login?callback_port={port}</code>を開く</li>
+    <li>バックエンドは<code>state</code>に<code>callback_port</code>を埋め込んだうえでA-01と同じGoogle OAuthフローを開始する</li>
+    <li>Google認証完了後、A-02相当のコールバック処理（ドメイン検証・ユーザー登録/取得は共通）を行い、<strong>ブラウザCookieへのセット代わりに</strong>、<code>token_type='cli'</code>・有効期限90日のJWTを発行し、<code>http://127.0.0.1:{callback_port}/callback?token=...</code>へリダイレクトする</li>
+    <li>CLIヘルパーが一時サーバーでトークンを受け取り、<code>~/.config/Manabi/credentials</code>（パーミッション600）に保存し、一時サーバーを終了する</li>
+    <li>以降のCLIからのAPI呼び出しは<code>Authorization: Bearer &lt;token&gt;</code>ヘッダーを自動付与する</li>
+    <li>A-63（<code>POST /api/auth/cli/revoke</code>）は、失効させたいトークンの<code>jti</code>（JWT ID。発行時にランダム値を採番）をT-21 <code>app_settings</code>とは別の<strong>失効リスト</strong>（<code>revoked_cli_tokens</code>、jti・失効日時のみを持つ簡易テーブル。詳細設計の対象だがテーブル一覧6.2節には含めない運用テーブルとして<code>database.py</code>に追加する）へ記録する。認証ミドルウェアは<code>token_type='cli'</code>のJWT検証時にこのリストを参照し、失効済みなら401とする。</li>
+  </ol>
+  <div class="callout">
+    <strong>なぜセッションJWTと同じ検証パスに統合するか:</strong> 基本設計書8.2節の設計判断のとおり、CLIトークンはAPIキー方式ではなく本人のJWTの一種として発行する。これにより認証ミドルウェア・権限判定（5章）・改訂履歴の<code>changed_by</code>は発行経路によらず同一のコードパスで処理でき、Claude Code経由の変更もWeb画面と同じ本人性・権限で行われる。
+  </div>
+
+  <h3>7.2 フロントマター・本文パース（material_parser.py、A-20/A-31が使用）</h3>
+  <p>A-20（<code>PUT /api/materials/{id}/source</code>）が受け取るテキストは、基本設計書8.3節のスキーマに従う。パースは以下の順で行う。</p>
+  <div class="callout">
+    <strong>受験後アンケート（T-26〜T-29）はテキスト形式の対象外:</strong> 基本設計書8.3節のフロントマタースキーマ・問題ブロック形式のいずれにもアンケート定義は含まれない。アンケートの設置・設問編集はS-05の編集モーダル（A-78/A-79、4.3節）からのみ行い、Claude Code連携（A-19/A-20）では取得・更新できない。教材の目次・問題はF-05（本節）とS-05の両方から編集できるのに対し、アンケートはS-05のみで完結する点に注意する。
+  </div>
+  <ol>
+    <li><strong>フロントマター分離:</strong> 先頭が<code>---</code>で始まる場合、次の<code>---</code>行までをYAMLとしてパースし、<code>id, project_id, tags, title, description, format, status, sort_order, attempt_scope, retake_scope, default_feedback_style, ai_context, grading_mode</code>を取得する（<code>PyYAML</code>の<code>safe_load</code>を使用。任意コード実行を伴う<code>yaml.load</code>は使わない）</li>
+    <li><strong>見出し行の走査:</strong> フロントマター以降の本文を行単位で走査し、<code>format='markdown'</code>なら<code>#</code>/<code>##</code>/<code>###</code>で始まる行、<code>format='html'</code>なら<code>&lt;h1&gt;</code>/<code>&lt;h2&gt;</code>/<code>&lt;h3&gt;</code>タグを見出しとして検出する。検出のたびに現在の階層状態（現在の章ノード・現在の小見出しノード）を更新する: <code>#</code>/<code>&lt;h1&gt;</code>→新しい章を開始し小見出し状態をリセット、<code>##</code>/<code>&lt;h2&gt;</code>→現在の章の下に小見出しを開始、<code>###</code>/<code>&lt;h3&gt;</code>→現在の小見出し（あれば）または現在の章（無ければ）の下にページを開始する</li>
+    <li><strong>ノードID注記の読み取り:</strong> 各見出し行の直後に<code>&lt;!-- node:123 --&gt;</code>があれば、そのノードは既存ノード（id=123）の更新として扱う。注記が無ければ新規ノードとして扱う（書き戻し時にIDを採番）</li>
+    <li><strong>ページ本文の抽出:</strong> <code>###</code>見出し（＋ノード注記）の直後から、次の見出し行またはテキスト末尾までを、当該ページの<code>body</code>候補とする。この範囲内に含まれる<code>```question</code>フェンスブロック（Markdown）または<code>&lt;!-- question ... --&gt;</code>コメント（HTML）は<code>body</code>から取り除き、問題ブロックとして別途抽出する（本文と問題の分離）</li>
+    <li><strong>問題ブロックのパース:</strong> 各問題ブロックをYAMLとしてパースし、<code>id, type, prompt, options, correct_answer, scoring_criteria, code_language, required, is_critical, feedback_style, pool_group, score_unit, grading_mode</code>を取得する。<code>type</code>ごとの必須フィールド検証（基本設計書8.3節の表）をPydanticモデルで行い、不足時は422で該当ブロックの行番号を含めて返す</li>
+    <li><strong>content_kindの自動判定:</strong> ページに<code>body</code>候補があり問題ブロックが無ければ<code>'explanation'</code>、逆なら<code>'quiz'</code>、両方あれば<code>'mixed'</code>。どちらも無ければ422（「説明文・問題のいずれか一方は必須」）</li>
+  </ol>
+  <div class="callout warn">
+    <strong>見出しレベルの逸脱時の扱い:</strong> 章（<code>#</code>）を開始せずにいきなり<code>##</code>や<code>###</code>が出現した場合、あるいは小見出し（<code>##</code>）を経由せず章の直下にページ（<code>###</code>）が続く場合は、後者（章に直接ぶら下がるページ）は基本設計書8.3節が示す正当な構成として許容する。前者（章の開始前に<code>##</code>/<code>###</code>が出現）はパースエラーとし、422 <code>{"detail": "本文の先頭は章（#見出し）から始めてください"}</code>を返す。</div>
+
+  <h3>7.3 書き戻し処理（A-20 PUT /source の実装）</h3>
+  <p>1回の呼び出しでフロントマターのメタデータ・目次ツリー全体・全問題を<strong>まとめて全置換</strong>する。処理はトランザクション内で行う。</p>
+  <ol>
+    <li>7.2節の手順でリクエストボディをパースし、パース結果（ノード配列＋各ページの問題配列）を得る</li>
+    <li>フロントマターの<code>id</code>が指定されていればT-06 materialsの対象行、無ければA-16相当の新規作成として扱う。<code>project_id</code>が現在の<code>materials.project_id</code>と異なる場合は400（4.3節A-20の注記参照。プロジェクト付け替えはA-17を使う）</li>
+    <li>materials行のメタデータ（title, description, tags, status, sort_order, attempt_scope, retake_scope, default_feedback_style, ai_context, grading_mode）を更新する</li>
+    <li><strong>ノードの全置換:</strong> 送信されたノード配列のうちノードID注記があるものは<code>UPDATE material_nodes SET ... WHERE id = ?</code>、無いものは<code>INSERT</code>で新規採番する。<strong>今回のリクエストに含まれなかった既存ノードは削除</strong>する（CASCADE削除により配下の問題・受験記録は残らない点に注意。9.1節エラーハンドリングで警告を検討）</li>
+    <li><strong>問題の全置換:</strong> 各ページ（葉ノード）に紐づく問題ブロックについて、A-31と同一のロジック（送信内容で当該<code>node_id</code>の問題を全置換）を適用する</li>
+    <li>T-08 material_revisionsへ1行追加する（7.4節）</li>
+    <li>コミット後、新規採番されたノードID・問題IDを含む最新のソーステキスト（7.2節と逆の手順で組み立てる）をレスポンスとして返す。Claude Codeは次回のGET（A-19）を待たずとも、このレスポンスから新規IDを把握できる</li>
+  </ol>
+  <div class="callout warn">
+    <strong>全置換のリスクと運用上の注意:</strong> ノードの全置換は、Claude Codeが取得（A-19）した内容の一部を誤って欠落させたまま書き戻した場合、その欠落した章・ページが削除されてしまう。これはA-31（画面からの問題一括更新）と同じ全置換セマンティクスであり、意図的な設計（取得→修正→書き戻しの往復を単純に保つため）である。既存の受験記録（quiz_attempts, answers）はノード自体が削除されるとCASCADEで失われるため、<strong>公開済み（<code>status='published'</code>）の教材で受験記録が既に存在するノードを削除するリクエストは、確認なしに実行せず、レスポンスに<code>{"warnings": ["ページ「...」を削除すると、既存の受験記録が失われます"]}</code>を含めて返す</strong>（処理自体は実行するが警告を返す。要件定義書のREQ-F-02が「往復できること」を最優先要求としているため、書き込みブロックによる往復の阻害は避ける）。
+  </div>
+
+  <h3>7.4 changed_via の判定と改訂履歴</h3>
+  <p>基本設計書8.5節のとおり、<code>changed_via</code>はJWTペイロードの<code>token_type</code>クレームで機械的に判定する（<code>'session'</code>→<code>'web'</code>、<code>'cli'</code>→<code>'claude_code'</code>）。<code>change_summary</code>の自動生成ルールは以下のとおり。</p>
+  <table>
+    <thead><tr><th>変更内容</th><th>自動生成される change_summary</th></tr></thead>
+    <tbody>
+      <tr><td>本文（説明文）のみ変更</td><td>「本文を更新」</td></tr>
+      <tr><td>問題の追加・更新・削除を含む</td><td>「問題を{追加件数}件追加/{更新件数}件更新/{削除件数}件削除」（該当する項目のみ連結）</td></tr>
+      <tr><td>目次構造（章・小見出し・ページの追加/削除）を含む</td><td>「目次構成を変更（{追加ノード数}件追加/{削除ノード数}件削除）」</td></tr>
+      <tr><td>A-31（画面からの問題一括更新）</td><td>常に「問題を更新（画面操作）」</td></tr>
+    </tbody>
+  </table>
+  <p>複数種別の変更が同時に発生した場合は「、」で連結する。フロントマターまたは専用ヘッダー（<code>X-Change-Summary</code>）で明示的な要約が渡された場合はそれを優先する。</p>
+
+  <h3>7.5 HTMLサニタイズの実現方式（html_sanitize.py）</h3>
+  <p>基本設計書8.6節の方針を実装レベルへ具体化する。ライブラリは<code>nh3</code>（許可リスト方式、Rust実装）を使用する。</p>
+  <pre><code>import nh3
+
+ALLOWED_TAGS = {
+    "p", "br", "strong", "em", "u", "s", "code", "pre", "blockquote",
+    "ul", "ol", "li", "h4", "h5", "h6", "table", "thead", "tbody",
+    "tr", "th", "td", "a", "img", "figure", "figcaption",
+}
+ALLOWED_ATTRIBUTES = {
+    "a": {"href", "rel", "target"},
+    "img": {"src", "alt", "width", "height"},
+    "td": {"colspan", "rowspan"},
+    "th": {"colspan", "rowspan"},
+}
+ALLOWED_URL_SCHEMES = {"http", "https"}
+
+def sanitize_html(raw_html: str) -&gt; str:
+    return nh3.clean(
+        raw_html,
+        tags=ALLOWED_TAGS,
+        attributes=ALLOWED_ATTRIBUTES,
+        url_schemes=ALLOWED_URL_SCHEMES,
+        link_rel="noopener noreferrer",
+    )
+
+def render_material_body(body: str, format: str) -&gt; str:
+    """h1/h2/h3（章・小見出し・ページの境界として予約済み）は
+    レンダリング層でも防御的に除去したうえでサニタイズする"""
+    html = markdown_render.to_html(body) if format == "markdown" else body
+    html = strip_reserved_headings(html)   # h1/h2/h3を除去（8.6節）
+    return sanitize_html(html)</code></pre>
+  <p>この<code>render_material_body</code>は、A-15（教材詳細取得）・A-40（受験開始）のレスポンス生成時、A-64（プレビュー）、S-16でのレンダリング直前の3箇所すべてから共通して呼び出す。<code>materials</code>・<code>material_nodes.body</code>には著者の入力した原文をそのまま保存し、上記の関数を経由しない直接描画（フロントエンドの<code>dangerouslySetInnerHTML</code>への生データ投入等）は行わない。</p>
+
+
+  <footer class="doc-footer">
+    <span>社内学習管理システム（Manabi）詳細設計書 v1.1</span>
+    <span>コガソフトウェア株式会社 / 2026-08-24</span>
+  </footer>
+
+</div>
+</body>
+</html>
+

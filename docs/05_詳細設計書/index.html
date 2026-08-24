@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>詳細設計書 | 社内学習管理システム（Manabi）</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<script src="../_sidenav.js"></script>
+<div class="doc">
+
+  <div class="cover">
+    <span class="doc-type">詳細設計書</span>
+    <h1>社内学習管理システム（Manabi）詳細設計書</h1>
+    <p class="subtitle">社内学習管理システム（Manabi）</p>
+    <div class="meta">
+      <span>作成日: 2026-08-24</span>
+      <span>版数: 1.1</span>
+      <span>作成: コガソフトウェア株式会社</span>
+    </div>
+    <p class="note">本ドキュメントは新人社員向けAI開発研修のサンプル成果物です</p>
+  </div>
+
+  <h2 id="history">改訂履歴</h2>
+  <table>
+    <thead><tr><th>版数</th><th>日付</th><th>改訂内容</th></tr></thead>
+    <tbody>
+      <tr><td>1.0</td><td>2026-08-24</td><td>初版。要求仕様書（v1.0）・要件定義書（v1.20）・基本設計書（v1.26）で定めた機能（F-01〜F-29、実働26件）・画面（S-01〜S-19、実働17件）・API（A-01〜A-80、実働69件）・テーブル（T-01〜T-29、実働24件）を、実装可能なレベルまで詳細化した。検討資料<code>20260821_詳細設計書_仮.html</code>（検討稿1.0〜1.4）としてレビュー・合意した内容を正式反映したもので、検討過程での改訂履歴（呼称のManabi統一、F-29プロフィール自己編集、A-78/A-79受験後アンケートAPI、A-80設定リセットAPI等の反映経緯）は同ファイルを参照。</td></tr>
+      <tr><td>1.1</td><td>2026-08-24</td><td>単一ファイルで1,770行を超え閲覧が重くなっていたため、3〜11章を章ごとに個別ファイル（本ディレクトリ配下）へ分割した。1〜2章・改訂履歴・表紙は本ページ（index.html）に残す。内容面の変更はなく、ファイル構成の変更のみ。あわせてdocs全体を横断できる共通サイドナビ（<code>docs/_sidenav.js</code>）を導入し、<code>docs/assets/style.css</code>のテーブルセル・<code>code</code>要素に<code>overflow-wrap</code>を追加して、長い文字列（APIパス等）がセルからはみ出してレイアウトが崩れる不具合を修正した（本書に限らず01・02・04にも適用される共通修正）。</td></tr>
+    </tbody>
+  </table>
+
+  <nav class="toc">
+    <strong>目次</strong>
+    <ol>
+      <li><a href="#sec1">はじめに</a></li>
+      <li><a href="#sec2">実装構成</a></li>
+      <li><a href="03_テーブル定義.html">3. テーブル定義</a></li>
+      <li><a href="04_API詳細設計.html">4. API詳細設計</a></li>
+      <li><a href="05_権限制御詳細.html">5. 権限制御詳細</a></li>
+      <li><a href="06_検索受講対象判定処理詳細.html">6. 検索・受講対象判定処理詳細</a></li>
+      <li><a href="07_教材連携詳細.html">7. 教材連携詳細（Claude Code連携）</a></li>
+      <li><a href="08_AI機能実装詳細.html">8. AI機能実装詳細</a></li>
+      <li><a href="09_エラーハンドリングログ設計.html">9. エラーハンドリング・ログ設計</a></li>
+      <li><a href="10_画面項目定義.html">10. 画面項目定義</a></li>
+      <li><a href="11_処理シーケンス.html">11. 処理シーケンス</a></li>
+    </ol>
+  </nav>
+
+  <h2 id="sec1">1. はじめに</h2>
+
+  <h3>1.1 本書の位置づけ</h3>
+  <p>本書は、社内学習管理システム（コードネーム: Manabi）の要求仕様書（v1.0）・要件定義書（v1.20）・基本設計書（v1.26）で定めた機能（F-01〜F-29）・画面（S-01〜S-19）・API（A-01〜A-80）・テーブル（T-01〜T-29）を、<strong>実装可能なレベルまで網羅的に詳細化</strong>するものである。対象読者は本システムの実装担当者とする。</p>
+  <ul>
+    <li>ID体系（REQ-xx=要求 / F-xx=機能 / S-xx=画面 / T-xx=テーブル / A-xx=API）は要求仕様書・要件定義書・基本設計書と共通であり、本書ではIDを用いて相互参照する。廃止・欠番のIDは基本設計書の扱いをそのまま引き継ぐ（F-03, F-07, F-27／S-07, S-18／T-02, T-05, T-07, T-24, T-25／A-05〜A-08, A-23〜A-26, A-68〜A-70）。</li>
+    <li>上流文書は要求仕様書（<code>docs/01_要求仕様書.html</code>）・要件定義書（<code>docs/02_要件定義書.html</code>）・基本設計書（<code>docs/04_基本設計書.html</code>）の3文書とする。</li>
+    <li>技術スタックは既存システム LCC CRM・Keireki を踏襲する（REQ-N-06）。Frontend: React 19 + TypeScript + Vite 6 + Tailwind CSS 4 + react-router 7 + SWR + Lucide React、Backend: FastAPI (Python 3.10+) + Uvicorn + asyncpg、Database: PostgreSQL (Supabase)、ファイルストレージ: Supabase Storage、AI連携: Anthropic Claude API（Messages API）、通知: Slack Incoming Webhook、ホスティング: Koyeb。</li>
+    <li>本書は実装担当者がそのまま実装に移せることを目的とし、機能・画面・API・テーブルを網羅する。CRUD系のように処理が定型的なものは記載を簡潔にするが、対象から省略することはしない。</li>
+    <li>各テーブルのカラム詳細（型・NULL可否・制約・既定値の全定義）、API詳細、画面項目定義、教材連携・AI機能の実装レベルの仕様は本書で定める。画面レイアウトそのものは画面モックアップ「<a href="../03_画面モックアップ/index.html">03_画面モックアップ/</a>」を正とし、本書では重複して図示しない。</li>
+  </ul>
+
+  <h3>1.2 基本設計書との対応表（章立ての引き継ぎ）</h3>
+  <table>
+    <thead><tr><th>基本設計書の章</th><th>本書での詳細化</th></tr></thead>
+    <tbody>
+      <tr><td>2章 システム構成</td><td>2章（実装構成）</td></tr>
+      <tr><td>3章 認証・認可設計</td><td>5章（権限制御詳細）</td></tr>
+      <tr><td>4章 画面設計</td><td>10章（画面項目定義）</td></tr>
+      <tr><td>5章 機能設計 / 5.9節・5.19節（対象者・担当範囲判定）</td><td>6章（検索・受講対象判定処理詳細）</td></tr>
+      <tr><td>6章 データベース設計（6.2節テーブル一覧）</td><td>3章（テーブル定義。全カラムのDDL）</td></tr>
+      <tr><td>7章 API設計（7.2節API一覧）</td><td>4章（API詳細設計。リクエスト/レスポンス仕様）</td></tr>
+      <tr><td>8章 教材連携設計</td><td>7章（教材連携詳細。パース・書き戻しアルゴリズム）</td></tr>
+      <tr><td>9章 AI機能設計</td><td>8章（AI機能実装詳細。プロンプト設計・スタックジョブ・スイープの実装）</td></tr>
+      <tr><td>10章 非機能設計（監査ログ）</td><td>9章（エラーハンドリング・ログ設計）</td></tr>
+      <tr><td>（新設）</td><td>11章（処理シーケンス）</td></tr>
+    </tbody>
+  </table>
+
+  <h3>1.3 対象読者</h3>
+  <ul>
+    <li>本システムの開発を担当する開発者（実装の入力として利用）</li>
+    <li>プロジェクトの発注側担当者・レビュー担当者（設計方針の妥当性確認）</li>
+    <li>AI開発研修の受講者（設計ドキュメントのサンプルとして参照）</li>
+  </ul>
+
+  <h2 id="sec2">2. 実装構成</h2>
+
+  <p>ディレクトリ構成はLCC CRM・Keirekiのコード規約に準拠する。バックエンドはルーター分割方式、フロントエンドは pages / components / hooks 分割方式とする（基本設計書2.4節を詳細化）。</p>
+  <pre><code>Manabi/
+├── backend/
+│   ├── main.py               # FastAPIアプリ生成、ルーター登録、静的配信（本番SPA）、CORS/起動設定、lifespanでスタックジョブ・スイープを起動（8.2節）
+│   ├── database.py           # asyncpg接続プール管理、SCHEMA定義（CREATE TABLE文・RLS有効化文、3章）、初期データ投入（「全社公開」プロジェクト）
+│   ├── models.py             # Pydanticモデル（リクエスト/レスポンススキーマ）定義
+│   ├── google_auth.py        # Google OAuth 2.0 認可URL生成・トークン交換・IDトークン検証・ドメイン検証（Keirekiを踏襲）
+│   ├── auth_helpers.py       # JWT発行/検証（セッション・CLIトークン共通）、require_auth / require_roles / require_project_role / require_material_access 等の依存関数（5章）
+│   ├── ai_client.py          # Anthropic Claudeクライアント生成、モデル解決（8.4節）、単価表・概算コスト計算（8.5節）、T-19記録
+│   ├── material_parser.py    # フロントマター解析・見出しツリー構築・問題ブロック抽出（7.2〜7.3節）
+│   ├── markdown_render.py    # Markdown→HTML変換
+│   ├── html_sanitize.py      # nh3ベースの許可リスト方式サニタイズ（7.5節）
+│   ├── storage_client.py     # Supabase Storage（S3互換）署名付きURL発行
+│   ├── slack_client.py       # Slack Incoming Webhook送信
+│   ├── job_sweep.py          # スタックジョブ・スイープ（8.3節）
+│   ├── routers/
+│   │   ├── auth.py           # A-01〜A-04, A-62〜A-63, A-75〜A-77 認証系API・プロフィール自己編集API
+│   │   ├── organization.py   # A-09〜A-13, A-59〜A-61, A-65〜A-67 プロジェクト・メンバー・教材共有API
+│   │   ├── materials.py      # A-14〜A-22, A-27〜A-35, A-64 教材・問題・添付・AI教材機能API
+│   │   ├── assignments.py    # A-36〜A-38 配信設定API
+│   │   ├── learning.py       # A-39〜A-44, A-71〜A-74 受講・受験API
+│   │   ├── dashboard.py      # A-45〜A-49 受講状況ダッシュボード・AI組織レポートAPI
+│   │   ├── reports.py        # A-50〜A-52 個人学習レポート・AI個人フィードバックAPI
+│   │   ├── users.py          # A-53〜A-54 ユーザー管理API
+│   │   └── settings.py       # A-55〜A-58 システム設定API
+│   └── static/
+│       └── favicon.svg
+└── frontend/
+    └── src/
+        ├── App.tsx            # ルーティング定義、認証ガード（未認証→/login、role別ルート制御）
+        ├── pages/             # 画面コンポーネント（S-01〜S-06, S-08〜S-17, S-19に対応）
+        │   └── admin/         # S-10 のタブ（UsersTab, SystemSettingsTab）
+        ├── components/        # 画面共通部品（Layout: サイドバー+ヘッダー、Toast、ConfirmDialog、SurveyModal 等）
+        │   └── ui/            # 共通フォーム部品（2.1節）。全画面でネイティブ部品の代わりに使用する
+        ├── hooks/              # SWRベースのデータ取得フック（useMe, useMyLearning, useMaterial, useProject 等）
+        ├── lib/                # APIクライアント（fetchラッパー）、日付・進捗率計算、定数
+        └── types/              # APIレスポンス型定義</code></pre>
+
+  <h3>2.1 共通UIコンポーネント（<code>frontend/src/components/ui/</code>）</h3>
+  <p>フォーム部品はブラウザ・OS標準のUIを使わず、下表の自作コンポーネントに統一する（Keirekiと同方針。2026-08-12決定を踏襲）。10章の画面項目定義にある入力形式（セレクト・年月入力・トグル等）は、実装上この表の部品で実現する。</p>
+  <table>
+    <thead><tr><th>コンポーネント</th><th>置き換えたネイティブ部品</th><th>用途・主な適用箇所</th></tr></thead>
+    <tbody>
+      <tr><td><code>Select</code></td><td><code>&lt;select&gt;</code></td><td>固定選択肢のプルダウン。S-06 配信区分 / S-08 担当範囲 / S-10 ロール・AIモデル</td></tr>
+      <tr><td><code>Combobox</code></td><td><code>&lt;select&gt;</code></td><td>検索付き・タグ見出し付きの選択。S-03 タグ絞り込み、S-12 メンバー招待の社員検索</td></tr>
+      <tr><td><code>TagInput</code></td><td>自由記述の<code>&lt;input&gt;</code></td><td>教材タグ（<code>materials.tags</code>）の複数入力。S-05目次編集タブ</td></tr>
+      <tr><td><code>MonthPicker</code> / <code>DateTimePicker</code></td><td><code>&lt;input type="month"&gt;</code> / <code>&lt;input type="datetime-local"&gt;</code></td><td>受講期限（<code>due_at</code>）入力。S-06配信設定</td></tr>
+      <tr><td><code>TextInput</code> / <code>TextArea</code></td><td><code>&lt;input&gt;</code> / <code>&lt;textarea&gt;</code></td><td>全画面のテキスト入力</td></tr>
+      <tr><td><code>MarkdownHtmlEditor</code></td><td>素の<code>&lt;textarea&gt;</code></td><td>説明文編集（S-17）。Markdown/HTML切替タブ＋サニタイズ済みプレビュー分割表示（A-64呼び出し）</td></tr>
+      <tr><td><code>DragSortList</code></td><td>なし（新規実装）</td><td>目次のツリー並び替え（S-05）、並び替え問題の選択肢並び替え（S-16）</td></tr>
+      <tr><td><code>NumberInput</code></td><td><code>&lt;input type="number"&gt;</code></td><td>合格基準・出題プール抽出数・スコア記録の数値入力（ネイティブのスピナーは非表示）</td></tr>
+      <tr><td><code>Checkbox</code></td><td>OS標準チェックボックス</td><td>S-16 回答必須／任意、S-08 対象範囲絞り込み</td></tr>
+      <tr><td><code>Switch</code></td><td>チェックボックスで代用していたON/OFF</td><td>S-10 ユーザーの有効/無効、S-05 ドボン問題フラグ</td></tr>
+      <tr><td><code>RadioGroup</code></td><td>画面ローカル実装のセグメント型ラジオ</td><td>S-04 誤答のみ抽出の出題範囲、S-17 AI講評スタイル</td></tr>
+      <tr><td><code>ConfirmDialog</code>（<code>useConfirm()</code>）</td><td><code>window.confirm</code></td><td>破壊的操作の確認。教材削除・メンバー削除・共有解除</td></tr>
+    </tbody>
+  </table>
+  <div class="callout">
+    <strong>実装規約:</strong> 今後の機能追加でもネイティブの<code>&lt;select&gt;</code>／<code>&lt;input type="month"&gt;</code>／素の<code>&lt;input&gt;</code>・<code>&lt;textarea&gt;</code>／<code>window.confirm</code>を直接使わず、必ず上表の部品を使用する。
+  </div>
+
+  <footer class="doc-footer">
+    <span>社内学習管理システム（Manabi）詳細設計書 v1.1</span>
+    <span>コガソフトウェア株式会社 / 2026-08-24</span>
+  </footer>
+
+</div>
+</body>
+</html>

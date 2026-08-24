@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
+<script src="_sidenav.js"></script>
 <div class="doc">
 
   <!-- ============ 表紙 ============ -->
@@ -16,7 +17,7 @@
     <p class="subtitle">社内学習管理システム（Manabi）</p>
     <div class="meta">
       <span>作成日: 2026-08-18</span>
-      <span>版数: 1.26</span>
+      <span>版数: 1.27</span>
       <span>作成: コガソフトウェア株式会社</span>
     </div>
     <p class="note">本ドキュメントは新人社員向けAI開発研修のサンプル成果物です</p>
@@ -54,6 +55,7 @@
       <tr class="rev-row"><td>1.24</td><td>2026-08-21</td><td>網羅性の観点で全体を再点検し、S-05「受験後アンケートの設置」（教材全体・章ごとのアンケート作成・設問編集・解除）に対応するAPIが存在しない不整合を解消した。GET/PUT <code>/api/materials/{id}/surveys</code>（A-78・A-79）を新設し、T-26〜T-27（surveys, survey_questions）のCRUDを全置換方式（A-31と同方式）で行う（7.2.3節）。従来S-05の操作説明（4.7節）がA-17でアンケート設置まで扱えるように読める記述だったが、T-26は独立テーブルでありA-17（materialsのメタデータ更新）では作成・更新できないため、A-78・A-79を実施主体として明記するよう修正した。</td></tr>
       <tr class="rev-row"><td>1.25</td><td>2026-08-24</td><td>S-10「システム設定」タブの「初期状態に戻す」ボタンに対応するAPIが存在しない不整合を解消した。A-56（PUT /api/settings）はupsertのみでT-21の行を削除できず、「未設定＝環境変数・既定値にフォールバック」（T-21の設計。9.4節）という状態には戻せなかった。DELETE <code>/api/settings</code>（A-80）を新設し、対象4キーの行をT-21から削除することで真の初期状態への復帰を可能にした（7.2.9節）。</td></tr>
       <tr class="rev-row"><td>1.26</td><td>2026-08-24</td><td>網羅性の観点でID体系を機械的に突き合わせ、F-28（受験後アンケート）がT-26〜T-29・A-72・A-78・A-79を持つ実働機能でありながら、5章に処理概要節（5.x）を欠いていた不整合を解消した。5.28（F-27、廃止済み）と5.29（F-29）の間に5.28aとして新設した（5章冒頭の機能一覧の説明にも経緯を追記）。内容の新規追加ではなく、既存の機能・API・テーブルの記述をまとめ直したものである。</td></tr>
+      <tr class="rev-row"><td>1.27</td><td>2026-08-24</td><td>docs全体を横断できる共通サイドナビ（<code>docs/_sidenav.js</code>）を導入した。あわせて<code>docs/assets/style.css</code>のテーブルセル・<code>code</code>要素に<code>overflow-wrap</code>を追加し、長い文字列（APIパス等）がセルからはみ出してレイアウトが崩れる不具合を修正した（01・02・05にも適用される共通修正）。内容面の変更はない。</td></tr>
     </tbody>
   </table>
 
@@ -1712,7 +1714,7 @@ scoring_criteria: |
   </ul>
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）基本設計書 v1.26</span>
+    <span>社内学習管理システム（Manabi）基本設計書 v1.27</span>
     <span>コガソフトウェア株式会社 / 2026-08-24</span>
   </footer>
 

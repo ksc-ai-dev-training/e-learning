@@ -1,4 +1,4 @@
-/* 社内学習管理システム「e-learning」設計ドキュメント共通スタイル */
+/* 社内学習管理システム「Manabi」設計ドキュメント共通スタイル */
 :root {
   --accent-600: #1e40af;
   --accent-700: #1e3a8a;
@@ -99,6 +99,7 @@ th, td {
   padding: 7px 10px;
   text-align: left;
   vertical-align: top;
+  overflow-wrap: anywhere;
 }
 th {
   background: var(--accent-50);
@@ -117,6 +118,7 @@ code {
   border: 1px solid var(--border);
   border-radius: 4px;
   padding: 1px 5px;
+  overflow-wrap: anywhere;
 }
 pre {
   background: #1e2530;

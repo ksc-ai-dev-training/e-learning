@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
+<script src="_sidenav.js"></script>
 <div class="doc">
 
   <div class="cover">
@@ -15,7 +16,7 @@
     <p class="subtitle">社内学習管理システム（Manabi）</p>
     <div class="meta">
       <span>作成日: 2026-08-17</span>
-      <span>版数: 1.20</span>
+      <span>版数: 1.21</span>
       <span>作成: コガソフトウェア株式会社</span>
     </div>
     <p class="note">本ドキュメントは新人社員向けAI開発研修のサンプル成果物です</p>
@@ -48,6 +49,7 @@
       <tr><td>1.18</td><td>2026-08-21</td><td>F-27（AI教材作成アシスト。ブラウザ内対話生成）を廃止した。教材の作成・修正へのAI支援はF-05（Claude Code CLI連携）に一本化する。理由: F-27はManabiのバックエンドがAnthropic Claude APIを直接呼び出す構造のため、利用のたびにManabi側で従量課金が発生していた。一方F-05はClaude Code利用者本人の契約・APIキーで課金され、Manabi側の運用コストは発生しない。両者は似た体験を提供する代替経路だったが、コストの発生しないF-05に一本化することとした。新画面S-18（教材編集：Claude Code下書き作成）を廃止し、S-14「＋新規教材を作成」は空のS-05目次編集画面へ直接遷移する（v1.14以前の遷移に戻した）。F-27・S-18ともIDは欠番として保持する。10章のフェーズ分けからF-27を除外した。</td></tr>
       <tr class="rev-row"><td>1.19</td><td>2026-08-21</td><td>画面モックアップのレビューにより、S-15（プロフィール編集）の氏名を「Googleアカウント連動、参照のみ」としていた記述を見直した。氏名は利用者が直接編集できる表示名として扱う（初回登録時はGoogleアカウントの氏名が初期値として設定されるが、以降は本人がこの画面で自由に変更できる）。基本設計書v1.22でF-29（プロフィール自己編集）として機能化した。</td></tr>
       <tr class="rev-row"><td>1.20</td><td>2026-08-21</td><td>要求仕様書（<code>docs/01_要求仕様書.html</code>）を正式にdocs/へ取り込んだことに伴い、本書全体の呼称を要求仕様書どおり「Manabi」に統一した（従来「e-learning」としていた箇所をすべて置き換え）。あわせて要求仕様書との照合を行い、以下を確認した。(1) REQ-F-01〜REQ-F-19・REQ-N-01〜REQ-N-06は要求仕様書と一致しており齟齬はない。(2) 要求仕様書REQ-F-06・2.1節は配信対象の単位に「部署」を含めているが、本書はv1.5で部署の概念を廃止し「全社・プロジェクト・個人」の3種に整理済みである。この差異は意図的な設計判断（7章・9.2節参照）であり、要求仕様書の記述を変更する意図はないため、本書側の記述は変更しない。</td></tr>
+      <tr class="rev-row"><td>1.21</td><td>2026-08-24</td><td>docs全体を横断できる共通サイドナビ（<code>docs/_sidenav.js</code>）を導入した。あわせて<code>docs/assets/style.css</code>のテーブルセル・<code>code</code>要素に<code>overflow-wrap</code>を追加し、長い文字列がセルからはみ出してレイアウトが崩れる不具合を修正した（01・04・05にも適用される共通修正）。内容面の変更はない。</td></tr>
     </tbody>
   </table>
 
@@ -458,7 +460,7 @@
 
   <footer class="doc-footer">
     <span>社内学習管理システム（Manabi）</span>
-    <span>版数 1.20 / 2026-08-21</span>
+    <span>版数 1.21 / 2026-08-24</span>
   </footer>
 
 </div>
