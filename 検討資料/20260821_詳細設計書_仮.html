@@ -19,7 +19,7 @@
     <p class="subtitle">社内学習管理システム（Manabi） ／ 検討資料</p>
     <div class="meta">
       <span>作成日: 2026-08-21</span>
-      <span>版数: 検討稿1.2</span>
+      <span>版数: 検討稿1.4</span>
       <span>作成: コガソフトウェア株式会社</span>
     </div>
     <p class="note">本ドキュメントは新人社員向けAI開発研修のサンプル成果物です。本ファイルは検討資料であり、docs/ 配下の正式な詳細設計書ではありません。</p>
@@ -32,6 +32,8 @@
       <tr><td>1.0</td><td>2026-08-21</td><td>初版。要件定義書（v1.18）・基本設計書（v1.21）で定めた機能（F-01〜F-28、実働25件）・画面（S-01〜S-19、実働17件）・API（A-01〜A-74、実働63件。A-74はS-19採点保存APIとして本書で新設）・テーブル（T-01〜T-29、実働24件）を、実装可能なレベルまで詳細化した。</td></tr>
       <tr><td>1.1</td><td>2026-08-21</td><td>要求仕様書（<code>docs/01_要求仕様書.html</code>、v1.0）・要件定義書v1.20・基本設計書v1.23への追随、および呼称のManabi統一。基本設計書v1.22で新設されたF-29（プロフィール自己編集）・A-75〜A-77（表示名変更・アイコンアップロード・削除）・T-01 <code>custom_picture_key</code>を反映し、ログインフロー（4.1節）を「氏名は初回登録時のみGoogle同期」に更新した。基本設計書v1.22で正式化したA-74（S-19採点保存API）は初版から反映済み。実働する機能はF-01〜F-29の26件、APIはA-01〜A-77の66件になった。</td></tr>
       <tr><td>1.2</td><td>2026-08-21</td><td>基本設計書v1.24への追随。S-05「受験後アンケートの設置」に対応するAPIが存在しなかった不整合を解消したA-78（アンケート取得）・A-79（設置・編集・解除。全置換方式）を反映した（4.3節・5.1節・10.5節）。あわせて全体を「網羅性を優先する」方針で再点検した（1.1節）。APIはA-01〜A-79の68件になった。</td></tr>
+      <tr><td>1.3</td><td>2026-08-24</td><td>基本設計書v1.25への追随。S-10「初期状態に戻す」ボタンに対応するAPIが存在しなかった不整合を解消したA-80（DELETE /api/settings。T-21の対象4キーを削除）を反映した（4.9節・10.9節）。S-10の項目定義から漏れていた「設定を保存」「初期状態に戻す」ボタンの行も追加した。APIはA-01〜A-80の69件になった。あわせて、S-10画面モック・基本設計書のいずれにも存在しない<code>ai_monthly_budget_alert_jpy</code>（AI月次予算アラート閾値）を本書から削除した（T-21キー一覧・A-55応答・8.5節・9章構造化ログ・10.9節。詳細設計側のみで先行追加されていた項目のため）。</td></tr>
+      <tr><td>1.4</td><td>2026-08-24</td><td>基本設計書v1.26への追随。基本設計書5章にF-28（受験後アンケート）の処理概要節（5.28a）が新設され、機能一覧の欠落が解消されたことを反映し、本書冒頭の参照バージョン表記を更新した（内容面の変更は基本設計書側のみで、本書のテーブル定義・API仕様・画面項目定義は既にT-26〜T-29・A-72・A-78・A-79を網羅済みのため変更なし）。</td></tr>
     </tbody>
   </table>
 
@@ -55,7 +57,7 @@
   <h2 id="sec1">1. はじめに</h2>
 
   <h3>1.1 本書の位置づけ</h3>
-  <p>本書は、社内学習管理システム（コードネーム: Manabi）の要求仕様書（v1.0）・要件定義書（v1.20）・基本設計書（v1.24）で定めた機能（F-01〜F-29）・画面（S-01〜S-19）・API（A-01〜A-79）・テーブル（T-01〜T-29）を、<strong>実装可能なレベルまで網羅的に詳細化</strong>するものである。対象読者は本システムの実装担当者とする。</p>
+  <p>本書は、社内学習管理システム（コードネーム: Manabi）の要求仕様書（v1.0）・要件定義書（v1.20）・基本設計書（v1.26）で定めた機能（F-01〜F-29）・画面（S-01〜S-19）・API（A-01〜A-80）・テーブル（T-01〜T-29）を、<strong>実装可能なレベルまで網羅的に詳細化</strong>するものである。対象読者は本システムの実装担当者とする。</p>
   <ul>
     <li>ID体系（REQ-xx=要求 / F-xx=機能 / S-xx=画面 / T-xx=テーブル / A-xx=API）は要求仕様書・要件定義書・基本設計書と共通であり、本書ではIDを用いて相互参照する。廃止・欠番のIDは基本設計書の扱いをそのまま引き継ぐ（F-03, F-07, F-27／S-07, S-18／T-02, T-05, T-07, T-24, T-25／A-05〜A-08, A-23〜A-26, A-68〜A-70）。</li>
     <li>上流文書は要求仕様書（<code>docs/01_要求仕様書.html</code>）・要件定義書（<code>docs/02_要件定義書.html</code>）・基本設計書（<code>docs/04_基本設計書.html</code>）の3文書とする。</li>
@@ -499,11 +501,10 @@
   <table>
     <thead><tr><th>key</th><th>内容</th><th>既定値（行が無い場合）</th><th>参照API</th></tr></thead>
     <tbody>
-      <tr><td><code>ai_model</code></td><td>AI機能（F-08, F-20〜F-23）が使用するモデルID</td><td>環境変数<code>ANTHROPIC_MODEL</code>、無ければ<code>claude-sonnet-5</code>（8.4節）</td><td>A-55, A-56</td></tr>
-      <tr><td><code>slack_webhook_url</code></td><td>Slack Incoming Webhook URL</td><td>環境変数<code>SLACK_WEBHOOK_URL</code></td><td>A-55〜A-57</td></tr>
-      <tr><td><code>slack_channel</code></td><td>通知先チャンネル表示名（Webhook自体は登録時のチャンネル固定のため表示用）</td><td>—</td><td>A-55, A-56</td></tr>
-      <tr><td><code>project_leave_grace_period_days</code></td><td>プロジェクト離任後の猶予期間日数</td><td>30</td><td>A-55, A-56（6.3節で参照）</td></tr>
-      <tr><td><code>ai_monthly_budget_alert_jpy</code></td><td>AI月次コストのアラート閾値（円）。未設定でアラートなし</td><td>未設定</td><td>A-55, A-56（8.5節）</td></tr>
+      <tr><td><code>ai_model</code></td><td>AI機能（F-08, F-20〜F-23）が使用するモデルID</td><td>環境変数<code>ANTHROPIC_MODEL</code>、無ければ<code>claude-sonnet-5</code>（8.4節）</td><td>A-55, A-56, A-80</td></tr>
+      <tr><td><code>slack_webhook_url</code></td><td>Slack Incoming Webhook URL</td><td>環境変数<code>SLACK_WEBHOOK_URL</code></td><td>A-55〜A-57, A-80</td></tr>
+      <tr><td><code>slack_channel</code></td><td>通知先チャンネル表示名（Webhook自体は登録時のチャンネル固定のため表示用）</td><td>—</td><td>A-55, A-56, A-80</td></tr>
+      <tr><td><code>project_leave_grace_period_days</code></td><td>プロジェクト離任後の猶予期間日数</td><td>30</td><td>A-55, A-56（6.3節で参照）, A-80</td></tr>
     </tbody>
   </table>
   <p><strong>制約:</strong> PK(key)、FK(updated_by→users.id) ON DELETE SET NULL。他テーブルと異なり<code>id</code>のIDENTITY列は持たず、設定キーそのものを主キーとする（Keireki T-08と同方針）。</p>
@@ -851,14 +852,15 @@ ALTER TABLE surveys ENABLE ROW LEVEL SECURITY;</code></pre>
     </tbody>
   </table>
 
-  <h3>4.9 settings.py（システム設定、A-55〜A-58）</h3>
+  <h3>4.9 settings.py（システム設定、A-55〜A-58, A-80）</h3>
   <table>
     <thead><tr><th>API</th><th>メソッド／パス</th><th>権限</th><th>リクエスト</th><th>レスポンス</th></tr></thead>
     <tbody>
-      <tr><td>A-55</td><td>GET <code>/api/settings</code></td><td>admin</td><td>—</td><td>200 <code>{"ai_model", "slack_webhook_url", "slack_channel", "project_leave_grace_period_days", "ai_monthly_budget_alert_jpy"}</code>（T-21の全キーをまとめて返す）</td></tr>
+      <tr><td>A-55</td><td>GET <code>/api/settings</code></td><td>admin</td><td>—</td><td>200 <code>{"ai_model", "slack_webhook_url", "slack_channel", "project_leave_grace_period_days"}</code>（T-21の全キーをまとめて返す）</td></tr>
       <tr><td>A-56</td><td>PUT <code>/api/settings</code></td><td>admin</td><td>上記の部分集合（変更したいキーのみ）</td><td>200。キーごとに<code>ON CONFLICT (key) DO UPDATE</code>でupsert</td></tr>
       <tr><td>A-57</td><td>POST <code>/api/settings/slack-test</code></td><td>admin</td><td>ボディなし</td><td>200 <code>{"detail": "テスト送信しました"}</code>／502（Webhook URL未設定または送信失敗）</td></tr>
       <tr><td>A-58</td><td>GET <code>/api/settings/ai-usage</code></td><td>admin</td><td>クエリ <code>month</code>（YYYY-MM、既定は当月）</td><td>200 <code>{"total": {"count","input_tokens","output_tokens","cost_jpy"}, "by_feature": [{"feature","count","input_tokens","output_tokens","cost_jpy"}]}</code>。<code>by_feature</code>はT-19を<code>feature</code>でgroup by（基本設計書v1.21・7.2.9節）</td></tr>
+      <tr><td>A-80</td><td>DELETE <code>/api/settings</code></td><td>admin</td><td>ボディなし</td><td>204。T-21の対象4キー（<code>ai_model</code>, <code>slack_webhook_url</code>, <code>slack_channel</code>, <code>project_leave_grace_period_days</code>）を<code>DELETE FROM app_settings WHERE key IN (...)</code>で一括削除する。S-10「初期状態に戻す」ボタンに対応（基本設計書v1.25・7.2.9節）</td></tr>
     </tbody>
   </table>
 
@@ -1305,7 +1307,7 @@ def estimate_cost_jpy(model: str, input_tokens: int, output_tokens: int) -&gt; f
     costs = MODEL_COSTS.get(model, MODEL_COSTS[DEFAULT_MODEL])  # 未知モデルは既定モデル単価で概算
     usd = (input_tokens * costs["input"] + output_tokens * costs["output"]) / 1_000_000
     return round(usd * USD_TO_JPY, 6)</code></pre>
-  <p><strong>記録タイミング・アラート:</strong> 呼び出し完了直前にT-19へINSERTする。失敗（3回リトライ後も失敗）した場合は記録しない（実施できた利用の傾向把握を主目的とするため）。INSERT後、当月の<code>cost_estimate</code>合計を集計し、<code>app_settings.key='ai_monthly_budget_alert_jpy'</code>が設定されていて閾値を超えた場合は構造化ログへ警告レベルで記録する（9章）。</p>
+  <p><strong>記録タイミング:</strong> 呼び出し完了直前にT-19へINSERTする。失敗（3回リトライ後も失敗）した場合は記録しない（実施できた利用の傾向把握を主目的とするため）。</p>
 
   <h3>8.6 構造化出力スキーマ・プロンプト設計（機能別）</h3>
 
@@ -1438,7 +1440,6 @@ def estimate_cost_jpy(model: str, input_tokens: int, output_tokens: int) -&gt; f
       <tr><td>material_share_change</td><td>A-60（申請）・A-61（解除）・A-65（応答）成功時</td><td>ts, 操作者user_id・email, material_id, shared_to_project_id, 操作（request / accept / reject / revoke）</td></tr>
       <tr><td>user_role_change</td><td>A-54成功時</td><td>ts, 操作者user_id・email, 対象user_id, 変更後のrole・is_active</td></tr>
       <tr><td>ai_job_failed</td><td>8.2節のAI非同期ジョブが3回のリトライ後も失敗した時</td><td>ts, feature, 対象id（material_id/user_id/scope等）, エラー種別（内部情報の詳細は含めない）</td></tr>
-      <tr><td>ai_budget_alert</td><td>8.5節の当月コスト合計が閾値を超えた時</td><td>ts, month, total_cost_jpy, threshold_jpy</td></tr>
       <tr><td>slack_remind</td><td>A-47成功・失敗時</td><td>ts, 操作者user_id, assignment_id, 対象user_id, status（sent/failed/skipped）</td></tr>
     </tbody>
   </table>
@@ -1579,7 +1580,8 @@ def estimate_cost_jpy(model: str, input_tokens: int, output_tokens: int) -&gt; f
       <tr><td>Slack Webhook URL・通知先チャンネル</td><td>テキスト</td><td>—</td><td>URL形式検証</td><td>A-56 slack_webhook_url, slack_channel</td></tr>
       <tr><td>テスト送信ボタン</td><td>ボタン</td><td>—</td><td>—</td><td>A-57</td></tr>
       <tr><td>プロジェクト所属の猶予期間日数</td><td>NumberInput</td><td>○</td><td>0〜365の整数</td><td>A-56 project_leave_grace_period_days</td></tr>
-      <tr><td>AI月次予算アラート閾値</td><td>NumberInput</td><td>—</td><td>0以上の整数（円）。空欄でアラート無効</td><td>A-56 ai_monthly_budget_alert_jpy</td></tr>
+      <tr><td>設定を保存</td><td>ボタン</td><td>—</td><td>画面上の全項目をまとめてA-56へ送信</td><td>A-56</td></tr>
+      <tr><td>初期状態に戻す</td><td>ボタン</td><td>—</td><td>確認ダイアログ後、対象4キーをT-21から削除。画面は再取得（A-55）した既定値表示に戻る</td><td>A-80</td></tr>
     </tbody>
   </table>
 
@@ -1769,7 +1771,7 @@ def estimate_cost_jpy(model: str, input_tokens: int, output_tokens: int) -&gt; f
 
   <!-- FOOTER -->
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi） 詳細設計書（仮・検討中） 検討稿1.2</span>
+    <span>社内学習管理システム（Manabi） 詳細設計書（仮・検討中） 検討稿1.4</span>
     <span>コガソフトウェア株式会社</span>
   </footer>
 
