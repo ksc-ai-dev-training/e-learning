@@ -1,3 +1,4 @@
+
 # asyncpg接続プール管理、SCHEMA定義（詳細設計書 3章 T-01〜）
 import os
 from pathlib import Path
@@ -37,7 +38,7 @@ AUTO_MIGRATE = (
 
 _pool: asyncpg.Pool | None = None
 
-# 詳細設計書 3.1節 T-01 users のみ（他テーブルは画面ごとに追加していく）
+# 詳細設計書 3章。画面ごとに必要なテーブルを追加していく（現状 T-01, T-03, T-04, T-06）
 SCHEMA = """
 -- T-01 users
 CREATE TABLE IF NOT EXISTS users (
@@ -53,6 +54,66 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+
+-- T-03 projects
+CREATE TABLE IF NOT EXISTS projects (
+    id                  BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    name                TEXT NOT NULL,
+    description         TEXT,
+    status              TEXT NOT NULL DEFAULT 'active'
+                        CHECK (status IN ('active', 'completed')),
+    pm_user_id          BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    created_by          BIGINT NOT NULL REFERENCES users(id),
+    is_company_wide     BOOLEAN NOT NULL DEFAULT false,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
+
+-- T-04 project_memberships
+CREATE TABLE IF NOT EXISTS project_memberships (
+    id                  BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    project_id          BIGINT NOT NULL REFERENCES projects(id),
+    user_id             BIGINT NOT NULL REFERENCES users(id),
+    role                TEXT NOT NULL DEFAULT 'learner'
+                        CHECK (role IN ('admin', 'editor', 'learner')),
+    assigned_by         BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    status              TEXT NOT NULL DEFAULT 'invited'
+                        CHECK (status IN ('invited', 'active', 'declined')),
+    joined_at           TIMESTAMPTZ,
+    left_at             TIMESTAMPTZ,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (project_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_project_memberships_user_id ON project_memberships(user_id);
+ALTER TABLE project_memberships ENABLE ROW LEVEL SECURITY;
+
+-- T-06 materials（教材。当面はA-81の件数集計にのみ使用。S-14以降で本格利用）
+CREATE TABLE IF NOT EXISTS materials (
+    id                      BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    project_id              BIGINT NOT NULL REFERENCES projects(id),
+    title                   TEXT NOT NULL,
+    description             TEXT,
+    tags                    JSONB NOT NULL DEFAULT '[]',
+    created_by              BIGINT NOT NULL REFERENCES users(id),
+    status                  TEXT NOT NULL DEFAULT 'draft'
+                            CHECK (status IN ('draft', 'published')),
+    sort_order              INTEGER NOT NULL DEFAULT 0,
+    attempt_scope           TEXT NOT NULL DEFAULT 'material'
+                            CHECK (attempt_scope IN ('material', 'chapter', 'section', 'page')),
+    retake_scope            TEXT NOT NULL DEFAULT 'all'
+                            CHECK (retake_scope IN ('all', 'wrong_only')),
+    default_feedback_style  TEXT NOT NULL DEFAULT 'show_answer'
+                            CHECK (default_feedback_style IN ('show_answer', 'review_only', 'hint_only')),
+    ai_context              TEXT,
+    grading_mode            TEXT NOT NULL DEFAULT 'ai'
+                            CHECK (grading_mode IN ('ai', 'manual')),
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at              TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_materials_project_id ON materials(project_id);
+ALTER TABLE materials ENABLE ROW LEVEL SECURITY;
 """
 
 

@@ -21,7 +21,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 要件定義 | `docs/02_要件定義書.html`（requirements-definitionブランチからマージ） | v1.21 |
 | 画面モックアップ（S-01〜S-19。S-07・S-18は廃止済みで欠番） | `docs/03_画面モックアップ/`（`index.html`がギャラリー・画面遷移図） | — |
 | 基本設計 | `docs/04_基本設計書/`（長大化のため`index.html`〔表紙・改訂履歴・1〜2章〕と3〜11章の個別ファイルに分割） | v1.28 |
-| 詳細設計 | `docs/05_成果物資料/`（検討資料`検討資料/20260821_詳細設計書_仮.html`〔検討稿1.0〜1.4〕をレビュー・合意のうえ正式反映。長大化のため`index.html`〔表紙・改訂履歴・1〜2章〕と3〜11章の個別ファイルに分割。フォルダ名は意図的に`05_成果物資料`とした） | v1.5 |
+| 詳細設計 | `docs/05_成果物資料/`（検討資料`検討資料/20260821_詳細設計書_仮.html`〔検討稿1.0〜1.4〕をレビュー・合意のうえ正式反映。長大化のため`index.html`〔表紙・改訂履歴・1〜2章〕と3〜11章の個別ファイルに分割。フォルダ名は意図的に`05_成果物資料`とした） | v1.6 |
 
 ドキュメントを追加したら、この表を更新する（版数は改訂のたびに必ず更新すること）。
 
@@ -87,6 +87,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 実装状況
 
-- 要求仕様書（v1.0）・要件定義書（v1.21）・基本設計書（v1.28）・画面モックアップ一式（S-01〜S-19、S-07/S-18は欠番）・詳細設計書（v1.5）は完成している。
+- 要求仕様書（v1.0）・要件定義書（v1.21）・基本設計書（v1.28）・画面モックアップ一式（S-01〜S-19、S-07/S-18は欠番）・詳細設計書（v1.6）は完成している。
 - 基本設計フェーズは `basic-design` ブランチ（`requirements-definition` から分岐）で作業中。
-- 実装（backend/frontend）フェーズに着手済み。現状: `backend/`に開発用ログイン（Google OAuthは未実装、`DEV_AUTH=1`で有効化）までの雛形（`database.py`・`auth_helpers.py`・`routers/auth.py`・`main.py`・`seed.py`）が完成し、DB（Docker上のPostgreSQL 16、`manabi-db`）に接続確認済み。`frontend/`はVite + React + TypeScript + Tailwind CSSで雛形作成済みで、S-01ログイン画面（開発用ログインのみ、Google OAuth連携は未実装）が動作確認済み。S-02以降は未着手。環境構築・起動手順は`docs/参考資料_環境構築手順.html`を参照。
+- 実装（backend/frontend）フェーズに着手済み。S-01（ログイン、開発用ログインのみ）・S-13（教材編集：プロジェクト選択）が動作確認済み。backendはT-01 users・T-03 projects・T-04 project_memberships・T-06 materials（最小限）のスキーマとA-04系認証API・A-81（プロジェクト一覧）を実装済み。DBはDocker上のPostgreSQL 16（`manabi-db`）、seed.pyで初期ユーザーと「全社公開」プロジェクトを投入する。frontendはVite + React + TypeScript + Tailwind CSSで、AppShell/Sidebar/PageHeader/ProjectCard等の共通コンポーネントを実装済み（詳細設計書2.2〜2.9節）。S-14以降は未着手。教材作成・公開の縦の動線（S-13→S-14→S-05→S-17）を優先し、S-11/S-12（プロジェクト作成・管理）は「全社公開」で代替できるため後回しにする方針。環境構築・起動手順は`docs/参考資料_環境構築手順.html`を参照。

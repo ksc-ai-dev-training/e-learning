@@ -16,7 +16,7 @@
     <p class="subtitle">社内学習管理システム（Manabi）</p>
     <div class="meta">
       <span>作成日: 2026-08-24</span>
-      <span>版数: 1.5</span>
+      <span>版数: 1.6</span>
       <span>作成: コガソフトウェア株式会社</span>
     </div>
     <p class="note">本ドキュメントは新人社員向けAI開発研修のサンプル成果物です</p>
@@ -32,6 +32,7 @@
       <tr><td>1.3</td><td>2026-08-24</td><td>実装開始にあたり、画面モックアップ全17画面を横断的に確認し、共通化できるUIコンポーネントを洗い出して2.1節を拡充した（コンポーネント設計を実装より先に行う方針）。従来はフォーム部品のみを列挙していたが、サイドバー等のレイアウト（2.1.1）、バッジ・アバター等の表示部品（2.1.2）、テーブル・タブ等の一覧操作部品（2.1.3）、モーダル・トースト等のフィードバック部品（2.1.4）、教材編集固有部品（2.1.6）を追加した。全ての認証後画面でサイドバー構造が完全に同一であることをモックアップ比較で確認済み。</td></tr>
       <tr><td>1.4</td><td>2026-08-24</td><td>S-02マイ学習の「期限が近い必修教材」「任意教材受講済み」統計カードをクリック可能にし、対象の教材一覧へ遷移できるようにした（画面モックアップ側の修正）。この修正で使った「クリックで対象一覧に遷移する統計カード」パターンがS-02・S-09の2画面で共通に使われていたにもかかわらず2.1.2節に未掲載だったため、コンポーネント設計を実装より先に行う方針（CLAUDE.md）に基づき<code>StatCard</code>として追記した。あわせてリンク先の決め方（同一画面内アンカー／他画面へのフィルタ付き遷移）の判断基準をcalloutで明記した。</td></tr>
       <tr><td>1.5</td><td>2026-08-25</td><td>keireki詳細設計書分冊3（<code>05-3_詳細設計書_画面設計.html</code>）12章「フロントエンドコンポーネント設計」と比較し、Manabi側の2.1節が「使い回せるUI部品のカタログ」のみで、設計方針・コンポーネントツリー・コンポーネント一覧・データ取得フック・状態管理の分類・APIエラー処理規約・追加時の規約を欠いていたため、2.2〜2.9として新設した。実装はS-01（ログイン画面）までのため、現時点ではS-01分のみを記載し、以後は画面を1つ作るたびに追記する（縦切り・逐一確認の方針と整合）。</td></tr>
+      <tr><td>1.6</td><td>2026-08-25</td><td>S-13教材編集：プロジェクト選択に着手するにあたり、画面モックと4章のAPI一覧を突き合わせたところ、対応するAPIが存在しないことが判明したため（従来10.12節はA-11を指していたが、A-11はメンバーシップ情報のみで教材件数・メンバー数を返さない）、新規API<strong>A-81</strong> GET <code>/api/projects</code>を4.2節に追加し、10.12節の対応APIをA-81に訂正した。あわせて2.1.2節に<code>ProjectCard</code>コンポーネントを追加し、2.3〜2.5・2.7節をS-13実装分で更新した。また、これまで折に触れ更新が漏れていた3〜11章の各ファイルの版数表記を本書全体の版数（本行時点でv1.6）に揃えた。</td></tr>
     </tbody>
   </table>
 
@@ -154,6 +155,7 @@
       <tr><td><code>ProgressBar</code></td><td>—</td><td>進捗率バー。S-02教材カード、S-04教材全体の進捗</td></tr>
       <tr><td><code>Panel</code></td><td>title, count?</td><td>タイトル付きの枠線カード。設定画面・詳細画面のセクション分けで多用</td></tr>
       <tr><td><code>MaterialCard</code></td><td>—</td><td>教材の一覧表示カード（タイトル・タグ・進捗・操作ボタン）。S-02マイ学習、S-03教材一覧で共通</td></tr>
+      <tr><td><code>ProjectCard</code></td><td>pinned?</td><td>プロジェクトの選択カード（プロジェクト名・ロールバッジ・教材件数「公開N・下書きN」・メンバー数）。<code>pinned</code>指定で先頭固定＋ピンアイコン表示（全社公開用）。S-13教材編集：プロジェクト選択で使用</td></tr>
       <tr><td><code>StatCard</code></td><td>tone: default/warn/danger/good, linkTo?</td><td>件数・数値の統計カード。<code>linkTo</code>指定時はクリックで対象一覧（同一画面内アンカー、または他画面へのクエリ付きリンク）へ遷移する。S-02マイ学習（期限が近い必修教材・任意教材受講済み）、S-09個人学習レポート（受講済み・未受講の必修教材）で共通</td></tr>
     </tbody>
   </table>
@@ -232,22 +234,28 @@
     </tbody>
   </table>
 
-  <h3>2.3 コンポーネントツリー（現状: S-01のみ）</h3>
+  <h3>2.3 コンポーネントツリー（現状: S-01・S-13）</h3>
   <p><code>[S-xx]</code>は対応画面、<code>(hook)</code>は使用するデータ取得フックを示す。画面を作るたびにここへ追記する。</p>
   <pre><code>main.tsx
 └── StrictMode › BrowserRouter
     └── App (useMe)                        ルーティング・認証ガード（3.1節）
         ├── [未認証] Login [S-01]           開発用ログイン / Googleログイン / エラー表示
-        └── [認証済]                        暫定表示（S-02実装時に置き換え）</code></pre>
+        └── [認証済] AppShell               Sidebar + &lt;main&gt;
+            └── Routes
+                └── ProjectSelect [S-13] (useProjects)   プロジェクトカード一覧</code></pre>
   <p><code>ToastProvider</code> / <code>ConfirmProvider</code>は2.2節のとおり未導入。導入時は<code>BrowserRouter</code>の内側・<code>App</code>の外側に追加し、keirekiと同様にトースト・確認ダイアログをどの画面からも同じ見た目で呼べるようにする。</p>
 
-  <h3>2.4 コンポーネント一覧（現状: S-01のみ）</h3>
-  <p>種別: <strong>Root</strong> = アプリ全体のルート、<strong>Page</strong> = ルートに対応する画面。Propsの型は<code>types/index.ts</code>に準ずる。</p>
+  <h3>2.4 コンポーネント一覧（現状: S-01・S-13）</h3>
+  <p>種別: <strong>Root</strong> = アプリ全体のルート、<strong>Page</strong> = ルートに対応する画面、<strong>Shared</strong> = 画面横断部品。Propsの型は<code>types/index.ts</code>に準ずる。</p>
   <table>
     <thead><tr><th>コンポーネント<br><span class="muted">種別 / 画面</span></th><th>Props</th><th>内部状態（useState）<br><span class="muted">使用フック / API</span></th><th>責務</th></tr></thead>
     <tbody>
-      <tr><td><code>App</code><br><span class="muted">Root / —</span></td><td>なし</td><td>なし<br><span class="muted">→ <code>useMe</code>（A-04）</span></td><td>ログイン状態で表示を切り替える。未ログインなら<code>/login</code>のみのRoutes、ログイン済みなら暫定表示（S-02実装時にルーティング・ロール別リダイレクトへ差し替える）</td></tr>
+      <tr><td><code>App</code><br><span class="muted">Root / —</span></td><td>なし</td><td>なし<br><span class="muted">→ <code>useMe</code>（A-04）</span></td><td>ログイン状態で表示を切り替える。未ログインなら<code>/login</code>のみのRoutes、ログイン済みなら<code>AppShell</code>配下にRoutesを展開する</td></tr>
       <tr><td><code>Login</code><br><span class="muted">Page / S-01</span></td><td>なし</td><td>送信エラー<br><span class="muted">→ <code>useMe().mutate</code>、<code>useSWR</code>（開発用ユーザー一覧）、開発用ログインAPI</span></td><td>URLの<code>?error=</code>を4.1節のメッセージに変換して表示。開発用ログイン成功後に<code>mutate()</code>でログイン状態を更新</td></tr>
+      <tr><td><code>AppShell</code><br><span class="muted">Shared / S-02〜S-19</span></td><td><code>me: Me</code>, <code>children</code></td><td>なし<br><span class="muted">→ —</span></td><td><code>Sidebar</code> + メインコンテンツ領域のラッパー。全認証後画面で共通（2.1.1節）</td></tr>
+      <tr><td><code>Sidebar</code><br><span class="muted">Shared / S-02〜S-19</span></td><td><code>me: Me</code></td><td>なし<br><span class="muted">→ A-03（ログアウト）</span></td><td>ロゴ・ナビ項目・ログインユーザー情報・ログアウト。現状は固定メニュー（マイ学習・教材一覧・教材編集・個人学習レポート・プロジェクト作成・プロジェクト管理）を表示するのみで、S-02等の未実装画面へのリンクは今は繋がない。ロール別出し分けはS-08/S-10着手時に追加</td></tr>
+      <tr><td><code>ProjectSelect</code><br><span class="muted">Page / S-13</span></td><td>なし</td><td>なし<br><span class="muted">→ <code>useProjects</code>（A-81）</span></td><td>editor以上のプロジェクトをカード表示。<code>is_company_wide</code>を先頭固定し、ピンアイコンを付ける。カード選択でS-14（未実装のため現状はリンクなし）</td></tr>
+      <tr><td><code>ProjectCard</code><br><span class="muted">Shared / S-13</span></td><td><code>project: Project</code>, <code>pinned?: boolean</code></td><td>なし<br><span class="muted">→ —</span></td><td>プロジェクト名・ロールバッジ・教材件数・メンバー数の表示専用カード（2.1.2節）</td></tr>
     </tbody>
   </table>
 
@@ -256,6 +264,7 @@
     <thead><tr><th>フック</th><th>API</th><th>SWRキー</th><th>戻り値</th><th>備考</th></tr></thead>
     <tbody>
       <tr><td><code>useMe()</code></td><td>A-04</td><td><code>/api/auth/me</code></td><td><code>{ me: Me | null, error, isLoading, mutate }</code></td><td>401は例外にせず<code>null</code>（未ログイン）として返す。ログイン・ログアウト後は<code>mutate()</code>で更新</td></tr>
+      <tr><td><code>useProjects()</code></td><td>A-81</td><td><code>/api/projects</code></td><td><code>{ projects: Project[], error, isLoading }</code></td><td>editor以上のプロジェクト一覧。<code>is_company_wide</code>降順→<code>name</code>昇順で既にソート済みの配列が返る（サーバー側でソート、6章参照）</td></tr>
     </tbody>
   </table>
   <div class="callout">
@@ -277,7 +286,15 @@
   <p><code>localStorage</code>を使うようになったら、<code>manabi-</code>プレフィックスを付けたキー一覧をここに登録する（keirekiの<code>keireki-</code>プレフィックスに倣う）。<strong>個人情報・入力内容・会話内容は保存しない</strong>。</p>
 
   <h3>2.7 共通UIコンポーネントのProps仕様</h3>
-  <p>2.1節カタログの各部品について、実装した時点で型シグネチャ（<code>value</code> / <code>onChange</code>の形、必須Props等）をkeireki詳細設計書12.6節の形式でここに追記する。現状S-01は2.1節カタログの部品を1つも使用していない（素のTailwindユーティリティと標準の<code>&lt;button&gt;</code>のみで構成）ため、本節はまだ空である。</p>
+  <p>2.1節カタログの各部品について、実装した時点で型シグネチャ（<code>value</code> / <code>onChange</code>の形、必須Props等）をkeireki詳細設計書12.6節の形式でここに追記する。S-01は2.1節カタログの部品を使用していない。S-13で以下を実装した。</p>
+  <table>
+    <thead><tr><th>コンポーネント</th><th>Props</th><th>備考</th></tr></thead>
+    <tbody>
+      <tr><td><code>AppShell</code></td><td><code>me: Me</code>, <code>children: ReactNode</code></td><td>—</td></tr>
+      <tr><td><code>Sidebar</code></td><td><code>me: Me</code></td><td>アクティブ判定は内部で<code>useLocation()</code>を見て行う（親からactiveItemを渡さない）</td></tr>
+      <tr><td><code>ProjectCard</code></td><td><code>project: Project</code>, <code>pinned?: boolean</code></td><td><code>Project = { id, name, is_company_wide, role, material_published_count, material_draft_count, member_count }</code>（<code>types/index.ts</code>）</td></tr>
+    </tbody>
+  </table>
 
   <h3>2.8 APIクライアントとエラー処理（<code>frontend/src/lib/api.ts</code>）</h3>
   <ul>
@@ -298,7 +315,7 @@
   </ol>
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）詳細設計書 v1.5</span>
+    <span>社内学習管理システム（Manabi）詳細設計書 v1.6</span>
     <span>コガソフトウェア株式会社 / 2026-08-24</span>
   </footer>
 

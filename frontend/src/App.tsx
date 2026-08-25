@@ -1,8 +1,11 @@
 import { Navigate, Route, Routes } from 'react-router'
 import { useMe } from './hooks/useMe'
 import Login from './pages/Login'
+import ProjectSelect from './pages/ProjectSelect'
+import AppShell from './components/layout/AppShell'
 
-// ルーティング定義・認証ガード。S-02以降の画面はまだ無いため、ログイン後の行き先は仮表示。
+// ルーティング定義・認証ガード。S-02（マイ学習、本来"/"）は未実装のため、
+// 暫定的に"/"をS-13（今のところ唯一実装済みの画面）へリダイレクトする。
 export default function App() {
   const { me, isLoading } = useMe()
 
@@ -20,9 +23,13 @@ export default function App() {
   }
 
   return (
-    <div className="p-8 text-center text-sm text-slate-600">
-      ログイン中: {me.name}（{me.email}）
-      <p className="mt-2 text-xs text-slate-400">S-02以降の画面は未実装です。</p>
-    </div>
+    <AppShell me={me}>
+      <Routes>
+        <Route path="/" element={<Navigate to="/materials/edit-projects" replace />} />
+        <Route path="/login" element={<Navigate to="/materials/edit-projects" replace />} />
+        <Route path="/materials/edit-projects" element={<ProjectSelect />} />
+        <Route path="*" element={<Navigate to="/materials/edit-projects" replace />} />
+      </Routes>
+    </AppShell>
   )
 }

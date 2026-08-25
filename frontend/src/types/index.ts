@@ -15,3 +15,16 @@ export interface DevUser {
   name: string
   role: Role
 }
+
+export type ProjectRole = 'admin' | 'editor' | 'learner'
+
+// A-81 GET /api/projects のitems
+export interface Project {
+  id: number
+  name: string
+  is_company_wide: boolean
+  role: ProjectRole
+  material_published_count: number
+  material_draft_count: number
+  member_count: number
+}

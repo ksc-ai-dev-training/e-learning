@@ -53,10 +53,11 @@
     </tbody>
   </table>
 
-  <h3>4.2 organization.py（プロジェクト・メンバー・教材共有、A-09〜A-13, A-59〜A-61, A-65〜A-67）</h3>
+  <h3>4.2 organization.py（プロジェクト・メンバー・教材共有、A-09〜A-13, A-59〜A-61, A-65〜A-67, A-81）</h3>
   <table>
     <thead><tr><th>API</th><th>メソッド／パス</th><th>権限</th><th>リクエスト</th><th>レスポンス</th></tr></thead>
     <tbody>
+      <tr><td>A-81</td><td>GET <code>/api/projects</code></td><td>認証済</td><td>—</td><td>200 <code>{"items": [{"id", "name", "is_company_wide", "role", "material_published_count", "material_draft_count", "member_count"}]}</code>。自分がeditor以上（'editor'/'admin'、<code>status='active'</code>）で、かつ<code>projects.status='active'</code>のプロジェクトのみ返す。<code>member_count</code>は現役メンバー数（<code>project_memberships.status='active' AND left_at IS NULL</code>）で、<code>is_company_wide=true</code>の行も同じ定義で算出する（フロント側で表示要否を出し分ける、10.13節参照）。並び順は<code>is_company_wide</code>降順→<code>name</code>昇順（全社公開を先頭固定）</td></tr>
       <tr><td>A-09</td><td>POST <code>/api/projects</code></td><td>member, admin</td><td><code>{"name": str(1-100), "description": str|null}</code></td><td>201。下記処理フロー参照</td></tr>
       <tr><td>A-10</td><td>PUT <code>/api/projects/{id}</code></td><td>対象プロジェクトの管理者, admin</td><td><code>{"name": str, "description": str|null, "status": "active"|"completed"}</code></td><td>200。<code>is_company_wide=true</code>のプロジェクトは<code>status</code>変更のみ受け付け、name/descriptionの変更は400で拒否</td></tr>
       <tr><td>A-11</td><td>GET <code>/api/project-memberships</code></td><td>本人（<code>user_id</code>指定時）、対象プロジェクトの管理者/admin（<code>project_id</code>指定時）</td><td>クエリ <code>project_id</code> または <code>user_id</code>（いずれか必須）、<code>status</code>（任意）</td><td>200 <code>{"items": [{"id", "user_id", "user_name", "project_id", "project_name", "role", "status", "joined_at", "left_at"}]}</code></td></tr>
@@ -213,7 +214,7 @@
 
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）詳細設計書 v1.4</span>
+    <span>社内学習管理システム（Manabi）詳細設計書 v1.6</span>
     <span>コガソフトウェア株式会社 / 2026-08-24</span>
   </footer>
 
