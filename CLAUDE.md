@@ -82,9 +82,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **一気に作らない。逐一確認を要求する**: 画面・機能は1つずつ実装し、都度ユーザーに確認を取ってから次に進む。まとめて複数画面・複数ステップを一度に実装しない。環境構築のような下準備も小さいステップに分けて都度確認する。
 - **画面は縦に切って作る**: 1画面ぶんのDB・API・画面を通しで作り、常に「動くもの」がある状態を保つ（DBだけ全部→APIだけ全部、のような横切りはしない）。
 - **コンポーネント設計を実装より先に行う**: 新しい画面領域に着手する前に、対象の画面モックアップを横断的に確認し、共通化できるUIコンポーネントを洗い出して詳細設計書2.1節に反映してから、実装に入る。
+- **手順書を作成しながら開発し、変更に応じて改訂する**: 環境構築・起動方法は`docs/参考資料_環境構築手順.html`にまとめる（keirekiの同名ドキュメントの形式を踏襲）。新しい設定項目・起動手順の変更（ポート番号、`.env`のキー追加、起動コマンドの変更等）が生じたら、ユーザーに指示されなくても、その回の実装と同じタイミングで本書にも反映する。後回しにしない。
 
 ## 実装状況
 
 - 要求仕様書（v1.0）・要件定義書（v1.21）・基本設計書（v1.28）・画面モックアップ一式（S-01〜S-19、S-07/S-18は欠番）・詳細設計書（v1.4）は完成している。
 - 基本設計フェーズは `basic-design` ブランチ（`requirements-definition` から分岐）で作業中。
-- 実装（backend/frontend）フェーズに着手済み。現状: `backend/`に開発用ログイン（Google OAuthは未実装、`DEV_AUTH=1`で有効化）までの雛形（`database.py`・`auth_helpers.py`・`routers/auth.py`・`main.py`・`seed.py`）が完成し、DB（Docker上のPostgreSQL 16、`manabi-db`）に接続確認済み。`frontend/`はVite + React + TypeScript + Tailwind CSSで雛形作成済みで、S-01ログイン画面（開発用ログインのみ、Google OAuth連携は未実装）が動作確認済み。S-02以降は未着手。
+- 実装（backend/frontend）フェーズに着手済み。現状: `backend/`に開発用ログイン（Google OAuthは未実装、`DEV_AUTH=1`で有効化）までの雛形（`database.py`・`auth_helpers.py`・`routers/auth.py`・`main.py`・`seed.py`）が完成し、DB（Docker上のPostgreSQL 16、`manabi-db`）に接続確認済み。`frontend/`はVite + React + TypeScript + Tailwind CSSで雛形作成済みで、S-01ログイン画面（開発用ログインのみ、Google OAuth連携は未実装）が動作確認済み。S-02以降は未着手。環境構築・起動手順は`docs/参考資料_環境構築手順.html`を参照。
