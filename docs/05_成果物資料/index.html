@@ -16,7 +16,7 @@
     <p class="subtitle">社内学習管理システム（Manabi）</p>
     <div class="meta">
       <span>作成日: 2026-08-24</span>
-      <span>版数: 1.7</span>
+      <span>版数: 1.8</span>
       <span>作成: コガソフトウェア株式会社</span>
     </div>
     <p class="note">本ドキュメントは新人社員向けAI開発研修のサンプル成果物です</p>
@@ -34,6 +34,7 @@
       <tr><td>1.5</td><td>2026-08-25</td><td>keireki詳細設計書分冊3（<code>05-3_詳細設計書_画面設計.html</code>）12章「フロントエンドコンポーネント設計」と比較し、Manabi側の2.1節が「使い回せるUI部品のカタログ」のみで、設計方針・コンポーネントツリー・コンポーネント一覧・データ取得フック・状態管理の分類・APIエラー処理規約・追加時の規約を欠いていたため、2.2〜2.9として新設した。実装はS-01（ログイン画面）までのため、現時点ではS-01分のみを記載し、以後は画面を1つ作るたびに追記する（縦切り・逐一確認の方針と整合）。</td></tr>
       <tr><td>1.6</td><td>2026-08-25</td><td>S-13教材編集：プロジェクト選択に着手するにあたり、画面モックと4章のAPI一覧を突き合わせたところ、対応するAPIが存在しないことが判明したため（従来10.12節はA-11を指していたが、A-11はメンバーシップ情報のみで教材件数・メンバー数を返さない）、新規API<strong>A-81</strong> GET <code>/api/projects</code>を4.2節に追加し、10.12節の対応APIをA-81に訂正した。あわせて2.1.2節に<code>ProjectCard</code>コンポーネントを追加し、2.3〜2.5・2.7節をS-13実装分で更新した。また、これまで折に触れ更新が漏れていた3〜11章の各ファイルの版数表記を本書全体の版数（本行時点でv1.6）に揃えた。</td></tr>
       <tr><td>1.7</td><td>2026-08-25</td><td>S-14教材編集：教材一覧を実装。10.13節の対応API（既存のA-21）に変更は無かったが、5.1節の権限判定マトリクスでA-21が誤って<code>require_material_editor</code>（material_id起点）に分類されていたのを<code>require_project_role</code>（A-21はpathがproject_id起点のため）に訂正した。あわせて2.1.2節の<code>Badge</code>実装（variant: published/draft）、2.3〜2.5・2.7節をS-14実装分で更新した。</td></tr>
+      <tr><td>1.8</td><td>2026-08-25</td><td>画面モックアップの再確認により2点の差異が判明。(1) S-13にプロジェクト名検索欄を新規追加（画面モックアップ・10.12節に追記。既存プロジェクト一覧はA-81で全件取得済みのためクライアント側フィルタとし、API変更は無し）。(2) S-14の絞り込みパネル（キーワード・状態・更新月、絞り込む/条件クリアボタン）は画面モックアップに存在するが実装時に見落として省略していたため、次版で追加する。あわせて2.1.5節の<code>TextInput</code>を初実装した。</td></tr>
     </tbody>
   </table>
 
@@ -256,7 +257,7 @@
       <tr><td><code>Login</code><br><span class="muted">Page / S-01</span></td><td>なし</td><td>送信エラー<br><span class="muted">→ <code>useMe().mutate</code>、<code>useSWR</code>（開発用ユーザー一覧）、開発用ログインAPI</span></td><td>URLの<code>?error=</code>を4.1節のメッセージに変換して表示。開発用ログイン成功後に<code>mutate()</code>でログイン状態を更新</td></tr>
       <tr><td><code>AppShell</code><br><span class="muted">Shared / S-02〜S-19</span></td><td><code>me: Me</code>, <code>children</code></td><td>なし<br><span class="muted">→ —</span></td><td><code>Sidebar</code> + メインコンテンツ領域のラッパー。全認証後画面で共通（2.1.1節）</td></tr>
       <tr><td><code>Sidebar</code><br><span class="muted">Shared / S-02〜S-19</span></td><td><code>me: Me</code></td><td>なし<br><span class="muted">→ A-03（ログアウト）</span></td><td>ロゴ・ナビ項目・ログインユーザー情報・ログアウト。現状は固定メニュー（マイ学習・教材一覧・教材編集・個人学習レポート・プロジェクト作成・プロジェクト管理）を表示するのみで、S-02等の未実装画面へのリンクは今は繋がない。ロール別出し分けはS-08/S-10着手時に追加</td></tr>
-      <tr><td><code>ProjectSelect</code><br><span class="muted">Page / S-13</span></td><td>なし</td><td>なし<br><span class="muted">→ <code>useProjects</code>（A-81）</span></td><td>editor以上のプロジェクトをカード表示。<code>is_company_wide</code>を先頭固定し、ピンアイコンを付ける。カード選択でS-14へ</td></tr>
+      <tr><td><code>ProjectSelect</code><br><span class="muted">Page / S-13</span></td><td>なし</td><td><code>keyword</code>（検索欄の入力値）<br><span class="muted">→ <code>useProjects</code>（A-81）</span></td><td>editor以上のプロジェクトをカード表示。<code>is_company_wide</code>を先頭固定し、ピンアイコンを付ける。<code>keyword</code>でプロジェクト名をクライアント側フィルタ（A-81は全件取得のためAPI呼び出しなし）。カード選択でS-14へ</td></tr>
       <tr><td><code>ProjectCard</code><br><span class="muted">Shared / S-13</span></td><td><code>project: Project</code>, <code>pinned?: boolean</code></td><td>なし<br><span class="muted">→ —</span></td><td>プロジェクト名・ロールバッジ・教材件数・メンバー数の表示専用カード（2.1.2節）。カード自体が<code>Link</code>でS-14へ遷移する</td></tr>
       <tr><td><code>MaterialsList</code><br><span class="muted">Page / S-14</span></td><td>なし（<code>useParams().projectId</code>）</td><td>なし<br><span class="muted">→ <code>useProjects</code>（A-81、ヘッダーのプロジェクト名解決に流用）, <code>useMaterials</code>（A-21）</span></td><td>対象プロジェクトの教材一覧（下書き含む）を表示。「＋新規教材を作成」ボタンはS-05が無いため現状クリック不可（<code>title</code>属性で告知）。教材0件時は空状態メッセージを表示</td></tr>
       <tr><td><code>Badge</code><br><span class="muted">Shared / S-14</span></td><td><code>variant: 'published' | 'draft'</code></td><td>なし<br><span class="muted">→ —</span></td><td>色分けラベル（2.1.2節）。教材の状態バッジとして初実装。variantは使う画面が増えるたびに追加する</td></tr>
@@ -300,6 +301,7 @@
       <tr><td><code>PageHeader</code></td><td><code>title: string</code></td><td>2.1.1節の元案にあった<code>actions?</code>・画面ID表示は未実装（画面IDは設計書・モックアップ限定の識別用で実画面には不要と判断。2026-08-25）</td></tr>
       <tr><td><code>ProjectCard</code></td><td><code>project: Project</code>, <code>pinned?: boolean</code></td><td><code>Project = { id, name, is_company_wide, role, material_published_count, material_draft_count, member_count }</code>（<code>types/index.ts</code>）。カード全体が<code>react-router</code>の<code>Link</code></td></tr>
       <tr><td><code>Badge</code></td><td><code>variant: 'published' | 'draft'</code></td><td>2.1.2節の元案は<code>variant</code>を役割別文字列（role/projrole/status-on/off等）で列挙していたが、実装は用途ごとの具体的なキー（'published'/'draft'）を積み増す方式にした。他のvariant（role等）は使う画面ができた時点で追加する</td></tr>
+      <tr><td><code>TextInput</code></td><td>ネイティブ<code>&lt;input&gt;</code>属性をそのまま透過</td><td>S-13のプロジェクト名検索欄で初実装。<code>onChange</code>はネイティブのイベントを受け取る（keireki12.6節と同方針）</td></tr>
     </tbody>
   </table>
 
@@ -322,7 +324,7 @@
   </ol>
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）詳細設計書 v1.7</span>
+    <span>社内学習管理システム（Manabi）詳細設計書 v1.8</span>
     <span>コガソフトウェア株式会社 / 2026-08-24</span>
   </footer>
 
