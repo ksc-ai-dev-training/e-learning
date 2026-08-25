@@ -16,7 +16,7 @@
     <p class="subtitle">社内学習管理システム（Manabi）</p>
     <div class="meta">
       <span>作成日: 2026-08-24</span>
-      <span>版数: 1.9</span>
+      <span>版数: 1.11</span>
       <span>作成: コガソフトウェア株式会社</span>
     </div>
     <p class="note">本ドキュメントは新人社員向けAI開発研修のサンプル成果物です</p>
@@ -36,6 +36,8 @@
       <tr><td>1.7</td><td>2026-08-25</td><td>S-14教材編集：教材一覧を実装。10.13節の対応API（既存のA-21）に変更は無かったが、5.1節の権限判定マトリクスでA-21が誤って<code>require_material_editor</code>（material_id起点）に分類されていたのを<code>require_project_role</code>（A-21はpathがproject_id起点のため）に訂正した。あわせて2.1.2節の<code>Badge</code>実装（variant: published/draft）、2.3〜2.5・2.7節をS-14実装分で更新した。</td></tr>
       <tr><td>1.8</td><td>2026-08-25</td><td>画面モックアップの再確認により2点の差異が判明。(1) S-13にプロジェクト名検索欄を新規追加（画面モックアップ・10.12節に追記。既存プロジェクト一覧はA-81で全件取得済みのためクライアント側フィルタとし、API変更は無し）。(2) S-14の絞り込みパネル（キーワード・状態・更新月、絞り込む/条件クリアボタン）は画面モックアップに存在するが実装時に見落として省略していたため、次版で追加する。あわせて2.1.5節の<code>TextInput</code>を初実装した。</td></tr>
       <tr><td>1.9</td><td>2026-08-25</td><td>S-13のプロジェクト名検索が大文字小文字を区別してしまい、例えば「lcc」で検索しても「LCC開発」等がヒットしない不具合を修正した。<code>toLowerCase()</code>で双方を小文字化して比較するようにし、10.12節の説明に「大文字小文字を区別しない」旨を明記した。</td></tr>
+      <tr><td>1.10</td><td>2026-08-25</td><td>S-14の絞り込みパネル（キーワード・状態・更新月、絞り込む/条件クリアボタン）を実装した（v1.8の改訂履歴で先送りにしていた対応）。画面横断で使う<code>Select</code>・<code>Button</code>コンポーネントを2.1.3〜2.1.5節のカタログに沿って初実装し、2.2節に「検索条件のform/filter分離」の設計方針を追記した（複数項目の絞り込みは入力中の値と適用済みの値を分け、ボタン押下で反映する。keirekiのCareerListと同方針）。更新月の選択肢は教材データから動的に生成する。10.13・2.3〜2.5・2.7節を更新した。</td></tr>
+      <tr><td>1.11</td><td>2026-08-25</td><td>S-14のキーワード検索を教材タイトルだけでなくタグ（<code>materials.tags</code>）も対象にした。A-21のレスポンスに<code>tags</code>を追加し（4.2節）、一覧のタイトル下に<code>#タグ名</code>形式で表示するようにした。10.13節のキーワード行・教材一覧行、2.5節の<code>useMaterials</code>を更新した。</td></tr>
     </tbody>
   </table>
 
@@ -234,6 +236,7 @@
       <tr><td>Propsの向き</td><td>データは親→子へPropsで渡し、子→親はコールバック（<code>onSaved</code> / <code>onClose</code> / <code>onChange</code>）で通知する</td></tr>
       <tr><td>権限による出し分け</td><td><code>useMe()</code>の<code>role</code>（'member'/'admin'、T-01）で判定する。Manabiはこれに加えプロジェクト単位のローカルロール（T-04 <code>project_memberships.role</code>: 'admin'/'editor'/'learner'）を持つため、プロジェクト配下の画面（S-05教材編集等）は<strong>グローバルロールとローカルロールの2段階</strong>で判定する（基本設計書3.5節）。判定箇所はルート（<code>App.tsx</code>）・メニュー・ボタンの3箇所に限り、権限の正はサーバー側にある</td></tr>
       <tr><td>スタイル</td><td>Tailwind CSSのユーティリティをJSXに直接書く。共通の見た目が複数箇所で必要になったら、keirekiの<code>components/ui/shared.tsx</code>に倣ったクラス生成関数を追加する（現状S-01は単純なため未導入）</td></tr>
+      <tr><td>検索条件の状態管理</td><td>複数項目の絞り込み（S-14等）は、入力中の値（<code>form</code>）と一覧に適用済みの値（<code>filter</code>）を分け、「絞り込む」ボタン押下で<code>filter</code>に反映する（keirekiのCareerList・12.3節と同方針）。入力のたびに即時反映する単一項目の検索（S-13のプロジェクト名検索）はこの限りでない</td></tr>
     </tbody>
   </table>
 
@@ -246,7 +249,7 @@
         └── [認証済] AppShell               Sidebar + &lt;main&gt;
             └── Routes
                 ├── ProjectSelect [S-13] (useProjects)                プロジェクトカード一覧
-                └── MaterialsList [S-14] (useProjects, useMaterials)  教材一覧・新規作成導線</code></pre>
+                └── MaterialsList [S-14] (useProjects, useMaterials)  教材一覧・絞り込み・新規作成導線</code></pre>
   <p><code>ToastProvider</code> / <code>ConfirmProvider</code>は2.2節のとおり未導入。導入時は<code>BrowserRouter</code>の内側・<code>App</code>の外側に追加し、keirekiと同様にトースト・確認ダイアログをどの画面からも同じ見た目で呼べるようにする。</p>
 
   <h3>2.4 コンポーネント一覧（現状: S-01・S-13・S-14）</h3>
@@ -260,7 +263,7 @@
       <tr><td><code>Sidebar</code><br><span class="muted">Shared / S-02〜S-19</span></td><td><code>me: Me</code></td><td>なし<br><span class="muted">→ A-03（ログアウト）</span></td><td>ロゴ・ナビ項目・ログインユーザー情報・ログアウト。現状は固定メニュー（マイ学習・教材一覧・教材編集・個人学習レポート・プロジェクト作成・プロジェクト管理）を表示するのみで、S-02等の未実装画面へのリンクは今は繋がない。ロール別出し分けはS-08/S-10着手時に追加</td></tr>
       <tr><td><code>ProjectSelect</code><br><span class="muted">Page / S-13</span></td><td>なし</td><td><code>keyword</code>（検索欄の入力値）<br><span class="muted">→ <code>useProjects</code>（A-81）</span></td><td>editor以上のプロジェクトをカード表示。<code>is_company_wide</code>を先頭固定し、ピンアイコンを付ける。<code>keyword</code>でプロジェクト名をクライアント側フィルタ（A-81は全件取得のためAPI呼び出しなし）。カード選択でS-14へ</td></tr>
       <tr><td><code>ProjectCard</code><br><span class="muted">Shared / S-13</span></td><td><code>project: Project</code>, <code>pinned?: boolean</code></td><td>なし<br><span class="muted">→ —</span></td><td>プロジェクト名・ロールバッジ・教材件数・メンバー数の表示専用カード（2.1.2節）。カード自体が<code>Link</code>でS-14へ遷移する</td></tr>
-      <tr><td><code>MaterialsList</code><br><span class="muted">Page / S-14</span></td><td>なし（<code>useParams().projectId</code>）</td><td>なし<br><span class="muted">→ <code>useProjects</code>（A-81、ヘッダーのプロジェクト名解決に流用）, <code>useMaterials</code>（A-21）</span></td><td>対象プロジェクトの教材一覧（下書き含む）を表示。「＋新規教材を作成」ボタンはS-05が無いため現状クリック不可（<code>title</code>属性で告知）。教材0件時は空状態メッセージを表示</td></tr>
+      <tr><td><code>MaterialsList</code><br><span class="muted">Page / S-14</span></td><td>なし（<code>useParams().projectId</code>）</td><td><code>form</code>（入力中の絞り込み条件）, <code>filter</code>（適用済みの絞り込み条件。既定はキーワード空・状態/更新月「すべて」）<br><span class="muted">→ <code>useProjects</code>（A-81、ヘッダーのプロジェクト名解決に流用）, <code>useMaterials</code>（A-21）</span></td><td>対象プロジェクトの教材一覧（下書き含む）を表示。絞り込みパネル（キーワード・状態・更新月）は「絞り込む」押下で<code>filter</code>に反映、「条件クリア」で両方初期化するクライアント側フィルタ（10.13節、2.2節）。キーワードは教材タイトルとタグ（<code>#タグ名</code>形式で先頭の<code>#</code>を除去して比較）の両方を対象とする。更新月の選択肢は取得した教材の<code>updated_at</code>から動的に生成する。「＋新規教材を作成」ボタンはS-05が無いため現状クリック不可（<code>title</code>属性で告知）。教材0件時・絞り込み結果0件時はそれぞれ空状態メッセージを表示</td></tr>
       <tr><td><code>Badge</code><br><span class="muted">Shared / S-14</span></td><td><code>variant: 'published' | 'draft'</code></td><td>なし<br><span class="muted">→ —</span></td><td>色分けラベル（2.1.2節）。教材の状態バッジとして初実装。variantは使う画面が増えるたびに追加する</td></tr>
     </tbody>
   </table>
@@ -271,7 +274,7 @@
     <tbody>
       <tr><td><code>useMe()</code></td><td>A-04</td><td><code>/api/auth/me</code></td><td><code>{ me: Me | null, error, isLoading, mutate }</code></td><td>401は例外にせず<code>null</code>（未ログイン）として返す。ログイン・ログアウト後は<code>mutate()</code>で更新</td></tr>
       <tr><td><code>useProjects()</code></td><td>A-81</td><td><code>/api/projects</code></td><td><code>{ projects: Project[], error, isLoading }</code></td><td>editor以上のプロジェクト一覧。<code>is_company_wide</code>降順→<code>name</code>昇順で既にソート済みの配列が返る（サーバー側でソート、6章参照）。S-13・S-14の両方で同じキャッシュキーを共有する</td></tr>
-      <tr><td><code>useMaterials(projectId)</code></td><td>A-21</td><td><code>/api/projects/{projectId}/materials/source</code></td><td><code>{ materials: MaterialSource[], error, isLoading }</code></td><td>対象プロジェクトの教材一覧（下書き含む）。更新日の新しい順</td></tr>
+      <tr><td><code>useMaterials(projectId)</code></td><td>A-21</td><td><code>/api/projects/{projectId}/materials/source</code></td><td><code>{ materials: MaterialSource[], error, isLoading }</code></td><td>対象プロジェクトの教材一覧（下書き含む）。更新日の新しい順。<code>MaterialSource.tags: string[]</code>を含む（S-14のタグ検索・タグ表示に使用）</td></tr>
     </tbody>
   </table>
   <div class="callout">
@@ -303,6 +306,8 @@
       <tr><td><code>ProjectCard</code></td><td><code>project: Project</code>, <code>pinned?: boolean</code></td><td><code>Project = { id, name, is_company_wide, role, material_published_count, material_draft_count, member_count }</code>（<code>types/index.ts</code>）。カード全体が<code>react-router</code>の<code>Link</code></td></tr>
       <tr><td><code>Badge</code></td><td><code>variant: 'published' | 'draft'</code></td><td>2.1.2節の元案は<code>variant</code>を役割別文字列（role/projrole/status-on/off等）で列挙していたが、実装は用途ごとの具体的なキー（'published'/'draft'）を積み増す方式にした。他のvariant（role等）は使う画面ができた時点で追加する</td></tr>
       <tr><td><code>TextInput</code></td><td>ネイティブ<code>&lt;input&gt;</code>属性をそのまま透過</td><td>S-13のプロジェクト名検索欄で初実装。<code>onChange</code>はネイティブのイベントを受け取る（keireki12.6節と同方針）</td></tr>
+      <tr><td><code>Select</code></td><td><code>value: string</code>, <code>onChange(value: string)</code>, <code>options: SelectOption[]</code>, <code>id?</code>, <code>className?</code></td><td>S-14の状態・更新月セレクトで初実装。ネイティブ<code>&lt;select&gt;</code>と違い<code>onChange</code>は値そのものを受け取る（keireki12.6節と同方針）</td></tr>
+      <tr><td><code>Button</code></td><td>ネイティブ<code>&lt;button&gt;</code>属性をそのまま透過 + <code>variant?: 'primary' | 'secondary'</code></td><td>S-14の「絞り込む」「条件クリア」で初実装。<code>type="button"</code>を既定にし、フォーム内での意図しないsubmitを防ぐ</td></tr>
     </tbody>
   </table>
 
@@ -325,7 +330,7 @@
   </ol>
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）詳細設計書 v1.9</span>
+    <span>社内学習管理システム（Manabi）詳細設計書 v1.11</span>
     <span>コガソフトウェア株式会社 / 2026-08-24</span>
   </footer>
 

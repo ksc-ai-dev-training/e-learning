@@ -1,8 +1,22 @@
+import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import PageHeader from '../components/layout/PageHeader'
 import Badge from '../components/ui/Badge'
+import Button from '../components/ui/Button'
+import Select from '../components/ui/Select'
+import TextInput from '../components/ui/TextInput'
 import { useMaterials } from '../hooks/useMaterials'
 import { useProjects } from '../hooks/useProjects'
+import type { MaterialStatus } from '../types'
+
+const STATUS_OPTIONS = [
+  { value: 'all', label: 'すべて' },
+  { value: 'published', label: '公開中' },
+  { value: 'draft', label: '下書き' },
+]
+
+type FilterForm = { keyword: string; status: string; month: string }
+const EMPTY_FILTER: FilterForm = { keyword: '', status: 'all', month: 'all' }
 
 // S-14 教材編集：教材一覧（詳細設計書10.13節）。
 // 「＋新規教材を作成」の遷移先S-05はまだ無いため、ボタンは現状クリックできない。
@@ -12,6 +26,40 @@ export default function MaterialsList() {
   const { projects } = useProjects()
   const { materials, error, isLoading } = useMaterials(id)
   const project = projects.find((p) => p.id === id)
+
+  // 検索条件は入力中の値（form）と適用済みの値（filter）を分け、「絞り込む」押下で反映する
+  const [form, setForm] = useState<FilterForm>(EMPTY_FILTER)
+  const [filter, setFilter] = useState<FilterForm>(EMPTY_FILTER)
+
+  const monthOptions = useMemo(() => {
+    const months = new Set(materials.map((m) => m.updated_at.slice(0, 7)))
+    const sorted = Array.from(months).sort().reverse()
+    return [
+      { value: 'all', label: 'すべて' },
+      ...sorted.map((ym) => {
+        const [y, m] = ym.split('-')
+        return { value: ym, label: `${y}年${Number(m)}月` }
+      }),
+    ]
+  }, [materials])
+
+  const filtered = materials.filter((m) => {
+    if (filter.keyword) {
+      const kw = filter.keyword.toLowerCase().replace(/^#/, '')
+      const titleMatch = m.title.toLowerCase().includes(kw)
+      const tagMatch = m.tags.some((t) => t.toLowerCase().includes(kw))
+      if (!titleMatch && !tagMatch) return false
+    }
+    if (filter.status !== 'all' && m.status !== (filter.status as MaterialStatus)) return false
+    if (filter.month !== 'all' && m.updated_at.slice(0, 7) !== filter.month) return false
+    return true
+  })
+
+  const applyFilter = () => setFilter(form)
+  const clearFilter = () => {
+    setForm(EMPTY_FILTER)
+    setFilter(EMPTY_FILTER)
+  }
 
   return (
     <div className="flex flex-1 flex-col">
@@ -24,6 +72,58 @@ export default function MaterialsList() {
           {' ／ '}
           このプロジェクトの教材（下書きを含む）を一覧表示します。
         </p>
+
+        <details className="mb-4 rounded-md border border-slate-200">
+          <summary className="cursor-pointer px-4 py-2.5 text-sm font-semibold text-slate-600">
+            絞り込み <span className="ml-1 text-xs font-normal text-slate-400">クリックで開閉</span>
+          </summary>
+          <div className="border-t border-slate-200 p-4">
+            <div className="grid grid-cols-3 gap-4">
+              <div className="flex flex-col gap-1">
+                <label htmlFor="m-keyword" className="text-xs font-semibold text-slate-500">
+                  キーワード
+                </label>
+                <TextInput
+                  id="m-keyword"
+                  type="search"
+                  placeholder="教材名、#タグ"
+                  value={form.keyword}
+                  onChange={(e) => setForm({ ...form, keyword: e.target.value })}
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label htmlFor="m-status" className="text-xs font-semibold text-slate-500">
+                  状態
+                </label>
+                <Select
+                  id="m-status"
+                  value={form.status}
+                  onChange={(v) => setForm({ ...form, status: v })}
+                  options={STATUS_OPTIONS}
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label htmlFor="m-month" className="text-xs font-semibold text-slate-500">
+                  更新月
+                </label>
+                <Select
+                  id="m-month"
+                  value={form.month}
+                  onChange={(v) => setForm({ ...form, month: v })}
+                  options={monthOptions}
+                />
+              </div>
+            </div>
+            <div className="mt-3.5 flex items-center gap-2.5 border-t border-slate-100 pt-3.5">
+              <Button variant="primary" onClick={applyFilter}>
+                絞り込む
+              </Button>
+              <Button variant="secondary" onClick={clearFilter}>
+                条件クリア
+              </Button>
+            </div>
+          </div>
+        </details>
 
         <div className="mb-4 flex items-center gap-2.5">
           <span
@@ -44,7 +144,13 @@ export default function MaterialsList() {
           </p>
         )}
 
-        {materials.length > 0 && (
+        {!isLoading && !error && materials.length > 0 && filtered.length === 0 && (
+          <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400">
+            条件に一致する教材がありません。
+          </p>
+        )}
+
+        {filtered.length > 0 && (
           <div className="overflow-x-auto rounded-md border border-slate-200">
             <table className="w-full text-sm">
               <thead>
@@ -55,9 +161,16 @@ export default function MaterialsList() {
                 </tr>
               </thead>
               <tbody>
-                {materials.map((m) => (
+                {filtered.map((m) => (
                   <tr key={m.id} className="border-b border-slate-100 last:border-0">
-                    <td className="px-3 py-2">{m.title}</td>
+                    <td className="px-3 py-2">
+                      <div>{m.title}</div>
+                      {m.tags.length > 0 && (
+                        <div className="mt-0.5 text-[11px] text-slate-400">
+                          {m.tags.map((t) => `#${t}`).join(' ')}
+                        </div>
+                      )}
+                    </td>
                     <td className="px-3 py-2">
                       <Badge variant={m.status === 'published' ? 'published' : 'draft'} />
                     </td>

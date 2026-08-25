@@ -24,6 +24,7 @@ export interface MaterialSource {
   title: string
   status: MaterialStatus
   updated_at: string
+  tags: string[]
 }
 
 export type ProjectRole = 'admin' | 'editor' | 'learner'
