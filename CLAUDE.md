@@ -87,4 +87,4 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - 要求仕様書（v1.0）・要件定義書（v1.21）・基本設計書（v1.28）・画面モックアップ一式（S-01〜S-19、S-07/S-18は欠番）・詳細設計書（v1.4）は完成している。
 - 基本設計フェーズは `basic-design` ブランチ（`requirements-definition` から分岐）で作業中。
-- 実装（backend/frontend）フェーズに着手済み。現状: `backend/`に開発用ログイン（Google OAuthは未実装、`DEV_AUTH=1`で有効化）までの雛形（`database.py`・`auth_helpers.py`・`routers/auth.py`・`main.py`）が完成。DB（PostgreSQL）・`frontend/`はまだこれから。
+- 実装（backend/frontend）フェーズに着手済み。現状: `backend/`に開発用ログイン（Google OAuthは未実装、`DEV_AUTH=1`で有効化）までの雛形（`database.py`・`auth_helpers.py`・`routers/auth.py`・`main.py`・`seed.py`）が完成し、DB（Docker上のPostgreSQL 16、`manabi-db`）に接続確認済み。`frontend/`はVite + React + TypeScript + Tailwind CSSで雛形作成済みで、S-01ログイン画面（開発用ログインのみ、Google OAuth連携は未実装）が動作確認済み。S-02以降は未着手。

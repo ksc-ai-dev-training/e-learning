@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+body {
+  @apply bg-slate-100 text-slate-800;
+}
+
+/* クリックできる要素は一律で指カーソルにする（個別に cursor-pointer を付け忘れないため）。
+   無効化されているものは既定の矢印に戻す。 */
+button:not(:disabled),
+label:has(> input[type='checkbox']:not(:disabled)),
+label:has(> input[type='radio']:not(:disabled)),
+summary,
+a[href],
+[role='option'],
+[role='tab'],
+[role='button'] {
+  cursor: pointer;
+}
+
+button:disabled,
+[aria-disabled='true'] {
+  cursor: default;
+}
