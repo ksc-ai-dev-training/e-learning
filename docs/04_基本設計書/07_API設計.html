@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>7. API設計 | 基本設計書 | 社内学習管理システム（Manabi）</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<script src="../_sidenav.js"></script>
+<div class="doc">
+
+<p class="chapter-nav" style="display:flex;justify-content:space-between;font-size:13px;margin:0 0 16px"><a href="06_データベース設計.html">← 6. データベース設計</a><a href="index.html">目次</a><a href="08_教材連携設計.html">8. 教材連携設計（Claude Code連携） →</a></p>
+
+  <h2 id="sec7">7. API設計</h2>
+
+  <h3>7.1 API設計方針</h3>
+  <p>ベースパスは <code>/api</code> とする。認証はセッションJWTとし、ブラウザからのリクエストはHttpOnly Cookie（3.2節）、Claude Code等のCLIクライアントからのリクエストは <code>Authorization: Bearer &lt;token&gt;</code> ヘッダーで送信する（トークンの発行方式は8.2節）。A-01・A-02・A-62（いずれもログイン開始系のエンドポイント）を除く全APIで認証を必須とする。レスポンス形式はJSONを基本とし、教材テキストの往復系API（A-19〜A-21）のみ <code>text/plain; charset=utf-8</code> を用いる（8.4節）。エラー形式はlcc_crm・Keirekiを踏襲し <code>{"detail": "メッセージ"}</code> とする。権限不足は403、対象なしは404、業務ルール違反（唯一の管理者の削除・降格等）は400、入力形式不正はFastAPI既定の422を返す。権限判定は全てサーバー側（<code>auth_helpers.py</code> の権限デコレーター・依存関数）で行い、下表の「権限」列は3.3節（システム全体ロール）・3.5節（プロジェクトのローカルロール）の判定ロジックに沿って表記する（凡例は7.3節）。</p>
+
+  <h3>7.2 API一覧（ルーター構成別）</h3>
+  <p><code>routers/</code> 配下のファイル単位に、1〜6章で既出のAPI（A-01〜A-61）および本章・8章で新設するAPI（A-62〜A-64）、<span class="rev-new">共有承認フロー（F-26）で新設するAPI（A-65〜A-66）</span>、<span class="rev-new">S-19採点保存API（A-74）・プロフィール自己編集API（A-75〜A-77、v1.22新設）</span>をまとめて示す（2.4節のファイル構成に対応）。A-05〜A-08・A-23〜A-26は要件定義書v1.5対応（3.4節・5.3節・5.7節）で廃止した機能に対応するAPIであり、欠番として扱う。</p>
+
+  <h4>7.2.1 auth.py（認証、A-01〜A-04, A-62〜A-63, <span class="rev-new">A-75〜A-77</span>）</h4>
+  <table>
+    <thead><tr><th>API ID</th><th>メソッド</th><th>パス</th><th>権限</th><th>概要</th></tr></thead>
+    <tbody>
+      <tr><td>A-01</td><td><span class="badge badge-get">GET</span></td><td><code>/api/auth/login</code></td><td>不要</td><td>Google OAuth 2.0 認可URLへリダイレクト（3.1節）</td></tr>
+      <tr class="rev-row"><td>A-02</td><td><span class="badge badge-get">GET</span></td><td><code>/api/auth/callback</code></td><td>不要</td><td>OAuthコールバック。ドメイン検証→ユーザー登録/取得→<span class="rev-new">新規登録時は「全社公開」プロジェクト（<code>is_company_wide=true</code>）へ<code>role='editor'</code>で自動登録（5.25節）→</span>セッションJWT発行（Cookie）→ <code>/</code> へリダイレクト</td></tr>
+      <tr><td>A-03</td><td><span class="badge badge-post">POST</span></td><td><code>/api/auth/logout</code></td><td>認証済</td><td>セッションCookie破棄</td></tr>
+      <tr><td>A-04</td><td><span class="badge badge-get">GET</span></td><td><code>/api/auth/me</code></td><td>認証済</td><td>ログイン中ユーザー情報（id, email, name, role, picture_url）取得</td></tr>
+      <tr><td>A-62</td><td><span class="badge badge-get">GET</span></td><td><code>/api/auth/cli/login</code></td><td>不要</td><td>CLI用ログイン開始。ブラウザでA-01と同じGoogle OAuthフローを開き、成功後にlocalhostコールバックへ長期JWT（CLIトークン）を返す（8.2節）</td></tr>
+      <tr><td>A-63</td><td><span class="badge badge-post">POST</span></td><td><code>/api/auth/cli/revoke</code></td><td>認証済（CLIトークン）</td><td>発行済みCLIトークンの失効</td></tr>
+      <tr class="rev-row"><td>A-75</td><td><span class="badge badge-put">PUT</span></td><td><code>/api/auth/me</code></td><td>本人</td><td>表示名の変更、およびA-76でアップロード済みのアイコンの確定（S-15。5.29節）</td></tr>
+      <tr class="rev-row"><td>A-76</td><td><span class="badge badge-post">POST</span></td><td><code>/api/auth/me/icon/upload-url</code></td><td>本人</td><td>アイコン画像アップロード用の署名付きURLを発行（A-27と同じ方式）。PNG/JPEGのみ、<code>MAX_ICON_SIZE_MB</code>（既定2MB）まで</td></tr>
+      <tr class="rev-row"><td>A-77</td><td><span class="badge badge-delete">DELETE</span></td><td><code>/api/auth/me/icon</code></td><td>本人</td><td>独自アイコンを削除しGoogleプロフィール画像に戻す（<code>custom_picture_key</code>をNULLに更新）</td></tr>
+    </tbody>
+  </table>
+
+  <h4>7.2.2 organization.py（プロジェクト・メンバー・教材共有、A-05〜A-13, A-59〜A-61, <span class="rev-new">A-65〜A-66</span>）</h4>
+  <table>
+    <thead><tr><th>API ID</th><th>メソッド</th><th>パス</th><th>権限</th><th>概要</th></tr></thead>
+    <tbody>
+      <tr><td>A-05〜A-08</td><td>―</td><td>―</td><td>―</td><td>廃止（欠番）。旧組織マスタ管理（部署の登録・一覧等）API。要件定義書v1.5対応で部署の概念を廃止したため欠番とする（3.3節・5.3節参照）</td></tr>
+      <tr><td>A-09</td><td><span class="badge badge-post">POST</span></td><td><code>/api/projects</code></td><td><span class="badge badge-member">member</span> <span class="badge badge-admin">admin</span></td><td>プロジェクト作成。作成者を <code>project_memberships.role='admin'</code> で自動登録（3.5節・5.25節）</td></tr>
+      <tr><td>A-10</td><td><span class="badge badge-put">PUT</span></td><td><code>/api/projects/{id}</code></td><td><span class="badge badge-projrole">対象プロジェクトの管理者</span> <span class="badge badge-admin">admin</span></td><td>プロジェクト情報（名称・説明・状態）更新</td></tr>
+      <tr><td>A-11</td><td><span class="badge badge-get">GET</span></td><td><code>/api/project-memberships</code></td><td>本人（<code>user_id</code>指定時）、<span class="badge badge-projrole">対象プロジェクトの管理者</span> <span class="badge badge-admin">admin</span>（<code>project_id</code>指定時）</td><td>メンバー一覧取得（<code>status</code>を含む）。<code>project_id</code>指定でそのプロジェクトの全メンバー、<code>user_id</code>指定で対象ユーザーの参加プロジェクト一覧（役割・statusつき）を返す（いずれか必須）。S-11「自分が参加しているプロジェクト」一覧は <code>user_id=自分</code> で取得する。<span class="rev-new">S-15「招待されているプロジェクト」一覧は <code>user_id=自分, status=invited</code> で取得する</span></td></tr>
+      <tr><td>A-12</td><td><span class="badge badge-post">POST</span></td><td><code>/api/projects/{id}/members</code></td><td><span class="badge badge-projrole">対象プロジェクトの管理者</span> <span class="badge badge-admin">admin</span></td><td>メンバーを<span class="rev-new">招待</span>（初期ロールを指定。<code>status='invited'</code>で作成、<span class="rev-new">3.5節</span>）</td></tr>
+      <tr><td>A-13</td><td><span class="badge badge-put">PUT</span></td><td><code>/api/projects/{id}/members/{user_id}</code></td><td><span class="badge badge-projrole">対象プロジェクトの管理者</span> <span class="badge badge-admin">admin</span></td><td>ロール変更、またはプロジェクトからの削除（<code>left_at</code>を設定する論理削除。5.25節）。招待中（<code>status='invited'</code>）のまま削除も可。唯一の管理者の削除・降格は400</td></tr>
+      <tr class="rev-row"><td>A-67</td><td><span class="badge badge-put">PUT</span></td><td><code>/api/project-memberships/{id}/respond</code></td><td>招待された本人</td><td>招待への応答。<code>{status: 'active'|'declined'}</code>。承諾時は<code>joined_at</code>を設定（3.5節）</td></tr>
+      <tr><td>A-59</td><td><span class="badge badge-get">GET</span></td><td><code>/api/materials/{id}/shares</code></td><td>教材が紐づく元プロジェクトの<span class="badge badge-projrole">管理者</span> <span class="badge badge-admin">admin</span></td><td>教材のプロジェクト間共有一覧取得（<code>status</code>を含む。5.27節）</td></tr>
+      <tr><td>A-60</td><td><span class="badge badge-post">POST</span></td><td><code>/api/materials/{id}/shares</code></td><td>教材が紐づく元プロジェクトの<span class="badge badge-projrole">管理者</span> <span class="badge badge-admin">admin</span></td><td>共有を申請（<code>status='pending'</code>で作成。5.27節）。下書き（<code>status='draft'</code>）教材は400で拒否</td></tr>
+      <tr><td>A-61</td><td><span class="badge badge-delete">DELETE</span></td><td><code>/api/materials/{id}/shares/{share_id}</code></td><td>教材が紐づく元プロジェクトの<span class="badge badge-projrole">管理者</span>、<span class="rev-new">または共有先プロジェクトの<span class="badge badge-projrole">管理者</span></span> <span class="badge badge-admin">admin</span></td><td>共有を解除（承認待ち・承認済みいずれも可）</td></tr>
+      <tr class="rev-row"><td>A-65</td><td><span class="badge badge-put">PUT</span></td><td><code>/api/materials/{id}/shares/{share_id}/respond</code></td><td>共有先プロジェクトの<span class="badge badge-projrole">管理者</span> <span class="badge badge-admin">admin</span></td><td>共有申請へ応答。<code>{status: 'accepted'|'rejected'}</code>を受け取り<code>responded_by</code>・<code>responded_at</code>を記録（5.27節）</td></tr>
+      <tr class="rev-row"><td>A-66</td><td><span class="badge badge-get">GET</span></td><td><code>/api/projects/{project_id}/incoming-shares</code></td><td>対象プロジェクトの<span class="badge badge-projrole">管理者</span> <span class="badge badge-admin">admin</span></td><td>自プロジェクト宛ての共有申請一覧取得（<code>status</code>で絞り込み可。S-12「共有リクエスト」表示用）</td></tr>
+    </tbody>
+  </table>
+
+  <h4>7.2.3 materials.py（教材・問題・添付・AI教材機能、A-14〜A-35, A-64, <span class="rev-new">A-78〜A-79</span><span class="rev-old">, A-68〜A-70（v1.20で廃止）</span>）</h4>
+  <table>
+    <thead><tr><th>API ID</th><th>メソッド</th><th>パス</th><th>権限</th><th>概要</th></tr></thead>
+    <tbody>
+      <tr><td>A-14</td><td><span class="badge badge-get">GET</span></td><td><code>/api/materials</code></td><td>認証済（全員）</td><td>教材一覧・検索（S-03）。クエリ: <code>q</code>, <code>course_id</code>, <code>required</code>, <code>incomplete_only</code>, <code>my_assignments_only</code>, <code>page</code>, <code>per_page</code></td></tr>
+      <tr><td>A-15</td><td><span class="badge badge-get">GET</span></td><td><code>/api/materials/{id}</code></td><td>受講対象者、対象教材が紐づくプロジェクトの<span class="badge badge-projrole">管理者・編集者</span> <span class="badge badge-admin">admin</span></td><td>教材詳細取得（構造化JSON。本文・問題を含む。下書きは編集権限保持者のみ閲覧可）</td></tr>
+      <tr class="rev-row"><td>A-16</td><td><span class="badge badge-post">POST</span></td><td><code>/api/materials</code></td><td>対象プロジェクトの<span class="badge badge-projrole">編集者・管理者</span> <span class="badge badge-admin">admin</span></td><td>新規作成。<span class="rev-new"><code>project_id</code>省略時は「全社公開」プロジェクトのIDを既定値として補完する（5.26節）。指定する場合は指定したプロジェクトの編集者以上であること。</span></td></tr>
+      <tr><td>A-17</td><td><span class="badge badge-put">PUT</span></td><td><code>/api/materials/{id}</code></td><td>対象教材が紐づくプロジェクトの<span class="badge badge-projrole">管理者・編集者</span> <span class="badge badge-admin">admin</span></td><td>メタデータ更新（タイトル・状態・<code>tags</code>・<code>project_id</code>付け替え・<code>attempt_scope</code>・<code>retake_scope</code>・<code>default_feedback_style</code>・<code>ai_context</code>・<code>grading_mode</code>を含む。付け替えは変更前後どちらのプロジェクトについても編集権限を満たす者に限定。5.26節）。<span class="rev-new">S-05「合否判定・再受験設定」の合格基準（<code>pass_score_pct</code>）・再受験可否（<code>retake_allowed</code>）・回数（<code>retake_limit</code>）もここで受け取り、対象教材の既存T-11 <code>assignments</code>行全てへ同一値を反映する（5.9節callout「複製して保持する」運用の実施主体。v1.22で明記）</span></td></tr>
+      <tr><td>A-18</td><td><span class="badge badge-delete">DELETE</span></td><td><code>/api/materials/{id}</code></td><td>対象教材が紐づくプロジェクトの<span class="badge badge-projrole">管理者</span> <span class="badge badge-admin">admin</span></td><td>削除</td></tr>
+      <tr><td>A-19</td><td><span class="badge badge-get">GET</span></td><td><code>/api/materials/{id}/source</code></td><td>対象教材が紐づくプロジェクトの<span class="badge badge-projrole">管理者・編集者</span> <span class="badge badge-admin">admin</span></td><td>フロントマター付きテキスト取得（画面のMarkdown/HTMLエディタ・Claude Code共通、8.4節）</td></tr>
+      <tr><td>A-20</td><td><span class="badge badge-put">PUT</span></td><td><code>/api/materials/{id}/source</code></td><td>対象教材が紐づくプロジェクトの<span class="badge badge-projrole">管理者・編集者</span> <span class="badge badge-admin">admin</span></td><td>フロントマター付きテキストで本文・問題を書き戻し（画面・Claude Code共通、8.4節）</td></tr>
+      <tr><td>A-21</td><td><span class="badge badge-get">GET</span></td><td><code>/api/projects/{project_id}/materials/source</code></td><td>対象プロジェクトの<span class="badge badge-projrole">編集者・管理者</span> <span class="badge badge-admin">admin</span></td><td>プロジェクト内教材一覧をClaude Code向けに取得（id・title・statusなどの要約のみ。本文はA-19で個別取得。8.4節）</td></tr>
+      <tr><td>A-22</td><td><span class="badge badge-get">GET</span></td><td><code>/api/materials/{id}/revisions</code></td><td>対象教材が紐づくプロジェクトの<span class="badge badge-projrole">管理者・編集者</span> <span class="badge badge-admin">admin</span></td><td>改訂履歴一覧取得（8.5節）</td></tr>
+      <tr><td>A-23〜A-26</td><td>―</td><td>―</td><td>―</td><td>廃止（欠番）。旧共同編集者管理（追加・削除・オーナー引き継ぎ）API。要件定義書v1.5対応で個人所有教材モデルを廃止したため欠番とする（3.4節・5.7節参照）</td></tr>
+      <tr><td>A-27</td><td><span class="badge badge-post">POST</span></td><td><code>/api/materials/{id}/attachments/upload-url</code></td><td>対象教材が紐づくプロジェクトの<span class="badge badge-projrole">編集者・管理者</span> <span class="badge badge-admin">admin</span></td><td>ファイルアップロード用の署名付きURLを発行（Supabase Storageへブラウザ/Claude Codeから直接アップロード）</td></tr>
+      <tr><td>A-28</td><td><span class="badge badge-get">GET</span></td><td><code>/api/materials/{id}/attachments</code></td><td>受講対象者、対象教材が紐づくプロジェクトの<span class="badge badge-projrole">管理者・編集者</span> <span class="badge badge-admin">admin</span></td><td>添付ファイル・リンク一覧取得。<span class="rev-new">クエリ<code>node_id</code>で特定ページの添付のみに絞り込める（省略時は教材全体を返す。S-16は自ページの<code>node_id</code>で絞り込んで呼び出し、S-05「ファイル・リンク」タブは<code>node_id</code>未設定＝教材全体の資料のみ表示する）</span></td></tr>
+      <tr><td>A-29</td><td><span class="badge badge-post">POST</span></td><td><code>/api/materials/{id}/attachments</code></td><td>対象教材が紐づくプロジェクトの<span class="badge badge-projrole">編集者・管理者</span> <span class="badge badge-admin">admin</span></td><td>添付登録（アップロード済みファイルのメタ登録、または<code>kind='link'</code>の外部リンク登録。<code>node_id</code>（任意）で特定ページに紐づけるか、省略して教材全体の資料にするかを指定する。S-05「ファイル・リンク」タブ（<code>node_id</code>省略）・S-17ページ編集の添付セクション（対象ページの<code>node_id</code>を指定）いずれもこのAPIを使う）</td></tr>
+      <tr><td>A-30</td><td><span class="badge badge-get">GET</span></td><td><code>/api/materials/{id}/attachments/{attachment_id}/download</code></td><td>受講対象者、対象教材が紐づくプロジェクトの<span class="badge badge-projrole">管理者・編集者</span> <span class="badge badge-admin">admin</span></td><td>署名付きダウンロードURLを発行</td></tr>
+      <tr><td>A-31</td><td><span class="badge badge-put">PUT</span></td><td><code>/api/materials/{id}/questions</code></td><td>対象教材が紐づくプロジェクトの<span class="badge badge-projrole">編集者・管理者</span> <span class="badge badge-admin">admin</span></td><td>問題の一括更新（送信内容で全置換。5.4節）</td></tr>
+      <tr><td>A-32</td><td><span class="badge badge-post">POST</span></td><td><code>/api/materials/{id}/ai-review</code></td><td>対象教材が紐づくプロジェクトの<span class="badge badge-projrole">編集者・管理者</span> <span class="badge badge-admin">admin</span></td><td>AIレビュー実行（同期呼び出し、9.1節）</td></tr>
+      <tr><td>A-33</td><td><span class="badge badge-get">GET</span></td><td><code>/api/materials/{id}/ai-review</code></td><td>対象教材が紐づくプロジェクトの<span class="badge badge-projrole">編集者・管理者</span> <span class="badge badge-admin">admin</span></td><td>直近のAIレビュー結果取得</td></tr>
+      <tr><td>A-34</td><td><span class="badge badge-post">POST</span></td><td><code>/api/materials/{id}/ai-insights</code></td><td>対象教材が紐づくプロジェクトの<span class="badge badge-projrole">編集者・管理者</span> <span class="badge badge-admin">admin</span></td><td>AIつまずき分析を非同期実行（9.2節）</td></tr>
+      <tr><td>A-35</td><td><span class="badge badge-get">GET</span></td><td><code>/api/materials/{id}/ai-insights</code></td><td>対象教材が紐づくプロジェクトの<span class="badge badge-projrole">編集者・管理者</span> <span class="badge badge-admin">admin</span>（Claude Codeからも取得可、8章）</td><td>分析結果取得。未完了時は404（pending）を返す</td></tr>
+      <tr class="rev-row"><td>A-64</td><td><span class="badge badge-post">POST</span></td><td><code>/api/materials/{id}/preview</code></td><td>対象教材が紐づくプロジェクトの<span class="badge badge-projrole">編集者・管理者</span> <span class="badge badge-admin">admin</span></td><td>S-05本文編集タブのプレビュー用。body・formatを受け取り、保存せずに<code>html_sanitize.py</code>でサニタイズ済みHTMLを返す（8.6節）。未保存の編集中コンテンツを直接レンダリングしない</td></tr>
+      <tr><td>A-68〜A-70</td><td>―</td><td>―</td><td>―</td><td>廃止（欠番）。旧Claude Code下書きセッション開始・メッセージ送信・履歴取得API（F-27、S-18）。F-27の廃止（v1.20）に伴い欠番とする。教材の作成・修正へのAI支援はF-05（Claude Code CLI連携、A-19〜A-22）に一本化した</td></tr>
+      <tr class="rev-row"><td>A-78</td><td><span class="badge badge-get">GET</span></td><td><code>/api/materials/{id}/surveys</code></td><td>対象教材が紐づくプロジェクトの<span class="badge badge-projrole">編集者・管理者</span> <span class="badge badge-admin">admin</span></td><td>教材に設置されている受験後アンケート（教材全体・各章。T-26〜T-27）を設問付きで取得する（S-05目次編集タブでの表示・編集モーダル用）</td></tr>
+      <tr class="rev-row"><td>A-79</td><td><span class="badge badge-put">PUT</span></td><td><code>/api/materials/{id}/surveys</code></td><td>対象教材が紐づくプロジェクトの<span class="badge badge-projrole">編集者・管理者</span> <span class="badge badge-admin">admin</span></td><td>アンケートの設置・設問編集・解除。送信内容で当該教材のT-26〜T-27を全置換する（A-31と同じ全置換方式）。送信されなかった<code>(material_id, node_id)</code>の組み合わせは解除（削除）扱いとする。既存の回答（T-28・T-29）はアンケート行の削除に伴いCASCADE削除されるため、解除は取り消し操作である旨を画面側で確認する</td></tr>
+    </tbody>
+  </table>
+  <div class="callout rev-new">
+    <strong>設計判断（受験後アンケートのCRUD APIを新設した理由。v1.24）:</strong> 要件定義書v1.16・基本設計書v1.17でF-28（受験後アンケート）とT-26〜T-29を新設した際、アンケートへの<strong>回答</strong>を送信するAPI（A-72）は定義したが、S-05目次編集タブの「受験後アンケートの設置」操作（アンケートの作成・設問編集・解除）に対応するAPIの定義が漏れていた。画面モックアップには当初から編集モーダルを開く操作が用意されていたため、これに対応するA-78（取得）・A-79（全置換）を新設し、画面とAPI設計の不整合を解消する。
+  </div>
+  <div class="callout rev-old">
+    <strong>（廃止）A-69の内部設計判断（F-27はA-20と同じ書き込み層を再利用する）:</strong> A-69がツール実行で行う教材ノード操作は、A-20（フロントマター付きテキストの書き戻し）が内部で使う「目次ツリー・ページ本文・問題を書き込むサービス関数」を直接呼び出す形で実装し、書き込みロジックを2重に持たない設計だった。F-27の廃止（v1.20）に伴いA-69自体が欠番となったため、この設計判断も対象外となった。教材の書き込みはA-20（Claude Code CLI連携）・A-31（画面からの一括更新）の2経路に整理される。
+  </div>
+
+  <h4>7.2.4 assignments.py（配信設定、A-36〜A-38）</h4>
+  <table>
+    <thead><tr><th>API ID</th><th>メソッド</th><th>パス</th><th>権限</th><th>概要</th></tr></thead>
+    <tbody>
+      <tr><td>A-36</td><td><span class="badge badge-get">GET</span></td><td><code>/api/assignments</code></td><td><span class="badge badge-admin">admin</span>（全社）、<span class="badge badge-projrole">対象プロジェクトの管理者</span>（自プロジェクト分に絞り込み）</td><td>配信設定一覧（S-06）。検索・状態フィルタ対応</td></tr>
+      <tr><td>A-37</td><td><span class="badge badge-get">GET</span></td><td><code>/api/materials/{id}/assignments</code></td><td>同上</td><td>特定教材の配信設定取得</td></tr>
+      <tr><td>A-38</td><td><span class="badge badge-put">PUT</span></td><td><code>/api/materials/{id}/assignments</code></td><td><span class="badge badge-admin">admin</span>（全スコープ設定可）、<span class="badge badge-projrole">対象教材が紐づくプロジェクトの管理者</span>（自プロジェクトを <code>scope_type='project'</code> とする設定・自プロジェクトメンバーへの <code>individual</code> 設定・<span class="rev-new"><code>scope_type='company'</code>かつ<code>required=false</code>（全社任意公開）の設定</span>のみ。<span class="rev-new"><code>scope_type='company'</code>かつ<code>required=true</code>（全社必修配信）はadmin限定</span>）</td><td>配信設定の更新（対象・必修/任意・期限。複数スコープ行はOR結合、5.9節）</td></tr>
+    </tbody>
+  </table>
+
+  <h4>7.2.5 learning.py（受講・受験、A-39〜A-44<span class="rev-new">, A-71〜A-74</span>）</h4>
+  <table>
+    <thead><tr><th>API ID</th><th>メソッド</th><th>パス</th><th>権限</th><th>概要</th></tr></thead>
+    <tbody>
+      <tr><td>A-39</td><td><span class="badge badge-get">GET</span></td><td><code>/api/my-learning</code></td><td>認証済（全員）</td><td>マイ学習一覧（必修・任意、進捗付き。S-02）</td></tr>
+      <tr><td>A-40</td><td><span class="badge badge-post">POST</span></td><td><code>/api/materials/{id}/attempts</code></td><td>対象教材の受講対象者</td><td>受験開始。未提出の試行があれば再開し、<span class="rev-old">教材本文・単元・設問を含めて返す。</span><span class="rev-new">教材の目次（T-23ツリー）・各ページの本文・設問を含めて返す（v1.11）。<code>scope_node_id</code>（任意）で、materials.attempt_scopeが'material'以外のとき対象の章・小見出し・ページを指定する。quiz_mode='pool'のページはこの呼び出し時にpool_group_idの中からpool_draw_count件をランダム抽出し、結果をquestion_orderに記録する（v1.17）。</span><code>mode</code>: <code>graded</code> / <code>practice</code></td></tr>
+      <tr><td>A-41</td><td><span class="badge badge-put">PUT</span></td><td><code>/api/attempts/{attempt_id}/answers</code></td><td>当該試行の受験者本人</td><td>回答保存（都度呼び出しで中断・再開を実現）。<span class="rev-new">type='score_log'の設問は<code>response: {"score": 数値}</code>として保存し、正誤判定は行わない（v1.17）。</span></td></tr>
+      <tr><td>A-42</td><td><span class="badge badge-post">POST</span></td><td><code>/api/attempts/{attempt_id}/submit</code></td><td>当該試行の受験者本人</td><td>提出。選択式は即時採点、記述式はAI採点を非同期起動（9.2節）。<span class="rev-new">is_critical=trueの設問に不正解があれば、他の設問の正答率によらず<code>passed=false</code>とし、<code>fail_reason</code>に該当設問を記録する（v1.17）。type='score_log'の設問は正答率の分母（全設問数）に数えない。</span></td></tr>
+      <tr><td>A-43</td><td><span class="badge badge-get">GET</span></td><td><code>/api/attempts/{attempt_id}</code></td><td>当該試行の受験者本人、対象教材が紐づくプロジェクトの<span class="badge badge-projrole">管理者・編集者</span> <span class="badge badge-admin">admin</span></td><td>結果取得</td></tr>
+      <tr><td>A-44</td><td><span class="badge badge-post">POST</span></td><td><code>/api/materials/{id}/wrong-questions-attempts</code></td><td>対象教材の受講対象者</td><td>誤答抽出出題を開始（<code>scope</code>: <code>material</code> / <code>all</code>）。<code>mode='practice'</code>として記録。<span class="rev-new">is_criticalの判定・fail_reasonの記録は<code>mode='practice'</code>では行わない（反復演習・誤答抽出は元々合否に影響しないため。v1.17）。</span></td></tr>
+      <tr class="rev-row"><td>A-71</td><td><span class="badge badge-post">POST</span></td><td><code>/api/attempts/{attempt_id}/retake</code></td><td>当該教材の受講対象者</td><td>再受験を開始する。materials.retake_scope='wrong_only'の場合、前回の試行で不正解だった設問のみを新しい試行に含め、正解済みの設問IDを<code>carried_over_question_ids</code>に記録する。'all'の場合は全問を再度含める（v1.17新設）</td></tr>
+      <tr class="rev-row"><td>A-72</td><td><span class="badge badge-post">POST</span></td><td><code>/api/surveys/{survey_id}/responses</code></td><td>対象教材の受講対象者</td><td>アンケート回答を送信（T-28・T-29に保存）。<code>survey.repeat_mode='once'</code>かつ2回目以降の場合は表示自体をフロント側でスキップする（S-04・S-16）。回答はスキップ可能で必須ではない（v1.17新設）</td></tr>
+      <tr class="rev-row"><td>A-73</td><td><span class="badge badge-get">GET</span></td><td><code>/api/questions/{question_id}/answers</code></td><td>対象教材が紐づくプロジェクトの<span class="badge badge-projrole">管理者・編集者</span> <span class="badge badge-admin">admin</span></td><td>指定した設問への全受講者の回答一覧を取得（S-19）。<code>type='score_log'</code>ならスコアと推移、それ以外なら回答内容・<code>is_correct</code>・AI採点結果を返す。氏名付きで返すためアクセス制御を限定する（v1.17新設）</td></tr>
+      <tr class="rev-row"><td>A-74</td><td><span class="badge badge-put">PUT</span></td><td><code>/api/answers/{answer_id}/review</code></td><td>対象教材が紐づくプロジェクトの<span class="badge badge-projrole">管理者・編集者</span> <span class="badge badge-admin">admin</span></td><td>設問1件の採点結果を確定・修正する（S-19「採点する」「採点を修正」）。<code>is_correct</code>・<code>ai_feedback</code>（担当者の講評として保存）を受け取り、<code>reviewed_by</code>・<code>reviewed_at</code>を設定する。<code>grading_mode='ai'</code>の設問はAI採点結果の訂正、<code>grading_mode='manual'</code>の設問は担当者による新規採点のいずれも本APIで扱う。保存後、当該<code>attempt_id</code>のA-42と同じロジックで<code>score_pct</code>・<code>passed</code>を再計算する（v1.22新設。従来「詳細設計で定義する」としていたAPIを正式化）</td></tr>
+    </tbody>
+  </table>
+
+  <h4>7.2.6 dashboard.py（受講状況ダッシュボード・AI組織レポート、A-45〜A-49）</h4>
+  <table>
+    <thead><tr><th>API ID</th><th>メソッド</th><th>パス</th><th>権限</th><th>概要</th></tr></thead>
+    <tbody>
+      <tr><td>A-45</td><td><span class="badge badge-get">GET</span></td><td><code>/api/dashboard</code></td><td><span class="badge badge-admin">admin</span>（全社）、<span class="badge badge-projrole">対象プロジェクトの管理者</span>（自プロジェクトのスコープ）</td><td>ダッシュボード取得（<code>scope</code>クエリで対象範囲指定）</td></tr>
+      <tr><td>A-46</td><td><span class="badge badge-get">GET</span></td><td><code>/api/dashboard/incomplete-users</code></td><td>同上</td><td>未受講者一覧</td></tr>
+      <tr><td>A-47</td><td><span class="badge badge-post">POST</span></td><td><code>/api/dashboard/remind</code></td><td>同上</td><td>Slack受講催促送信</td></tr>
+      <tr><td>A-48</td><td><span class="badge badge-post">POST</span></td><td><code>/api/reports/org</code></td><td>同上</td><td>AI組織レポート生成（非同期、9.2節）</td></tr>
+      <tr><td>A-49</td><td><span class="badge badge-get">GET</span></td><td><code>/api/reports/org</code></td><td>同上</td><td>AI組織レポート取得</td></tr>
+    </tbody>
+  </table>
+
+  <h4>7.2.7 reports.py（個人学習レポート・AI個人フィードバック、A-50〜A-52）</h4>
+  <table>
+    <thead><tr><th>API ID</th><th>メソッド</th><th>パス</th><th>権限</th><th>概要</th></tr></thead>
+    <tbody>
+      <tr><td>A-50</td><td><span class="badge badge-get">GET</span></td><td><code>/api/reports/personal/{user_id}</code></td><td>本人、対象者が所属するプロジェクトの<span class="badge badge-projrole">管理者</span> <span class="badge badge-admin">admin</span></td><td>個人学習レポート取得（REQ-N-03）</td></tr>
+      <tr><td>A-51</td><td><span class="badge badge-post">POST</span></td><td><code>/api/reports/personal/{user_id}/ai-feedback</code></td><td>同上</td><td>AI個人フィードバック生成（非同期、9.2節）</td></tr>
+      <tr><td>A-52</td><td><span class="badge badge-get">GET</span></td><td><code>/api/reports/personal/{user_id}/ai-feedback</code></td><td>同上</td><td>AI個人フィードバック取得</td></tr>
+    </tbody>
+  </table>
+
+  <h4>7.2.8 users.py（ユーザー管理、A-53〜A-54）</h4>
+  <table>
+    <thead><tr><th>API ID</th><th>メソッド</th><th>パス</th><th>権限</th><th>概要</th></tr></thead>
+    <tbody>
+      <tr><td>A-53</td><td><span class="badge badge-get">GET</span></td><td><code>/api/users</code></td><td><span class="badge badge-admin">admin</span></td><td>ユーザー一覧</td></tr>
+      <tr><td>A-54</td><td><span class="badge badge-put">PUT</span></td><td><code>/api/users/{id}</code></td><td><span class="badge badge-admin">admin</span></td><td>ロール変更・有効/無効化。自分自身のadmin降格・無効化は400で拒否</td></tr>
+    </tbody>
+  </table>
+
+  <h4>7.2.9 settings.py（システム設定、A-55〜A-58, <span class="rev-new">A-80</span>）</h4>
+  <table>
+    <thead><tr><th>API ID</th><th>メソッド</th><th>パス</th><th>権限</th><th>概要</th></tr></thead>
+    <tbody>
+      <tr><td>A-55</td><td><span class="badge badge-get">GET</span></td><td><code>/api/settings</code></td><td><span class="badge badge-admin">admin</span></td><td>システム設定取得（AIモデル・Slack設定・猶予期間日数等）。T-21に行が無いキーは未設定として返す（<code>null</code>）</td></tr>
+      <tr><td>A-56</td><td><span class="badge badge-put">PUT</span></td><td><code>/api/settings</code></td><td><span class="badge badge-admin">admin</span></td><td>システム設定更新（T-21へのupsert）</td></tr>
+      <tr><td>A-57</td><td><span class="badge badge-post">POST</span></td><td><code>/api/settings/slack-test</code></td><td><span class="badge badge-admin">admin</span></td><td>Slackテスト送信</td></tr>
+      <tr><td>A-58</td><td><span class="badge badge-get">GET</span></td><td><code>/api/settings/ai-usage</code></td><td><span class="badge badge-admin">admin</span></td><td>AI利用状況取得（今月のトークン数・概算コスト。<span class="rev-new">機能〔<code>feature</code>〕別の呼び出し件数・トークン数・概算コストの内訳も返す（v1.21）。</span>9.3節）</td></tr>
+      <tr class="rev-row"><td>A-80</td><td><span class="badge badge-delete">DELETE</span></td><td><code>/api/settings</code></td><td><span class="badge badge-admin">admin</span></td><td>S-10「初期状態に戻す」。T-21の対象4キー（<code>ai_model</code>・<code>slack_webhook_url</code>・<code>slack_channel</code>・<code>project_leave_grace_period_days</code>）全行を削除し、以降は環境変数／既定値（9.4節の優先順位）にフォールバックさせる（v1.25新設）</td></tr>
+    </tbody>
+  </table>
+
+  <h3>7.3 権限列の表記凡例</h3>
+  <p>7.2節の表における「権限」列の表記は、3.3節（システム全体ロール）・3.5節（プロジェクトのローカルロール）の判定ロジックに1対1で対応させている。</p>
+  <table>
+    <thead><tr><th>表記</th><th>判定ロジック</th></tr></thead>
+    <tbody>
+      <tr><td>不要</td><td>認証不要（未ログインでも呼び出し可）</td></tr>
+      <tr><td>認証済（全員）</td><td>有効なセッションJWT/CLIトークンを持っていればよい（<span class="badge badge-member">member</span>／<span class="badge badge-admin">admin</span> いずれも可）</td></tr>
+      <tr><td><span class="badge badge-admin">admin</span></td><td><code>user.role == 'admin'</code>（3.3節）</td></tr>
+      <tr><td><span class="badge badge-projrole">対象プロジェクトの管理者</span></td><td><code>require_project_role(project_id, user, min_role='admin')</code>（3.5節）。システム全体の <code>admin</code> は当該プロジェクトのローカルロールを持たなくても常に満たす</td></tr>
+      <tr><td><span class="badge badge-projrole">対象プロジェクトの管理者・編集者</span></td><td><code>require_project_role(project_id, user, min_role='editor')</code></td></tr>
+      <tr><td>対象教材の受講対象者</td><td><code>require_project_role(materials.project_id, user, min_role='learner')</code> を満たすプロジェクトメンバー、<strong>または</strong> 配信設定（T-11 assignments、F-09）でその教材の対象者として個別に指定されている者、<strong>または</strong> <code class="rev-new">T-22 material_project_shares で status='accepted' として共有された先のプロジェクトについて require_project_role(shared_to_project_id, user, min_role='learner') を満たす者（F-26、5.27節）</code>、のいずれかを満たす</td></tr>
+      <tr><td>本人</td><td>パス上の <code>user_id</code>／対象 <code>attempt_id</code> の所有者がログインユーザー自身と一致する。<span class="rev-new">A-04・A-75〜A-77のようにパスにIDを取らずJWTのユーザーIDのみを対象とするAPIも同様に「本人」と表記する</span></td></tr>
+      <tr><td>対象者が所属するプロジェクトの管理者</td><td>対象ユーザー（<code>user_id</code>）が現役メンバーであるいずれかのプロジェクトについて <code>require_project_role(project_id, user=リクエスト者, min_role='admin')</code> を満たす（5.19節と同じ判定）</td></tr>
+    </tbody>
+  </table>
+  <div class="callout">
+    <strong>なぜ「対象教材の受講対象者」を独立の判定として設けたか:</strong> 3.5節のプロジェクトのローカルロールは、教材が紐づくプロジェクトの現役メンバーであるかどうかのみを見る。しかしF-09（配信対象設定）は、プロジェクトのメンバーでなくても個人単位で受講対象に指定できる（5.9節）。したがって受講系API（A-15, A-28, A-30, A-40〜A-44）の権限判定は <code>require_project_role</code> 単体では閉じず、必ずT-11 <code>assignments</code> の対象者判定とのOR条件になる。この2つの判定はいずれも <code>auth_helpers.py</code> の <code>require_material_access(material_id, user)</code> 依存関数に集約し、個々のルーターが判定ロジックを重複実装しないようにする。
+  </div>
+
+  <!-- ============ 8. 教材連携設計（Claude Code連携） ============ -->
+
+  <footer class="doc-footer">
+    <span>社内学習管理システム（Manabi）基本設計書 v1.28</span>
+    <span>コガソフトウェア株式会社 / 2026-08-24</span>
+  </footer>
+
+</div>
+</body>
+</html>
+

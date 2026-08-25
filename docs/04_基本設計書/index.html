@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>基本設計書 | 社内学習管理システム（Manabi）</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<script src="../_sidenav.js"></script>
+<div class="doc">
+
+  <!-- ============ 表紙 ============ -->
+  <div class="cover">
+    <span class="doc-type">基本設計書</span>
+    <h1>社内学習管理システム（Manabi）基本設計書</h1>
+    <p class="subtitle">社内学習管理システム（Manabi）</p>
+    <div class="meta">
+      <span>作成日: 2026-08-18</span>
+      <span>版数: 1.28</span>
+      <span>作成: コガソフトウェア株式会社</span>
+    </div>
+    <p class="note">本ドキュメントは新人社員向けAI開発研修のサンプル成果物です</p>
+  </div>
+
+  <!-- ============ 改訂履歴 ============ -->
+  <h2>改訂履歴</h2>
+  <table>
+    <thead><tr><th>版数</th><th>日付</th><th>改訂内容</th></tr></thead>
+    <tbody>
+      <tr><td>1.0</td><td>2026-08-18</td><td>初版</td></tr>
+      <tr><td>1.1</td><td>2026-08-18</td><td>要件定義書v1.4（教材のプロジェクト単位管理）に対応。1〜6章を改訂: プロジェクトのローカルロール（管理者/編集者/受講者）による認可を3.5節として新設し、3.3節から自己申告制の記述を削除。S-11（プロジェクト作成）・S-12（プロジェクト管理）を4章に新設し、S-05・S-07の記述を更新。F-24（プロジェクト管理）・F-25（プロジェクト単位教材管理）・F-26（教材のプロジェクト間共有）を5章に新設し、F-03・F-07・F-19を修正。T-04にrole・assigned_by列を、T-06にproject_id列を追加し、T-22 material_project_sharesを新設（6章）。変更箇所は赤字で示す。7章以降は本改訂の対象外（別タスクで新設）。</td></tr>
+      <tr><td>1.2</td><td>2026-08-18</td><td>要件定義書v1.5（権限モデルの大幅簡素化）に対応。1〜6章を改訂: システムロールをmember（一般ユーザー）／adminの2種に統合し、3.3節の権限マトリクスを作り直した。3.4節（教材ごとのオーナー・共同編集者による認可レイヤー）を廃止し、3.5節（プロジェクトのローカルロールによる認可）をプロジェクト教材・個人教材の分岐なしの唯一の判定ロジックに更新した。S-07（組織管理）を廃止し、S-08・S-09のアクセス制御をmanagerからadmin／対象プロジェクトの管理者に置き換えた。F-02のロール表記を更新し、F-03（組織マスタ管理）・F-07（教材作成・共有）を廃止、F-25から個人教材との使い分けの記述を削除し、5.24節（対象外機能）に部署単位の組織管理・個人所有教材を追記した。T-02 departments・T-07 material_co_editorsを廃止（IDは欠番）、T-01からdepartment_idを削除しroleを2値化、T-06のowner_idをcreated_by（作成者記録用）に読み替えてproject_idをNOT NULL化、T-04・T-11から部署関連の記述を除去した。ER図・テーブル一覧・「与件からの調整点」コールアウトを更新した。変更箇所は赤字で示す。7章以降は本改訂の対象外（別タスクで作成）。</td></tr>
+      <tr><td>1.3</td><td>2026-08-18</td><td>7〜11章（API設計／教材連携設計〔Claude Code連携〕／AI機能設計／非機能設計／前提・制約）を新設。1〜6章で既出のAPI（A-01〜A-61、廃止・欠番のA-05〜A-08・A-23〜A-26を含む）をルーター構成別に一覧化し（7章）、Claude Code向けのCLIトークン認証（A-62・A-63）を新設した。教材のフロントマタースキーマ・本文中の問題ブロック形式、取得・書き戻しAPI（A-19〜A-22）、改訂履歴（T-08）の記録方式、HTMLサニタイズを提供時にのみ適用する方式を定義した（8章）。AIジョブを別プロセスのキュー基盤を持たず同一Uvicornプロセス内の非同期タスクとして実現する方式、AI利用ログ（T-19）・モデル選択の優先順位・送信データ範囲を定義した（9章）。性能・レスポンシブ方針、可用性、セキュリティ、監査ログ、デプロイ、保守性を要件定義書8章の非機能要件に対応させて定義した（10章）。要件定義書が基本設計フェーズで定めるとしていた事項（ファイル容量上限・猶予期間日数・HTMLサニタイズ許可リスト・AI送信データ範囲等）の決定を一覧化した（11章）。1〜6章の内容は変更していない。</td></tr>
+      <tr><td>1.4</td><td>2026-08-18</td><td>レビュー指摘の修正。(1) S-05本文編集タブのプレビューがサニタイズ経路から漏れていた問題を修正: プレビュー専用API A-64を新設し、未保存コンテンツも含め全ての描画経路（A-15/A-40/A-64）でサニタイズを必須化した（4.7節・7.2.3節・8.6節）。(2) AI非同期ジョブがプロセス再起動・デプロイで消失し、受講者・教材編集者が結果を永久に待ち続ける問題を修正: T-16〜T-18に<code>requested_at</code>を追加してリクエスト受付時にプレースホルダ行を作成する方式とし、起動時・5分ごとの「スタックジョブ・スイープ」による自動再試行を追加した（6.2節・9.2節）。(3) 4.1節・4.2節図・4.13節の「全ロール」表記を「全員」に統一した（S-02〜S-04, S-11, 共通レイアウトの説明）。</td></tr>
+      <tr><td>1.5</td><td>2026-08-18</td><td>要件定義書v1.6（コード記述式問題）に対応。T-10 questionsにtype='code'とcode_languageを追加し（6.2節）、フロントマター問題ブロックのスキーマ・記述例を拡張した（8.3節）。F-13（5.13節）・F-20（5.20節）の処理概要にコード記述式問題を追記し、Claude APIがコードを実行せず読解して正誤・改善提案を判定する方式と、その設計判断（サンドボックス実行環境を持たない理由）を明記した。9.5節の送信データ範囲、5.24節の対象外機能（コードの実行・自動テストは対象外）を更新した。</td></tr>
+      <tr><td>1.6</td><td>2026-08-18</td><td>要件定義書v1.7（全社スコープの分割）に対応。T-11 assignmentsのscope_type='company'をrequired値で権限分岐する方式（新しいscope_type列挙値は追加しない）を5.9節に明記し、設計判断のcalloutを追加した。A-38・4.8節（S-06）のアクセス制御を「全社必修配信はadmin限定、全社任意公開は対象教材のプロジェクト管理者も可」に更新した。</td></tr>
+      <tr><td>1.7</td><td>2026-08-18</td><td>要件定義書v1.8（可用性の前提を24時間365日利用に変更）に対応。10.2節の稼働時間を業務時間限定から原則24時間365日に更新し、10.5節に「デプロイタイミング」の行を追加した（利用の少ない時間帯を前提にできなくなったため、ローリング再起動と既存の保存・再試行の仕組み〔5.15節・9.2節〕で学習記録の消失を防ぐ方針を明記）。</td></tr>
+      <tr><td>1.8</td><td>2026-08-19</td><td>要件定義書v1.9（「全社公開」プロジェクトの新設）に対応。T-03 projectsに<code>is_company_wide</code>列を追加し、初期データとして削除不可の特別プロジェクトを1行のみ投入する方式を6.2節に明記した。A-02（初回ログイン）で新規ユーザーをこのプロジェクトへ自動的にeditorとして参加させる処理、A-16（教材新規作成）で<code>project_id</code>省略時にこのプロジェクトIDを既定値とする処理を追記した（7.2.1節・7.2.3節）。5.25節（F-24）・5.26節（F-25）・3.5節に該当する設計判断を追記した。画面モックアップ（S-02・S-03）にプロジェクト表示・絞り込みを、S-05に所属プロジェクトの選択欄を反映した（4.1節）。</td></tr>
+      <tr><td>1.9</td><td>2026-08-20</td><td>要件定義書v1.10（F-26の共有承認フロー）に対応。T-22 material_project_sharesに<code>status</code>（pending/accepted/rejected）・<code>responded_by</code>・<code>responded_at</code>を追加し、承認済み（accepted）の共有のみ受講対象に反映する方式に変更した（6.2節・5.27節）。共有先プロジェクト管理者が応答するAPI（A-65）、自プロジェクト宛ての共有申請一覧取得API（A-66）を新設し、A-59〜A-61の権限・概要を更新した（7.2.2節）。7.3節の「対象教材の受講対象者」OR条件にT-22（status='accepted'限定）を明記した（従来はF-26の設計時に5.27節のcalloutでのみ触れられ、7.3節の判定表から漏れていた）。誰でもプロジェクトを作成できる方式（F-24）のもとで、共有元の一存だけで他プロジェクトへ一方的に教材を押し付けられる欠陥への対応。</td></tr>
+      <tr><td>1.10</td><td>2026-08-20</td><td>要件定義書v1.11（F-24のメンバー招待制）に対応。T-04 project_membershipsに<code>status</code>（invited/active/declined、既定invited）を追加し、招待を承諾（status='active'）するまでrequire_project_roleの判定を通さない（3.5節）方式に変更した。招待に応答するAPI（A-67）を新設し、A-12の概要を更新した（7.2.2節）。5.25節の猶予期間判定（現役メンバーの定義）にstatus='active'条件を明記した（従来left_at IS NULLのみで判定しており、招待中メンバーを誤って現役扱いする漏れがあった）。画面一覧にS-13（教材編集：プロジェクト選択）・S-14（教材編集：教材一覧）・S-15（プロフィール編集。招待の承諾・辞退を含む）を追加し、実働画面を14件とした（4.1節）。誰でもプロジェクトを作成できる方式（F-24）のもとで、管理者が本人の同意なしに一方的にメンバーを追加できる欠陥への対応（F-26と同種の問題）。</td></tr>
+      <tr><td>1.11</td><td>2026-08-20</td><td>要件定義書v1.12（教材構造案の採用）に対応。教材の内部構造を「本文＋本文中の見出しから動的抽出する単元（フラットな並び）」から「章／小見出し（任意）／ページ」の入れ子構造に刷新した。新設のT-23 material_nodesを自己参照ツリーとして追加し、T-06 materialsからformat・bodyを削除（目次・各ページの本文はT-23へ移管）、T-10 questionsのunit_indexをnode_id（FK→material_nodes）に、T-12 enrollment_progressのcurrent_positionをcurrent_node_id・completed_node_idsに置き換えた（6.2節）。画面設計を全面改訂: S-04を教材の目次・全体進捗・合否判定を表示する画面に再構成し、ページ単位の受講・編集をそれぞれ新設のS-16（教材受講：ページ）・S-17（教材編集：ページ編集）に分離、S-05は目次編集画面として再構成した（4.6・4.6a・4.7・4.7a節）。合否判定・再受験（F-14）は要求仕様（REQ-F-09）どおり維持し、教材1冊分の全ページの正誤をまとめて1回の受験として判定する方式とした（判定粒度の変更なし）。8.3節のフロントマタースキーマを、章（<code>#</code>）・小見出し（<code>##</code>、任意）・ページ（<code>###</code>）の3階層見出しとノードID注記（<code>&lt;!-- node:.. --&gt;</code>）で目次構造を表現する方式に全面改訂した。実働テーブル数はT-01〜T-23の21件となった（IDの欠番はT-02・T-07）。実働画面はS-16・S-17の追加により16件となった。</td></tr>
+      <tr><td>1.12</td><td>2026-08-20</td><td>レビュー指摘の修正。(1) T-10 questionsの<code>points</code>（配点）を廃止した。設問間の重み付けを行わず、教材全体の正答率（正解した設問数／全設問数）のみで合否判定する方式に単純化した（5.14節・8.3節）。(2) T-05 coursesを廃止した（IDは欠番として保持）。「コース」という固定リストの事前登録をやめ、T-06 materialsに<code>tags</code>（JSONB配列）を追加して教材に自由な複数タグを付与する方式に変更した。S-03の検索欄・タグチップでタグを横断的に絞り込める（4.5節）。(3) S-05目次編集タブ・S-17ページ編集の設問カードから「コピーして追加」ボタンを削除した（検討資料で承認したデザインに存在しなかった要素で、実装の必然性が薄いため）。実働テーブル数はT-01〜T-23の21件から1件減り20件になった（IDの欠番はT-02・T-05・T-07）。</td></tr>
+      <tr><td>1.13</td><td>2026-08-21</td><td>要件定義書v1.14（F-27 AI教材作成アシスト）に対応。教材の目次・ページ・問題の作成をブラウザ内チャットで対話的に行える新画面S-18を新設し、既存のClaude Code CLI往復（F-05）と並存させた（4.1・4.7b節）。新規テーブルT-24 ai_draft_sessions・T-25 ai_draft_messagesを追加し（6.2節）、下書きセッション開始・指示メッセージ送信・履歴取得のAPI（A-68〜A-70）を新設した（7.2.3節）。A-69のツール実行はA-20（CLI往復の書き戻し）と同じ内部の書き込みサービス関数を再利用する設計とし、経路によらず改訂履歴・AIレビュー等の下流機能が同じデータを扱えるようにした。処理方式は同期呼び出し（F-08と同様、9.1節）とし、AI利用ログはfeature='draft_assist'として記録する（9.3節・9.5節）。実働テーブル数はT-01〜T-23の20件から2件増え22件、実働画面数はS-18の追加により17件となった。</td></tr>
+      <tr><td>1.14</td><td>2026-08-21</td><td>要件定義書v1.15対応。S-14の新規教材作成の入口を「＋新規教材を作成」（S-05空編集画面へ）と「Claude Codeで作成」（S-18へ）の2ボタンから、S-18への1ボタンに統合した（4.7b節）。S-18の下書きプレビューは元々S-05目次編集タブと同じ入力欄で直接編集のみでも完結でき、チャットパネルも任意で閉じられる設計だったため、2つの入口を並置する必然性がなかった。S-18ヘッダーに「Claude Codeパネルを閉じる/開く」トグルを追加し、右ペインを非表示にして下書きプレビューを全幅表示できるようにした。S-18で下書きを保存した場合の遷移先はS-05（<code>#new</code>、新規作成直後の状態）に統一した。</td></tr>
+      <tr><td>1.15</td><td>2026-08-21</td><td>レビュー指摘の修正。(1) T-09 material_attachmentsに<code>node_id</code>（FK→material_nodes、nullable）を追加した。教材構造案（v1.11）採用後もT-09が教材単位のフラットな一覧のままで、S-16（ページ受講）の本文には特定ページに関連する資料が表示される一方、その資料がどのページのものかを表現できていなかった不整合を解消した。ページ固有の資料はS-17（ページ編集）に添付セクションを新設して管理し、教材全体の資料（特定ページに属さないシラバス等）はS-05「ファイル・リンク」タブで管理する2階層に整理した（5.6節・4.7・4.7a節）。A-28（一覧取得）・A-29（登録）に<code>node_id</code>パラメータを追加した。(2) S-18の下書きプレビューの各ページ行に「編集する」リンク（S-17へ）を追加した。AIが作成したページも含め、どのページも直接クリックして中身を確認・修正できることを明示するため（4.7b節）。</td></tr>
+      <tr><td>1.16</td><td>2026-08-21</td><td>レビュー指摘の修正。v1.15でT-09に<code>node_id</code>を追加し教材全体の資料（<code>node_id</code>未設定）とページ固有の資料を区別できるようにしたが、教材全体の資料をS-05で登録しても受講者側に表示する画面がどこにもなかった欠落を修正した。S-04（教材受講：目次）の進捗バーとページツリーの間に「教材全体の資料」セクションを追加し、A-28を<code>node_id</code>省略で呼び出して一覧表示するようにした（4.6節・5.6節）。</td></tr>
+      <tr><td>1.17</td><td>2026-08-21</td><td>検討資料での合意（20260821_問題形式・採点拡張案.html）を正式反映。(1) 合否判定・再受験の単位（受験単位）を教材ごとに教材全体/章/小見出し/ページから選べるようにした（T-06.attempt_scope、T-13.scope_node_id、5.14節）。あわせて再受験時の出題範囲（全問/誤答のみ）も教材ごとに設定できるようにした（T-06.retake_scope、A-71新設）。(2)「ドボン問題」（T-10.is_critical）を新設。1問でも不正解だと受験単位が正答率によらず不合格になり、理由をS-04に明示する。反復演習・誤答抽出では判定しない。(3) 設問ごとの回答必須／任意（T-10.required）、AI講評スタイル（正解提示/コードレビュー型/ヒント型。教材既定＋設問ごと上書き。T-06.default_feedback_style、T-10.feedback_style、5.20節）、AI採点・AIアシストへの共通指示（T-06.ai_context）を追加。(4) 問題種別に「並び替え」「スコア記録」を追加（T-10.type）。並び替えは正誤判定、スコア記録は正解の概念を持たず数値記録のみで、AI個人フィードバック（F-22）でスコア推移コメントを返す。(5) ランダム出題プール（T-23.quiz_mode/pool_draw_count、T-10.pool_group_id）を追加。(6) 受験後アンケート（T-26〜T-29新設）を追加。教材全体・章単位で任意設置でき、統計をF-21（AIつまずき分析）に合流させる。(7) 設問ごとの回答一覧・AI採点レビューを行う新画面S-19を新設（A-73）。従来<code>reviewed_by</code>を設定するための画面が存在しなかった欠落への対応を兼ねる。(8) これらはすべて既存テーブルへの列追加・type列挙値追加の範囲に収まり、F-05（CLI往復）・F-27（S-18ブラウザ内対話）のどちらでも作成・編集できることを8.3節に明記した。実働テーブル数はT-01〜T-25の22件から4件増え26件、実働画面数はS-19の追加により18件となった。</td></tr>
+      <tr><td>1.18</td><td>2026-08-21</td><td>記述式・コード記述式の採点方式にAI自動採点以外の選択肢を追加。対象教材が紐づくプロジェクトの管理者・編集者がAIを介さず直接採点する「手動採点」を新設し、AIは正誤判定を行わず採点結果の集計（F-21のつまずき分析）にのみ利用する方式とした（5.20節）。T-06 materialsに<code>grading_mode</code>（教材既定、既定値'ai'）、T-10 questionsに<code>grading_mode</code>（設問ごとの上書き）を追加した（6.2節）。手動採点の設問はAI講評スタイル（<code>feedback_style</code>）の対象外とし、S-05・S-17でその旨をグレーアウト表示する。S-19（設問別の回答・結果一覧）に、未採点の回答を「採点する」ボタンから初めて採点できるUIを追加した（従来の「採点を修正」はAI採点結果の訂正用）。既存のT-14 answersの<code>is_correct</code>・<code>ai_score_pct</code>・<code>ai_feedback</code>・<code>reviewed_by</code>・<code>reviewed_at</code>をそのまま流用でき、新規テーブルは不要（実働テーブル数は26件のまま）。8.3節フロントマタースキーマに<code>grading_mode</code>を追加し、F-05・F-27のどちらでも作成・編集できることを明記した。</td></tr>
+      <tr><td>1.19</td><td>2026-08-21</td><td>既存教材の改善時にClaude Codeチャットパネルを開く経路を、専用画面（S-18）への遷移から、S-05（目次編集）・S-17（ページ編集）の画面内トグルパネルに変更した。編集中の画面を離れずに対話的な修正ができるようにするための変更で、右ペインに開閉可能なチャットパネルを追加した（S-18と同じUI・A-68〜A-70を再利用）。S-05から開いた場合は<code>material_id</code>、S-17から開いた場合はさらに現在ページの<code>node_id</code>を初期コンテキストとしてセッションを開始する（5.28節）。S-18はS-14「＋新規教材を作成」から入る新規作成専用画面という位置づけに整理した（4.7・4.7a・4.7b節）。新規テーブル・APIの追加はなく、既存のA-68〜A-70・T-24・T-25をそのまま再利用する。</td></tr>
+      <tr><td>1.20</td><td>2026-08-21</td><td>F-27（AI教材作成アシスト。ブラウザ内対話生成）を廃止し、教材の作成・修正へのAI支援をF-05（Claude Code CLI連携）に一本化した。理由: F-27はManabiのバックエンドがAnthropic Claude APIを直接呼び出す構造のため、利用のたびにManabi側で従量課金が発生していた。F-05はClaude Code利用者本人の契約・APIキーで課金され、Manabi側の運用コストは発生しない。両者は似た体験を提供する代替経路だったが、コストの発生しないF-05に一本化することとした。専用画面S-18（教材編集：Claude Code下書き作成）、S-05・S-17の画面内チャットパネル（v1.19で追加）、API A-68〜A-70、テーブルT-24 ai_draft_sessions・T-25 ai_draft_messagesをすべて廃止した（画面ID・API番号・テーブルIDはいずれも欠番として保持）。S-14「＋新規教材を作成」は、この画面を経由せず空のS-05目次編集画面へ直接遷移する（v1.14以前の遷移に戻した）。実働するテーブル数はT-01〜T-29の26件から2件減り24件、実働画面数はS-18の廃止により17件となった。</td></tr>
+      <tr><td>1.21</td><td>2026-08-21</td><td>S-10「システム設定」タブの「今月のAI利用状況」を、合計値のみの表示から機能別（F-08 教材AIレビュー／F-20 AI記述式採点・講評／F-21 AIつまずき分析／F-22 AI個人フィードバック／F-23 AI組織レポート生成）の呼び出し件数・トークン数・概算コストの内訳表示に拡張した（4.12節）。管理者がどの機能がコストの大部分を占めているかを個別に確認できるようにするための変更。A-58（AI利用状況取得）の応答に機能別内訳を追加した（9.3節のT-19集計を<code>feature</code>でgroup byして取得。7.2.9節）。あわせて、教材の作成・修正（F-05、Claude Code CLI連携）は利用者本人の契約で課金されるためこの集計には含まれない旨を明記した。新規テーブル・カラムの追加は不要（既存のT-19 <code>ai_usage_logs.feature</code>を集計するのみ）。</td></tr>
+      <tr class="rev-row"><td>1.22</td><td>2026-08-21</td><td>画面モックアップ一式のレビューにより判明した仕様の未整備・不整合を解消。(1) S-15（プロフィール編集）について、要件定義書・本書とも氏名を「Googleアカウント連動、参照のみ」としていたが、画面モックには当初からアイコン画像の設定操作が用意されており、氏名についても利用者が直接編集できる想定で運用したいという実務判断を受け、表示名の自己編集を正式に機能化した。T-01 <code>users.name</code>は<strong>初回登録時のみ</strong>Googleプロフィールの氏名で初期化し、以降はログインのたびに上書きしない（本人がS-15で変更した値を維持する）よう3.1節のログインフローを修正した。あわせて、要件定義書の時点から画面要件として存在しながら対応するAPI・テーブルを欠いていたアイコン画像アップロードに対応するため、T-01に<code>custom_picture_key</code>列を追加し、A-75（PUT /api/auth/me、表示名・アイコンの確定）・A-76（POST /api/auth/me/icon/upload-url、アイコンアップロード用署名付きURL発行）・A-77（DELETE /api/auth/me/icon、Googleプロフィール画像に戻す）を新設した（3.1節・6.2節・7.2.1節）。画面設計に4.14a節（S-15プロフィール編集）を新設した。(2) S-19（設問別の回答・結果一覧）の採点結果保存APIとして、従来「詳細設計で定義する」としていたものをA-74（PUT /api/answers/{answer_id}/review）として正式に定義した（4.7c節・5.20節・7.2.5節）。(3) S-05の合否判定・再受験設定（合格基準・再受験可否・回数）はA-17（教材メタデータ更新）から入力し、対象教材の全T-11 <code>assignments</code>行へ同一値を反映する（5.9節callout「複製して保持する」運用）ことをA-17の処理内容として明記した（7.2.3節）。(4) 画面モックアップの内部不整合を修正: S-14「＋新規教材を作成」ボタンがv1.20で廃止済みのS-18を指していた誤りをS-05（空の目次編集画面）へ修正、S-05のAI採点コンテキストの説明文がv1.20で廃止済みのF-27を参照していた誤りを修正、S-10のAIモデル設定の説明文が実在しない「機能ごとの個別モデル割り当て」を示唆していた誤りを修正した。</td></tr>
+      <tr class="rev-row"><td>1.23</td><td>2026-08-21</td><td>要求仕様書（<code>docs/01_要求仕様書.html</code>）を正式にdocs/へ取り込んだことに伴い、本書全体の呼称を要求仕様書どおり「Manabi」に統一した（従来「e-learning」としていた箇所をすべて置き換え）。要求仕様書との照合を行い、REQ-F-01〜REQ-F-19・REQ-N-01〜REQ-N-06の対応関係（1.2節）に齟齬がないことを確認した。配信対象の単位について、要求仕様書REQ-F-06は「部署」を含めているが、本書は要件定義書v1.5に基づき「全社・プロジェクト・個人」の3種のまま維持する（意図的な設計判断であり、要求仕様書の記述を変更する意図はない）。</td></tr>
+      <tr class="rev-row"><td>1.24</td><td>2026-08-21</td><td>網羅性の観点で全体を再点検し、S-05「受験後アンケートの設置」（教材全体・章ごとのアンケート作成・設問編集・解除）に対応するAPIが存在しない不整合を解消した。GET/PUT <code>/api/materials/{id}/surveys</code>（A-78・A-79）を新設し、T-26〜T-27（surveys, survey_questions）のCRUDを全置換方式（A-31と同方式）で行う（7.2.3節）。従来S-05の操作説明（4.7節）がA-17でアンケート設置まで扱えるように読める記述だったが、T-26は独立テーブルでありA-17（materialsのメタデータ更新）では作成・更新できないため、A-78・A-79を実施主体として明記するよう修正した。</td></tr>
+      <tr class="rev-row"><td>1.25</td><td>2026-08-24</td><td>S-10「システム設定」タブの「初期状態に戻す」ボタンに対応するAPIが存在しない不整合を解消した。A-56（PUT /api/settings）はupsertのみでT-21の行を削除できず、「未設定＝環境変数・既定値にフォールバック」（T-21の設計。9.4節）という状態には戻せなかった。DELETE <code>/api/settings</code>（A-80）を新設し、対象4キーの行をT-21から削除することで真の初期状態への復帰を可能にした（7.2.9節）。</td></tr>
+      <tr class="rev-row"><td>1.26</td><td>2026-08-24</td><td>網羅性の観点でID体系を機械的に突き合わせ、F-28（受験後アンケート）がT-26〜T-29・A-72・A-78・A-79を持つ実働機能でありながら、5章に処理概要節（5.x）を欠いていた不整合を解消した。5.28（F-27、廃止済み）と5.29（F-29）の間に5.28aとして新設した（5章冒頭の機能一覧の説明にも経緯を追記）。内容の新規追加ではなく、既存の機能・API・テーブルの記述をまとめ直したものである。</td></tr>
+      <tr class="rev-row"><td>1.27</td><td>2026-08-24</td><td>docs全体を横断できる共通サイドナビ（<code>docs/_sidenav.js</code>）を導入した。あわせて<code>docs/assets/style.css</code>のテーブルセル・<code>code</code>要素に<code>overflow-wrap</code>を追加し、長い文字列（APIパス等）がセルからはみ出してレイアウトが崩れる不具合を修正した（01・02・05にも適用される共通修正）。内容面の変更はない。</td></tr>
+      <tr class="rev-row"><td>1.28</td><td>2026-08-24</td><td>1,723行に達し閲覧が重くなっていたため、詳細設計書と同様に3〜11章を章ごとに個別ファイル（<code>docs/04_基本設計書/</code>配下）へ分割した。1〜2章・改訂履歴・表紙は本ページ（index.html）に残す。内容面の変更はなく、ファイル構成の変更のみ。</td></tr>
+    </tbody>
+  </table>
+
+  <!-- ============ 目次 ============ -->
+  <nav class="toc">
+    <strong>目次</strong>
+    <ol>
+      <li><a href="#sec1">はじめに</a></li>
+      <li><a href="#sec2">システム構成</a></li>
+      <li><a href="03_認証認可設計.html">3. 認証・認可設計</a></li>
+      <li><a href="04_画面設計.html">4. 画面設計</a></li>
+      <li><a href="05_機能設計.html">5. 機能設計</a></li>
+      <li><a href="06_データベース設計.html">6. データベース設計</a></li>
+      <li><a href="07_API設計.html">7. API設計</a></li>
+      <li><a href="08_教材連携設計.html">8. 教材連携設計（Claude Code連携）</a></li>
+      <li><a href="09_AI機能設計.html">9. AI機能設計</a></li>
+      <li><a href="10_非機能設計.html">10. 非機能設計</a></li>
+      <li><a href="11_前提制約.html">11. 前提・制約</a></li>
+    </ol>
+  </nav>
+
+  <!-- ============ 1. はじめに ============ -->
+  <h2 id="sec1">1. はじめに</h2>
+
+  <h3>1.1 本書の位置づけ</h3>
+  <p>本書は、社内学習管理システム（Manabi）の基本設計書である。<span class="rev-old">要件定義書（v1.4）</span><span class="rev-new">要件定義書（v1.5）</span>で定義された要求事項（REQ-F-01〜REQ-F-19、REQ-N-01〜REQ-N-06）を実現するためのシステム構成・認証認可方式・画面・機能・データベース・API・教材連携・AI連携の設計方針を定める。実装レベルの詳細（カラム単位の入出力仕様、リクエスト/レスポンスのフィールド定義、バリデーション規則、フロントマターの完全な文法など）は後続の詳細設計書で定義する。</p>
+  <p>本システムは、社員経歴書管理システム「Keireki」と同じ研修シリーズの一部であり、デザインシステム・ドキュメント形式・ID体系（REQ-xx=要求 / F-xx=機能 / S-xx=画面 / T-xx=テーブル / A-xx=API）・技術スタックの多くをKeirekiから踏襲する。画面の詳細レイアウトは、実際に作り込まれた画面モックアップ「<a href="../03_画面モックアップ/index.html">03_画面モックアップ/</a>」を参照する。</p>
+  <div class="callout rev-new">
+    <strong>教材作成者（author）ロールの権限論点について（v1.4で解消、v1.5でロール自体を統合）:</strong> 「author ロールが受講者（learner）と権限的にほぼ同一で、実質的な追加権限が何かという設計論点」は、v1.0執筆時点ではユーザーとの議論が保留中だった。要件定義書v1.4が導入したプロジェクトのローカルロール（管理者/編集者/受講者。F-24、要件定義書7.3節）により、教材の編集権限はオーナー・共同編集者ではなくプロジェクトのローカルロールで判定される割合が大きくなり、システム全体の「教材作成者（author）」ロールは編集権限の判定に用いられなくなった。要件定義書v1.5は、この経緯を踏まえて受講者(learner)・教材作成者(author)・部署長/PM(manager)の3ロールを廃止し、システム全体のロールをmember（一般ユーザー）／adminの2種に統合した（要件定義書7章）。あわせて教材は必ずいずれかのプロジェクトに属する方式に一本化され、個人所有の教材（オーナー・共同編集者モデル）も廃止された。本論点は、ロールと個人教材モデルの両方が整理されたことで完全に解消された。本書もこれに合わせてロール名称をmember/adminに更新し、3.4節（オーナー・共同編集者による認可）を廃止して設計している。詳細は3.3節・3.5節を参照。
+  </div>
+
+  <h3>1.2 要件定義書との対応表</h3>
+  <p>本書の各設計は、要件定義書の要求事項ID・機能要件IDと以下のように対応する。</p>
+  <table>
+    <thead><tr><th>要求ID</th><th>要求概要</th><th>本書での対応</th></tr></thead>
+    <tbody>
+      <tr><td>REQ-F-01</td><td>教材と問題を登録・修正できること</td><td>F-04（5.4節）、S-05（4章）、T-06・T-10（6章）</td></tr>
+      <tr><td>REQ-F-02</td><td>Claude Codeから教材・問題を登録・修正できること</td><td>F-05（5.5節）、8章 教材連携設計<span class="rev-old">。F-27（5.28節、ブラウザ内対話生成の代替経路）、7.2.3節 A-68〜A-70（v1.20で廃止）</span></td></tr>
+      <tr><td>REQ-F-03</td><td>動画・スライド等のファイルを教材として扱えること</td><td>F-06（5.6節）、T-09（6章）</td></tr>
+      <tr><td>REQ-F-04</td><td>社員が自分で教材を作成・共有できること</td><td><span class="rev-old">F-07（5.7節）、3.4節（オーナー・共同編集者の認可レイヤー。個人教材）、F-25（5.26節）・3.5節（プロジェクトのローカルロール。プロジェクト教材）</span><span class="rev-new">F-25（5.26節）・3.5節（プロジェクトのローカルロール）。F-07・3.4節（オーナー・共同編集者による個人教材の認可レイヤー）はv1.5で廃止した（個人所有の教材モデルの廃止に伴う）</span></td></tr>
+      <tr><td>REQ-F-05</td><td>公開前にAIが教材をレビューできること</td><td>F-08（5.8節）、9章 AI機能設計</td></tr>
+      <tr><td>REQ-F-06</td><td>会社全体・プロジェクト・部署・個人を単位として教材を割り当てられること</td><td><span class="rev-old">F-03・F-09（5.3・5.9節）、T-04・T-11（6章）、F-24・F-25・F-26（5.25〜5.27節）、3.5節、T-04・T-06・T-22（6章）</span><span class="rev-new">F-09（5.9節）、T-04・T-11（6章）、F-24・F-25・F-26（5.25〜5.27節）、3.5節、T-04・T-06・T-22（6章）。F-03（5.3節）はv1.5で廃止した（部署の概念の廃止に伴う）。部署単位の割り当ても対象外となった（5.24節参照）</span></td></tr>
+      <tr><td>REQ-F-07</td><td>必修と任意を区別して扱えること</td><td>F-10（5.10節）</td></tr>
+      <tr><td>REQ-F-08</td><td>必修教材の期限を設定し、未受講者を把握・催促できること</td><td>F-11・F-12（5.11・5.12節）、T-20（6章）</td></tr>
+      <tr><td>REQ-F-09</td><td>合否判定と再受験ができること</td><td>F-14（5.14節）、T-13（6章）</td></tr>
+      <tr><td>REQ-F-10</td><td>選択式・記述式の問題に回答できること</td><td>F-13（5.13節）、T-10・T-14（6章）</td></tr>
+      <tr><td>REQ-F-11</td><td>中断・再開ができること</td><td>F-15（5.15節）、T-12（6章）</td></tr>
+      <tr><td>REQ-F-12</td><td>問題を何度でも繰り返し解けること</td><td>F-16（5.16節）</td></tr>
+      <tr><td>REQ-F-13</td><td>間違えた問題だけを集めて出題できること</td><td>F-17（5.17節）</td></tr>
+      <tr><td>REQ-F-14</td><td>学習状況と回答内容を記録できること</td><td>F-18（5.18節）、T-12・T-13・T-14（6章）</td></tr>
+      <tr><td>REQ-F-15</td><td>受講状況を組織単位で確認できること</td><td>F-19（5.19節）、S-08（4章）</td></tr>
+      <tr><td>REQ-F-16</td><td>AIが記述式の回答を採点し講評できること</td><td>F-20（5.20節）、9章 AI機能設計</td></tr>
+      <tr><td>REQ-F-17</td><td>AIがつまずきを分析し、教材の改善点を提案できること</td><td>F-21（5.21節）、9章 AI機能設計</td></tr>
+      <tr><td>REQ-F-18</td><td>AIが受講者個人にフィードバックできること</td><td>F-22（5.22節）、9章 AI機能設計</td></tr>
+      <tr><td>REQ-F-19</td><td>AIが組織単位のレポートを作成できること</td><td>F-23（5.23節）、9章 AI機能設計</td></tr>
+      <tr><td>REQ-N-01</td><td>Google認証により当社のGoogleアカウント保有者しか利用できないこと</td><td>F-01、3.1節</td></tr>
+      <tr><td>REQ-N-02</td><td>役割により操作範囲を制御できること</td><td>F-02、3.3節（権限マトリクス）</td></tr>
+      <tr><td>REQ-N-03</td><td>学習記録が本人の不利益に使われない扱いとすること</td><td>10.3節（セキュリティ）、7章（権限列）</td></tr>
+      <tr><td>REQ-N-04</td><td>スマートフォンからも学習できること</td><td>10.1節（性能・レスポンシブ方針）</td></tr>
+      <tr><td>REQ-N-05</td><td>AIの応答待ちで学習が妨げられないこと</td><td>9.2節（非同期ジョブの実現方式）</td></tr>
+      <tr><td>REQ-N-06</td><td>既存システム（LCC CRM）の技術構成を踏襲すること</td><td>2章 システム構成</td></tr>
+    </tbody>
+  </table>
+
+  <h3>1.3 対象読者</h3>
+  <ul>
+    <li>本システムの開発を担当する開発者（詳細設計・実装の入力として利用）</li>
+    <li>プロジェクトの発注側担当者・レビュー担当者（設計方針の妥当性確認）</li>
+    <li>AI開発研修の受講者（設計ドキュメントのサンプルとして参照）</li>
+  </ul>
+
+  <!-- ============ 2. システム構成 ============ -->
+  <h2 id="sec2">2. システム構成</h2>
+
+  <h3>2.1 システム構成図</h3>
+  <p>本システムは、React製SPAをフロントエンドとし、Koyeb上でホスティングするFastAPIがAPIを提供、データストアにSupabaseのPostgreSQLを用いる3層構成である。既存システムLCC CRM・Keirekiの構成を踏襲する（REQ-N-06）。これに加え、教材添付ファイルの保存にSupabase Storage、AI機能の実現にAnthropic Claude API、受講催促通知にSlack Incoming Webhookを利用する。</p>
+
+  <div class="diagram">
+    <svg width="860" height="380" viewBox="0 0 860 380" font-family="'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif">
+      <defs>
+        <marker id="arw" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+          <path d="M0,0 L9,4.5 L0,9 z" fill="#1e40af"/>
+        </marker>
+        <marker id="arwg" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+          <path d="M0,0 L9,4.5 L0,9 z" fill="#8a8f98"/>
+        </marker>
+      </defs>
+
+      <!-- ブラウザ -->
+      <rect x="20" y="110" width="150" height="90" rx="8" fill="#eff6ff" stroke="#1e40af" stroke-width="1.5"/>
+      <text x="95" y="138" text-anchor="middle" font-size="13" font-weight="600" fill="#1e3a8a">ブラウザ</text>
+      <text x="95" y="158" text-anchor="middle" font-size="12" fill="#1a1d21">React SPA</text>
+      <text x="95" y="176" text-anchor="middle" font-size="11" fill="#60656d">React 19 / Vite 6</text>
+
+      <!-- Koyeb 枠 -->
+      <rect x="255" y="70" width="200" height="170" rx="8" fill="#ffffff" stroke="#d9dde3" stroke-width="1.5" stroke-dasharray="5 4"/>
+      <text x="355" y="92" text-anchor="middle" font-size="11.5" font-weight="600" fill="#8a8f98">Koyeb（main / staging）</text>
+      <rect x="275" y="105" width="160" height="90" rx="8" fill="#eff6ff" stroke="#1e40af" stroke-width="1.5"/>
+      <text x="355" y="133" text-anchor="middle" font-size="13" font-weight="600" fill="#1e3a8a">FastAPI</text>
+      <text x="355" y="153" text-anchor="middle" font-size="12" fill="#1a1d21">Uvicorn + asyncpg</text>
+      <text x="355" y="171" text-anchor="middle" font-size="11" fill="#60656d">API提供 / SPA静的配信</text>
+      <text x="355" y="222" text-anchor="middle" font-size="10.5" fill="#8a8f98">非同期AIジョブもこのプロセス内で実行</text>
+
+      <!-- Supabase -->
+      <rect x="530" y="60" width="150" height="80" rx="8" fill="#f5f7f9" stroke="#60656d" stroke-width="1.5"/>
+      <text x="605" y="86" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1a1d21">Supabase</text>
+      <text x="605" y="104" text-anchor="middle" font-size="11.5" fill="#1a1d21">PostgreSQL</text>
+      <text x="605" y="121" text-anchor="middle" font-size="10.5" fill="#60656d">全テーブルRLS有効</text>
+
+      <!-- Supabase Storage -->
+      <rect x="530" y="160" width="150" height="70" rx="8" fill="#f5f7f9" stroke="#60656d" stroke-width="1.5"/>
+      <text x="605" y="184" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1a1d21">Supabase Storage</text>
+      <text x="605" y="202" text-anchor="middle" font-size="10.5" fill="#60656d">教材添付ファイル</text>
+      <text x="605" y="217" text-anchor="middle" font-size="10.5" fill="#60656d">（動画・スライド・PDF）</text>
+
+      <!-- Claude API -->
+      <rect x="720" y="60" width="120" height="70" rx="8" fill="#fdf4ff" stroke="#9333ea" stroke-width="1.5"/>
+      <text x="780" y="84" text-anchor="middle" font-size="12" font-weight="600" fill="#6d28d9">Anthropic</text>
+      <text x="780" y="101" text-anchor="middle" font-size="11.5" fill="#6d28d9">Claude API</text>
+      <text x="780" y="117" text-anchor="middle" font-size="10" fill="#8a8f98">教材レビュー・採点等</text>
+
+      <!-- Slack -->
+      <rect x="720" y="150" width="120" height="70" rx="8" fill="#f0fdf4" stroke="#15803d" stroke-width="1.5"/>
+      <text x="780" y="174" text-anchor="middle" font-size="12" font-weight="600" fill="#15803d">Slack</text>
+      <text x="780" y="191" text-anchor="middle" font-size="11.5" fill="#15803d">Incoming Webhook</text>
+      <text x="780" y="207" text-anchor="middle" font-size="10" fill="#8a8f98">受講催促通知</text>
+
+      <!-- Google OAuth -->
+      <rect x="170" y="285" width="200" height="55" rx="8" fill="#fafbfc" stroke="#8a8f98" stroke-width="1.5"/>
+      <text x="270" y="308" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1a1d21">Google OAuth 2.0</text>
+      <text x="270" y="326" text-anchor="middle" font-size="10.5" fill="#60656d">Google Workspace 認証基盤</text>
+
+      <!-- 矢印: ブラウザ ↔ FastAPI -->
+      <line x1="170" y1="140" x2="272" y2="140" stroke="#1e40af" stroke-width="1.5" marker-end="url(#arw)"/>
+      <line x1="272" y1="165" x2="170" y2="165" stroke="#1e40af" stroke-width="1.5" marker-end="url(#arw)"/>
+      <text x="221" y="131" text-anchor="middle" font-size="10.5" fill="#1e40af">HTTPS /api（JWT Cookie）</text>
+
+      <!-- FastAPI ↔ Supabase -->
+      <line x1="435" y1="120" x2="527" y2="100" stroke="#1e40af" stroke-width="1.5" marker-end="url(#arw)"/>
+      <text x="480" y="103" text-anchor="middle" font-size="10" fill="#1e40af">asyncpg</text>
+
+      <!-- FastAPI ↔ Storage -->
+      <line x1="435" y1="165" x2="527" y2="190" stroke="#1e40af" stroke-width="1.5" marker-end="url(#arw)"/>
+      <text x="480" y="204" text-anchor="middle" font-size="10" fill="#1e40af">S3互換API</text>
+
+      <!-- FastAPI ↔ Claude API -->
+      <line x1="455" y1="110" x2="717" y2="95" stroke="#6d28d9" stroke-width="1.5" marker-end="url(#arw)"/>
+      <text x="590" y="90" text-anchor="middle" font-size="10" fill="#6d28d9">Messages API</text>
+
+      <!-- FastAPI ↔ Slack -->
+      <line x1="455" y1="185" x2="717" y2="185" stroke="#15803d" stroke-width="1.5" marker-end="url(#arw)"/>
+      <text x="590" y="178" text-anchor="middle" font-size="10" fill="#15803d">Webhook POST</text>
+
+      <!-- ブラウザ → Google -->
+      <line x1="120" y1="200" x2="200" y2="282" stroke="#8a8f98" stroke-width="1.5" marker-end="url(#arwg)"/>
+      <text x="115" y="248" text-anchor="middle" font-size="10.5" fill="#8a8f98">認可リダイレクト</text>
+
+      <!-- FastAPI ↔ Google -->
+      <line x1="330" y1="240" x2="300" y2="282" stroke="#8a8f98" stroke-width="1.5" marker-end="url(#arwg)"/>
+      <text x="400" y="270" text-anchor="middle" font-size="10.5" fill="#8a8f98">トークン交換・検証</text>
+
+      <!-- タイトル -->
+      <text x="430" y="30" text-anchor="middle" font-size="14" font-weight="600" fill="#1e3a8a">Manabi システム構成（本番）</text>
+    </svg>
+  </div>
+
+  <h3>2.2 技術スタック</h3>
+  <p>技術スタックは要求定義書9.1節の一覧に基づき、LCC CRM・Keirekiの構成を踏襲する（REQ-N-06）。</p>
+  <table>
+    <thead><tr><th>レイヤー</th><th>技術</th></tr></thead>
+    <tbody>
+      <tr><td>Frontend</td><td>React 19 + TypeScript + Vite 6 + Tailwind CSS 4 + react-router 7 + SWR + Lucide React</td></tr>
+      <tr><td>Backend</td><td>FastAPI (Python 3.10+) + Uvicorn + asyncpg</td></tr>
+      <tr><td>Database</td><td>PostgreSQL (Supabase)、全テーブルRLS有効</td></tr>
+      <tr><td>認証</td><td>Google OAuth 2.0 + セッションJWT（HttpOnly Cookie）、ALLOWED_DOMAINS による制限</td></tr>
+      <tr><td>AI連携</td><td>Anthropic Claude API（Messages API）。既定モデルは Claude Sonnet 5（<code>claude-sonnet-5</code>）。管理画面から Claude Opus 5（<code>claude-opus-5</code>）・Claude Haiku 4.5（<code>claude-haiku-4-5</code>）に切替可（9章）</td></tr>
+      <tr><td>通知</td><td>Slack Incoming Webhook（HTTPS POSTによるメッセージ送信）</td></tr>
+      <tr><td>ファイルストレージ</td><td>Supabase Storage（S3互換オブジェクトストレージ）。教材添付ファイル（動画・スライド・PDF）を保存</td></tr>
+      <tr><td>ホスティング</td><td>Koyeb（main=本番 / staging=ステージング）。本番はフロントをビルドしFastAPIが静的配信するSPA構成</td></tr>
+      <tr><td>開発</td><td>Vite devサーバー(3000)→FastAPI(8001)へ /api プロキシ</td></tr>
+    </tbody>
+  </table>
+  <div class="callout">
+    <strong>AI連携先の選定（なぜ Claude API か）:</strong> 要求定義書9.1は「外部AI API（Chat Completions相当。Keirekiと同一方式）」とのみ規定し、具体的な連携先はAPI設計フェーズ（本書）で定めるとしていた。画面モックアップ（S-10 管理画面）で利用モデル選択肢を「Claude Sonnet／Claude Opus／Claude Haiku」として先行して具体化していたため、本書ではこれを正式に採用し、Anthropic Claude API（Messages API）による連携として設計する。Keirekiの「AIサポート」機能はOpenAI APIを採用しているが、本システムは開発チームがすでにClaude Code運用に習熟していること、8章のClaude Code連携（教材の取得・書き戻し）とAI機能（9章）を同一ベンダーのSDKで統一できることを踏まえ、Claude APIを選定した。
+  </div>
+
+  <h3>2.3 開発時と本番時の構成差</h3>
+  <table>
+    <thead><tr><th>項目</th><th>開発時</th><th>本番時（Koyeb）</th></tr></thead>
+    <tbody>
+      <tr><td>フロント配信</td><td>Vite devサーバー（ポート3000）がHMR付きで配信</td><td><code>vite build</code> の成果物（静的ファイル）をFastAPIが静的配信</td></tr>
+      <tr><td>API呼び出し</td><td>Viteのプロキシ設定で <code>/api</code> をFastAPI（ポート8001）へ転送。同一オリジン扱いのためCORS設定不要</td><td>同一オリジン（FastAPIが静的配信とAPIを兼ねる）。<code>/api</code> 以外のパスはSPAの <code>index.html</code> にフォールバック</td></tr>
+      <tr><td>プロセス</td><td>Vite と Uvicorn を個別に起動（2プロセス）</td><td>Uvicorn 1プロセス</td></tr>
+      <tr><td>通信</td><td>http（localhost）</td><td>HTTPS必須</td></tr>
+      <tr><td>AI連携・Slack通知</td><td>開発用のテスト用Webhook URL・開発用APIキーを使用</td><td>本番用のキー・Webhook URLを環境変数で分離</td></tr>
+      <tr><td>環境識別</td><td colspan="2">環境変数 <code>APP_ENV</code> で識別。主要環境変数: <code>DATABASE_URL</code>, <code>GOOGLE_CLIENT_ID</code>, <code>GOOGLE_CLIENT_SECRET</code>, <code>GOOGLE_REDIRECT_URI</code>, <code>JWT_SECRET</code>, <code>ALLOWED_DOMAINS</code>, <code>ANTHROPIC_API_KEY</code>, <code>ANTHROPIC_MODEL</code>（既定モデル）, <code>SUPABASE_STORAGE_BUCKET</code>, <code>SLACK_WEBHOOK_URL</code>（既定値。管理画面設定が優先。9章参照）</td></tr>
+    </tbody>
+  </table>
+
+  <h3>2.4 アプリケーション内部構成</h3>
+  <p>ソースコード構成はLCC CRM・Keirekiの規約に準拠する。</p>
+  <table>
+    <thead><tr><th>区分</th><th>構成</th></tr></thead>
+    <tbody>
+      <tr><td>バックエンド</td><td><code>backend/main.py</code>, <code>database.py</code>（SCHEMA定義）, <code>models.py</code>, <code>google_auth.py</code>, <code>auth_helpers.py</code>（<span class="rev-old">RBAC権限デコレーター＋教材オーナー・共同編集者判定の依存関数</span><span class="rev-new">RBAC権限デコレーター（member/admin）＋プロジェクトのローカルロール判定の依存関数（3.3節・3.5節）</span>）, <code>ai_client.py</code>（Claude API呼び出し共通処理）, <code>storage_client.py</code>（Supabase Storage連携）, <code>markdown_render.py</code> / <code>html_sanitize.py</code>（8章）, <code>routers/</code>（auth.py, organization.py, materials.py, assignments.py, learning.py, dashboard.py, reports.py, users.py, settings.py）</td></tr>
+      <tr><td>フロントエンド</td><td><code>frontend/src/App.tsx</code>（ルーティング・認証ガード）, <code>pages/</code>, <code>components/</code>（レイアウト・モーダル・トースト）, <code>components/ui/</code>（共通フォーム部品）, <code>hooks/</code>, <code>lib/</code>, <code>types/</code></td></tr>
+    </tbody>
+  </table>
+
+  <footer class="doc-footer">
+    <span>社内学習管理システム（Manabi）基本設計書 v1.28</span>
+    <span>コガソフトウェア株式会社 / 2026-08-24</span>
+  </footer>
+
+</div>
+</body>
+</html>

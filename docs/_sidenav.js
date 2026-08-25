@@ -30,6 +30,7 @@
     {
       group: '画面モックアップ',
       newWindow: true, // モックアップは実画面に近い見え方を確認するため別ウィンドウで開く
+      collapsible: true, // 19画面分あり長くなるため、既定は折りたたみ、クリックで展開する
       docs: [
         { href: '03_画面モックアップ/index.html', title: '03 モックアップ一覧' },
         { href: '03_画面モックアップ/S-01_login.html', title: 'S-01 ログイン' },
@@ -54,9 +55,25 @@
       ],
     },
     {
-      group: '設計',
+      group: '基本設計書',
+      collapsible: true,
       docs: [
-        { href: '04_基本設計書.html', title: '04 基本設計書' },
+        { href: '04_基本設計書/index.html', title: '04 基本設計書' },
+        { href: '04_基本設計書/03_認証認可設計.html', title: '　3. 認証・認可設計' },
+        { href: '04_基本設計書/04_画面設計.html', title: '　4. 画面設計' },
+        { href: '04_基本設計書/05_機能設計.html', title: '　5. 機能設計' },
+        { href: '04_基本設計書/06_データベース設計.html', title: '　6. データベース設計' },
+        { href: '04_基本設計書/07_API設計.html', title: '　7. API設計' },
+        { href: '04_基本設計書/08_教材連携設計.html', title: '　8. 教材連携設計' },
+        { href: '04_基本設計書/09_AI機能設計.html', title: '　9. AI機能設計' },
+        { href: '04_基本設計書/10_非機能設計.html', title: '　10. 非機能設計' },
+        { href: '04_基本設計書/11_前提制約.html', title: '　11. 前提・制約' },
+      ],
+    },
+    {
+      group: '詳細設計書',
+      collapsible: true,
+      docs: [
         { href: '05_成果物資料/index.html', title: '05 詳細設計書' },
         { href: '05_成果物資料/03_テーブル定義.html', title: '　3. テーブル定義' },
         { href: '05_成果物資料/04_API詳細設計.html', title: '　4. API詳細設計' },
@@ -107,6 +124,18 @@
   letter-spacing: 0.04em;
   margin-bottom: 4px; padding-left: 4px;
 }
+summary.sidenav-group-title {
+  cursor: pointer; user-select: none;
+  display: flex; align-items: center; gap: 4px;
+}
+summary.sidenav-group-title::-webkit-details-marker { display: none; }
+summary.sidenav-group-title::before {
+  content: '▶'; font-size: 8px; color: #8a8f98; flex: none;
+  transition: transform 0.15s ease;
+}
+details[open] > summary.sidenav-group-title::before { transform: rotate(90deg); }
+summary.sidenav-group-title:hover { color: #1e3a8a; }
+summary.sidenav-group-title:hover::before { color: #1e3a8a; }
 .sidenav ul { list-style: none; margin: 0; padding: 0 0 0 4px; }
 .sidenav li { margin: 1px 0; }
 .sidenav a {
@@ -149,8 +178,12 @@ body { margin-left: 240px; }
   let html = '<nav class="sidenav">';
   html += '<div class="sidenav-title">Manabi<br>設計ドキュメント</div>';
   for (const g of DOCS) {
-    html += '<div class="sidenav-group">';
-    html += '<div class="sidenav-group-title">' + escape(g.group) + '</div>';
+    const groupHasCurrent = g.docs.some((d) => isCurrent(d.href));
+    const wrapTag = g.collapsible ? 'details' : 'div';
+    const titleTag = g.collapsible ? 'summary' : 'div';
+    const openAttr = g.collapsible && groupHasCurrent ? ' open' : '';
+    html += '<' + wrapTag + ' class="sidenav-group"' + openAttr + '>';
+    html += '<' + titleTag + ' class="sidenav-group-title">' + escape(g.group) + '</' + titleTag + '>';
     html += '<ul>';
     for (const d of g.docs) {
       const cls = isCurrent(d.href) ? ' class="current"' : '';
@@ -160,7 +193,7 @@ body { margin-left: 240px; }
         '<li' + cls + '><a href="' + escape(prefix + d.href) + '"' + attrs + ' title="' + escape(d.title) + '">' +
         '<span class="sidenav-label">' + escape(d.title) + '</span>' + mark + '</a></li>';
     }
-    html += '</ul></div>';
+    html += '</ul></' + wrapTag + '>';
   }
   html += '</nav>';
 

@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3. 認証・認可設計 | 基本設計書 | 社内学習管理システム（Manabi）</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<script src="../_sidenav.js"></script>
+<div class="doc">
+
+<p class="chapter-nav" style="display:flex;justify-content:space-between;font-size:13px;margin:0 0 16px"><span></span><a href="index.html">目次</a><a href="04_画面設計.html">4. 画面設計 →</a></p>
+
+  <h2 id="sec3">3. 認証・認可設計</h2>
+
+  <h3>3.1 Google OAuth 2.0 認証フロー（F-01）</h3>
+  <p>認証はGoogle OAuth 2.0（認可コードフロー）による。基本的な流れはKeirekiと同一である。</p>
+  <ol>
+    <li>未認証ユーザーが S-01（ログイン画面）で「Googleでログイン」を押下すると、ブラウザは A-01 <code>GET /api/auth/login</code> にアクセスする。</li>
+    <li>バックエンドは state を生成し、Google の OAuth 認可URLへリダイレクトする。</li>
+    <li>ユーザーがGoogleアカウントで認証・同意すると、Googleは認可コード付きで A-02 <code>GET /api/auth/callback</code> にリダイレクトする。</li>
+    <li>バックエンドは認可コードをアクセストークン・IDトークンに交換し、ユーザーのメールアドレス・氏名・プロフィール画像を取得する。</li>
+    <li>メールアドレスのドメインを <code>ALLOWED_DOMAINS</code>（既定: kogasoftware.com）と照合する。許可ドメイン外は認証を拒否する（REQ-N-01）。</li>
+    <li>T-01 users をメールアドレスで検索する。未登録なら <span class="rev-old">role='learner'</span><span class="rev-new">role='member'</span> で自動登録する（初回ログイン）。<span class="rev-new">この初回登録時のみ、Googleプロフィールの氏名を<code>name</code>の初期値として設定する。</span>登録済みで <code>is_active=false</code> の場合はログインを拒否する。<span class="rev-new">登録済みユーザーの再ログイン時は<code>name</code>を更新しない（S-15で本人が変更した表示名を、Googleアカウント側の氏名変更で意図せず上書きしないため。3.1節末尾のcallout・4.14a節参照）。</span></li>
+    <li>ユーザーID・ロールを含むセッションJWTを発行し、HttpOnly Cookie にセットして <code>/</code> へリダイレクトする。</li>
+    <li>SPAは起動時に A-04 <code>GET /api/auth/me</code> でログイン中ユーザー情報（id, email, name, role, picture_url<span class="rev-old">, department_id</span>）を取得し、ロールに応じた画面制御を行う。<span class="rev-new">部署（department）の概念はv1.5でシステムから廃止したため、department_idは含まない。</span><span class="rev-new">picture_urlは、T-01 <code>custom_picture_key</code>が設定されていればそのアイコン画像の署名付きURL、未設定であればGoogleプロフィール画像のURLを返す（4.14a節）。</span></li>
+    <li>ログアウトは A-03 <code>POST /api/auth/logout</code> でセッションCookieを破棄する。</li>
+  </ol>
+  <div class="callout rev-new">
+    <strong>表示名の同期タイミングを「初回登録時のみ」とした理由（v1.22）:</strong> 当初はKeirekiと同様に「既存ユーザーもログインのたびにGoogleプロフィールの氏名・画像で上書きする」運用を想定していたが、S-15（プロフィール編集）で表示名を自己編集できる機能を新設したことに伴い、この運用のままでは<strong>本人が変更した表示名が次回ログイン時にGoogle側の氏名で意図せず上書きされてしまう</strong>という欠陥が生じる。これは「氏名を変更したはずなのに、ログインし直すと元に戻る」という体験になり、自己編集機能そのものを無意味にする。そこで<code>name</code>は初回登録時（Googleプロフィールの氏名を初期値として使う場面）にのみ設定し、以降の再ログインでは更新しない方式に改めた。Googleアカウント側で氏名を変更した場合でも、本システムの表示名は本人がS-15で明示的に変更するまで変わらない。<code>picture_url</code>（Googleプロフィール画像）は逆に「独自アイコン未設定の場合のフォールバック」として毎回参照する値であるため、こちらは引き続き常に最新のGoogle側の値を返す（値をDBにコピー・キャッシュしない）。
+  </div>
+
+  <h3>3.2 セッション管理</h3>
+  <table>
+    <thead><tr><th>項目</th><th>設計</th></tr></thead>
+    <tbody>
+      <tr><td>セッション方式</td><td>セッションJWT。署名鍵は環境変数 <code>JWT_SECRET</code> で管理</td></tr>
+      <tr><td>格納先</td><td>HttpOnly Cookie（JavaScriptから読み取り不可とし、XSSによるトークン窃取を防止）。本番は Secure 属性・SameSite 属性を付与</td></tr>
+      <tr><td>JWTペイロード</td><td>ユーザー識別子・ロール・有効期限。詳細なクレーム構成は詳細設計書で定義</td></tr>
+      <tr><td>検証</td><td>A-01〜A-03 を除く全APIでリクエスト毎にJWTを検証。無効・期限切れは 401 を返却しSPAは S-01 へ誘導</td></tr>
+    </tbody>
+  </table>
+
+  <h3>3.3 認可（ロールベースアクセス制御）</h3>
+  <p><span class="rev-old">ロールは learner / author / manager / admin の4ロール制とする（REQ-N-02）。</span><span class="rev-new">ロールは member（一般ユーザー）／admin の2ロール制とする（REQ-N-02）。v1.1までの learner・author・manager の3ロールはv1.5で廃止した。</span>認可判定はすべてサーバー側（<code>auth_helpers.py</code> の権限デコレーター）で行い、フロントエンドの表示制御はあくまで利便性のための補助とする。初回ログイン時は <span class="rev-old">learner</span><span class="rev-new">member</span> が付与され、ロールの変更は管理者（F-02）が行う。プロジェクトに紐づく教材の編集・受講権限は、本節のシステム全体ロールとは別の軸として、3.5節のプロジェクトのローカルロール（管理者/編集者/受講者）で判定する。<span class="rev-new">受講状況の確認範囲（S-08・S-09）も同様に3.5節で判定し、システム全体のロールはユーザー管理・システム設定など、プロジェクトに紐づかない全社レベルの操作の可否のみを分ける。</span></p>
+  <table>
+    <thead><tr><th>ロール</th><th>コード</th><th>想定利用者</th><th>できること</th></tr></thead>
+    <tbody>
+      <tr class="rev-row"><td>一般ユーザー</td><td><span class="badge badge-member">member</span></td><td>全社員</td><td>必修・任意教材の受講、反復演習・誤答抽出出題、自分の学習記録・AIフィードバックの閲覧、プロジェクトの新規作成（F-24）。所属する各プロジェクトでのローカルロール（3.5節）に応じた操作</td></tr>
+      <tr class="rev-row"><td>管理者</td><td><span class="badge badge-admin">admin</span></td><td>システム管理者</td><td>member権限＋全社の受講状況確認、全社スコープの配信対象設定、ユーザー・ロール管理、システム設定。プロジェクトへの直接の所属がなくても、保守目的で全プロジェクトの教材編集・管理操作を行える</td></tr>
+    </tbody>
+  </table>
+
+  <p>権限マトリクス（○=可、×=不可）:</p>
+  <table>
+    <thead><tr><th>操作</th><th>member</th><th>admin</th></tr></thead>
+    <tbody>
+      <tr><td>教材の受講（必修・任意）</td><td>○</td><td>○</td></tr>
+      <tr><td>反復演習・誤答抽出出題</td><td>○</td><td>○</td></tr>
+      <tr><td>自分の学習記録・AIフィードバック閲覧</td><td>○</td><td>○</td></tr>
+      <tr><td>プロジェクトの新規作成</td><td>○</td><td>○</td></tr>
+      <tr><td>教材の編集（対象教材が紐づくプロジェクトの管理者・編集者として、3.5節）</td><td>○（該当プロジェクトのみ）</td><td>○（全プロジェクト・保守目的）</td></tr>
+      <tr><td>配信対象・必修/任意・期限の設定（S-06、全社スコープ）</td><td>×</td><td>○</td></tr>
+      <tr><td>配信対象・必修/任意・期限の設定（S-06、プロジェクトスコープ）</td><td>○（自プロジェクトの管理者として）</td><td>○（全社）</td></tr>
+      <tr><td>プロジェクトの受講状況・未受講者の確認（S-08）</td><td>○（自プロジェクトの管理者として）</td><td>○（全社）</td></tr>
+      <tr><td>Slackでの受講催促</td><td>○（自プロジェクトの管理者として）</td><td>○（全社）</td></tr>
+      <tr><td>対象者の個人学習レポート閲覧（S-09）</td><td>○（対象者が所属するプロジェクトの管理者として）</td><td>○（全社）</td></tr>
+      <tr><td>AI組織レポートの生成・閲覧</td><td>○（自プロジェクトの管理者として）</td><td>○（全社）</td></tr>
+      <tr><td>ユーザー・ロール管理、システム設定（S-10）</td><td>×</td><td>○</td></tr>
+    </tbody>
+  </table>
+  <div class="callout rev-new">
+    教材は必ずいずれかのプロジェクトに属し（F-25）、個人所有の教材（オーナー・共同編集者モデル）は存在しない。教材の編集権限は、常にその教材が紐づくプロジェクトのローカルロール（管理者/編集者）で判定する（3.5節）。3.4節（教材ごとのオーナー・共同編集者による追加の認可レイヤー）はv1.5で廃止した。
+  </div>
+
+  <div class="callout">
+    <strong>初回ログインとアカウント無効化:</strong> 許可ドメインのGoogleアカウントであれば初回ログイン時に自動でユーザー登録され、ロールは <span class="rev-old">learner</span><span class="rev-new">member</span> となる（管理者による事前登録は不要）。無効化されたユーザー（<code>is_active=false</code>）はログイン不可であり、既存セッションでのAPIアクセスも拒否する。自分自身のadmin降格・無効化は400で拒否する（管理者不在を防ぐため）。
+  </div>
+
+  <h3>3.4 <span class="rev-old">教材ごとのオーナー・共同編集者による追加の認可レイヤー</span></h3>
+  <div class="callout rev-new">
+    <strong>廃止（v1.5）:</strong> 要件定義書v1.5で教材は必ずいずれかのプロジェクトに属する方式に一本化され、個人所有の教材（<code>materials.project_id</code> が NULL の教材）とそれに伴うオーナー・共同編集者モデルは廃止された。本節が定めていた「教材1件ごとの行レベル認可」（<code>require_material_editor</code> の判定ロジック）、およびそれが行っていた<code>project_id</code> の有無による3.4節/3.5節の分岐は不要になった。教材編集権限の判定は、常に3.5節のプロジェクトのローカルロール（管理者/編集者）による判定のみで行う。<code>require_material_editor(material_id, user)</code> 依存関数は3.5節の <code>require_project_role</code> を呼び出すだけの薄いラッパーとして残すか、呼び出し元を <code>require_project_role</code> に直接置き換えるかは詳細設計で定める。T-07 <code>material_co_editors</code> テーブルは廃止し、T-06 <code>materials.owner_id</code> は編集権限判定には用いず、作成者を記録するだけの <code>created_by</code> に読み替える（6章参照）。共同編集者の追加・削除・オーナー引き継ぎという操作自体も、プロジェクトのメンバー管理（S-12、3.5節）に置き換わったため廃止する。旧仕様（オーナー・共同編集者モデル、個人教材の扱い）の設計判断の詳細は、本改訂前のリビジョン（v1.1）を参照のこと。
+  </div>
+
+  <h3 class="rev-new">3.5 プロジェクトのローカルロールによる認可</h3>
+  <p class="rev-new">要件定義書7.3節が定める「プロジェクトのローカルロール」は、3.3節のシステム全体ロール（<span class="rev-old">learner/author/manager/admin</span><span class="rev-new">member/admin</span>）とは独立した、<strong>プロジェクト1件ごとの認可レイヤー</strong>である。<span class="rev-new">教材は必ずいずれかのプロジェクトに属するため（F-25）、教材編集権限の判定は本節のロジックのみで行い、3.4節（廃止）が定めていたオーナー・共同編集者モデルとの分岐は存在しない。</span>プロジェクトは誰でも新規作成でき（F-24）、作成時に T-04 <code>project_memberships</code> へ作成者を <code>role='admin', status='active'</code> で自動登録する。以降のメンバーの<span class="rev-old">追加</span><span class="rev-new">招待</span>・削除・ロール変更は、そのプロジェクトの管理者のみが行える（社員本人による自己申告は行わない）。<span class="rev-new">ただしメンバーの追加は招待制であり、招待された本人が承諾するまでは実際の権限を持たない（詳細は本節末尾のcallout参照）。</span></p>
+  <table>
+    <thead><tr><th class="rev-new">ローカルロール</th><th class="rev-new">できること</th></tr></thead>
+    <tbody>
+      <tr class="rev-row"><td>管理者（admin）</td><td>プロジェクト情報の編集、メンバーの<span class="rev-old">追加</span><span class="rev-new">招待</span>・削除・ロール設定、プロジェクトに紐づく教材の他プロジェクトへの共有<span class="rev-new">申請</span>（F-26）、自プロジェクトの受講状況確認（F-19）</td></tr>
+      <tr class="rev-row"><td>編集者（editor）</td><td>プロジェクトに紐づく教材の作成・修正（F-25）</td></tr>
+      <tr class="rev-row"><td>受講者（learner）</td><td>プロジェクトに紐づく教材の受講</td></tr>
+    </tbody>
+  </table>
+  <ul class="rev-new">
+    <li><strong>判定ロジック:</strong> <code>auth_helpers.py</code> に <code>require_project_role(project_id, user, min_role)</code> 依存関数を設け、S-12（プロジェクト管理）・プロジェクトに紐づく教材の編集系API・F-19の自プロジェクト受講状況確認で共通利用する。ロールには 管理者 &gt; 編集者 &gt; 受講者 という階層を設け、<code>project_memberships</code> 上のロールが <code>min_role</code> 以上、<span class="rev-new">かつ <code>status='active'</code>（招待を承諾済み）</span>であれば許可する（例: <code>min_role='editor'</code> の判定は編集者・管理者を許可し、受講者は不可。<span class="rev-new"><code>status='invited'</code>（承諾前）のメンバーはロールを問わず不許可</span>）。システム全体の <code>user.role == 'admin'</code> は、当該プロジェクトのローカルロールを持たない場合でも常に許可する（<span class="rev-old">3.4節のadmin保守権限と同じ位置づけ</span><span class="rev-new">3.3節のadmin保守権限と同じ位置づけ</span>）。</li>
+    <li><strong>プロジェクト作成時の自動付与:</strong> A-09（プロジェクト作成）の処理内で、作成した <code>projects</code> 行に対する <code>project_memberships</code> 行を <code>user_id=作成者, role='admin', status='active'</code> で同時に作成する（招待を経ず自動承諾扱い）。作成者を限定しない（F-24。運用上は部署長・PMの作成を想定するが、システムとしては制限しない）。</li>
+    <li><strong>メンバー<span class="rev-old">管理</span><span class="rev-new">の招待</span>:</strong> <span class="rev-old">メンバーの追加・削除・ロール変更（A-11〜A-13）は、</span><span class="rev-new">A-12（メンバー招待。<code>status='invited'</code>で作成）・A-13（削除・ロール変更）は、</span><code>require_project_role(project_id, user, min_role='admin')</code> を満たすユーザーのみ実行できる。唯一の管理者を削除・降格する操作は400で拒否する（プロジェクト管理者が不在になることを防ぐため。3.3節の「管理者不在防止」と同じ設計方針）。</li>
+    <li class="rev-new"><strong>招待への応答:</strong> 招待された本人が新設API A-67（<code>PUT /api/project-memberships/{id}/respond</code>）で承諾（<code>status='active'</code>、<code>joined_at=now()</code>）または辞退（<code>status='declined'</code>）する。この操作は招待された本人のみが行え、プロジェクト管理者は代行できない。承諾・辞退の一覧・応答はS-15（プロフィール編集）の「招待されているプロジェクト」セクションで行う。</li>
+    <li><strong>教材編集権限判定:</strong> <span class="rev-old"><code>require_material_editor(material_id, user)</code>（3.4節）は、対象教材の <code>materials.project_id</code> を確認し、<code>NULL</code> なら3.4節の判定（オーナー・共同編集者）、非NULLなら本節の <code>require_project_role(project_id, user, min_role='editor')</code> に処理を委譲する。</span><span class="rev-new"><code>require_material_editor(material_id, user)</code> は、対象教材の <code>materials.project_id</code>（教材は必ずいずれかのプロジェクトに属するためNOT NULL。6章参照）に対して本節の <code>require_project_role(project_id, user, min_role='editor')</code> を呼び出すだけの処理となる。3.4節は廃止したため、個人教材（project_id IS NULL）向けの分岐は存在せず、教材編集権限の判定は常に本節のロジックのみで行う。</span>教材の受講可否（配信対象、F-09）とは別の判定である点に注意する。詳細は5.26節（F-25）参照。</li>
+  </ul>
+  <div class="callout rev-new">
+    <strong>なぜプロジェクト単位のローカルロールを導入したか:</strong> v1.3までの「オーナー・共同編集者」モデルは、プロジェクト単位で配信される教材でもオーナー個人に紐づくため、オーナーの異動・離任のたびに引き継ぎ操作が必要だった（3.4節）。v1.4はこれに加え、プロジェクトという単位そのものにロール（管理者/編集者/受講者）を持たせることで、「誰が管理者か」「誰が編集できるか」をプロジェクト側で一元管理できるようにした。またプロジェクトの新規登録をadmin限定から誰でも可能にしたことで、旧v1.3の「プロジェクト所属の自己申告制」（3.3節の権限マトリクスにあった行）は不要になった。メンバーの追加・削除・ロール設定という能動的な操作をプロジェクト管理者に一本化したためである。</div>
+  <div class="callout rev-new">
+    <strong>なぜメンバーの追加を招待制にしたか:</strong> 誰でもプロジェクトを新規作成できる方式（F-24）のもとで、当初は「プロジェクト管理者がメンバーを追加すれば即座に有効」という設計だった。しかしこれでは、管理者が本人の同意なしに一方的に他の社員をメンバーへ追加でき、追加された側は気づかないうちに教材の受講対象に加わり、管理者/編集者ロールで追加されれば編集権限まで持たされてしまう（5.27節のF-26で対応した「教材共有の一方的な押し付け」と同じ構造の欠陥）。そこでT-04 <code>project_memberships</code> に <code>status</code>（'invited'/'active'/'declined'）を追加し、追加は「招待」として <code>status='invited'</code> で作成するだけに留め、本人が承諾するまで <code>require_project_role</code> の判定を通さない（=いかなる権限も持たない）ようにした。プロジェクト作成者自身と「全社公開」への自動参加（いずれも本人の意思や全社的な合意に基づく）だけは、この性質上招待を経ず <code>status='active'</code> で作成する。
+  </div>
+
+  <!-- ============ 4. 画面設計 ============ -->
+
+  <footer class="doc-footer">
+    <span>社内学習管理システム（Manabi）基本設計書 v1.28</span>
+    <span>コガソフトウェア株式会社 / 2026-08-24</span>
+  </footer>
+
+</div>
+</body>
+</html>
+

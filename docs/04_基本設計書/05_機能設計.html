@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>5. 機能設計 | 基本設計書 | 社内学習管理システム（Manabi）</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<script src="../_sidenav.js"></script>
+<div class="doc">
+
+<p class="chapter-nav" style="display:flex;justify-content:space-between;font-size:13px;margin:0 0 16px"><a href="04_画面設計.html">← 4. 画面設計</a><a href="index.html">目次</a><a href="06_データベース設計.html">6. データベース設計 →</a></p>
+
+  <h2 id="sec5">5. 機能設計</h2>
+  <p>機能一覧（F-01〜<span class="rev-new">F-29</span>、うちF-27はv1.20で廃止し欠番）ごとに処理概要・関連画面/API/テーブル・設計判断を示す。教材連携（F-05<span class="rev-old">, F-27</span>）の技術詳細は8章、AI連携機能（F-08, F-20〜F-23）の技術詳細は9章に譲り、本章では処理概要と他機能との関係を示すに留める。<span class="rev-new">F-29（プロフィール自己編集）はv1.22で新設した。</span><span class="rev-row">F-28（受験後アンケート）はv1.17でT-26〜T-29・A-72とともに新設されていたが、本章の処理概要節（5.x）を欠いていたため、v1.25で5.28aとして追加した。</span></p>
+
+  <h3>5.1 F-01 Google認証</h3>
+  <p><strong>処理概要:</strong> Google OAuth 2.0によるログイン。許可ドメイン制限、セッションJWT発行、初回ログイン時の自動ユーザー登録（role='learner'）を行う（対応要求: REQ-N-01）。詳細は3.1節参照。</p>
+  <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
+    <tbody><tr><td>S-01</td><td>A-01〜A-04</td><td>T-01</td></tr></tbody></table>
+
+  <h3>5.2 F-02 ユーザー・ロール管理</h3>
+  <p><strong>処理概要:</strong> ロール（<span class="rev-old">learner/author/manager/admin</span><span class="rev-new">member/admin</span>）の付与・変更、アカウントの有効/無効化（admin専用。対応要求: REQ-N-02）。A-53 でユーザー一覧、A-54 でロール変更・有効/無効化を行う。自分自身のadmin降格・無効化は400で拒否する。</p>
+  <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
+    <tbody><tr><td>S-10</td><td>A-53, A-54</td><td>T-01</td></tr></tbody></table>
+
+  <h3 class="rev-row">5.3 F-03 <span class="rev-old">組織マスタ管理</span></h3>
+  <div class="callout rev-new">
+    <strong>廃止（v1.5）:</strong> 部署（department）の概念をシステムから廃止したため、部署マスタ管理は不要になった。v1.4時点では「部署の登録のみを扱う機能」として残していたが、部署がなくなったことで本機能ごと廃止する。プロジェクトの管理はF-24（5.25節）に統合済みのため、影響はない。機能ID・関連画面（S-07）・関連API（A-05〜A-08）は欠番として保持する。
+  </div>
+
+  <h3>5.4 F-04 教材・問題管理</h3>
+  <p><strong>処理概要:</strong> 教材（章・小見出し・ページの入れ子構造）と問題の登録・修正（対応要求: REQ-F-01）。<span class="rev-old">教材はコース（T-05 courses）に属し、本文はMarkdownまたはHTML形式（T-06 <code>format</code>）で記述する。</span><span class="rev-new">教材には自由なタグ（<code>materials.tags</code>）を複数付与でき、本文はページ単位でMarkdownまたはHTML形式（<code>material_nodes.format</code>）で記述する。コース（T-05 courses）はv1.12で廃止し、タグに置き換えた（6.2節）。</span>A-16（新規作成）、A-17（更新）、A-18（削除）、A-31（問題一括更新）で操作する。</p>
+  <div class="callout">
+    <strong>設計判断（教材構造をツリーテーブルで表現する。v1.11で変更）:</strong> v1.0〜v1.10では、単元は独立したテーブルを持たず、教材本文（Markdown の <code>##</code> 見出し／HTML の <code>&lt;h2&gt;</code>）から動的に抽出する構造としていた（フラットな並びのみで、入れ子構造には対応できなかった）。要件定義書v1.12で教材の内部構造を「章／小見出し（任意）／ページ」の入れ子構造（教材構造案。検討資料/画面モック/20260820_教科書構造_検討まとめ.html参照）に刷新したことに伴い、本節の設計を全面的に見直す。新設の<strong>T-23 <code>material_nodes</code></strong>は自己参照ツリー（<code>parent_node_id</code>）で章・小見出し・ページを同一テーブル上に表現し、葉ノード（ページ）だけが実際のコンテンツ（説明文・問題）を持つ。「テキスト1本を取得・書き戻しするだけで教材が完結する」というClaude Code連携のシンプルさ（8章）は、教材1件分のフロントマター＋本文全体を引き続き1ファイルとして扱う方式（8.3節でノード構造をフロントマターの入れ子配列として表現）で両立させる。T-10 <code>questions</code> の <code>unit_index</code> は廃止し、<code>node_id</code>（FK→<code>material_nodes</code>、葉ノードのみを参照）に置き換える。T-12 <code>enrollment_progress.current_position</code> には現在の <code>node_id</code> を保持する。
+  </div>
+  <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
+    <tbody><tr><td>S-03, S-05</td><td>A-14〜A-18, A-31</td><td>T-05, T-06, T-10</td></tr></tbody></table>
+
+  <h3>5.5 F-05 教材テキスト連携（Claude Code連携API）</h3>
+  <p><strong>処理概要:</strong> 教材・問題をMarkdownまたはHTML形式のテキストで記述し、画面操作を介さず取得・登録・更新できる（対応要求: REQ-F-02。要求定義書が「本システムの最も重視する要求」と明記）。技術詳細（フロントマタースキーマ・往復API仕様・改訂履歴・HTMLサニタイズ）は8章で定義する。</p>
+  <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
+    <tbody><tr><td>（画面なし・API直接利用）</td><td>A-19〜A-22</td><td>T-06, T-08, T-10</td></tr></tbody></table>
+
+  <h3>5.6 F-06 教材ファイル・リンク管理</h3>
+  <p><strong>処理概要:</strong> 動画・スライド・PDF等のファイルを教材に添付、または外部サービス上の資料へのリンクを教材として登録する（対応要求: REQ-F-03）。ファイルはSupabase Storageに保存し、T-09 <code>material_attachments.storage_key</code> にパスを記録する。外部リンクは <code>external_url</code> に保存する。A-30 で署名付きURLを発行してダウンロードさせる（アクセス制御は当該教材の受講対象者・<span class="rev-old">オーナー・共同編集者</span><span class="rev-new">対象教材が紐づくプロジェクトの管理者・編集者</span>・adminに限定し、URLの直接公開はしない）。<span class="rev-new">v1.14で<code>node_id</code>（nullable）を追加し、特定ページに紐づく添付（S-17で登録し、受講時はそのページ〔S-16〕にのみ表示）と、教材全体の参考資料（S-05「ファイル・リンク」タブで登録。特定ページに属さないシラバス等）を区別できるようにした（5.4節・4.7b節相当の設計判断コールアウト参照）。</span></p>
+  <div class="callout">
+    <strong>設計判断（アップロード容量の上限）:</strong> 要求定義書は容量上限を「基本設計フェーズで決定」としていた。本書では1ファイルあたり<strong>200MB</strong>を上限とする（Supabase Storageの標準的なプラン制約と、動画教材でも数分〜十数分程度のコンパクトな教材を想定する運用実態を踏まえた値）。上限は環境変数 <code>MAX_ATTACHMENT_SIZE_MB</code> で調整可能とし、超過時は413を返す。フェーズ5（要求定義書10章）での実アップロード対応時に再検討する。
+  </div>
+  <div class="callout rev-new">
+    <strong>設計判断（添付ファイルもページ単位に紐づけられるようにした理由）:</strong> 教材構造案（v1.11）採用前は教材が1本文だったため、添付ファイルは自然に「教材1件に1セット」で足りていた。ページ分割後もT-09を教材単位のまま据え置いていたところ、S-16（ページ受講）の本文には特定ページに関連する資料へのリンクが表示される一方、T-09・S-05「ファイル・リンク」タブは教材全体をまとめた1つのフラットな一覧のままで、「このページの添付」という単位を表現できていなかった（レビュー指摘により発覚）。<code>node_id</code>を追加してこの不整合を解消し、ページ固有の資料はS-17で登録・S-16でそのページにのみ表示、特定ページに属さない教材全体の資料（シラバス等）はS-05「ファイル・リンク」タブで管理する、という2階層に整理した。<span class="rev-new">この整理を行った時点（v1.14）では、S-05で登録した教材全体の資料（<code>node_id</code>未設定）を受講者側のどこにも表示していないという2つ目の欠落があった（レビュー指摘により発覚）。v1.17でS-04（目次）に「教材全体の資料」セクションを追加し、教材単位・ページ単位どちらの添付も受講者が必ずどこかから閲覧できるようにした。</span></div>
+  <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
+    <tbody><tr><td>S-04, S-05, S-16, S-17</td><td>A-27〜A-30</td><td>T-09</td></tr></tbody></table>
+
+  <h3 class="rev-row">5.7 F-07 <span class="rev-old">教材作成・共有</span></h3>
+  <div class="callout rev-new">
+    <strong>廃止（v1.5）:</strong> 教材は必ずいずれかのプロジェクトに属する方式に一本化されたため、個人所有の教材（<code>materials.project_id</code> が NULL の教材）とそれに伴うオーナー・共同編集者モデルは廃止された。本機能が担っていた「教材の作成・共有」はF-25（プロジェクト単位教材管理、5.26節）に統合済みであり、教材の作成・編集を行いたい一般ユーザーは、まずいずれかのプロジェクトの管理者・編集者になる必要がある（自分でプロジェクトを新規作成すれば自動的にそのプロジェクトの管理者になる。F-24）。機能ID・関連テーブル（T-07 material_co_editors）は欠番として保持する。
+  </div>
+
+  <h3>5.8 F-08 教材AIレビュー</h3>
+  <p><strong>処理概要:</strong> 公開前にAIが教材内容（説明不足・記述の分かりにくさ・問題と教材内容の不整合等）を確認し、<span class="rev-old">オーナー・共同編集者</span><span class="rev-new">対象教材が紐づくプロジェクトの編集者・管理者</span>に提示する（対応要求: REQ-F-05）。指摘に従うかは<span class="rev-old">作成者</span><span class="rev-new">提示を受けた側</span>が判断する。同期呼び出しで実装する（9章参照）。</p>
+  <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
+    <tbody><tr><td>S-05</td><td>A-32, A-33</td><td>T-06, T-15, T-19</td></tr></tbody></table>
+
+  <h3>5.9 F-09 配信対象設定</h3>
+  <p><strong>処理概要:</strong> 教材の受講対象を全社・<span class="rev-old">部署・</span>プロジェクト・個人の単位で指定する（対応要求: REQ-F-06）。<span class="rev-old">組織マスタ（F-03）</span><span class="rev-new">プロジェクト管理（F-24）</span>の異動・参画情報を反映し、対象者を適切に保つ。プロジェクト離任時は猶予期間中、旧プロジェクトの教材への閲覧アクセスを維持する（5.25節参照）。<span class="rev-old">全社スコープの設定はadminが、プロジェクトスコープの設定はそのプロジェクトの管理者も行える（3.3節・4.8節参照）。</span><span class="rev-new">プロジェクトスコープ・個人スコープの設定は、対象教材が紐づくプロジェクトの管理者も行える。全社スコープ（<code>scope_type='company'</code>）は、<code>required=true</code>（全社必修配信。受講期限・Slack催促を伴う）はadmin限定、<code>required=false</code>（全社任意公開。検索・閲覧の範囲を広げるだけ）は対象教材が紐づくプロジェクトの管理者も設定できる（3.3節・4.8節参照）。</span></p>
+  <div class="callout rev-new">
+    <strong>設計判断（全社スコープをrequiredで権限分岐する理由）:</strong> 要件定義書v1.5でF-25（プロジェクト単位教材管理）に一本化されたことで、社員が「気軽に社内へ共有する」（REQ-F-04）ための唯一の経路は、自分のプロジェクトで教材を作り、それを他の人にも見えるようにすることになった。ここで全社スコープの作成を一律adminに限定すると、必修教材の配信（重要な運用で一元管理すべき）だけでなく、単なる任意共有までadminのボトルネックを経由することになり、REQ-F-04の趣旨に反する。そこで新しいscope_typeを追加するのではなく、既存の<code>required</code>フラグで権限を分岐させる: <code>scope_type='company'</code>かつ<code>required=true</code>の行の作成・更新は管理者専用のAPI権限判定（3.3節のadmin判定）とし、<code>required=false</code>の行は対象教材のプロジェクトの管理者判定（<code>require_project_role(project_id, user, min_role='admin')</code>、3.5節）でも許可する。既存のscope_type列挙値・テーブル構造を変えずに、最小限の権限判定の分岐だけで実現できる。
+  </div>
+  <div class="callout">
+    <strong>設計判断（複数スコープはOR結合）:</strong> 画面モックアップ（S-06）は「<span class="rev-old">部署Xかつ</span><span class="rev-new">特定プロジェクトAかつ別の</span>プロジェクトを組み合わせて指定できる」という複合条件のUIを示しているが、要求定義書は複数単位を「組み合わせて指定できる」とのみ規定し、AND/ORいずれで結合するかまでは規定していない。本書では実装をシンプルに保つため、<strong>1教材に対して複数の T-11 <code>assignments</code> 行（scope_type×scope_idの組み合わせ数分）を持たせ、行間はOR結合（いずれかの条件に合致すれば対象者）とする</strong>。真に「<span class="rev-old">部署Xの中でもプロジェクトYのメンバーのみ</span><span class="rev-new">プロジェクトXのメンバーのうちプロジェクトYのメンバーでもある者のみ</span>」というAND条件が必要な場合は、対象者を個人（individual）スコープとして展開して登録する運用とし、AND専用のスコープ種別は設けない。合否判定・再受験の条件（<code>pass_score_pct</code>・<code>retake_allowed</code>・<code>retake_limit</code>）は教材単位で1つに定める運用とし、複数スコープを設定する場合も同一教材内では同じ値を複製して保持する。<span class="rev-new">これらの値は配信設定（S-06、scopeごとの設定画面）ではなく、教材の作成者が決める性質の値であるため、S-05「合否判定・再受験設定」・A-17（教材メタデータ更新）から入力し、対象教材の全T-11行へ同一値を書き込む（7.2.3節A-17参照。v1.22で実施主体を明記）。</span>
+  </div>
+  <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
+    <tbody><tr><td>S-06</td><td>A-36〜A-38</td><td>T-04, T-11</td></tr></tbody></table>
+
+  <h3>5.10 F-10 必修・任意区分</h3>
+  <p><strong>処理概要:</strong> 教材ごとに必修/任意を区別して設定し、受講者が自分が受けるべき必修教材を一覧で把握できる（対応要求: REQ-F-07）。T-11 <code>assignments.required</code> フラグで表現し、S-02（マイ学習）で必修/任意を分けて表示する。</p>
+  <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
+    <tbody><tr><td>S-02, S-06</td><td>A-38, A-39</td><td>T-11</td></tr></tbody></table>
+
+  <h3>5.11 F-11 受講期限・未受講者管理</h3>
+  <p><strong>処理概要:</strong> 必修教材に受講期限（<code>due_at</code>）を設定し、期限までの未受講者を<span class="rev-old">管理者・部署長/PM</span><span class="rev-new">admin・対象プロジェクトの管理者</span>が一覧で把握できる（対応要求: REQ-F-08。要件定義書が「重要な要求」と明記）。A-46 は担当範囲（scope）内で、対象者のうち T-12 <code>enrollment_progress.status != 'completed'</code>（または未着手）の者を未受講者として抽出する。</p>
+  <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
+    <tbody><tr><td>S-08</td><td>A-45, A-46</td><td>T-11, T-12</td></tr></tbody></table>
+
+  <h3>5.12 F-12 Slack受講催促通知</h3>
+  <p><strong>処理概要:</strong> 必修教材の未受講者へ、Slackで受講を促す通知を送る（対応要求: REQ-F-08）。A-47 呼び出し時にSlack Incoming Webhookへメッセージを送信し、T-20 <code>slack_notification_logs</code> に送信結果を記録する（重複催促の把握・監査のため）。</p>
+  <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
+    <tbody><tr><td>S-08</td><td>A-47</td><td>T-20, T-21</td></tr></tbody></table>
+
+  <h3>5.13 F-13 出題・回答受付</h3>
+  <p><strong>処理概要:</strong> 単一選択・複数選択の選択式問題と、文章で回答する記述式問題を出題し、回答を受け付ける（対応要求: REQ-F-10）。<span class="rev-new">記述式問題には、コードを記述して回答する形式（<code>type='code'</code>、プログラミング問題）を含む。</span>T-10 <code>questions.type</code> で問題種別を、<code>options</code>（選択肢）・<code>correct_answer</code>（正解）・<code>scoring_criteria</code>（記述式・<span class="rev-new">code</span>の採点基準<span class="rev-new">）・<code>code_language</code>（<code>type='code'</code>のときの言語ヒント</span>）を保持する。回答は T-14 <code>answers.response</code>（JSONB）に生の入力値を保存する（<span class="rev-new">code問題ではコード本文の文字列を保存する。5.20節参照</span>）。</p>
+  <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
+    <tbody><tr><td>S-04</td><td>A-40〜A-42</td><td>T-10, T-13, T-14</td></tr></tbody></table>
+
+  <h3>5.14 F-14 合否判定・再受験</h3>
+  <p><strong>処理概要:</strong> 問題に合格基準（<code>pass_score_pct</code>）を設定して合否を判定する。不合格時は再受験でき、再受験の可否・回数は教材ごとに設定できる（対応要求: REQ-F-09）。A-42（提出）で T-13 <code>quiz_attempts.score_pct</code> を算出し、<code>pass_score_pct</code> と比較して <code>passed</code> を確定する（記述式のAI採点待ちの間は <code>passed</code> は NULL のまま「採点中」として扱う。9章参照）。<code>attempt_no</code> は同一教材・同一ユーザーの graded 試行の通し番号とし、<code>retake_limit</code> 到達後は新規受験を拒否する。</p>
+  <p class="rev-new"><strong>受験単位（v1.17）:</strong> <code>materials.attempt_scope</code>（'material'/'chapter'/'section'/'page'、既定'material'）が、合否判定・再受験の対象範囲を決める。'material'以外の場合、T-13 <code>quiz_attempts</code> は<code>scope_node_id</code>単位で複数並存し、それぞれ独立に合否判定・再受験回数を管理する。小見出しを使わない章で<code>attempt_scope='section'</code>の場合は、その章自身が受験単位になる（章直下のページをまとめて1つの<code>scope_node_id</code>として扱う）。<code>type='score_log'</code>の設問は正誤の概念を持たないため、<code>score_pct</code>算出の分母（対象設問数）に含めない。</p>
+  <p class="rev-new"><strong>ドボン問題（v1.17）:</strong> T-10 <code>questions.is_critical=true</code>の設問に不正解の場合、他の設問の正答率によらず<code>passed=false</code>とし、<code>quiz_attempts.fail_reason</code>に該当設問を記録する（A-42）。影響範囲は<code>attempt_scope</code>にそのまま従い、別立ての設定は持たない。<code>mode='practice'</code>（反復演習・誤答抽出）では判定しない。</p>
+  <p class="rev-new"><strong>再受験の出題範囲（v1.17）:</strong> <code>materials.retake_scope</code>が'wrong_only'の場合、A-71（再受験開始）は前回の<code>scope_node_id</code>内で不正解だった設問のみを新しい試行に含め、正解済みの設問IDを<code>carried_over_question_ids</code>に記録する。提出時（A-42）は今回の解答結果と<code>carried_over_question_ids</code>の正解を合算して<code>score_pct</code>を再計算する。</p>
+  <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
+    <tbody><tr><td>S-04, S-05, S-16</td><td>A-40〜A-43, A-71</td><td>T-06, T-10, T-11, T-13</td></tr></tbody></table>
+
+  <h3>5.15 F-15 学習進捗管理</h3>
+  <p><strong>処理概要:</strong> 受講の中断・再開ができ、途中経過を保存する（対応要求: REQ-F-11）。T-12 <code>enrollment_progress</code> で教材全体の進捗（<code>status</code>・<code>current_position</code>）を管理し、A-41（回答保存）の都度、回答内容（T-14）と進捗（T-12）の両方を更新する。A-40（受験開始）で未提出の <code>quiz_attempts</code> が存在すればそれを返し、続きから再開させる。</p>
+  <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
+    <tbody><tr><td>S-02, S-04</td><td>A-39〜A-41</td><td>T-12, T-13, T-14</td></tr></tbody></table>
+
+  <h3>5.16 F-16 反復演習モード</h3>
+  <p><strong>処理概要:</strong> 合否判定を伴う受験とは別に、習熟目的で同じ問題を回数制限なく繰り返し解ける（対応要求: REQ-F-12）。T-13 <code>quiz_attempts.mode='practice'</code> で記録し、合否判定（<code>mode='graded'</code>）とは明確に区別する。出題順序・選択肢の並びは <code>question_order</code>（JSONB）に試行ごとの並びを保存し、実施のたびに変える。</p>
+  <div class="callout">
+    <strong>なぜ mode で分離するか:</strong> 反復演習の結果を合否判定用の <code>quiz_attempts</code> と同一の集計対象にすると、「気兼ねなく繰り返し学習できる」という要求（REQ-F-12）の裏で誤って合否や受講率の集計に混入するリスクがある。<code>mode</code> カラムで明示的に区別することで、集計クエリ（F-19ダッシュボード等）は常に <code>mode='graded'</code> のみを対象にすればよく、反復演習が既存の集計ロジックを汚染しない。
+  </div>
+  <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
+    <tbody><tr><td>S-04</td><td>A-40〜A-43</td><td>T-13, T-14</td></tr></tbody></table>
+
+  <h3>5.17 F-17 誤答問題抽出出題</h3>
+  <p><strong>処理概要:</strong> 過去の誤答や正答率の低い問題だけを集めて出題する。対象範囲（特定教材内/全教材）を受講者が選べる（対応要求: REQ-F-13）。A-44 は、対象範囲内で当該ユーザーが誤答した設問（<code>answers.is_correct=false</code>）、および正答率50%未満の設問（全受講者の <code>answers</code> 集計）を抽出して出題する。結果は <code>mode='practice'</code> の試行として記録し、合否には影響しない。</p>
+  <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
+    <tbody><tr><td>S-04</td><td>A-44</td><td>T-10, T-13, T-14</td></tr></tbody></table>
+
+  <h3>5.18 F-18 学習記録・回答保存</h3>
+  <p><strong>処理概要:</strong> 誰がどの教材をいつ受講し、どこまで進み、各設問にどう回答したかを記録する。正誤だけでなく回答内容そのものを保存する（対応要求: REQ-F-14）。T-12（教材全体の進捗）・T-13（試行単位の記録）・T-14（設問単位の回答内容・正誤・AI採点結果）の3テーブルで実現する。</p>
+  <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
+    <tbody><tr><td>S-02, S-04, S-09</td><td>A-39〜A-43, A-50</td><td>T-12, T-13, T-14</td></tr></tbody></table>
+
+  <h3>5.19 F-19 受講状況ダッシュボード</h3>
+  <p><strong>処理概要:</strong> <span class="rev-old">管理者・部署長/PMが担当範囲の受講率・合格率・未受講者を確認できる（対応要求: REQ-F-15）。manager の担当範囲は「<code>departments.head_user_id = 自分</code> の部署」または「<code>projects.pm_user_id = 自分</code> のプロジェクト」の集合として判定する（6.1節参照）。admin は「全社」スコープを追加で選択できる。加えて、プロジェクトについては、そのプロジェクトの管理者（ローカルロール、3.5節）も自プロジェクトの受講状況を確認できる。担当範囲判定は「<code>departments.head_user_id = 自分</code>」「<code>projects.pm_user_id = 自分</code>」に、「対象プロジェクトについて <code>require_project_role(project_id, user, min_role='admin')</code> を満たす」を加えたいずれかで行う。</span><span class="rev-new">admin（全社スコープ）、および対象プロジェクトの管理者（ローカルロール、3.5節。自プロジェクトのスコープ）が受講率・合格率・未受講者を確認できる（対応要求: REQ-F-15）。v1.1までは manager ロールと T-02 departments.head_user_id を用いた担当範囲判定を行っていたが、v1.5で manager ロールと departments テーブルを廃止したため、担当範囲判定は「対象プロジェクトについて <code>require_project_role(project_id, user, min_role='admin')</code> を満たす」プロジェクトの集合のみで行う。admin は「全社」スコープを追加で選択できる。T-03 <code>projects.pm_user_id</code> は表示用の参考情報として残すが、本節のアクセス可否判定には用いない。</span></p>
+  <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
+    <tbody><tr><td>S-08</td><td>A-45, A-46</td><td>T-01〜T-04, T-11〜T-13</td></tr></tbody></table>
+
+  <h3>5.20 F-20 AI記述式採点・講評</h3>
+  <p><strong>処理概要:</strong> 記述式回答をAIが採点し、根拠を伴う講評を返す。採点結果は人が確認・修正できる（対応要求: REQ-F-16）。処理方式（非同期ジョブ）は9章参照。採点結果（<code>ai_score_pct</code>・<code>ai_feedback</code>）は T-14 <code>answers</code> に保存し、<span class="rev-old">教材のオーナー・共同編集者</span><span class="rev-new">対象教材が紐づくプロジェクトの管理者・編集者</span>が <code>reviewed_by</code>・<code>reviewed_at</code> を設定して修正できる（S-19、v1.17）。</p>
+  <p class="rev-new"><strong>AI講評スタイル（v1.17）:</strong> 設問の<code>feedback_style</code>（未設定時は<code>materials.default_feedback_style</code>）に応じてプロンプトの指示を切り替える。<code>show_answer</code>（模範解答＋講評を提示。既定）、<code>review_only</code>（正解は提示せず、コード記述式なら問題箇所の指摘のみ）、<code>hint_only</code>（正解を見せず、考え方のヒントのみ）。<code>materials.ai_context</code>（言語・フレームワーク・「正解を直接教えない」等の教材共通の前提）が設定されている場合は、これもプロンプトに追加する。</p>
+  <p class="rev-new"><strong>コード記述式問題（<code>type='code'</code>）の採点:</strong> 提出されたコード（T-14 <code>response</code>）・出題の模範解答/採点基準（T-10 <code>scoring_criteria</code>）・言語ヒント（<code>code_language</code>）をプロンプトに含め、Claude APIにコードを<strong>実行せず読解させ</strong>、想定される実行結果・エラーの有無を推論して正誤を判定させる。<code>ai_feedback</code>には正誤の判定根拠に加え、無駄な処理の簡略化など改善提案があれば含めるよう構造化出力のスキーマに項目を設ける（例: <code>{"correct": bool, "reasoning": str, "improvement_suggestions": str | null}</code>）。</p>
+  <div class="callout warn rev-new">
+    <strong>なぜコードを実行せず読解のみで採点するか:</strong> 提出されたコードを実際に実行するには、任意のコードを安全に動かせるサンドボックス実行環境（コンテナ分離・リソース制限・ネットワーク遮断等）が必要になり、2章で定めたUvicorn単一プロセス構成には収まらない、独立したインフラの新設を要する。要件定義書3.1節・3.2節は、対象を教育用の簡単な課題（数式処理・辞書操作等）に絞ることでAIの静的読解による採点を許容し、コード実行環境は初期実装の対象外としている。本設計もこれに従い、Claude APIへのコード読解のみで採点を行う。ループの繰り返し回数が多い・数値計算が精密といった、AIの読解精度が下がりやすい課題を出題する場合は、教材編集者が採点結果を確認・修正する運用（REQ-F-16）を徹底する。
+  </div>
+  <p class="rev-new"><strong>手動採点（<code>grading_mode='manual'</code>、v1.18）:</strong> 記述式・コード記述式の設問は、教材既定（<code>materials.grading_mode</code>）または設問ごとの上書き（<code>questions.grading_mode</code>）で「AI自動採点」の代わりに「対象教材が紐づくプロジェクトの管理者・編集者による手動採点」を選べる。この場合、回答提出時にAI採点ジョブは実行されず、<code>answers.is_correct</code>・<code>ai_score_pct</code>・<code>ai_feedback</code>はNULLのまま（S-19では「未採点」表示）となる。プロジェクト管理者・編集者がS-19で内容を読んで正誤・講評を入力すると<code>reviewed_by</code>・<code>reviewed_at</code>が設定され、<code>ai_feedback</code>にはAIではなく担当者が入力した講評テキストが保持される。合否判定（F-14）・つまずき分析（F-21）は採点結果の由来（AI/人）を区別せず、確定した<code>is_correct</code>のみを見るため、既存のロジックへの影響はない。<code>feedback_style</code>（AI講評スタイル）は手動採点の設問には適用されない（AIが講評を生成しないため）。</p>
+  <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
+    <tbody><tr><td>S-04<span class="rev-new">, S-19</span></td><td>A-42, A-43</td><td>T-14, T-19</td></tr></tbody></table>
+
+  <h3>5.21 F-21 AIつまずき分析・教材改善提案</h3>
+  <p><strong>処理概要:</strong> 正答率の低い設問や誤答傾向から受講者の理解不足箇所を分析し、教材のどこをどう直すべきかを提案する（対応要求: REQ-F-17）。F-05（Claude Code連携）と組み合わせ、A-35（結果取得）を Claude Code からも取得できるようにすることで「つまずき分析 → 改善提案 → Claude Codeでの修正 → 往復登録（A-20）」の循環を成立させる（8章参照）。</p>
+  <p class="rev-new"><strong>受験後アンケートとの合流（v1.17）:</strong> 対象の教材・章に受験後アンケート（T-26 <code>surveys</code>）が設置されている場合、T-28/T-29の集計（評価点の平均、自由記述のテキスト群）を分析入力に追加する。正答率データ（定量）とアンケートの自由記述（定性）を突き合わせることで、「なぜ間違えるのか」を受講者自身の言葉からも分析できる。アンケート未設置の教材・章は従来どおり正答率データのみで分析する。</p>
+  <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
+    <tbody><tr><td>S-05</td><td>A-34, A-35</td><td>T-13, T-14, T-16, T-19<span class="rev-new">, T-26〜T-29</span></td></tr></tbody></table>
+
+  <h3>5.22 F-22 AI個人フィードバック</h3>
+  <p><strong>処理概要:</strong> 受講者ごとの回答傾向から、理解不足の点や次に学ぶとよい教材を本人に示す（対応要求: REQ-F-18）。個人学習レポート画面（S-09）を開いたとき、または受講完了時に非同期で生成し、T-17 <code>ai_personal_feedback</code> に保存する。</p>
+  <p class="rev-new"><strong>スコア記録型（<code>type='score_log'</code>）の推移コメント（v1.17）:</strong> 正誤の概念がないため、通常のつまずき分析（F-21）ではなく本機能の入力データに、対象者のスコア推移（<code>answers.response.score</code>の時系列）を加える。生成タイミングは通常のF-22と同じくS-09を開いたときとし、記録するたびに都度生成することはしない（例:「タイピング練習のスコアが着実に上がっています。直近3回で45→52→58 WPM」）。</p>
+  <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
+    <tbody><tr><td>S-09</td><td>A-51, A-52</td><td>T-12〜T-14, T-17, T-19</td></tr></tbody></table>
+
+  <h3>5.23 F-23 AI組織レポート生成</h3>
+  <p><strong>処理概要:</strong> <span class="rev-old">部署・プロジェクト単位</span><span class="rev-new">プロジェクト単位・全社単位</span>の学習状況・習熟度の傾向を、数値の一覧に加え要約と示唆を含むレポートとしてまとめる（対応要求: REQ-F-19）。S-08 でレポート生成を実行したときに非同期で生成し、T-18 <code>ai_org_reports</code> に保存する。</p>
+  <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
+    <tbody><tr><td>S-08</td><td>A-48, A-49</td><td>T-11〜T-14, T-18, T-19</td></tr></tbody></table>
+
+  <h3>5.24 対象外機能</h3>
+  <p>要求事項からは直接求められておらず、本システムでは対象外とする範囲を以下に示す（要求定義書3.2節に対応）。</p>
+  <table>
+    <thead><tr><th>機能</th><th>対象外とする理由</th></tr></thead>
+    <tbody>
+      <tr><td>学習記録の人事評価・目標管理での利用</td><td>学習記録は成長支援のための情報とし、人事評価の材料としないことが要求されているため（REQ-N-03）</td></tr>
+      <tr><td>勤怠管理・給与管理との連携</td><td>本システムは学習管理を対象とし、人事基幹機能とは連携しない</td></tr>
+      <tr><td>動画・スライドの編集・加工機能</td><td>教材ファイルはアップロード・視聴を対象とし、編集・加工は要求されていない（REQ-F-03）</td></tr>
+      <tr><td>メールによる通知</td><td>利用者への通知手段はSlackに限定される（制約条件）</td></tr>
+      <tr><td>プロジェクト所属情報の他システムとの自動連携</td><td>参照可能な外部システムが現時点で存在しないため初期実装の対象外（9.2節）。<span class="rev-old">プロジェクト所属は自己申告制とする</span><span class="rev-new">プロジェクトのメンバー・ロールはそのプロジェクトの管理者が設定する運用とする（3.5節・5.25節）</span></td></tr>
+      <tr class="rev-row"><td>部署（department）単位の組織管理・配信対象指定</td><td>v1.5で権限モデルを簡素化し、組織単位を「全社」「プロジェクト」「個人」の3種に整理したため（3.3節・7章参照）</td></tr>
+      <tr class="rev-row"><td>個人所有の教材（オーナー・共同編集者モデル）</td><td>教材は必ずいずれかのプロジェクトに属する方式に一本化したため（F-25）</td></tr>
+      <tr class="rev-row"><td>コード記述式問題の提出コードの実行・自動テスト（サンドボックス実行環境）</td><td>教育用の簡単な課題（数式処理・辞書操作等）を主な対象とし、AIによる静的な読解での採点で十分と判断したため。実行環境の構築・保守コストとセキュリティ対策（任意コード実行のリスク）を要するため初期実装の対象外とする（5.20節）</td></tr>
+    </tbody>
+  </table>
+
+  <h3 class="rev-new">5.25 F-24 プロジェクト管理</h3>
+  <p class="rev-new"><strong>処理概要:</strong> プロジェクトは誰でも新規作成でき（対応要求: REQ-F-06）、作成者は自動的にそのプロジェクトの管理者（ローカルロール、3.5節）になる。プロジェクト情報（名称・説明・状態）の編集、メンバーの<span class="rev-old">追加</span><span class="rev-new">招待</span>・削除、メンバーのロール（管理者/編集者/受講者）の設定は、そのプロジェクトの管理者が行う。<span class="rev-new">メンバーの追加は招待制であり（A-12）、招待された本人がA-67で承諾するまでは <code>status='invited'</code> のままで実際の権限を持たない。詳細は3.5節を参照。</span>運用上は部署長・PMがプロジェクトを作成して管理者となることを想定するが、システムとして作成者を限定しない。</p>
+  <p class="rev-new"><strong>「全社公開」プロジェクト:</strong> システムは初期データとして、削除不可の特別プロジェクト「全社公開」（<code>is_company_wide=true</code>、6章参照）を1行だけ保持する。新規ユーザーはA-02（初回ログイン）の処理内で、このプロジェクトへ自動的に<code>role='editor'</code>として登録される（<code>assigned_by</code>はNULL、システムによる自動付与）。このプロジェクトの管理者（<code>role='admin'</code>）はシステム管理者のみとし、通常のプロジェクト作成フロー（A-09）やメンバー管理API（A-12/A-13）では新たに作成・変更できない。用途は5.26節（F-25）を参照。</p>
+  <p class="rev-new"><strong>猶予期間の実現:</strong> プロジェクト管理者によるメンバー管理は、v1.3までの自己申告制と異なり、本人以外の操作で急にアクセスを失いうる。管理者による設定の反映が遅れたり対応が漏れたりする場合に備え、メンバーがプロジェクトから削除された場合は、T-21 <code>app_settings</code>（<code>key='project_leave_grace_period_days'</code>、既定30日、S-10で変更可）で定めた猶予期間中、旧プロジェクト単位で配信された教材への閲覧アクセスを継続する。判定は「現役メンバー（T-04 <code>project_memberships.status='active' AND left_at IS NULL</code><span class="rev-new">。招待中〔status='invited'〕のメンバーは現役に含めない</span>）」または「<code>left_at + 猶予日数 &gt;= 現在時刻</code>」のいずれかを満たすかで行い、F-09（配信対象設定）のアクセス可否判定に組み込む（v1.3の「離任（自己申告）」を「削除（管理者操作）」に読み替えた以外は、5.3節旧版の判定ロジックを踏襲する）。</p>
+  <div class="callout rev-new">
+    <strong>設計判断（ロール降格時は猶予期間の対象外とする）:</strong> S-12モックアップの注記は「メンバーを削除、またはロールを『受講者』以外から変更した場合も、猶予期間中は旧プロジェクトの教材への閲覧アクセスを継続する」としている。しかし本設計では、プロジェクトに残ったままロールが編集者/管理者から受講者へ降格された場合は、受講者ロールが引き続き該当教材の受講権限を持つため、閲覧アクセスが途切れることはない。したがって猶予期間の判定対象は「プロジェクトから削除された（メンバーでなくなった）場合」のみとし、ロール降格それ自体では猶予期間を発生させない設計とした。降格に伴う編集権限の喪失は即時反映とする（誤操作による情報流出リスクを避けるため）。
+  </div>
+  <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
+    <tbody><tr><td>S-11, S-12, <span class="rev-new">S-15</span></td><td>A-02, A-09〜A-13, <span class="rev-new">A-67</span></td><td>T-01, T-03, T-04, T-21</td></tr></tbody></table>
+  <div class="callout rev-new">
+    <strong>なぜ project_memberships に role を持たせたか:</strong> v1.3までの <code>project_memberships</code> は「所属しているか否か（<code>joined_at</code>/<code>left_at</code>）」のみを表現し、プロジェクト内での権限は区別しなかった。v1.4はプロジェクト単位で教材の編集権限を分離する要求（F-25）に対応するため、所属テーブル自体にロールを持たせる設計とした。プロジェクト・ユーザーの組み合わせごとに高々1つのロールしか持てない（UNIQUE制約、6.2節参照）ため複数ロールの併有は不可とし、「管理者は編集者・受講者の操作も行える」という階層関係（3.5節）で上位互換を表現する。
+  </div>
+
+  <h3 class="rev-new">5.26 F-25 プロジェクト単位教材管理</h3>
+  <p class="rev-new"><strong>処理概要:</strong> <span class="rev-old">教材をプロジェクトに紐づけて管理できる</span><span class="rev-new">教材は必ずいずれかのプロジェクトに紐づけて管理する（個人所有の教材は存在しない。v1.5でF-07を統合した）</span>（対応要求: REQ-F-06）。教材作成時に T-06 <code>materials.project_id</code>（<span class="rev-old">既定はNULL＝個人教材</span><span class="rev-new">NOT NULL。6章参照</span>）を指定し、編集権限は<span class="rev-old">オーナー・共同編集者（3.4節）ではなく、</span>そのプロジェクトの管理者・編集者（ローカルロール、3.5節）で判定する。受講権限は、そのプロジェクトの受講者（3.5節）、および配信設定（F-09）で別途対象に指定された利用者が持つ。<span class="rev-old">個人で教材を作りたい場合は、まず自分のプロジェクトを作成する（作成者は自動的にそのプロジェクトの管理者になる。F-24）。</span><span class="rev-new">A-16（教材新規作成）で<code>project_id</code>を省略した場合は、全社員が自動的にeditorとして参加している「全社公開」プロジェクト（<code>is_company_wide=true</code>、5.25節）のIDを既定値として補完する。これにより、個人が単発の教材を作るためだけに使い捨てのプロジェクトを作る必要がなくなる。特定メンバーだけで管理したい場合は、引き続き自分のプロジェクトを作成できる（作成者は自動的にそのプロジェクトの管理者になる。F-24）。</span>作成後の紐づけ変更（<span class="rev-old">個人教材→プロジェクト教材、または</span>別プロジェクトへの付け替え）はA-17（教材更新）で行うが、変更操作自体は変更前・変更後<span class="rev-old">いずれの編集権限も満たす者（3.4節または3.5節の判定）</span><span class="rev-new">いずれのプロジェクトについても編集権限（3.5節の判定）を満たす者</span>に限定する。</p>
+  <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
+    <tbody><tr><td>S-05, S-12</td><td>A-16, A-17</td><td>T-03, T-04, T-06</td></tr></tbody></table>
+  <div class="callout rev-new">
+    <strong>設計判断（「全社公開」の管理者はシステム管理者に限定し、メンバー管理APIは変更しない）:</strong> 「全社公開」は全社員がeditorとして参加するが、admin（プロジェクトのローカルロール）はシステム管理者に限定し、他の誰にも付与しない。editorは教材の作成・修正はできるが削除はできない（A-18は対象プロジェクトの管理者限定、7.2.3節）ため、誰でも編集できる状態でも他人の教材を勝手に削除される心配はない。またAPI一覧（7章）には現時点でプロジェクトを削除するエンドポイント自体が存在しないため、「削除不可」を実現するための特別な保護ロジックは不要であり、A-12（メンバー追加）・A-13（メンバー変更・削除）・A-10（プロジェクト情報更新）の権限判定（<code>require_project_role(min_role='admin')</code>）を変更せずに、「全社公開の管理者は事実上システム管理者のみ」という状態を維持できる。
+  </div>
+
+  <h3 class="rev-new">5.27 F-26 教材のプロジェクト間共有</h3>
+  <p class="rev-new"><strong>処理概要:</strong> プロジェクトに紐づく教材を、別のプロジェクトでも受講・参照できるよう共有できる（対応要求: REQ-F-06）。共有の申請権限は、教材が紐づく元プロジェクトの管理者が持つ（<code>require_project_role(materials.project_id, user, min_role='admin')</code>）。<span class="rev-old">共有はT-22 <code>material_project_shares</code> に行を追加することで表現し、共有先プロジェクトのメンバーは当該教材を受講対象として扱う（編集権限は共有によって移動せず、常に元プロジェクトの管理者・編集者が持つ）。</span><span class="rev-new">申請するとT-22 <code>material_project_shares</code> に <code>status='pending'</code> の行が追加されるだけで、この時点では共有先プロジェクトの受講対象には反映されない。共有先プロジェクトの管理者（<code>require_project_role(shared_to_project_id, user, min_role='admin')</code>）が承認（<code>status='accepted'</code>）して初めて、共有先プロジェクトのメンバーが当該教材を受講対象として扱う。却下（<code>status='rejected'</code>）した場合は反映されない。承認・却下いずれの場合も編集権限は共有によって移動せず、常に元プロジェクトの管理者・編集者が持つ。承認待ち・承認済みいずれの共有も、共有元・共有先どちらのプロジェクト管理者からも解除できる。</span>下書き（<code>status='draft'</code>）の教材は共有申請できない。</p>
+  <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
+    <tbody><tr><td>S-12</td><td>A-59〜A-61<span class="rev-new">, A-65, A-66</span></td><td>T-06, T-22</td></tr></tbody></table>
+  <div class="callout rev-new">
+    <strong>設計判断（共有は元プロジェクトの受講対象への追加として扱う）:</strong> 共有された教材の受講対象をF-09（配信設定 T-11 <code>assignments</code>）に都度書き込む方式も検討したが、それでは「どの教材がどのプロジェクトに元々紐づき、どこへ共有されているか」の全体像が <code>assignments</code> の行に埋もれてしまう。本設計ではT-22を独立テーブルとして持たせ、教材の受講可否判定（F-09の対象者算出ロジック）は「配信設定（<code>assignments</code>）に合致する」または「<code>materials.project_id</code> のプロジェクトメンバーである」または「<code>material_project_shares</code> で<span class="rev-new">status='acceptedとして</span>共有された先のプロジェクトのメンバーである」のいずれかを満たすか、というOR条件で拡張する。S-12の「教材の共有」タブがどの教材が・どこに共有されているかを一覧できるのは、この独立テーブル構成による。
+  </div>
+  <div class="callout rev-new">
+    <strong>設計判断（共有元の一方的な判断だけで成立させない）:</strong> 当初の設計は「共有元プロジェクトの管理者の判断だけで共有が成立する」方式だった。しかしプロジェクトは誰でも新規作成できる（F-24）ため、この方式では質の低いプロジェクトの教材が、共有先の同意なしに真面目に運用されている別プロジェクトの受講対象へ一方的に追加されてしまう欠陥があった。共有先プロジェクトの管理者が自分のプロジェクトに何を含めるかを常にコントロールできるよう、共有元の「申請」と共有先の「承認」の2段階（T-22 <code>status</code>）に改めた。承認するまで受講対象に反映しないため、共有先が気づかないうちに教材が紛れ込むことはない。
+  </div>
+
+  <h3>5.28 F-27 <span class="rev-old">AI教材作成アシスト（ブラウザ内対話生成）</span></h3>
+  <div class="callout rev-old">
+    <strong>この機能は基本設計書v1.20で廃止されました。</strong> F-27はManabiのバックエンドがAnthropic Claude APIを直接呼び出す構造のため、利用のたびにManabi側で従量課金が発生していた。一方、既存のF-05（Claude Code CLIとの往復）はClaude Code利用者本人の契約・APIキーで課金され、Manabi側の運用コストは発生しない。両者は「AIが教材の目次・ページ・問題を対話的に作成する」という似た体験を提供する代替経路だったが、コストの発生しないF-05に一本化することとした。教材の作成・修正へのAI支援はすべてF-05経由で行う（8章参照）。専用画面S-18、S-05・S-17の画面内チャットパネル、A-68〜A-70、T-24 <code>ai_draft_sessions</code>・T-25 <code>ai_draft_messages</code>は、いずれも廃止しIDを欠番として保持する。
+  </div>
+
+  <h3 class="rev-row">5.28a F-28 受験後アンケート</h3>
+  <p class="rev-row"><strong>処理概要:</strong> 教材全体・章単位で受験後アンケートを任意設置できる（v1.17新設、検討資料<code>20260821_問題形式・採点拡張案.html</code>で採用）。対応する要求ID・機能要件は無く、問題形式・採点拡張の検討過程で追加された機能である。S-05目次編集タブでプロジェクト編集者・管理者がアンケート（設問はrating_5/single_choice/free_textのいずれか）を設置・編集・解除し（T-26〜T-27、A-78・A-79）、受講者はS-04・S-16の受講画面でアンケートに回答する（T-28〜T-29、A-72）。回答は任意（スキップ可）で、<code>repeat_mode='once'</code>の場合は同一受講者への表示を初回のみに制限する。統計はF-21（AIつまずき分析）に合流させる。</p>
+  <table class="rev-row"><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
+    <tbody><tr><td>S-04, S-05, S-16</td><td>A-72, A-78, A-79</td><td>T-26〜T-29</td></tr></tbody></table>
+
+  <h3 class="rev-new">5.29 F-29 プロフィール自己編集（表示名・アイコン）</h3>
+  <p class="rev-new"><strong>処理概要:</strong> 利用者が自分自身の表示名・アイコン画像をS-15（プロフィール編集）から変更できる（v1.22新設）。対応する要求ID・機能要件は無く、要件定義書4章のS-15画面要件（「アイコン画像の設定、氏名・メールアドレスの確認」）に当初から存在していた要素を、実際に動作する機能として具体化したものである。</p>
+  <ul class="rev-new">
+    <li><strong>表示名:</strong> T-01 <code>users.name</code>を対象とする。初回登録時（A-02）にGoogleプロフィールの氏名を初期値として設定し、以降は本人がA-75で明示的に変更するまでシステム側では変更しない（3.1節参照）。100文字以内。</li>
+    <li><strong>アイコン画像:</strong> T-01 <code>users.custom_picture_key</code>（nullable。Supabase Storageのパス）を対象とする。未設定時はGoogleプロフィール画像（<code>picture_url</code>相当）をフォールバックとして使用する。PNG/JPEGのみ、2MBまで（環境変数<code>MAX_ICON_SIZE_MB</code>で調整可）。A-76で署名付きアップロードURLを発行し、A-75でメタデータを確定する2段階方式とする（教材添付ファイル、A-27/A-29と同じパターン）。A-77で独自アイコンを削除しGoogle画像へ差し戻せる。</li>
+    <li><strong>変更不可の項目:</strong> メールアドレス（<code>email</code>）はGoogleアカウントに連動する不変の識別子であり、この機能の対象外。システムロール（<code>role</code>）・有効/無効（<code>is_active</code>）はadmin専用（F-02）のまま変更しない。</li>
+  </ul>
+  <div class="callout rev-new">
+    <strong>設計判断（アイコンをT-01の列として保持し、教材添付〔T-09〕とは別の仕組みにする理由）:</strong> ユーザーアイコンは教材コンテンツとは無関係な小さな画像（数百KB程度）であり、対象教材やプロジェクトへの紐づけを持たない1ユーザー1枚の設定値である。T-09 <code>material_attachments</code>は教材・ページへの紐づけを前提とした設計のため転用せず、Keireki T-08 <code>app_settings</code>（会社ロゴ）と同様に、対象エンティティ（この場合はユーザー本人）に直接列として持たせる方式とした。ただし複数ユーザー分の画像を1テーブルに集約するapp_settingsのkey-value方式とは異なり、ユーザーごとに1行存在するT-01に直接列を追加する方が自然であるため、T-01への列追加を選んだ。
+  </div>
+  <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
+    <tbody><tr><td>S-15</td><td>A-04, A-75, A-76, A-77</td><td>T-01</td></tr></tbody></table>
+
+  <!-- ============ 6. データベース設計 ============ -->
+
+  <footer class="doc-footer">
+    <span>社内学習管理システム（Manabi）基本設計書 v1.28</span>
+    <span>コガソフトウェア株式会社 / 2026-08-24</span>
+  </footer>
+
+</div>
+</body>
+</html>
+
