@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3. テーブル定義 | 詳細設計書 | 社内学習管理システム（Manabi）</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<script src="../_sidenav.js"></script>
+<div class="doc">
+
+<p class="chapter-nav" style="display:flex;justify-content:space-between;font-size:13px;margin:0 0 16px"><span></span><a href="index.html">目次</a><a href="04_API詳細設計.html">4. API詳細設計 →</a></p>
+
+  <h2 id="sec3">3. テーブル定義</h2>
+  <p>PostgreSQL (Supabase) を使用する。テーブルは<strong>T-01〜T-29のうち実働24テーブル</strong>とする（T-02, T-05, T-07, T-24, T-25は基本設計書で廃止済みのため欠番。6.2節参照）。共通方針は以下のとおり。</p>
+  <ul>
+    <li><code>id</code>は全テーブル<code>BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY</code>（T-21のみ<code>key</code> TEXTを主キーとする）。</li>
+    <li><code>created_at</code>は全テーブル<code>TIMESTAMPTZ NOT NULL DEFAULT now()</code>。<code>updated_at</code>は更新が発生しうるテーブルにのみ付与し、アプリケーション側で更新時に<code>now()</code>を設定する（T-15〜T-20, T-27〜T-29は追記専用のため<code>updated_at</code>を持たない）。</li>
+    <li>コード値（role, status, type, kind, scope_type等）はCHECK制約で許容値を担保する。</li>
+    <li>JSONB項目（tags, options, correct_answer, response, findings, weak_questions, completed_node_ids等）のスキーマは各表の下に示す。</li>
+    <li>全テーブルでRow Level Security（RLS）を有効にする（<code>ALTER TABLE ... ENABLE ROW LEVEL SECURITY;</code>）。アプリケーションはasyncpgで直接接続するため通常アクセスの権限判定（5章）はAPI層で行うが、Supabaseの他経路（PostgREST等）からの意図しない参照を遮断する多層防御として全テーブルRLSを必須とする（Keirekiと同方針）。</li>
+    <li>スキーマ定義は<code>backend/database.py</code>のSCHEMA定数（<code>CREATE TABLE IF NOT EXISTS</code>文の集合）に集約する。</li>
+  </ul>
+  <div class="callout">
+    <strong>T-08 material_revisions のカラムに関する整合（基本設計書からの補足）:</strong> 基本設計書8.5節は<code>body_snapshot</code>・<code>format</code>を「変更後の<code>materials.body</code>・<code>materials.format</code>の全文スナップショット」と説明しているが、6.2節(7)のとおりv1.11で<code>materials.body</code>・<code>materials.format</code>は廃止され、目次構造・各ページの本文はT-23 <code>material_nodes</code>へ移管されている。A-20（書き戻し）は教材1件分の<strong>フロントマター＋見出しツリー＋本文＋問題ブロックを含むテキスト全体</strong>を受け取る（7章参照）ため、本書では<code>body_snapshot</code>を「A-20/A-31呼び出し時に送信された<strong>教材ソーステキスト全体</strong>（8.3節のフロントマタースキーマに従うテキスト）のスナップショット」と定義し直す。<code>format</code>列は個々のページごとに持ちうる値（T-23.format）になったため本テーブルからは削除し、代わりに<strong>差分の主体を示す<code>diff_kind</code></strong>（'source'固定。将来A-17由来のメタデータ変更にも本テーブルを流用する可能性に備えた列だが、v1.0時点ではA-20/A-31起因の行のみを記録するため常に'source'）は設けず、8.5節の方針どおり「A-17（メタデータのみの変更）はT-08の対象外」を維持する。この読み替えにより実装上の不整合は生じない。
+  </div>
+
+  <h3>3.1 組織・プロジェクト管理</h3>
+
+  <h4>T-01 users（ユーザー）</h4>
+  <table>
+    <thead><tr><th>カラム</th><th>型</th><th>NULL</th><th>デフォルト</th><th>説明</th></tr></thead>
+    <tbody>
+      <tr><td>id</td><td>BIGINT</td><td>NO</td><td>IDENTITY</td><td>PK</td></tr>
+      <tr><td>email</td><td>TEXT</td><td>NO</td><td>—</td><td>UNIQUE。Googleアカウントのメールアドレス</td></tr>
+      <tr><td>name</td><td>TEXT</td><td>NO</td><td>—</td><td>表示名。初回登録時のみGoogleプロフィールの氏名で初期化し、以降は本人がA-75（S-15）で変更するまでシステム側では更新しない（F-29。基本設計書v1.22・3.1節）</td></tr>
+      <tr><td>role</td><td>TEXT</td><td>NO</td><td>'member'</td><td>'member' / 'admin'。CHECK制約（3.3節）</td></tr>
+      <tr><td>picture_url</td><td>TEXT</td><td>YES</td><td>—</td><td>Googleプロフィール画像URL。DBに保存せず、参照のたびにGoogleプロフィールから取得する想定値（<code>custom_picture_key</code>未設定時のフォールバック）</td></tr>
+      <tr><td>custom_picture_key</td><td>TEXT</td><td>YES</td><td>—</td><td>Supabase Storageのパス。本人がS-15でアップロードした独自アイコン（F-29。A-76で発行した署名付きURLへアップロード後、A-75で確定）</td></tr>
+      <tr><td>is_active</td><td>BOOLEAN</td><td>NO</td><td>true</td><td>falseでログイン不可（5.1節）</td></tr>
+      <tr><td>created_at / updated_at</td><td>TIMESTAMPTZ</td><td>NO</td><td>now()</td><td></td></tr>
+    </tbody>
+  </table>
+  <p><strong>制約:</strong> PK(id)、UNIQUE(email)、CHECK(role IN ('member','admin'))。<strong>インデックス:</strong> UNIQUE制約によるemailの一意インデックスのみ（200名規模のため追加インデックス不要）。</p>
+
+  <h4>T-03 projects（プロジェクト）</h4>
+  <table>
+    <thead><tr><th>カラム</th><th>型</th><th>NULL</th><th>デフォルト</th><th>説明</th></tr></thead>
+    <tbody>
+      <tr><td>id</td><td>BIGINT</td><td>NO</td><td>IDENTITY</td><td>PK</td></tr>
+      <tr><td>name</td><td>TEXT</td><td>NO</td><td>—</td><td>プロジェクト名</td></tr>
+      <tr><td>description</td><td>TEXT</td><td>YES</td><td>—</td><td>説明</td></tr>
+      <tr><td>status</td><td>TEXT</td><td>NO</td><td>'active'</td><td>'active' / 'completed'</td></tr>
+      <tr><td>pm_user_id</td><td>BIGINT</td><td>YES</td><td>—</td><td>FK→users。表示用の参考情報（PM）。アクセス可否判定には用いない（基本設計書5.19節）</td></tr>
+      <tr><td>created_by</td><td>BIGINT</td><td>NO</td><td>—</td><td>FK→users。作成者</td></tr>
+      <tr><td>is_company_wide</td><td>BOOLEAN</td><td>NO</td><td>false</td><td>「全社公開」プロジェクトを表すフラグ。true行は初期データとして1行のみ投入し、A-09/A-10からtrueへ変更する手段は提供しない</td></tr>
+      <tr><td>created_at / updated_at</td><td>TIMESTAMPTZ</td><td>NO</td><td>now()</td><td></td></tr>
+    </tbody>
+  </table>
+  <p><strong>制約:</strong> PK(id)、FK(pm_user_id→users.id) ON DELETE SET NULL、FK(created_by→users.id)。<strong>初期データ:</strong> <code>database.py</code>のマイグレーション処理で、<code>is_company_wide=true</code>の行が0件のときのみ「全社公開」を1行INSERTする（起動のたびに重複投入しないよう存在確認してから挿入する）。</p>
+
+  <h4>T-04 project_memberships（プロジェクトメンバー）</h4>
+  <table>
+    <thead><tr><th>カラム</th><th>型</th><th>NULL</th><th>デフォルト</th><th>説明</th></tr></thead>
+    <tbody>
+      <tr><td>id</td><td>BIGINT</td><td>NO</td><td>IDENTITY</td><td>PK</td></tr>
+      <tr><td>project_id</td><td>BIGINT</td><td>NO</td><td>—</td><td>FK→projects</td></tr>
+      <tr><td>user_id</td><td>BIGINT</td><td>NO</td><td>—</td><td>FK→users</td></tr>
+      <tr><td>role</td><td>TEXT</td><td>NO</td><td>'learner'</td><td>'admin' / 'editor' / 'learner'。プロジェクトのローカルロール（5.3節）</td></tr>
+      <tr><td>assigned_by</td><td>BIGINT</td><td>YES</td><td>—</td><td>FK→users。ロールを設定したプロジェクト管理者。作成時の自動付与はNULL</td></tr>
+      <tr><td>status</td><td>TEXT</td><td>NO</td><td>'invited'</td><td>'invited' / 'active' / 'declined'。activeのみ権限が有効（5.3節）</td></tr>
+      <tr><td>joined_at</td><td>TIMESTAMPTZ</td><td>YES</td><td>—</td><td>承諾時（statusがactiveになった時点）に設定</td></tr>
+      <tr><td>left_at</td><td>TIMESTAMPTZ</td><td>YES</td><td>—</td><td>NULLが現役メンバー。削除時に設定し猶予期間判定に使用（6.3節）</td></tr>
+      <tr><td>created_at / updated_at</td><td>TIMESTAMPTZ</td><td>NO</td><td>now()</td><td></td></tr>
+    </tbody>
+  </table>
+  <p><strong>制約:</strong> PK(id)、FK(project_id→projects.id)、FK(user_id→users.id)、FK(assigned_by→users.id) ON DELETE SET NULL、UNIQUE(project_id, user_id)、CHECK(role IN ('admin','editor','learner'))、CHECK(status IN ('invited','active','declined'))。<strong>インデックス:</strong> UNIQUE(project_id, user_id)がプロジェクト単位・ユーザー単位いずれの検索にも使われる複合インデックスを兼ねる。加えて<code>user_id</code>単体にBTreeインデックスを付与し、A-11の<code>user_id</code>絞り込み（S-11・S-15の「自分が参加/招待されているプロジェクト」一覧）を高速化する。</p>
+
+  <h3>3.2 教材・目次</h3>
+
+  <h4>T-06 materials（教材）</h4>
+  <table>
+    <thead><tr><th>カラム</th><th>型</th><th>NULL</th><th>デフォルト</th><th>説明</th></tr></thead>
+    <tbody>
+      <tr><td>id</td><td>BIGINT</td><td>NO</td><td>IDENTITY</td><td>PK</td></tr>
+      <tr><td>project_id</td><td>BIGINT</td><td>NO</td><td>—</td><td>FK→projects。教材は必ずいずれかのプロジェクトに属する（F-25）</td></tr>
+      <tr><td>title</td><td>TEXT</td><td>NO</td><td>—</td><td>教材タイトル</td></tr>
+      <tr><td>description</td><td>TEXT</td><td>YES</td><td>—</td><td>一覧表示用の概要文</td></tr>
+      <tr><td>tags</td><td>JSONB</td><td>NO</td><td>'[]'</td><td>タグ文字列の配列（例: <code>["エンジニア基礎","Python"]</code>）</td></tr>
+      <tr><td>created_by</td><td>BIGINT</td><td>NO</td><td>—</td><td>FK→users。作成者記録用のみ。編集権限判定には用いない</td></tr>
+      <tr><td>status</td><td>TEXT</td><td>NO</td><td>'draft'</td><td>'draft' / 'published'</td></tr>
+      <tr><td>sort_order</td><td>INTEGER</td><td>NO</td><td>0</td><td>一覧表示の並び順</td></tr>
+      <tr><td>attempt_scope</td><td>TEXT</td><td>NO</td><td>'material'</td><td>'material' / 'chapter' / 'section' / 'page'。合否判定・再受験の単位</td></tr>
+      <tr><td>retake_scope</td><td>TEXT</td><td>NO</td><td>'all'</td><td>'all' / 'wrong_only'</td></tr>
+      <tr><td>default_feedback_style</td><td>TEXT</td><td>NO</td><td>'show_answer'</td><td>'show_answer' / 'review_only' / 'hint_only'</td></tr>
+      <tr><td>ai_context</td><td>TEXT</td><td>YES</td><td>—</td><td>AI採点への共通の前提条件・制約の自由記述</td></tr>
+      <tr><td>grading_mode</td><td>TEXT</td><td>NO</td><td>'ai'</td><td>'ai' / 'manual'。記述式・コード記述式の採点方式の教材既定</td></tr>
+      <tr><td>created_at / updated_at</td><td>TIMESTAMPTZ</td><td>NO</td><td>now()</td><td></td></tr>
+    </tbody>
+  </table>
+  <p><strong>制約:</strong> PK(id)、FK(project_id→projects.id)、FK(created_by→users.id)、CHECK(status IN ('draft','published'))、CHECK(attempt_scope IN ('material','chapter','section','page'))、CHECK(retake_scope IN ('all','wrong_only'))、CHECK(default_feedback_style IN ('show_answer','review_only','hint_only'))、CHECK(grading_mode IN ('ai','manual'))。<strong>インデックス:</strong> <code>project_id</code>にBTreeインデックス。<code>tags</code>はGINインデックス（<code>USING GIN (tags jsonb_path_ops)</code>）を付与し、A-14のタグ絞り込みを高速化する。</p>
+
+  <h4>T-23 material_nodes（教材の目次ノード：章・小見出し・ページ）</h4>
+  <table>
+    <thead><tr><th>カラム</th><th>型</th><th>NULL</th><th>デフォルト</th><th>説明</th></tr></thead>
+    <tbody>
+      <tr><td>id</td><td>BIGINT</td><td>NO</td><td>IDENTITY</td><td>PK</td></tr>
+      <tr><td>material_id</td><td>BIGINT</td><td>NO</td><td>—</td><td>FK→materials</td></tr>
+      <tr><td>parent_node_id</td><td>BIGINT</td><td>YES</td><td>—</td><td>FK→material_nodes（自己参照）。NULLはルート直下＝章</td></tr>
+      <tr><td>title</td><td>TEXT</td><td>NO</td><td>—</td><td>見出しタイトル</td></tr>
+      <tr><td>kind</td><td>TEXT</td><td>NO</td><td>—</td><td>'chapter' / 'section' / 'page'</td></tr>
+      <tr><td>sort_order</td><td>INTEGER</td><td>NO</td><td>0</td><td>同一<code>parent_node_id</code>内での並び順</td></tr>
+      <tr><td>content_kind</td><td>TEXT</td><td>YES</td><td>—</td><td>'explanation' / 'quiz' / 'mixed'。kind='page'のみ設定。サーバー側で自動判定</td></tr>
+      <tr><td>format</td><td>TEXT</td><td>YES</td><td>—</td><td>'markdown' / 'html'。kind='page'かつ説明文を含む場合のみ</td></tr>
+      <tr><td>body</td><td>TEXT</td><td>YES</td><td>—</td><td>説明文本文（原文。サニタイズ前）</td></tr>
+      <tr><td>quiz_mode</td><td>TEXT</td><td>NO</td><td>'all'</td><td>'all' / 'pool'。kind='page'のみ意味を持つ</td></tr>
+      <tr><td>pool_draw_count</td><td>INTEGER</td><td>YES</td><td>—</td><td>quiz_mode='pool'のときの1回あたり出題数</td></tr>
+      <tr><td>created_at / updated_at</td><td>TIMESTAMPTZ</td><td>NO</td><td>now()</td><td></td></tr>
+    </tbody>
+  </table>
+  <p><strong>制約:</strong> PK(id)、FK(material_id→materials.id) ON DELETE CASCADE、FK(parent_node_id→material_nodes.id) ON DELETE CASCADE、CHECK(kind IN ('chapter','section','page'))、CHECK(kind &lt;&gt; 'chapter' OR parent_node_id IS NULL)（章は必ずルート直下）、CHECK(content_kind IS NULL OR content_kind IN ('explanation','quiz','mixed'))、CHECK(format IS NULL OR format IN ('markdown','html'))、CHECK(quiz_mode IN ('all','pool'))。<strong>インデックス:</strong> <code>(material_id, parent_node_id, sort_order)</code>の複合インデックスで目次取得（A-15）の並び替え済み取得を高速化する。</p>
+
+  <h4>T-08 material_revisions（教材改訂履歴）</h4>
+  <table>
+    <thead><tr><th>カラム</th><th>型</th><th>NULL</th><th>デフォルト</th><th>説明</th></tr></thead>
+    <tbody>
+      <tr><td>id</td><td>BIGINT</td><td>NO</td><td>IDENTITY</td><td>PK</td></tr>
+      <tr><td>material_id</td><td>BIGINT</td><td>NO</td><td>—</td><td>FK→materials</td></tr>
+      <tr><td>source_snapshot</td><td>TEXT</td><td>NO</td><td>—</td><td>変更後の教材ソーステキスト全体のスナップショット（本節冒頭のcallout参照）</td></tr>
+      <tr><td>changed_by</td><td>BIGINT</td><td>NO</td><td>—</td><td>FK→users</td></tr>
+      <tr><td>changed_via</td><td>TEXT</td><td>NO</td><td>—</td><td>'web' / 'claude_code'。JWTの<code>token_type</code>クレームから機械的に判定（7.4節）</td></tr>
+      <tr><td>change_summary</td><td>TEXT</td><td>YES</td><td>—</td><td>変更概要（自動生成または明示指定。7.4節）</td></tr>
+      <tr><td>created_at</td><td>TIMESTAMPTZ</td><td>NO</td><td>now()</td><td>改訂日時</td></tr>
+    </tbody>
+  </table>
+  <p><strong>制約:</strong> PK(id)、FK(material_id→materials.id) ON DELETE CASCADE、FK(changed_by→users.id)、CHECK(changed_via IN ('web','claude_code'))。<strong>インデックス:</strong> <code>(material_id, created_at DESC)</code>でA-22の新しい順一覧取得を高速化する。追記専用のため<code>updated_at</code>は持たない。</p>
+
+  <h4>T-09 material_attachments（添付ファイル・リンク）</h4>
+  <table>
+    <thead><tr><th>カラム</th><th>型</th><th>NULL</th><th>デフォルト</th><th>説明</th></tr></thead>
+    <tbody>
+      <tr><td>id</td><td>BIGINT</td><td>NO</td><td>IDENTITY</td><td>PK</td></tr>
+      <tr><td>material_id</td><td>BIGINT</td><td>NO</td><td>—</td><td>FK→materials</td></tr>
+      <tr><td>node_id</td><td>BIGINT</td><td>YES</td><td>—</td><td>FK→material_nodes。特定ページの添付ならそのnode_id、教材全体の資料はNULL</td></tr>
+      <tr><td>kind</td><td>TEXT</td><td>NO</td><td>—</td><td>'file' / 'link'</td></tr>
+      <tr><td>storage_key</td><td>TEXT</td><td>YES</td><td>—</td><td>kind='file'のときのSupabase Storageパス</td></tr>
+      <tr><td>external_url</td><td>TEXT</td><td>YES</td><td>—</td><td>kind='link'のときの外部URL</td></tr>
+      <tr><td>filename</td><td>TEXT</td><td>NO</td><td>—</td><td>表示名（file: 元ファイル名／link: リンクのタイトル）</td></tr>
+      <tr><td>mime_type</td><td>TEXT</td><td>YES</td><td>—</td><td>kind='file'のときのMIMEタイプ</td></tr>
+      <tr><td>size_bytes</td><td>BIGINT</td><td>YES</td><td>—</td><td>kind='file'のときのバイトサイズ（一覧表示用）</td></tr>
+      <tr><td>created_at / updated_at</td><td>TIMESTAMPTZ</td><td>NO</td><td>now()</td><td></td></tr>
+    </tbody>
+  </table>
+  <p><strong>制約:</strong> PK(id)、FK(material_id→materials.id) ON DELETE CASCADE、FK(node_id→material_nodes.id) ON DELETE CASCADE、CHECK(kind IN ('file','link'))、CHECK((kind='file' AND storage_key IS NOT NULL AND external_url IS NULL) OR (kind='link' AND external_url IS NOT NULL AND storage_key IS NULL))。<strong>インデックス:</strong> <code>(material_id, node_id)</code>の複合インデックス（<code>node_id</code>はNULL可のため、A-28の「教材全体のみ」取得は<code>node_id IS NULL</code>条件で同インデックスを利用する）。</p>
+
+  <h4>T-10 questions（問題）</h4>
+  <table>
+    <thead><tr><th>カラム</th><th>型</th><th>NULL</th><th>デフォルト</th><th>説明</th></tr></thead>
+    <tbody>
+      <tr><td>id</td><td>BIGINT</td><td>NO</td><td>IDENTITY</td><td>PK</td></tr>
+      <tr><td>material_id</td><td>BIGINT</td><td>NO</td><td>—</td><td>FK→materials（検索・削除の高速化用の非正規化列。常にnode_idの所属教材と一致）</td></tr>
+      <tr><td>node_id</td><td>BIGINT</td><td>NO</td><td>—</td><td>FK→material_nodes。問題が属する葉ノード（ページ）</td></tr>
+      <tr><td>type</td><td>TEXT</td><td>NO</td><td>—</td><td>'single' / 'multi' / 'free_text' / 'code' / 'reorder' / 'score_log'</td></tr>
+      <tr><td>prompt</td><td>TEXT</td><td>NO</td><td>—</td><td>設問文</td></tr>
+      <tr><td>options</td><td>JSONB</td><td>YES</td><td>—</td><td>選択肢の配列。single/multiで必須</td></tr>
+      <tr><td>correct_answer</td><td>JSONB</td><td>YES</td><td>—</td><td>正解。single/multi/reorderで必須</td></tr>
+      <tr><td>scoring_criteria</td><td>TEXT</td><td>YES</td><td>—</td><td>free_text/codeのAI採点基準</td></tr>
+      <tr><td>code_language</td><td>TEXT</td><td>YES</td><td>—</td><td>type='code'のときの言語ヒント</td></tr>
+      <tr><td>sort_order</td><td>INTEGER</td><td>NO</td><td>0</td><td>同一ページ内での表示順</td></tr>
+      <tr><td>required</td><td>BOOLEAN</td><td>NO</td><td>true</td><td>回答必須／任意</td></tr>
+      <tr><td>is_critical</td><td>BOOLEAN</td><td>NO</td><td>false</td><td>ドボン問題フラグ。score_logでは常にfalse</td></tr>
+      <tr><td>feedback_style</td><td>TEXT</td><td>YES</td><td>—</td><td>教材既定を上書きする場合のみ設定</td></tr>
+      <tr><td>pool_group_id</td><td>BIGINT</td><td>YES</td><td>—</td><td>FK→questions（自己参照）。同じ値を持つ設問群が出題プールを構成する</td></tr>
+      <tr><td>score_unit</td><td>TEXT</td><td>YES</td><td>—</td><td>type='score_log'のときの単位表記</td></tr>
+      <tr><td>grading_mode</td><td>TEXT</td><td>YES</td><td>—</td><td>'ai' / 'manual'。教材既定を上書きする場合のみ。free_text/codeのみ意味を持つ</td></tr>
+      <tr><td>created_at / updated_at</td><td>TIMESTAMPTZ</td><td>NO</td><td>now()</td><td></td></tr>
+    </tbody>
+  </table>
+  <p><strong>制約:</strong> PK(id)、FK(material_id→materials.id) ON DELETE CASCADE、FK(node_id→material_nodes.id) ON DELETE CASCADE、FK(pool_group_id→questions.id) ON DELETE SET NULL、CHECK(type IN ('single','multi','free_text','code','reorder','score_log'))、CHECK(feedback_style IS NULL OR feedback_style IN ('show_answer','review_only','hint_only'))、CHECK(grading_mode IS NULL OR grading_mode IN ('ai','manual'))。<strong>インデックス:</strong> <code>(node_id, sort_order)</code>でページ内の問題取得を高速化。<code>pool_group_id</code>にBTreeインデックス（A-40のプール抽出用）。</p>
+
+  <h3>3.3 出題・受験・学習記録</h3>
+
+  <h4>T-11 assignments（配信設定）</h4>
+  <table>
+    <thead><tr><th>カラム</th><th>型</th><th>NULL</th><th>デフォルト</th><th>説明</th></tr></thead>
+    <tbody>
+      <tr><td>id</td><td>BIGINT</td><td>NO</td><td>IDENTITY</td><td>PK</td></tr>
+      <tr><td>material_id</td><td>BIGINT</td><td>NO</td><td>—</td><td>FK→materials</td></tr>
+      <tr><td>scope_type</td><td>TEXT</td><td>NO</td><td>—</td><td>'company' / 'project' / 'individual'</td></tr>
+      <tr><td>scope_id</td><td>BIGINT</td><td>YES</td><td>—</td><td>scope_type='project'ならprojects.id、'individual'ならusers.id。'company'ではNULL</td></tr>
+      <tr><td>required</td><td>BOOLEAN</td><td>NO</td><td>true</td><td>必修／任意。scope_type='company'では権限分岐にも使用（基本設計書5.9節）</td></tr>
+      <tr><td>due_at</td><td>TIMESTAMPTZ</td><td>YES</td><td>—</td><td>受講期限。required=falseでは無効化して入力させない（画面制御）が、DB上は保持可</td></tr>
+      <tr><td>pass_score_pct</td><td>NUMERIC(5,2)</td><td>YES</td><td>—</td><td>合格基準（正答率%）</td></tr>
+      <tr><td>retake_allowed</td><td>BOOLEAN</td><td>NO</td><td>true</td><td>再受験可否</td></tr>
+      <tr><td>retake_limit</td><td>INTEGER</td><td>YES</td><td>—</td><td>再受験回数上限。NULLは無制限</td></tr>
+      <tr><td>created_by</td><td>BIGINT</td><td>NO</td><td>—</td><td>FK→users</td></tr>
+      <tr><td>created_at / updated_at</td><td>TIMESTAMPTZ</td><td>NO</td><td>now()</td><td></td></tr>
+    </tbody>
+  </table>
+  <p><strong>制約:</strong> PK(id)、FK(material_id→materials.id) ON DELETE CASCADE、FK(created_by→users.id)、CHECK(scope_type IN ('company','project','individual'))、CHECK(scope_type = 'company' OR scope_id IS NOT NULL)。<strong>インデックス:</strong> <code>(scope_type, scope_id)</code>の複合インデックスで6.3節の対象者判定を高速化。<code>material_id</code>にもBTreeインデックス。</p>
+
+  <h4>T-12 enrollment_progress（受講進捗）</h4>
+  <table>
+    <thead><tr><th>カラム</th><th>型</th><th>NULL</th><th>デフォルト</th><th>説明</th></tr></thead>
+    <tbody>
+      <tr><td>id</td><td>BIGINT</td><td>NO</td><td>IDENTITY</td><td>PK</td></tr>
+      <tr><td>user_id</td><td>BIGINT</td><td>NO</td><td>—</td><td>FK→users</td></tr>
+      <tr><td>material_id</td><td>BIGINT</td><td>NO</td><td>—</td><td>FK→materials</td></tr>
+      <tr><td>status</td><td>TEXT</td><td>NO</td><td>'not_started'</td><td>'not_started' / 'in_progress' / 'completed'</td></tr>
+      <tr><td>current_node_id</td><td>BIGINT</td><td>YES</td><td>—</td><td>FK→material_nodes。再開位置となる現在のページ</td></tr>
+      <tr><td>completed_node_ids</td><td>JSONB</td><td>NO</td><td>'[]'</td><td>完了済みページのnode_id配列</td></tr>
+      <tr><td>started_at</td><td>TIMESTAMPTZ</td><td>YES</td><td>—</td><td></td></tr>
+      <tr><td>completed_at</td><td>TIMESTAMPTZ</td><td>YES</td><td>—</td><td></td></tr>
+      <tr><td>created_at / updated_at</td><td>TIMESTAMPTZ</td><td>NO</td><td>now()</td><td></td></tr>
+    </tbody>
+  </table>
+  <p><strong>制約:</strong> PK(id)、FK(user_id→users.id)、FK(material_id→materials.id) ON DELETE CASCADE、FK(current_node_id→material_nodes.id) ON DELETE SET NULL、UNIQUE(user_id, material_id)、CHECK(status IN ('not_started','in_progress','completed'))。<strong>インデックス:</strong> UNIQUE(user_id, material_id)がS-02マイ学習取得の主キー的な検索を兼ねる。</p>
+
+  <h4>T-13 quiz_attempts（受験記録）</h4>
+  <table>
+    <thead><tr><th>カラム</th><th>型</th><th>NULL</th><th>デフォルト</th><th>説明</th></tr></thead>
+    <tbody>
+      <tr><td>id</td><td>BIGINT</td><td>NO</td><td>IDENTITY</td><td>PK</td></tr>
+      <tr><td>user_id</td><td>BIGINT</td><td>NO</td><td>—</td><td>FK→users</td></tr>
+      <tr><td>material_id</td><td>BIGINT</td><td>NO</td><td>—</td><td>FK→materials</td></tr>
+      <tr><td>scope_node_id</td><td>BIGINT</td><td>YES</td><td>—</td><td>FK→material_nodes。attempt_scopeが'material'以外のときの対象ノード</td></tr>
+      <tr><td>mode</td><td>TEXT</td><td>NO</td><td>—</td><td>'graded' / 'practice'</td></tr>
+      <tr><td>attempt_no</td><td>INTEGER</td><td>NO</td><td>1</td><td>同一教材・同一ユーザー・同一scope_node_idのgraded試行の通し番号</td></tr>
+      <tr><td>score_pct</td><td>NUMERIC(5,2)</td><td>YES</td><td>—</td><td>正答率。採点中はNULL</td></tr>
+      <tr><td>passed</td><td>BOOLEAN</td><td>YES</td><td>—</td><td>合否。採点中はNULL</td></tr>
+      <tr><td>fail_reason</td><td>TEXT</td><td>YES</td><td>—</td><td>ドボン問題起因の不合格理由（該当設問名）</td></tr>
+      <tr><td>question_order</td><td>JSONB</td><td>YES</td><td>—</td><td>この試行での出題順・プール抽出結果</td></tr>
+      <tr><td>carried_over_question_ids</td><td>JSONB</td><td>YES</td><td>—</td><td>retake_scope='wrong_only'の再受験で前回正解済みとして持ち越した設問ID配列</td></tr>
+      <tr><td>started_at</td><td>TIMESTAMPTZ</td><td>NO</td><td>now()</td><td></td></tr>
+      <tr><td>submitted_at</td><td>TIMESTAMPTZ</td><td>YES</td><td>—</td><td>提出日時。未提出（中断中）はNULL</td></tr>
+    </tbody>
+  </table>
+  <p><strong>制約:</strong> PK(id)、FK(user_id→users.id)、FK(material_id→materials.id) ON DELETE CASCADE、FK(scope_node_id→material_nodes.id) ON DELETE CASCADE、CHECK(mode IN ('graded','practice'))。<strong>インデックス:</strong> <code>(user_id, material_id, mode)</code>の複合インデックスでA-40の「未提出の試行があれば再開」判定・進捗集計を高速化。</p>
+
+  <h4>T-14 answers（回答）</h4>
+  <table>
+    <thead><tr><th>カラム</th><th>型</th><th>NULL</th><th>デフォルト</th><th>説明</th></tr></thead>
+    <tbody>
+      <tr><td>id</td><td>BIGINT</td><td>NO</td><td>IDENTITY</td><td>PK</td></tr>
+      <tr><td>attempt_id</td><td>BIGINT</td><td>NO</td><td>—</td><td>FK→quiz_attempts</td></tr>
+      <tr><td>question_id</td><td>BIGINT</td><td>NO</td><td>—</td><td>FK→questions</td></tr>
+      <tr><td>response</td><td>JSONB</td><td>NO</td><td>—</td><td>生の回答値。型は問題種別に依存（8.3節参照）</td></tr>
+      <tr><td>is_correct</td><td>BOOLEAN</td><td>YES</td><td>—</td><td>正誤。score_logは常にNULL、grading_mode='manual'は採点前NULL</td></tr>
+      <tr><td>ai_score_pct</td><td>NUMERIC(5,2)</td><td>YES</td><td>—</td><td>記述式/code問題のAI採点スコア（採点中はNULL）</td></tr>
+      <tr><td>ai_feedback</td><td>TEXT</td><td>YES</td><td>—</td><td>AI講評または手動採点者の講評テキスト</td></tr>
+      <tr><td>reviewed_by</td><td>BIGINT</td><td>YES</td><td>—</td><td>FK→users。採点結果を修正／入力したプロジェクト管理者・編集者</td></tr>
+      <tr><td>reviewed_at</td><td>TIMESTAMPTZ</td><td>YES</td><td>—</td><td></td></tr>
+      <tr><td>created_at / updated_at</td><td>TIMESTAMPTZ</td><td>NO</td><td>now()</td><td></td></tr>
+    </tbody>
+  </table>
+  <p><strong>制約:</strong> PK(id)、FK(attempt_id→quiz_attempts.id) ON DELETE CASCADE、FK(question_id→questions.id) ON DELETE CASCADE、FK(reviewed_by→users.id) ON DELETE SET NULL、UNIQUE(attempt_id, question_id)。<strong>インデックス:</strong> UNIQUE(attempt_id, question_id)がA-41（回答保存のupsert）の主キー的な検索を兼ねる。S-19の設問別回答一覧のため<code>question_id</code>にもBTreeインデックス。</p>
+
+  <h3>3.4 AI関連（T-15〜T-19）</h3>
+  <p>いずれもKeirekiのT-09 ai_usage_logsと同方針で、AIへの入出力本文は保存しない（要件定義書6.2節）。8.3節「スタックジョブ・スイープ」の対象となるT-16〜T-18は、リクエスト受付時に<code>requested_at</code>ありでプレースホルダ行を作成し、完了時に内容カラムを埋める2段階の書き込みを行う。</p>
+
+  <h4>T-15 ai_material_reviews（AI教材レビュー結果）</h4>
+  <table>
+    <thead><tr><th>カラム</th><th>型</th><th>NULL</th><th>デフォルト</th><th>説明</th></tr></thead>
+    <tbody>
+      <tr><td>id</td><td>BIGINT</td><td>NO</td><td>IDENTITY</td><td>PK</td></tr>
+      <tr><td>material_id</td><td>BIGINT</td><td>NO</td><td>—</td><td>FK→materials</td></tr>
+      <tr><td>requested_by</td><td>BIGINT</td><td>NO</td><td>—</td><td>FK→users</td></tr>
+      <tr><td>findings</td><td>JSONB</td><td>NO</td><td>—</td><td>指摘事項の配列（8.6節スキーマ参照）</td></tr>
+      <tr><td>created_at</td><td>TIMESTAMPTZ</td><td>NO</td><td>now()</td><td></td></tr>
+    </tbody>
+  </table>
+  <p><strong>制約:</strong> PK(id)、FK(material_id→materials.id) ON DELETE CASCADE、FK(requested_by→users.id)。同期呼び出し（A-32）のため<code>requested_at</code>プレースホルダ方式は用いない（呼び出し完了後に1行INSERT）。</p>
+
+  <h4>T-16 ai_material_insights（AIつまずき分析結果）</h4>
+  <table>
+    <thead><tr><th>カラム</th><th>型</th><th>NULL</th><th>デフォルト</th><th>説明</th></tr></thead>
+    <tbody>
+      <tr><td>id</td><td>BIGINT</td><td>NO</td><td>IDENTITY</td><td>PK</td></tr>
+      <tr><td>material_id</td><td>BIGINT</td><td>NO</td><td>—</td><td>FK→materials</td></tr>
+      <tr><td>requested_by</td><td>BIGINT</td><td>NO</td><td>—</td><td>FK→users</td></tr>
+      <tr><td>requested_at</td><td>TIMESTAMPTZ</td><td>NO</td><td>now()</td><td>スタックジョブ検出に使用（8.3節）</td></tr>
+      <tr><td>weak_questions</td><td>JSONB</td><td>YES</td><td>—</td><td>完了時に設定。正答率の低い設問一覧</td></tr>
+      <tr><td>suggestions</td><td>TEXT</td><td>YES</td><td>—</td><td>完了時に設定。教材改善提案</td></tr>
+      <tr><td>created_at</td><td>TIMESTAMPTZ</td><td>NO</td><td>now()</td><td></td></tr>
+    </tbody>
+  </table>
+  <p><strong>制約:</strong> PK(id)、FK(material_id→materials.id) ON DELETE CASCADE、FK(requested_by→users.id)。<strong>インデックス:</strong> <code>(material_id, created_at DESC)</code>で最新結果取得（A-35）を高速化。</p>
+
+  <h4>T-17 ai_personal_feedback（AI個人フィードバック）</h4>
+  <table>
+    <thead><tr><th>カラム</th><th>型</th><th>NULL</th><th>デフォルト</th><th>説明</th></tr></thead>
+    <tbody>
+      <tr><td>id</td><td>BIGINT</td><td>NO</td><td>IDENTITY</td><td>PK</td></tr>
+      <tr><td>user_id</td><td>BIGINT</td><td>NO</td><td>—</td><td>FK→users</td></tr>
+      <tr><td>requested_at</td><td>TIMESTAMPTZ</td><td>NO</td><td>now()</td><td></td></tr>
+      <tr><td>content</td><td>TEXT</td><td>YES</td><td>—</td><td>完了時に設定</td></tr>
+      <tr><td>created_at</td><td>TIMESTAMPTZ</td><td>NO</td><td>now()</td><td></td></tr>
+    </tbody>
+  </table>
+  <p><strong>制約:</strong> PK(id)、FK(user_id→users.id) ON DELETE CASCADE。<strong>インデックス:</strong> <code>(user_id, created_at DESC)</code>。</p>
+
+  <h4>T-18 ai_org_reports（AI組織レポート）</h4>
+  <table>
+    <thead><tr><th>カラム</th><th>型</th><th>NULL</th><th>デフォルト</th><th>説明</th></tr></thead>
+    <tbody>
+      <tr><td>id</td><td>BIGINT</td><td>NO</td><td>IDENTITY</td><td>PK</td></tr>
+      <tr><td>scope_type</td><td>TEXT</td><td>NO</td><td>—</td><td>'company' / 'project'</td></tr>
+      <tr><td>scope_id</td><td>BIGINT</td><td>YES</td><td>—</td><td>scope_type='project'のときprojects.id</td></tr>
+      <tr><td>requested_by</td><td>BIGINT</td><td>NO</td><td>—</td><td>FK→users</td></tr>
+      <tr><td>requested_at</td><td>TIMESTAMPTZ</td><td>NO</td><td>now()</td><td></td></tr>
+      <tr><td>content</td><td>TEXT</td><td>YES</td><td>—</td><td>完了時に設定</td></tr>
+      <tr><td>created_at</td><td>TIMESTAMPTZ</td><td>NO</td><td>now()</td><td></td></tr>
+    </tbody>
+  </table>
+  <p><strong>制約:</strong> PK(id)、FK(requested_by→users.id)、CHECK(scope_type IN ('company','project'))、CHECK(scope_type = 'company' OR scope_id IS NOT NULL)。<strong>インデックス:</strong> <code>(scope_type, scope_id, created_at DESC)</code>。</p>
+
+  <h4>T-19 ai_usage_logs（AI利用ログ）</h4>
+  <table>
+    <thead><tr><th>カラム</th><th>型</th><th>NULL</th><th>デフォルト</th><th>説明</th></tr></thead>
+    <tbody>
+      <tr><td>id</td><td>BIGINT</td><td>NO</td><td>IDENTITY</td><td>PK</td></tr>
+      <tr><td>user_id</td><td>BIGINT</td><td>YES</td><td>—</td><td>FK→users ON DELETE SET NULL</td></tr>
+      <tr><td>feature</td><td>TEXT</td><td>NO</td><td>—</td><td>'material_review' / 'grading' / 'insight_analysis' / 'personal_feedback' / 'org_report'</td></tr>
+      <tr><td>model</td><td>TEXT</td><td>NO</td><td>—</td><td>実際に呼び出されたモデルID</td></tr>
+      <tr><td>input_tokens</td><td>INTEGER</td><td>NO</td><td>0</td><td></td></tr>
+      <tr><td>output_tokens</td><td>INTEGER</td><td>NO</td><td>0</td><td></td></tr>
+      <tr><td>cost_estimate</td><td>NUMERIC(10,6)</td><td>NO</td><td>0</td><td>概算コスト（円）</td></tr>
+      <tr><td>created_at</td><td>TIMESTAMPTZ</td><td>NO</td><td>now()</td><td>月次集計のキー</td></tr>
+    </tbody>
+  </table>
+  <p><strong>制約:</strong> PK(id)、FK(user_id→users.id) ON DELETE SET NULL、CHECK(feature IN ('material_review','grading','insight_analysis','personal_feedback','org_report'))。<strong>インデックス:</strong> <code>(created_at, feature)</code>でA-58の月次×機能別集計を高速化。</p>
+
+  <h3>3.5 配信・通知・設定・共有</h3>
+
+  <h4>T-20 slack_notification_logs（Slack送信ログ）</h4>
+  <table>
+    <thead><tr><th>カラム</th><th>型</th><th>NULL</th><th>デフォルト</th><th>説明</th></tr></thead>
+    <tbody>
+      <tr><td>id</td><td>BIGINT</td><td>NO</td><td>IDENTITY</td><td>PK</td></tr>
+      <tr><td>user_id</td><td>BIGINT</td><td>NO</td><td>—</td><td>FK→users。催促を受けた対象者</td></tr>
+      <tr><td>assignment_id</td><td>BIGINT</td><td>NO</td><td>—</td><td>FK→assignments</td></tr>
+      <tr><td>sent_at</td><td>TIMESTAMPTZ</td><td>NO</td><td>now()</td><td></td></tr>
+      <tr><td>status</td><td>TEXT</td><td>NO</td><td>—</td><td>'sent' / 'failed'</td></tr>
+    </tbody>
+  </table>
+  <p><strong>制約:</strong> PK(id)、FK(user_id→users.id)、FK(assignment_id→assignments.id) ON DELETE CASCADE、CHECK(status IN ('sent','failed'))。<strong>インデックス:</strong> <code>(assignment_id, user_id, sent_at DESC)</code>で「直近◯日以内に催促済み」の重複送信抑止判定（4.6節callout参照）を高速化。</p>
+
+  <h4>T-21 app_settings（システム設定）</h4>
+  <table>
+    <thead><tr><th>カラム</th><th>型</th><th>NULL</th><th>デフォルト</th><th>説明</th></tr></thead>
+    <tbody>
+      <tr><td>key</td><td>TEXT</td><td>NO</td><td>—</td><td>PK。設定キー</td></tr>
+      <tr><td>value_text</td><td>TEXT</td><td>YES</td><td>—</td><td>設定値（文字列）</td></tr>
+      <tr><td>updated_by</td><td>BIGINT</td><td>YES</td><td>—</td><td>FK→users ON DELETE SET NULL</td></tr>
+      <tr><td>updated_at</td><td>TIMESTAMPTZ</td><td>NO</td><td>now()</td><td></td></tr>
+    </tbody>
+  </table>
+  <p><strong>キー一覧:</strong></p>
+  <table>
+    <thead><tr><th>key</th><th>内容</th><th>既定値（行が無い場合）</th><th>参照API</th></tr></thead>
+    <tbody>
+      <tr><td><code>ai_model</code></td><td>AI機能（F-08, F-20〜F-23）が使用するモデルID</td><td>環境変数<code>ANTHROPIC_MODEL</code>、無ければ<code>claude-sonnet-5</code>（8.4節）</td><td>A-55, A-56, A-80</td></tr>
+      <tr><td><code>slack_webhook_url</code></td><td>Slack Incoming Webhook URL</td><td>環境変数<code>SLACK_WEBHOOK_URL</code></td><td>A-55〜A-57, A-80</td></tr>
+      <tr><td><code>slack_channel</code></td><td>通知先チャンネル表示名（Webhook自体は登録時のチャンネル固定のため表示用）</td><td>—</td><td>A-55, A-56, A-80</td></tr>
+      <tr><td><code>project_leave_grace_period_days</code></td><td>プロジェクト離任後の猶予期間日数</td><td>30</td><td>A-55, A-56（6.3節で参照）, A-80</td></tr>
+    </tbody>
+  </table>
+  <p><strong>制約:</strong> PK(key)、FK(updated_by→users.id) ON DELETE SET NULL。他テーブルと異なり<code>id</code>のIDENTITY列は持たず、設定キーそのものを主キーとする（Keireki T-08と同方針）。</p>
+
+  <h4>T-22 material_project_shares（教材のプロジェクト間共有）</h4>
+  <table>
+    <thead><tr><th>カラム</th><th>型</th><th>NULL</th><th>デフォルト</th><th>説明</th></tr></thead>
+    <tbody>
+      <tr><td>id</td><td>BIGINT</td><td>NO</td><td>IDENTITY</td><td>PK</td></tr>
+      <tr><td>material_id</td><td>BIGINT</td><td>NO</td><td>—</td><td>FK→materials（共有元教材）</td></tr>
+      <tr><td>shared_to_project_id</td><td>BIGINT</td><td>NO</td><td>—</td><td>FK→projects（共有先）</td></tr>
+      <tr><td>shared_by</td><td>BIGINT</td><td>NO</td><td>—</td><td>FK→users。共有を申請した共有元プロジェクト管理者</td></tr>
+      <tr><td>shared_at</td><td>TIMESTAMPTZ</td><td>NO</td><td>now()</td><td></td></tr>
+      <tr><td>status</td><td>TEXT</td><td>NO</td><td>'pending'</td><td>'pending' / 'accepted' / 'rejected'</td></tr>
+      <tr><td>responded_by</td><td>BIGINT</td><td>YES</td><td>—</td><td>FK→users。承認・却下した共有先プロジェクト管理者</td></tr>
+      <tr><td>responded_at</td><td>TIMESTAMPTZ</td><td>YES</td><td>—</td><td></td></tr>
+    </tbody>
+  </table>
+  <p><strong>制約:</strong> PK(id)、FK(material_id→materials.id) ON DELETE CASCADE、FK(shared_to_project_id→projects.id) ON DELETE CASCADE、FK(shared_by→users.id)、FK(responded_by→users.id) ON DELETE SET NULL、UNIQUE(material_id, shared_to_project_id)、CHECK(status IN ('pending','accepted','rejected'))。<strong>インデックス:</strong> <code>shared_to_project_id</code>にBTreeインデックス（A-66の受信一覧取得用）。UNIQUE制約により、却下（rejected）後に同じ組み合わせで再申請する場合はA-60が既存行を<code>ON CONFLICT (material_id, shared_to_project_id) DO UPDATE</code>で<code>status='pending'</code>に戻す（新規行を作らない）。</p>
+
+  <h3>3.6 受験後アンケート（T-26〜T-29）</h3>
+
+  <h4>T-26 surveys（受験後アンケート）</h4>
+  <table>
+    <thead><tr><th>カラム</th><th>型</th><th>NULL</th><th>デフォルト</th><th>説明</th></tr></thead>
+    <tbody>
+      <tr><td>id</td><td>BIGINT</td><td>NO</td><td>IDENTITY</td><td>PK</td></tr>
+      <tr><td>material_id</td><td>BIGINT</td><td>NO</td><td>—</td><td>FK→materials</td></tr>
+      <tr><td>node_id</td><td>BIGINT</td><td>YES</td><td>—</td><td>FK→material_nodes（kind='chapter'の行のみ許容）。NULLは教材全体</td></tr>
+      <tr><td>title</td><td>TEXT</td><td>NO</td><td>—</td><td></td></tr>
+      <tr><td>is_active</td><td>BOOLEAN</td><td>NO</td><td>true</td><td></td></tr>
+      <tr><td>repeat_mode</td><td>TEXT</td><td>NO</td><td>'once'</td><td>'once' / 'every_time'</td></tr>
+      <tr><td>created_at / updated_at</td><td>TIMESTAMPTZ</td><td>NO</td><td>now()</td><td></td></tr>
+    </tbody>
+  </table>
+  <p><strong>制約:</strong> PK(id)、FK(material_id→materials.id) ON DELETE CASCADE、FK(node_id→material_nodes.id) ON DELETE CASCADE、CHECK(repeat_mode IN ('once','every_time'))。<strong>「1箇所につき1アンケートまで」の実現方法:</strong> PostgreSQLのUNIQUE制約はNULLを重複可能な値として扱うため、単純な<code>UNIQUE(material_id, node_id)</code>では教材全体（node_id IS NULL）向けのアンケートを複数作成できてしまう。そこで<strong>部分インデックス</strong>を2本用いる: <code>CREATE UNIQUE INDEX ON surveys (material_id) WHERE node_id IS NULL;</code>（教材全体は1件まで）と<code>CREATE UNIQUE INDEX ON surveys (material_id, node_id) WHERE node_id IS NOT NULL;</code>（章ごとに1件まで）。</p>
+
+  <h4>T-27 survey_questions（アンケート設問）</h4>
+  <table>
+    <thead><tr><th>カラム</th><th>型</th><th>NULL</th><th>デフォルト</th><th>説明</th></tr></thead>
+    <tbody>
+      <tr><td>id</td><td>BIGINT</td><td>NO</td><td>IDENTITY</td><td>PK</td></tr>
+      <tr><td>survey_id</td><td>BIGINT</td><td>NO</td><td>—</td><td>FK→surveys</td></tr>
+      <tr><td>type</td><td>TEXT</td><td>NO</td><td>—</td><td>'rating_5' / 'single_choice' / 'free_text'</td></tr>
+      <tr><td>prompt</td><td>TEXT</td><td>NO</td><td>—</td><td></td></tr>
+      <tr><td>options</td><td>JSONB</td><td>YES</td><td>—</td><td>type='single_choice'のみ。選択肢の配列</td></tr>
+      <tr><td>sort_order</td><td>INTEGER</td><td>NO</td><td>0</td><td></td></tr>
+    </tbody>
+  </table>
+  <p><strong>制約:</strong> PK(id)、FK(survey_id→surveys.id) ON DELETE CASCADE、CHECK(type IN ('rating_5','single_choice','free_text'))。<code>correct_answer</code>に相当する列は持たない（正誤のない設問のため）。</p>
+
+  <h4>T-28 survey_responses（アンケート回答ヘッダー）</h4>
+  <table>
+    <thead><tr><th>カラム</th><th>型</th><th>NULL</th><th>デフォルト</th><th>説明</th></tr></thead>
+    <tbody>
+      <tr><td>id</td><td>BIGINT</td><td>NO</td><td>IDENTITY</td><td>PK</td></tr>
+      <tr><td>survey_id</td><td>BIGINT</td><td>NO</td><td>—</td><td>FK→surveys</td></tr>
+      <tr><td>user_id</td><td>BIGINT</td><td>YES</td><td>—</td><td>FK→users ON DELETE SET NULL。統計利用のみのためnullable</td></tr>
+      <tr><td>submitted_at</td><td>TIMESTAMPTZ</td><td>NO</td><td>now()</td><td></td></tr>
+    </tbody>
+  </table>
+  <p><strong>制約:</strong> PK(id)、FK(survey_id→surveys.id) ON DELETE CASCADE、FK(user_id→users.id) ON DELETE SET NULL。<code>repeat_mode='once'</code>の重複表示防止判定（フロント側でA-72呼び出し前にA-39のマイ学習データから当該<code>survey_id</code>への回答有無を確認）のため<code>(survey_id, user_id)</code>にインデックスを付与する。</p>
+
+  <h4>T-29 survey_answers（アンケート回答：設問ごと）</h4>
+  <table>
+    <thead><tr><th>カラム</th><th>型</th><th>NULL</th><th>デフォルト</th><th>説明</th></tr></thead>
+    <tbody>
+      <tr><td>id</td><td>BIGINT</td><td>NO</td><td>IDENTITY</td><td>PK</td></tr>
+      <tr><td>response_id</td><td>BIGINT</td><td>NO</td><td>—</td><td>FK→survey_responses</td></tr>
+      <tr><td>survey_question_id</td><td>BIGINT</td><td>NO</td><td>—</td><td>FK→survey_questions</td></tr>
+      <tr><td>value</td><td>JSONB</td><td>NO</td><td>—</td><td>評価点（数値）／選択値（文字列）／自由記述文（文字列）のいずれか</td></tr>
+    </tbody>
+  </table>
+  <p><strong>制約:</strong> PK(id)、FK(response_id→survey_responses.id) ON DELETE CASCADE、FK(survey_question_id→survey_questions.id) ON DELETE CASCADE。すべての設問への回答が必須ではない（要件定義書F-28。回答はすべて任意でスキップ可）ため、未回答の設問は行自体を作成しない。</p>
+
+  <h3>3.7 CREATE TABLE 例</h3>
+  <p><code>database.py</code>のSCHEMA定義に全24テーブルのDDLを記載する。代表として、自己参照ツリー（T-23）・部分インデックスによる条件付き一意性（T-26）・JSONB既定値とGINインデックス（T-06）・複数CHECK制約の組み合わせ（T-04）を示す（他テーブルも同一の書式）。</p>
+  <pre><code>-- T-04 project_memberships
+CREATE TABLE IF NOT EXISTS project_memberships (
+    id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    project_id  BIGINT NOT NULL REFERENCES projects(id),
+    user_id     BIGINT NOT NULL REFERENCES users(id),
+    role        TEXT NOT NULL DEFAULT 'learner'
+                CHECK (role IN ('admin', 'editor', 'learner')),
+    assigned_by BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    status      TEXT NOT NULL DEFAULT 'invited'
+                CHECK (status IN ('invited', 'active', 'declined')),
+    joined_at   TIMESTAMPTZ,
+    left_at     TIMESTAMPTZ,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (project_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_project_memberships_user_id ON project_memberships (user_id);
+ALTER TABLE project_memberships ENABLE ROW LEVEL SECURITY;
+
+-- T-06 materials
+CREATE TABLE IF NOT EXISTS materials (
+    id                     BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    project_id             BIGINT NOT NULL REFERENCES projects(id),
+    title                  TEXT NOT NULL,
+    description            TEXT,
+    tags                   JSONB NOT NULL DEFAULT '[]',
+    created_by             BIGINT NOT NULL REFERENCES users(id),
+    status                 TEXT NOT NULL DEFAULT 'draft'
+                           CHECK (status IN ('draft', 'published')),
+    sort_order             INTEGER NOT NULL DEFAULT 0,
+    attempt_scope          TEXT NOT NULL DEFAULT 'material'
+                           CHECK (attempt_scope IN ('material', 'chapter', 'section', 'page')),
+    retake_scope           TEXT NOT NULL DEFAULT 'all'
+                           CHECK (retake_scope IN ('all', 'wrong_only')),
+    default_feedback_style TEXT NOT NULL DEFAULT 'show_answer'
+                           CHECK (default_feedback_style IN ('show_answer', 'review_only', 'hint_only')),
+    ai_context              TEXT,
+    grading_mode             TEXT NOT NULL DEFAULT 'ai' CHECK (grading_mode IN ('ai', 'manual')),
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at              TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_materials_project_id ON materials (project_id);
+CREATE INDEX IF NOT EXISTS idx_materials_tags ON materials USING GIN (tags jsonb_path_ops);
+ALTER TABLE materials ENABLE ROW LEVEL SECURITY;
+
+-- T-23 material_nodes（自己参照ツリー）
+CREATE TABLE IF NOT EXISTS material_nodes (
+    id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    material_id     BIGINT NOT NULL REFERENCES materials(id) ON DELETE CASCADE,
+    parent_node_id  BIGINT REFERENCES material_nodes(id) ON DELETE CASCADE,
+    title           TEXT NOT NULL,
+    kind            TEXT NOT NULL CHECK (kind IN ('chapter', 'section', 'page')),
+    sort_order      INTEGER NOT NULL DEFAULT 0,
+    content_kind    TEXT CHECK (content_kind IS NULL OR content_kind IN ('explanation', 'quiz', 'mixed')),
+    format          TEXT CHECK (format IS NULL OR format IN ('markdown', 'html')),
+    body            TEXT,
+    quiz_mode       TEXT NOT NULL DEFAULT 'all' CHECK (quiz_mode IN ('all', 'pool')),
+    pool_draw_count INTEGER,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CHECK (kind &lt;&gt; 'chapter' OR parent_node_id IS NULL)
+);
+CREATE INDEX IF NOT EXISTS idx_material_nodes_tree
+    ON material_nodes (material_id, parent_node_id, sort_order);
+ALTER TABLE material_nodes ENABLE ROW LEVEL SECURITY;
+
+-- T-26 surveys（部分インデックスで「1箇所につき1件まで」を表現）
+CREATE TABLE IF NOT EXISTS surveys (
+    id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    material_id BIGINT NOT NULL REFERENCES materials(id) ON DELETE CASCADE,
+    node_id     BIGINT REFERENCES material_nodes(id) ON DELETE CASCADE,
+    title       TEXT NOT NULL,
+    is_active   BOOLEAN NOT NULL DEFAULT true,
+    repeat_mode TEXT NOT NULL DEFAULT 'once' CHECK (repeat_mode IN ('once', 'every_time')),
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_surveys_material_wide
+    ON surveys (material_id) WHERE node_id IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_surveys_per_node
+    ON surveys (material_id, node_id) WHERE node_id IS NOT NULL;
+ALTER TABLE surveys ENABLE ROW LEVEL SECURITY;</code></pre>
+
+
+  <footer class="doc-footer">
+    <span>社内学習管理システム（Manabi）詳細設計書 v1.1</span>
+    <span>コガソフトウェア株式会社 / 2026-08-24</span>
+  </footer>
+
+</div>
+</body>
+</html>
+

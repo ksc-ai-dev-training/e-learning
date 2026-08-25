@@ -2,7 +2,7 @@
  * 社内学習管理システム（Manabi）設計ドキュメント サイドナビ共通スクリプト
  *
  * 各HTMLは <body> 直下に <script src="_sidenav.js"></script> を1行追加するだけ。
- * （docs/ 直下から1階層下（03_画面モックアップ/, 05_詳細設計書/）で読み込む場合は
+ * （docs/ 直下から1階層下（03_画面モックアップ/, 05_成果物資料/）で読み込む場合は
  *  <script src="../_sidenav.js"></script>）
  *
  * このファイルが:
@@ -57,23 +57,23 @@
       group: '設計',
       docs: [
         { href: '04_基本設計書.html', title: '04 基本設計書' },
-        { href: '05_詳細設計書/index.html', title: '05 詳細設計書' },
-        { href: '05_詳細設計書/03_テーブル定義.html', title: '　3. テーブル定義' },
-        { href: '05_詳細設計書/04_API詳細設計.html', title: '　4. API詳細設計' },
-        { href: '05_詳細設計書/05_権限制御詳細.html', title: '　5. 権限制御詳細' },
-        { href: '05_詳細設計書/06_検索受講対象判定処理詳細.html', title: '　6. 検索・受講対象判定処理' },
-        { href: '05_詳細設計書/07_教材連携詳細.html', title: '　7. 教材連携詳細' },
-        { href: '05_詳細設計書/08_AI機能実装詳細.html', title: '　8. AI機能実装詳細' },
-        { href: '05_詳細設計書/09_エラーハンドリングログ設計.html', title: '　9. エラーハンドリング・ログ設計' },
-        { href: '05_詳細設計書/10_画面項目定義.html', title: '　10. 画面項目定義' },
-        { href: '05_詳細設計書/11_処理シーケンス.html', title: '　11. 処理シーケンス' },
+        { href: '05_成果物資料/index.html', title: '05 詳細設計書' },
+        { href: '05_成果物資料/03_テーブル定義.html', title: '　3. テーブル定義' },
+        { href: '05_成果物資料/04_API詳細設計.html', title: '　4. API詳細設計' },
+        { href: '05_成果物資料/05_権限制御詳細.html', title: '　5. 権限制御詳細' },
+        { href: '05_成果物資料/06_検索受講対象判定処理詳細.html', title: '　6. 検索・受講対象判定処理' },
+        { href: '05_成果物資料/07_教材連携詳細.html', title: '　7. 教材連携詳細' },
+        { href: '05_成果物資料/08_AI機能実装詳細.html', title: '　8. AI機能実装詳細' },
+        { href: '05_成果物資料/09_エラーハンドリングログ設計.html', title: '　9. エラーハンドリング・ログ設計' },
+        { href: '05_成果物資料/10_画面項目定義.html', title: '　10. 画面項目定義' },
+        { href: '05_成果物資料/11_処理シーケンス.html', title: '　11. 処理シーケンス' },
       ],
     },
   ];
 
-  // ---- 現在位置の判定（docs/ 直下か、1階層下の03_画面モックアップ/・05_詳細設計書/かで判定） ----
+  // ---- 現在位置の判定（docs/ 直下か、1階層下の03_画面モックアップ/・05_成果物資料/かで判定） ----
   const path = decodeURIComponent(location.pathname);
-  const inSubdir = path.indexOf('03_画面モックアップ') !== -1 || path.indexOf('05_詳細設計書') !== -1;
+  const inSubdir = path.indexOf('03_画面モックアップ') !== -1 || path.indexOf('05_成果物資料') !== -1;
   const prefix = inSubdir ? '../' : '';
   const pathLower = path.toLowerCase();
   const isCurrent = (href) => {
