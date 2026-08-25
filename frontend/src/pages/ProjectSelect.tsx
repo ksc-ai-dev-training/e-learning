@@ -9,7 +9,7 @@ export default function ProjectSelect() {
 
   return (
     <div className="flex flex-1 flex-col">
-      <PageHeader title="教材編集" screenId="S-13" />
+      <PageHeader title="教材編集" />
       <div className="px-8 py-6">
         <p className="mb-4 text-[11.5px] text-slate-400">
           編集する教材が属するプロジェクトを選ぶ。全社員が「全社公開」の編集者を自動的に持つため、このメニューは常に表示される。
