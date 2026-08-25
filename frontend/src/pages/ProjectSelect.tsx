@@ -9,7 +9,7 @@ export default function ProjectSelect() {
   const { projects, error, isLoading } = useProjects()
   const [keyword, setKeyword] = useState('')
 
-  const filtered = projects.filter((p) => p.name.includes(keyword))
+  const filtered = projects.filter((p) => p.name.toLowerCase().includes(keyword.toLowerCase()))
 
   return (
     <div className="flex flex-1 flex-col">
