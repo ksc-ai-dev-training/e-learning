@@ -16,7 +16,7 @@
     <p class="subtitle">社内学習管理システム（Manabi）</p>
     <div class="meta">
       <span>作成日: 2026-08-24</span>
-      <span>版数: 1.2</span>
+      <span>版数: 1.4</span>
       <span>作成: コガソフトウェア株式会社</span>
     </div>
     <p class="note">本ドキュメントは新人社員向けAI開発研修のサンプル成果物です</p>
@@ -29,6 +29,8 @@
       <tr><td>1.0</td><td>2026-08-24</td><td>初版。要求仕様書（v1.0）・要件定義書（v1.20）・基本設計書（v1.26）で定めた機能（F-01〜F-29、実働26件）・画面（S-01〜S-19、実働17件）・API（A-01〜A-80、実働69件）・テーブル（T-01〜T-29、実働24件）を、実装可能なレベルまで詳細化した。検討資料<code>20260821_詳細設計書_仮.html</code>（検討稿1.0〜1.4）としてレビュー・合意した内容を正式反映したもので、検討過程での改訂履歴（呼称のManabi統一、F-29プロフィール自己編集、A-78/A-79受験後アンケートAPI、A-80設定リセットAPI等の反映経緯）は同ファイルを参照。</td></tr>
       <tr><td>1.1</td><td>2026-08-24</td><td>単一ファイルで1,770行を超え閲覧が重くなっていたため、3〜11章を章ごとに個別ファイル（本ディレクトリ配下）へ分割した。1〜2章・改訂履歴・表紙は本ページ（index.html）に残す。内容面の変更はなく、ファイル構成の変更のみ。あわせてdocs全体を横断できる共通サイドナビ（<code>docs/_sidenav.js</code>）を導入し、<code>docs/assets/style.css</code>のテーブルセル・<code>code</code>要素に<code>overflow-wrap</code>を追加して、長い文字列（APIパス等）がセルからはみ出してレイアウトが崩れる不具合を修正した（本書に限らず01・02・04にも適用される共通修正）。</td></tr>
       <tr><td>1.2</td><td>2026-08-24</td><td>3章「テーブル定義」に3.8節としてER図を新設した（IE記法／鳥の足記法、静的SVG）。AI関連（T-15〜T-19）・T-21 <code>app_settings</code>を除く実働19テーブルを、節構成に合わせて4枚の図（組織・プロジェクト管理／教材・目次／出題・受験・学習記録／配信通知・共有・受験後アンケート）に分けて示した。基本設計書6.1節の既存ER図（2枚、v1.7時点で作成）はT-23等v1.11以降の変更が未反映のため参照せず、現行の全テーブル構成から新規に作図した。</td></tr>
+      <tr><td>1.3</td><td>2026-08-24</td><td>実装開始にあたり、画面モックアップ全17画面を横断的に確認し、共通化できるUIコンポーネントを洗い出して2.1節を拡充した（コンポーネント設計を実装より先に行う方針）。従来はフォーム部品のみを列挙していたが、サイドバー等のレイアウト（2.1.1）、バッジ・アバター等の表示部品（2.1.2）、テーブル・タブ等の一覧操作部品（2.1.3）、モーダル・トースト等のフィードバック部品（2.1.4）、教材編集固有部品（2.1.6）を追加した。全ての認証後画面でサイドバー構造が完全に同一であることをモックアップ比較で確認済み。</td></tr>
+      <tr><td>1.4</td><td>2026-08-24</td><td>S-02マイ学習の「期限が近い必修教材」「任意教材受講済み」統計カードをクリック可能にし、対象の教材一覧へ遷移できるようにした（画面モックアップ側の修正）。この修正で使った「クリックで対象一覧に遷移する統計カード」パターンがS-02・S-09の2画面で共通に使われていたにもかかわらず2.1.2節に未掲載だったため、コンポーネント設計を実装より先に行う方針（CLAUDE.md）に基づき<code>StatCard</code>として追記した。あわせてリンク先の決め方（同一画面内アンカー／他画面へのフィルタ付き遷移）の判断基準をcalloutで明記した。</td></tr>
     </tbody>
   </table>
 
@@ -55,7 +57,7 @@
   <p>本書は、社内学習管理システム（コードネーム: Manabi）の要求仕様書（v1.0）・要件定義書（v1.20）・基本設計書（v1.26）で定めた機能（F-01〜F-29）・画面（S-01〜S-19）・API（A-01〜A-80）・テーブル（T-01〜T-29）を、<strong>実装可能なレベルまで網羅的に詳細化</strong>するものである。対象読者は本システムの実装担当者とする。</p>
   <ul>
     <li>ID体系（REQ-xx=要求 / F-xx=機能 / S-xx=画面 / T-xx=テーブル / A-xx=API）は要求仕様書・要件定義書・基本設計書と共通であり、本書ではIDを用いて相互参照する。廃止・欠番のIDは基本設計書の扱いをそのまま引き継ぐ（F-03, F-07, F-27／S-07, S-18／T-02, T-05, T-07, T-24, T-25／A-05〜A-08, A-23〜A-26, A-68〜A-70）。</li>
-    <li>上流文書は要求仕様書（<code>docs/01_要求仕様書.html</code>）・要件定義書（<code>docs/02_要件定義書.html</code>）・基本設計書（<code>docs/04_基本設計書.html</code>）の3文書とする。</li>
+    <li>上流文書は要求仕様書（<code>docs/01_要求仕様書.html</code>）・要件定義書（<code>docs/02_要件定義書.html</code>）・基本設計書（<code>docs/04_基本設計書/</code>）の3文書とする。</li>
     <li>技術スタックは既存システム LCC CRM・Keireki を踏襲する（REQ-N-06）。Frontend: React 19 + TypeScript + Vite 6 + Tailwind CSS 4 + react-router 7 + SWR + Lucide React、Backend: FastAPI (Python 3.10+) + Uvicorn + asyncpg、Database: PostgreSQL (Supabase)、ファイルストレージ: Supabase Storage、AI連携: Anthropic Claude API（Messages API）、通知: Slack Incoming Webhook、ホスティング: Koyeb。</li>
     <li>本書は実装担当者がそのまま実装に移せることを目的とし、機能・画面・API・テーブルを網羅する。CRUD系のように処理が定型的なものは記載を簡潔にするが、対象から省略することはしない。</li>
     <li>各テーブルのカラム詳細（型・NULL可否・制約・既定値の全定義）、API詳細、画面項目定義、教材連携・AI機能の実装レベルの仕様は本書で定める。画面レイアウトそのものは画面モックアップ「<a href="../03_画面モックアップ/index.html">03_画面モックアップ/</a>」を正とし、本書では重複して図示しない。</li>
@@ -119,14 +121,68 @@
         ├── App.tsx            # ルーティング定義、認証ガード（未認証→/login、role別ルート制御）
         ├── pages/             # 画面コンポーネント（S-01〜S-06, S-08〜S-17, S-19に対応）
         │   └── admin/         # S-10 のタブ（UsersTab, SystemSettingsTab）
-        ├── components/        # 画面共通部品（Layout: サイドバー+ヘッダー、Toast、ConfirmDialog、SurveyModal 等）
-        │   └── ui/            # 共通フォーム部品（2.1節）。全画面でネイティブ部品の代わりに使用する
+        ├── components/        # 共通コンポーネント（2.1節）
+        │   ├── layout/         # AppShell, Sidebar, PageHeader（2.1.1節）
+        │   ├── ui/             # Badge, Button, Modal, Toast, フォーム部品等（2.1.2〜2.1.5節）
+        │   └── material/       # QuestionEditCard, AttachmentList, AIPanel（2.1.6節）
         ├── hooks/              # SWRベースのデータ取得フック（useMe, useMyLearning, useMaterial, useProject 等）
         ├── lib/                # APIクライアント（fetchラッパー）、日付・進捗率計算、定数
         └── types/              # APIレスポンス型定義</code></pre>
 
-  <h3>2.1 共通UIコンポーネント（<code>frontend/src/components/ui/</code>）</h3>
-  <p>フォーム部品はブラウザ・OS標準のUIを使わず、下表の自作コンポーネントに統一する（Keirekiと同方針。2026-08-12決定を踏襲）。10章の画面項目定義にある入力形式（セレクト・年月入力・トグル等）は、実装上この表の部品で実現する。</p>
+  <h3>2.1 共通UIコンポーネント（<code>frontend/src/components/</code>）</h3>
+  <p>画面モックアップ（<code>docs/03_画面モックアップ/</code>）を全17画面横断で確認し、共通化できる部品を洗い出した。フォーム部品はブラウザ・OS標準のUIを使わず自作コンポーネントに統一する（Keirekiと同方針。2026-08-12決定を踏襲）方針に加え、レイアウト・表示・一覧操作・フィードバックの各部品も画面ごとに再実装せず、下記の共通コンポーネントを使い回す。実装順は画面単位（縦切り）だが、各画面を作る際は先にこの一覧を参照し、該当する部品があれば新規実装しない。</p>
+
+  <h4>2.1.1 レイアウト（<code>components/layout/</code>）</h4>
+  <p>全ての認証後画面（S-02〜S-19）で、サイドバー＋ヘッダーの構造が完全に同一であることをモックアップで確認した（相違点はアクティブ表示・ロール別のメニュー出し分け・ログインユーザー情報のみ）。</p>
+  <table>
+    <thead><tr><th>コンポーネント</th><th>props</th><th>用途</th></tr></thead>
+    <tbody>
+      <tr><td><code>AppShell</code></td><td>children</td><td>Sidebar + メインコンテンツ領域のラッパー。全認証後画面（S-02〜S-19）で共通</td></tr>
+      <tr><td><code>Sidebar</code></td><td>activeItem, currentUser</td><td>ロゴ・ナビ項目・ログインユーザー情報・ログアウトボタン。表示するナビ項目はcurrentUser.roleと5.6節のフロントガード条件で出し分ける</td></tr>
+      <tr><td><code>PageHeader</code></td><td>title, actions?</td><td>画面タイトル＋右側の操作ボタン群（新規作成・保存等）。ほぼ全画面のヘッダー部分</td></tr>
+    </tbody>
+  </table>
+
+  <h4>2.1.2 表示部品（<code>components/ui/</code>）</h4>
+  <table>
+    <thead><tr><th>コンポーネント</th><th>variant</th><th>用途・主な適用箇所</th></tr></thead>
+    <tbody>
+      <tr><td><code>Badge</code></td><td>role / projrole / status-on/off / required/optional / complete/due-soon/overdue/failed</td><td>ロール表示・必修任意・進捗状態等、色分けラベル全般。10画面以上で使用</td></tr>
+      <tr><td><code>Avatar</code> / <code>AvatarGroup</code></td><td>size: default/lg</td><td>氏名頭文字の丸アイコン。S-15プロフィール編集はlg、Sidebar・一覧はdefault</td></tr>
+      <tr><td><code>Chip</code></td><td>—</td><td>タグ・プロジェクト名チップ。S-03タグ絞り込み、S-02プロジェクトタブ</td></tr>
+      <tr><td><code>ProgressBar</code></td><td>—</td><td>進捗率バー。S-02教材カード、S-04教材全体の進捗</td></tr>
+      <tr><td><code>Panel</code></td><td>title, count?</td><td>タイトル付きの枠線カード。設定画面・詳細画面のセクション分けで多用</td></tr>
+      <tr><td><code>MaterialCard</code></td><td>—</td><td>教材の一覧表示カード（タイトル・タグ・進捗・操作ボタン）。S-02マイ学習、S-03教材一覧で共通</td></tr>
+      <tr><td><code>StatCard</code></td><td>tone: default/warn/danger/good, linkTo?</td><td>件数・数値の統計カード。<code>linkTo</code>指定時はクリックで対象一覧（同一画面内アンカー、または他画面へのクエリ付きリンク）へ遷移する。S-02マイ学習（期限が近い必修教材・任意教材受講済み）、S-09個人学習レポート（受講済み・未受講の必修教材）で共通</td></tr>
+    </tbody>
+  </table>
+  <div class="callout">
+    <strong>StatCardのリンク先の決め方:</strong> 対象の一覧がすでに同一画面内に表示されている場合（S-02の「期限が近い必修教材」パネル等）は同一画面内アンカー（<code>#panel-id</code>）へ、表示されていない場合（S-09の「未受講の必修教材」）はS-03教材一覧へクエリ付きで遷移する。一覧が同一画面にあっても、その一覧が対象件数より広い範囲を表示している場合（S-02の「任意教材」パネルは受講済み・未受講の両方を含む）は、遷移先で対象条件のみに絞り込むフィルタ処理を行う（画面モックアップではURLフラグメントとJavaScriptで再現、実装ではAPIクエリパラメータに置き換える）。</div>
+
+  <h4>2.1.3 一覧・操作部品（<code>components/ui/</code>）</h4>
+  <table>
+    <thead><tr><th>コンポーネント</th><th>props</th><th>用途</th></tr></thead>
+    <tbody>
+      <tr><td><code>Button</code></td><td>variant: primary/secondary/ghost/danger-ghost, size: sm?</td><td>全ボタンで共通。ネイティブ<code>&lt;button&gt;</code>を直接スタイリングしない</td></tr>
+      <tr><td><code>Table</code> / <code>TableWrap</code></td><td>columns, rows</td><td>横スクロール対応の枠付きテーブル。一覧画面全般</td></tr>
+      <tr><td><code>Pagination</code></td><td>page, perPage, total, onChange</td><td>表示件数選択＋ページャ。S-03教材一覧等</td></tr>
+      <tr><td><code>Tabs</code> / <code>TabPanel</code></td><td>items, active</td><td>タブ切替。S-04・S-05・S-10・S-12など多数の画面で使用</td></tr>
+      <tr><td><code>IconButton</code></td><td>—</td><td>アイコンのみの小ボタン（ズーム操作等）</td></tr>
+    </tbody>
+  </table>
+
+  <h4>2.1.4 フィードバック（<code>components/ui/</code>）</h4>
+  <table>
+    <thead><tr><th>コンポーネント</th><th>置き換え/用途</th><th>主な適用箇所</th></tr></thead>
+    <tbody>
+      <tr><td><code>Modal</code></td><td><code>&lt;dialog&gt;</code>相当の自作モーダル</td><td>受験後アンケート設問編集（S-05）等、画面内ポップアップ全般</td></tr>
+      <tr><td><code>ConfirmDialog</code>（<code>useConfirm()</code>）</td><td><code>window.confirm</code></td><td>破壊的操作の確認。教材削除・メンバー削除・共有解除</td></tr>
+      <tr><td><code>Toast</code></td><td>—</td><td>保存成功・エラー時のトースト通知（9.2節のフロントエンドエラー表示方針）</td></tr>
+    </tbody>
+  </table>
+
+  <h4>2.1.5 フォーム部品（<code>components/ui/</code>）</h4>
+  <p>10章の画面項目定義にある入力形式（セレクト・年月入力・トグル等）は、実装上この表の部品で実現する。</p>
   <table>
     <thead><tr><th>コンポーネント</th><th>置き換えたネイティブ部品</th><th>用途・主な適用箇所</th></tr></thead>
     <tbody>
@@ -141,15 +197,26 @@
       <tr><td><code>Checkbox</code></td><td>OS標準チェックボックス</td><td>S-16 回答必須／任意、S-08 対象範囲絞り込み</td></tr>
       <tr><td><code>Switch</code></td><td>チェックボックスで代用していたON/OFF</td><td>S-10 ユーザーの有効/無効、S-05 ドボン問題フラグ</td></tr>
       <tr><td><code>RadioGroup</code></td><td>画面ローカル実装のセグメント型ラジオ</td><td>S-04 誤答のみ抽出の出題範囲、S-17 AI講評スタイル</td></tr>
-      <tr><td><code>ConfirmDialog</code>（<code>useConfirm()</code>）</td><td><code>window.confirm</code></td><td>破壊的操作の確認。教材削除・メンバー削除・共有解除</td></tr>
     </tbody>
   </table>
+
+  <h4>2.1.6 教材編集固有部品（<code>components/material/</code>）</h4>
+  <p>複数画面（S-05目次編集・S-16ページ受講・S-17ページ編集）にまたがって同じ見た目で登場するが、汎用UIというより教材ドメインに特化した部品のため別ディレクトリに分ける。</p>
+  <table>
+    <thead><tr><th>コンポーネント</th><th>用途・主な適用箇所</th></tr></thead>
+    <tbody>
+      <tr><td><code>QuestionEditCard</code></td><td>設問編集カード（種別セレクト・設問文・選択肢・正誤設定等をまとめた複合部品）。S-05目次編集タブ・S-17ページ編集で共通</td></tr>
+      <tr><td><code>AttachmentList</code> / <code>AttachmentItem</code></td><td>添付ファイル・リンクの一覧行（アイコン・ファイル名・サイズ・削除ボタン）。S-05ファイル・リンクタブ、S-17添付セクションで共通</td></tr>
+      <tr><td><code>AIPanel</code></td><td>AIレビュー結果・チャット形式のAI連携パネル。S-05 AIレビュー結果タブで使用</td></tr>
+    </tbody>
+  </table>
+
   <div class="callout">
-    <strong>実装規約:</strong> 今後の機能追加でもネイティブの<code>&lt;select&gt;</code>／<code>&lt;input type="month"&gt;</code>／素の<code>&lt;input&gt;</code>・<code>&lt;textarea&gt;</code>／<code>window.confirm</code>を直接使わず、必ず上表の部品を使用する。
+    <strong>実装規約:</strong> 新しい画面を実装するときは、まず2.1.1〜2.1.6の一覧に該当する部品が無いか確認し、あれば再利用する。無い場合のみ新規コンポーネントを作り、複数画面で使う見込みがあれば本節に追記する。ネイティブの<code>&lt;select&gt;</code>／<code>&lt;input type="month"&gt;</code>／素の<code>&lt;input&gt;</code>・<code>&lt;textarea&gt;</code>／<code>window.confirm</code>を直接使わないことは従来どおり必須とする。
   </div>
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）詳細設計書 v1.2</span>
+    <span>社内学習管理システム（Manabi）詳細設計書 v1.4</span>
     <span>コガソフトウェア株式会社 / 2026-08-24</span>
   </footer>
 

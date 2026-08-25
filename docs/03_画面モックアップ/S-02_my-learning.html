@@ -103,14 +103,16 @@
           <div class="stat-label">必修教材 受講率</div>
           <div class="stat-value">67<span class="stat-unit">%</span></div>
         </div>
-        <div class="stat stat-warn">
+        <a class="stat stat-warn stat-link" href="#urgent-materials" title="期限が近い必修教材の一覧へ">
           <div class="stat-label">期限が近い必修教材</div>
           <div class="stat-value">1<span class="stat-unit">件</span></div>
-        </div>
-        <div class="stat">
+          <span class="stat-link-hint">一覧を見る <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+        </a>
+        <a class="stat stat-link" href="#optional-materials-completed" title="受講済みの任意教材の一覧へ">
           <div class="stat-label">任意教材 受講済み</div>
           <div class="stat-value">2<span class="stat-unit">件</span></div>
-        </div>
+          <span class="stat-link-hint">一覧を見る <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+        </a>
         <div class="stat">
           <div class="stat-label">直近の受講</div>
           <div class="stat-value" style="font-size:14px">2026-08-16</div>
@@ -118,7 +120,7 @@
       </div>
 
       <!-- 期限が近い必修教材（強調表示） -->
-      <section class="panel" style="border-color:#fca5a5">
+      <section class="panel" id="urgent-materials" style="border-color:#fca5a5">
         <div class="panel-header" style="background:#fff5f5">
           <div class="panel-title">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#b91c1c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
@@ -235,13 +237,16 @@
       </section>
 
       <!-- 任意教材 一覧 -->
-      <section class="panel">
+      <section class="panel" id="optional-materials-completed">
         <div class="panel-header">
           <div class="panel-title">任意教材</div>
-          <span class="panel-count">おすすめ・自由選択の教材</span>
+          <span class="panel-count" id="optional-panel-count">おすすめ・自由選択の教材</span>
         </div>
-        <div class="panel-body">
-          <div class="material-card">
+        <div id="optional-filter-banner" class="table-notes" style="display:none;margin:0;border-radius:0;background:var(--accent-50);color:var(--accent-700)">
+          受講済みの任意教材のみ表示しています。<a href="#optional-materials-completed" onclick="clearOptionalFilter();return false;">すべて表示</a>
+        </div>
+        <div class="panel-body" id="optional-materials-body">
+          <div class="material-card" data-status="in_progress">
             <div class="material-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
             </div>
@@ -264,7 +269,7 @@
             </div>
           </div>
 
-          <div class="material-card">
+          <div class="material-card" data-status="completed">
             <div class="material-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
             </div>
@@ -275,6 +280,30 @@
                 <span class="badge badge-complete">合格済み（2026-07-10）</span>
                 <span class="chip">LCC CRM刷新</span>
                 <span class="tag-pill-sm">#エンジニア基礎</span> <span class="tag-pill-sm">#Git</span>
+              </div>
+            </div>
+            <div class="material-progress">
+              <div class="progress">
+                <div class="progress-track"><div class="progress-fill complete" style="width:100%"></div></div>
+                <span class="progress-label">100%</span>
+              </div>
+            </div>
+            <div class="material-actions">
+              <a class="btn btn-ghost btn-sm" href="S-04_material-view.html">反復演習する</a>
+            </div>
+          </div>
+
+          <div class="material-card" data-status="completed">
+            <div class="material-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+            </div>
+            <div class="material-body">
+              <div class="material-title">ビジネスマナー基礎</div>
+              <div class="material-meta">
+                <span class="badge badge-optional">任意</span>
+                <span class="badge badge-complete">合格済み（2026-06-20）</span>
+                <span class="chip">全社公開</span>
+                <span class="tag-pill-sm">#ビジネス基礎</span>
               </div>
             </div>
             <div class="material-progress">
@@ -299,6 +328,33 @@
 </div>
 
 <div class="mock-note">画面モックアップ（S-02）/ 研修サンプル</div>
+
+<script>
+// サマリーの「任意教材 受講済み」カードから遷移した場合、任意教材一覧を受講済みのみに絞り込む
+// （実際にはA-39のレスポンスをクライアント側でフィルタする。7章参照）
+function applyOptionalCompletedFilter() {
+  var active = window.location.hash === '#optional-materials-completed';
+  document.getElementById('optional-filter-banner').style.display = active ? 'block' : 'none';
+
+  var cards = document.querySelectorAll('#optional-materials-body .material-card');
+  var visibleCount = 0;
+  cards.forEach(function (card) {
+    var matches = !active || card.getAttribute('data-status') === 'completed';
+    card.style.display = matches ? '' : 'none';
+    if (matches) visibleCount++;
+  });
+
+  document.getElementById('optional-panel-count').textContent = active
+    ? '受講済み ' + visibleCount + '件'
+    : 'おすすめ・自由選択の教材';
+}
+function clearOptionalFilter() {
+  history.replaceState(null, '', window.location.pathname + window.location.search);
+  applyOptionalCompletedFilter();
+}
+applyOptionalCompletedFilter();
+window.addEventListener('hashchange', applyOptionalCompletedFilter);
+</script>
 
 </body>
 </html>
