@@ -16,6 +16,16 @@ export interface DevUser {
   role: Role
 }
 
+export type MaterialStatus = 'draft' | 'published'
+
+// A-21 GET /api/projects/{project_id}/materials/source のitems
+export interface MaterialSource {
+  id: number
+  title: string
+  status: MaterialStatus
+  updated_at: string
+}
+
 export type ProjectRole = 'admin' | 'editor' | 'learner'
 
 // A-81 GET /api/projects のitems

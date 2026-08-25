@@ -64,3 +64,28 @@ def require_roles(*roles: str):
             raise HTTPException(403, detail="この操作を行う権限がありません")
         return user
     return checker
+
+
+ROLE_RANK = {"learner": 1, "editor": 2, "admin": 3}
+
+
+def require_project_role(min_role: str):
+    """プロジェクトのローカルロールを判定する（詳細設計書5.2節）。システムadminは常に許可。
+
+    パスパラメータ `project_id` を持つルート（例: /api/projects/{project_id}/...）で
+    `Depends(require_project_role(min_role="editor"))` のように使う。
+    project_idはFastAPIがパスから自動解決する。
+    """
+    async def checker(project_id: int, user: CurrentUser = Depends(require_auth)) -> CurrentUser:
+        if user.role == "admin":
+            return user
+        row = await get_pool().fetchrow(
+            """SELECT role FROM project_memberships
+               WHERE project_id = $1 AND user_id = $2
+                 AND status = 'active' AND left_at IS NULL""",
+            project_id, user.id,
+        )
+        if row is None or ROLE_RANK[row["role"]] < ROLE_RANK[min_role]:
+            raise HTTPException(403, detail="この操作を行う権限がありません")
+        return user
+    return checker

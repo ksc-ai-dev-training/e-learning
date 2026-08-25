@@ -1,3 +1,4 @@
+import { Link } from 'react-router'
 import type { Project } from '../../types'
 
 const ROLE_LABELS: Record<string, string> = {
@@ -7,15 +8,17 @@ const ROLE_LABELS: Record<string, string> = {
 }
 
 // プロジェクトの選択カード（詳細設計書2.1.2節）。S-13教材編集：プロジェクト選択で使用。
+// 選択でS-14（教材一覧）へ遷移する。
 export default function ProjectCard({ project, pinned }: { project: Project; pinned?: boolean }) {
   return (
-    <div
-      className={`flex flex-col gap-2 rounded-lg border p-4 ${
-        pinned ? 'border-blue-200 bg-blue-50' : 'border-slate-300 bg-white'
+    <Link
+      to={`/projects/${project.id}/materials/edit`}
+      className={`flex flex-col gap-2 rounded-lg border p-4 no-underline ${
+        pinned ? 'border-blue-200 bg-blue-50' : 'border-slate-300 bg-white hover:border-blue-700'
       }`}
     >
       <div className="flex items-center justify-between gap-2">
-        <span className="flex items-center gap-1.5 text-sm font-bold">
+        <span className="flex items-center gap-1.5 text-sm font-bold text-slate-900">
           {pinned && (
             <svg
               className="h-[13px] w-[13px] flex-shrink-0 text-blue-700"
@@ -41,6 +44,6 @@ export default function ProjectCard({ project, pinned }: { project: Project; pin
           ? '全社員が自動参加'
           : `教材${project.material_published_count + project.material_draft_count}件（公開${project.material_published_count}・下書き${project.material_draft_count}）／ メンバー${project.member_count}名`}
       </span>
-    </div>
+    </Link>
   )
 }

@@ -31,7 +31,7 @@
     <tbody>
       <tr><td>auth.py</td><td>A-03, A-04: require_auth／A-63: require_auth（token_type='cli'を追加検証）／A-75〜A-77: require_auth（対象は常にリクエスト者自身のため、追加のリソース所有者チェックは不要）</td></tr>
       <tr><td>organization.py</td><td>A-09: require_auth／A-10, A-12, A-13: require_project_role(min_role='admin')／A-11: require_auth（本人判定はハンドラ内）／A-67: require_auth（本人判定はハンドラ内）／A-59〜A-61, A-65, A-66: require_project_role(min_role='admin')</td></tr>
-      <tr><td>materials.py</td><td>A-14: require_auth／A-15, A-19, A-28, A-30, A-43: require_material_access（編集権限者は追加でrequire_material_editor相当のOR）／A-16: require_project_role(min_role='editor')（対象project_idに対して）／A-17, A-20, A-21, A-22, A-27, A-29, A-31〜A-35, A-64, A-78, A-79: require_material_editor／A-18, A-59: require_project_role(min_role='admin')</td></tr>
+      <tr><td>materials.py</td><td>A-14: require_auth／A-15, A-19, A-28, A-30, A-43: require_material_access（編集権限者は追加でrequire_material_editor相当のOR）／A-16, A-21: require_project_role(min_role='editor')（対象project_idに対して。A-21はパスに<code>material_id</code>を持たずproject_idを直接取るため、material_idからの解決を挟むrequire_material_editorではなくこちらを使う）／A-17, A-20, A-22, A-27, A-29, A-31〜A-35, A-64, A-78, A-79: require_material_editor／A-18, A-59: require_project_role(min_role='admin')</td></tr>
       <tr><td>assignments.py</td><td>A-36, A-37: require_project_role(min_role='admin')（自プロジェクト分に絞り込み）またはrequire_roles("admin")／A-38: 4.4節callout参照</td></tr>
       <tr><td>learning.py</td><td>A-39: require_auth／A-40〜A-42, A-44, A-71, A-72: require_material_access／A-43: require_material_access または require_material_editor／A-73, A-74: require_material_editor</td></tr>
       <tr><td>dashboard.py, reports.py</td><td>A-45〜A-49: require_project_role(min_role='admin')またはrequire_roles("admin")／A-50〜A-52: 本人 or 「対象者が所属するプロジェクトの管理者」（5.4節の専用判定関数）</td></tr>
@@ -147,7 +147,7 @@ async def require_project_role(project_id: int, min_role: str):
 
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）詳細設計書 v1.6</span>
+    <span>社内学習管理システム（Manabi）詳細設計書 v1.7</span>
     <span>コガソフトウェア株式会社 / 2026-08-24</span>
   </footer>
 
