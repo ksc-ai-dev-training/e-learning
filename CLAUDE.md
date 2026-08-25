@@ -21,7 +21,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 要件定義 | `docs/02_要件定義書.html`（requirements-definitionブランチからマージ） | v1.21 |
 | 画面モックアップ（S-01〜S-19。S-07・S-18は廃止済みで欠番） | `docs/03_画面モックアップ/`（`index.html`がギャラリー・画面遷移図） | — |
 | 基本設計 | `docs/04_基本設計書/`（長大化のため`index.html`〔表紙・改訂履歴・1〜2章〕と3〜11章の個別ファイルに分割） | v1.28 |
-| 詳細設計 | `docs/05_成果物資料/`（検討資料`検討資料/20260821_詳細設計書_仮.html`〔検討稿1.0〜1.4〕をレビュー・合意のうえ正式反映。長大化のため`index.html`〔表紙・改訂履歴・1〜2章〕と3〜11章の個別ファイルに分割。フォルダ名は意図的に`05_成果物資料`とした） | v1.4 |
+| 詳細設計 | `docs/05_成果物資料/`（検討資料`検討資料/20260821_詳細設計書_仮.html`〔検討稿1.0〜1.4〕をレビュー・合意のうえ正式反映。長大化のため`index.html`〔表紙・改訂履歴・1〜2章〕と3〜11章の個別ファイルに分割。フォルダ名は意図的に`05_成果物資料`とした） | v1.5 |
 
 ドキュメントを追加したら、この表を更新する（版数は改訂のたびに必ず更新すること）。
 
@@ -36,6 +36,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - ユーザーとのやり取りは日本語で行う。
 - **検討資料・計画資料は `検討資料/` へ**: 設計判断が必要な検討・提案・移行手順等は、正式な成果物（`docs/`）に混ぜず `検討資料/YYYYMMDD_タイトル.html` として置き、`検討資料/README.md` の一覧に登録する（keirekiと同じ運用）。ステータス（検討中/採用/見送り）を明記し、採用されて設計に反映したら該当ドキュメントに取り込む。
 - **秘密情報（APIキー・パスワード・`.env`）は絶対にpushしない**: 一度pushすると後から消してもgit履歴に残るため、`.env`は最初から`.gitignore`で除外する（設定済み、`.env`/`.env.*`を除外し`.env.example`のみ許可）。実装フェーズで`.env`が必要になったら、値を空にした`.env.example`をkeirekiの`.env.example`に倣って先に作り、実際の値が入った`.env`は絶対にコミットしない。
+- **開発中システムの共有方法**（`G:\共有ドライブ\pj_new-employee-training\AI開発研修\社内システム開発_進め方ガイド.html` 7章・9章より）: この研修では千田さんが「顧客」役。①開発中は完成を待たず**1画面できるたびに千田さんへ直接動かして見せる**（LAN共有等の技術的な仕組みは想定されていない）。②最終的にはKoyeb（アプリ）+ Supabase（DB）へ実際にデプロイし社内から使える状態にするのがゴール。Supabaseは各自で無料アカウント作成、Koyebのユーザー発行とGoogle認証設定は必要になったら千田さんに申し出る（自分で登録・設定しない）。Koyebは使わないときは課金対策として停止する。
 
 ### 改訂トラッキング（`02_要件定義書.html` / `04_基本設計書/` 限定）
 
@@ -86,6 +87,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 実装状況
 
-- 要求仕様書（v1.0）・要件定義書（v1.21）・基本設計書（v1.28）・画面モックアップ一式（S-01〜S-19、S-07/S-18は欠番）・詳細設計書（v1.4）は完成している。
+- 要求仕様書（v1.0）・要件定義書（v1.21）・基本設計書（v1.28）・画面モックアップ一式（S-01〜S-19、S-07/S-18は欠番）・詳細設計書（v1.5）は完成している。
 - 基本設計フェーズは `basic-design` ブランチ（`requirements-definition` から分岐）で作業中。
 - 実装（backend/frontend）フェーズに着手済み。現状: `backend/`に開発用ログイン（Google OAuthは未実装、`DEV_AUTH=1`で有効化）までの雛形（`database.py`・`auth_helpers.py`・`routers/auth.py`・`main.py`・`seed.py`）が完成し、DB（Docker上のPostgreSQL 16、`manabi-db`）に接続確認済み。`frontend/`はVite + React + TypeScript + Tailwind CSSで雛形作成済みで、S-01ログイン画面（開発用ログインのみ、Google OAuth連携は未実装）が動作確認済み。S-02以降は未着手。環境構築・起動手順は`docs/参考資料_環境構築手順.html`を参照。

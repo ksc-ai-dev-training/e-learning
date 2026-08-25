@@ -16,7 +16,7 @@
     <p class="subtitle">社内学習管理システム（Manabi）</p>
     <div class="meta">
       <span>作成日: 2026-08-24</span>
-      <span>版数: 1.4</span>
+      <span>版数: 1.5</span>
       <span>作成: コガソフトウェア株式会社</span>
     </div>
     <p class="note">本ドキュメントは新人社員向けAI開発研修のサンプル成果物です</p>
@@ -31,6 +31,7 @@
       <tr><td>1.2</td><td>2026-08-24</td><td>3章「テーブル定義」に3.8節としてER図を新設した（IE記法／鳥の足記法、静的SVG）。AI関連（T-15〜T-19）・T-21 <code>app_settings</code>を除く実働19テーブルを、節構成に合わせて4枚の図（組織・プロジェクト管理／教材・目次／出題・受験・学習記録／配信通知・共有・受験後アンケート）に分けて示した。基本設計書6.1節の既存ER図（2枚、v1.7時点で作成）はT-23等v1.11以降の変更が未反映のため参照せず、現行の全テーブル構成から新規に作図した。</td></tr>
       <tr><td>1.3</td><td>2026-08-24</td><td>実装開始にあたり、画面モックアップ全17画面を横断的に確認し、共通化できるUIコンポーネントを洗い出して2.1節を拡充した（コンポーネント設計を実装より先に行う方針）。従来はフォーム部品のみを列挙していたが、サイドバー等のレイアウト（2.1.1）、バッジ・アバター等の表示部品（2.1.2）、テーブル・タブ等の一覧操作部品（2.1.3）、モーダル・トースト等のフィードバック部品（2.1.4）、教材編集固有部品（2.1.6）を追加した。全ての認証後画面でサイドバー構造が完全に同一であることをモックアップ比較で確認済み。</td></tr>
       <tr><td>1.4</td><td>2026-08-24</td><td>S-02マイ学習の「期限が近い必修教材」「任意教材受講済み」統計カードをクリック可能にし、対象の教材一覧へ遷移できるようにした（画面モックアップ側の修正）。この修正で使った「クリックで対象一覧に遷移する統計カード」パターンがS-02・S-09の2画面で共通に使われていたにもかかわらず2.1.2節に未掲載だったため、コンポーネント設計を実装より先に行う方針（CLAUDE.md）に基づき<code>StatCard</code>として追記した。あわせてリンク先の決め方（同一画面内アンカー／他画面へのフィルタ付き遷移）の判断基準をcalloutで明記した。</td></tr>
+      <tr><td>1.5</td><td>2026-08-25</td><td>keireki詳細設計書分冊3（<code>05-3_詳細設計書_画面設計.html</code>）12章「フロントエンドコンポーネント設計」と比較し、Manabi側の2.1節が「使い回せるUI部品のカタログ」のみで、設計方針・コンポーネントツリー・コンポーネント一覧・データ取得フック・状態管理の分類・APIエラー処理規約・追加時の規約を欠いていたため、2.2〜2.9として新設した。実装はS-01（ログイン画面）までのため、現時点ではS-01分のみを記載し、以後は画面を1つ作るたびに追記する（縦切り・逐一確認の方針と整合）。</td></tr>
     </tbody>
   </table>
 
@@ -215,8 +216,89 @@
     <strong>実装規約:</strong> 新しい画面を実装するときは、まず2.1.1〜2.1.6の一覧に該当する部品が無いか確認し、あれば再利用する。無い場合のみ新規コンポーネントを作り、複数画面で使う見込みがあれば本節に追記する。ネイティブの<code>&lt;select&gt;</code>／<code>&lt;input type="month"&gt;</code>／素の<code>&lt;input&gt;</code>・<code>&lt;textarea&gt;</code>／<code>window.confirm</code>を直接使わないことは従来どおり必須とする。
   </div>
 
+  <h3>2.2 設計方針</h3>
+  <p>keireki詳細設計書分冊3（12.1節）と同方針。実装が進むほど効いてくる決めごとなので、実装より先に本節で固定する。</p>
+  <table>
+    <thead><tr><th>方針</th><th>内容</th></tr></thead>
+    <tbody>
+      <tr><td>レイヤー分割</td><td><code>pages/</code>（画面＝ルート単位）→ <code>components/</code>（画面横断の部品）→ <code>components/ui/</code>（フォーム部品）の3階層。<code>hooks/</code>（データ取得）・<code>lib/</code>（APIクライアント）・<code>types/</code>（API型）はUIを持たない</td></tr>
+      <tr><td>サーバー状態</td><td><strong>SWR</strong>で取得・キャッシュする（2.5節）。取得ロジックは<code>hooks/</code>のカスタムフックに包み、ページから<code>useSWR</code>を直接呼ぶのは画面固有で再利用しない取得（S-01の開発用ユーザー一覧等）に限る</td></tr>
+      <tr><td>UI状態</td><td>タブ選択・フォーム入力値・モーダル開閉などは<strong>コンポーネントローカルの<code>useState</code></strong>に置く。Redux / Zustand等のグローバルストアは導入しない</td></tr>
+      <tr><td>横断的な関心</td><td>React Contextは<strong>トースト通知（<code>ToastProvider</code>）と確認ダイアログ（<code>ConfirmProvider</code>）の2つだけ</strong>とし、<code>main.tsx</code>でアプリ全体を包む（2.1.4節）。現状S-01のみでどちらも未使用のため未導入。S-02以降でどちらかが最初に必要になった画面で導入する</td></tr>
+      <tr><td>更新の反映</td><td>保存系API（PUT/POST/DELETE）の後は、該当フックの<code>mutate()</code>で再取得する（楽観的更新はしない）</td></tr>
+      <tr><td>Propsの向き</td><td>データは親→子へPropsで渡し、子→親はコールバック（<code>onSaved</code> / <code>onClose</code> / <code>onChange</code>）で通知する</td></tr>
+      <tr><td>権限による出し分け</td><td><code>useMe()</code>の<code>role</code>（'member'/'admin'、T-01）で判定する。Manabiはこれに加えプロジェクト単位のローカルロール（T-04 <code>project_memberships.role</code>: 'admin'/'editor'/'learner'）を持つため、プロジェクト配下の画面（S-05教材編集等）は<strong>グローバルロールとローカルロールの2段階</strong>で判定する（基本設計書3.5節）。判定箇所はルート（<code>App.tsx</code>）・メニュー・ボタンの3箇所に限り、権限の正はサーバー側にある</td></tr>
+      <tr><td>スタイル</td><td>Tailwind CSSのユーティリティをJSXに直接書く。共通の見た目が複数箇所で必要になったら、keirekiの<code>components/ui/shared.tsx</code>に倣ったクラス生成関数を追加する（現状S-01は単純なため未導入）</td></tr>
+    </tbody>
+  </table>
+
+  <h3>2.3 コンポーネントツリー（現状: S-01のみ）</h3>
+  <p><code>[S-xx]</code>は対応画面、<code>(hook)</code>は使用するデータ取得フックを示す。画面を作るたびにここへ追記する。</p>
+  <pre><code>main.tsx
+└── StrictMode › BrowserRouter
+    └── App (useMe)                        ルーティング・認証ガード（3.1節）
+        ├── [未認証] Login [S-01]           開発用ログイン / Googleログイン / エラー表示
+        └── [認証済]                        暫定表示（S-02実装時に置き換え）</code></pre>
+  <p><code>ToastProvider</code> / <code>ConfirmProvider</code>は2.2節のとおり未導入。導入時は<code>BrowserRouter</code>の内側・<code>App</code>の外側に追加し、keirekiと同様にトースト・確認ダイアログをどの画面からも同じ見た目で呼べるようにする。</p>
+
+  <h3>2.4 コンポーネント一覧（現状: S-01のみ）</h3>
+  <p>種別: <strong>Root</strong> = アプリ全体のルート、<strong>Page</strong> = ルートに対応する画面。Propsの型は<code>types/index.ts</code>に準ずる。</p>
+  <table>
+    <thead><tr><th>コンポーネント<br><span class="muted">種別 / 画面</span></th><th>Props</th><th>内部状態（useState）<br><span class="muted">使用フック / API</span></th><th>責務</th></tr></thead>
+    <tbody>
+      <tr><td><code>App</code><br><span class="muted">Root / —</span></td><td>なし</td><td>なし<br><span class="muted">→ <code>useMe</code>（A-04）</span></td><td>ログイン状態で表示を切り替える。未ログインなら<code>/login</code>のみのRoutes、ログイン済みなら暫定表示（S-02実装時にルーティング・ロール別リダイレクトへ差し替える）</td></tr>
+      <tr><td><code>Login</code><br><span class="muted">Page / S-01</span></td><td>なし</td><td>送信エラー<br><span class="muted">→ <code>useMe().mutate</code>、<code>useSWR</code>（開発用ユーザー一覧）、開発用ログインAPI</span></td><td>URLの<code>?error=</code>を4.1節のメッセージに変換して表示。開発用ログイン成功後に<code>mutate()</code>でログイン状態を更新</td></tr>
+    </tbody>
+  </table>
+
+  <h3>2.5 データ取得フック（<code>frontend/src/hooks/</code>）</h3>
+  <table>
+    <thead><tr><th>フック</th><th>API</th><th>SWRキー</th><th>戻り値</th><th>備考</th></tr></thead>
+    <tbody>
+      <tr><td><code>useMe()</code></td><td>A-04</td><td><code>/api/auth/me</code></td><td><code>{ me: Me | null, error, isLoading, mutate }</code></td><td>401は例外にせず<code>null</code>（未ログイン）として返す。ログイン・ログアウト後は<code>mutate()</code>で更新</td></tr>
+    </tbody>
+  </table>
+  <div class="callout">
+    <strong>フックを作る基準（keireki踏襲）:</strong> 2つ以上のコンポーネントから同じAPIを参照する、または保存後に<code>mutate()</code>で再取得する必要がある場合はフック化する。1画面でしか使わない読み取り専用の取得（S-01の開発用ユーザー一覧<code>/api/auth/dev-users</code>）は、そのコンポーネント内で<code>useSWR</code>を直接呼んでよい。
+  </div>
+
+  <h3>2.6 状態管理の分類</h3>
+  <table>
+    <thead><tr><th>分類</th><th>置き場所</th><th>現状の例</th><th>ライフサイクル</th></tr></thead>
+    <tbody>
+      <tr><td>サーバー状態</td><td>SWRキャッシュ（2.5節）</td><td>ログインユーザー（<code>useMe</code>）、開発用ユーザー一覧</td><td>キー単位で共有。フォーカス復帰・ログイン/ログアウト後の<code>mutate()</code>で再検証</td></tr>
+      <tr><td>フォーム入力</td><td>ページの<code>useState</code></td><td>該当なし（S-01はメール選択のみでテキスト入力フォームを持たない）</td><td>—</td></tr>
+      <tr><td>UI状態</td><td>コンポーネントの<code>useState</code></td><td><code>Login</code>の送信エラー</td><td>マウント中のみ</td></tr>
+      <tr><td>横断的UI</td><td>React Context</td><td>未導入（<code>ToastProvider</code> / <code>ConfirmProvider</code>、2.2節）</td><td>導入時はアプリ全体</td></tr>
+      <tr><td>永続UI設定</td><td><code>localStorage</code></td><td>未導入</td><td>導入時はブラウザに保持</td></tr>
+      <tr><td>URL状態</td><td>react-router（<code>useSearchParams</code>）</td><td><code>/login?error=</code></td><td>URLと同期</td></tr>
+    </tbody>
+  </table>
+  <p><code>localStorage</code>を使うようになったら、<code>manabi-</code>プレフィックスを付けたキー一覧をここに登録する（keirekiの<code>keireki-</code>プレフィックスに倣う）。<strong>個人情報・入力内容・会話内容は保存しない</strong>。</p>
+
+  <h3>2.7 共通UIコンポーネントのProps仕様</h3>
+  <p>2.1節カタログの各部品について、実装した時点で型シグネチャ（<code>value</code> / <code>onChange</code>の形、必須Props等）をkeireki詳細設計書12.6節の形式でここに追記する。現状S-01は2.1節カタログの部品を1つも使用していない（素のTailwindユーティリティと標準の<code>&lt;button&gt;</code>のみで構成）ため、本節はまだ空である。</p>
+
+  <h3>2.8 APIクライアントとエラー処理（<code>frontend/src/lib/api.ts</code>）</h3>
+  <ul>
+    <li><code>apiFetch&lt;T&gt;(path, init?)</code>: <code>credentials: 'same-origin'</code>・<code>Content-Type: application/json</code>を既定にした<code>fetch</code>ラッパー。2xxならJSONを<code>T</code>として返し（204は<code>undefined</code>）、それ以外は<code>ApiError(status, detail)</code>をthrowする。<code>detail</code>はAPIのエラーレスポンス形式（9章）から取り、JSONでなければ「エラーが発生しました」</li>
+    <li><strong>401の共通処理:</strong> <code>/api/auth/</code>以外のパスで401を受けたら<code>window.location.href = '/login'</code>でログイン画面に飛ばす（セッション切れ対策）。<code>useMe</code>が使う<code>/api/auth/me</code>は除外し、401を「未ログイン」として扱う</li>
+    <li><strong>表示の使い分け:</strong> 取得失敗（SWRの<code>error</code>）は画面内に赤文字で表示、保存・削除の結果は将来<code>useToast()</code>導入後にそちらへ移す（現状<code>Login</code>はログイン失敗をローカルstateで直接表示）。<code>alert</code> / <code>window.confirm</code>は使わない</li>
+  </ul>
+
+  <h3>2.9 コンポーネント追加・変更時の規約</h3>
+  <ol>
+    <li>新しい画面（S-xx）は<code>pages/</code>に1ファイルで作り、<code>App.tsx</code>の<code>Routes</code>に追加する。ロールで制限する場合は<code>App.tsx</code>でリダイレクトし、同時にサーバー側のガード（5章）があることを確認する</li>
+    <li>タブが3つ以上ある画面は<code>pages/&lt;画面&gt;/</code>にタブごとのファイルを分け、親は切替と<code>onSaved</code>の配布だけを行う（keirekiのS-04/S-05と同じ構造）</li>
+    <li>2画面以上で使う部品は<code>components/</code>に、1画面内でしか使わない部品は同じファイル内の非公開関数コンポーネントにする（export しない）</li>
+    <li>フォーム部品は必ず<code>components/ui/</code>の部品を使う（2.1.5節の実装規約）。新しい入力形式が必要になったら<code>ui/</code>に追加し、2.1節の表と2.7節にPropsを追記する</li>
+    <li>APIを追加したら<code>types/index.ts</code>にレスポンス型を追加し、参照が複数箇所なら<code>hooks/</code>にフックを作る（2.5節の基準）</li>
+    <li><code>localStorage</code>にキーを追加するときは<code>manabi-</code>プレフィックスを付け、2.6節の表に登録する</li>
+    <li>コンポーネントの冒頭コメントに対応する画面IDと詳細設計書の章番号を書く（例: <code>// S-02 マイ学習（詳細設計書 10.2）</code>）</li>
+  </ol>
+
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）詳細設計書 v1.4</span>
+    <span>社内学習管理システム（Manabi）詳細設計書 v1.5</span>
     <span>コガソフトウェア株式会社 / 2026-08-24</span>
   </footer>
 
