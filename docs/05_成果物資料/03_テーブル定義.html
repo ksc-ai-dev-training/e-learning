@@ -524,9 +524,328 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_surveys_per_node
     ON surveys (material_id, node_id) WHERE node_id IS NOT NULL;
 ALTER TABLE surveys ENABLE ROW LEVEL SECURITY;</code></pre>
 
+  <h3>3.8 ER図</h3>
+  <p>実働24テーブルのうち、AI関連（T-15〜T-19）とT-21 <code>app_settings</code>は、各機能・<code>users</code>への参照のみを持つ独立性の高いテーブルであり相互のリレーションを持たないため、基本設計書6.1節と同様の理由で図示を省略する（列定義は3.4節・3.5節の表を参照）。残り19テーブルを、本章の節構成に合わせて4枚の図に分けて示す（IE記法／鳥の足記法。参照記事: 「若手プログラマー必読！５分で理解できるER図の書き方５ステップ」NTTドコモビジネス）。</p>
+  <table>
+    <thead><tr><th>記号</th><th>意味</th></tr></thead>
+    <tbody>
+      <tr><td><code>‖</code>（2本線）</td><td>必ず1（NOT NULLの外部キー）</td></tr>
+      <tr><td><code>○|</code>（丸＋1本線）</td><td>0または1（nullableの外部キー）</td></tr>
+      <tr><td>鳥の足（3本線）</td><td>多（0件以上）</td></tr>
+    </tbody>
+  </table>
+  <p style="font-size:12px;color:var(--text-muted)">図中の「1」「N」表記はそれぞれ‖側・鳥の足側を示す。他の図に属するテーブルへの外部参照は、線を引かず枠内に注記（例:「material_id → 図2 T-06」）で示す。</p>
+
+  <div class="diagram">
+    <svg width="820" height="300" viewBox="0 0 820 300" font-family="'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif">
+      <text x="410" y="18" text-anchor="middle" font-size="13" font-weight="600" fill="#1e3a8a">図1: 組織・プロジェクト管理（3.1節）</text>
+
+      <!-- T-01 users -->
+      <rect x="40" y="105" width="170" height="80" rx="8" fill="#eff6ff" stroke="#1e40af" stroke-width="1.5"/>
+      <rect x="40" y="105" width="170" height="26" rx="8" fill="#1e40af"/>
+      <rect x="40" y="121" width="170" height="10" fill="#1e40af"/>
+      <text x="125" y="123" text-anchor="middle" font-size="12" font-weight="600" fill="#ffffff">T-01 users</text>
+      <text x="125" y="147" text-anchor="middle" font-size="10.5" fill="#1a1d21">ユーザー</text>
+      <text x="125" y="163" text-anchor="middle" font-size="9.5" fill="#60656d">email / role</text>
+      <text x="125" y="177" text-anchor="middle" font-size="9.5" fill="#60656d">is_active</text>
+
+      <!-- T-03 projects -->
+      <rect x="360" y="30" width="210" height="88" rx="8" fill="#ffffff" stroke="#1e40af" stroke-width="1.5"/>
+      <rect x="360" y="30" width="210" height="24" rx="8" fill="#dbeafe"/>
+      <rect x="360" y="44" width="210" height="10" fill="#dbeafe"/>
+      <text x="465" y="46" text-anchor="middle" font-size="11.5" font-weight="600" fill="#1e3a8a">T-03 projects</text>
+      <text x="465" y="66" text-anchor="middle" font-size="10.5" fill="#1a1d21">プロジェクト</text>
+      <text x="465" y="82" text-anchor="middle" font-size="9.5" fill="#60656d">pm_user_id（PM, nullable）</text>
+      <text x="465" y="96" text-anchor="middle" font-size="9.5" fill="#60656d">created_by / is_company_wide</text>
+
+      <!-- T-04 project_memberships -->
+      <rect x="360" y="160" width="230" height="98" rx="8" fill="#ffffff" stroke="#1e40af" stroke-width="1.5"/>
+      <rect x="360" y="160" width="230" height="24" rx="8" fill="#dbeafe"/>
+      <rect x="360" y="174" width="230" height="10" fill="#dbeafe"/>
+      <text x="475" y="176" text-anchor="middle" font-size="11.5" font-weight="600" fill="#1e3a8a">T-04 project_memberships</text>
+      <text x="475" y="196" text-anchor="middle" font-size="10.5" fill="#1a1d21">プロジェクトメンバー（ローカルロール）</text>
+      <text x="475" y="212" text-anchor="middle" font-size="9.5" fill="#60656d">role / status / joined_at / left_at</text>
+      <text x="475" y="227" text-anchor="middle" font-size="9.5" fill="#60656d">assigned_by（nullable）</text>
+      <text x="475" y="243" text-anchor="middle" font-size="9.5" fill="#60656d">UNIQUE(project_id, user_id)</text>
+
+      <!-- users -> projects: created_by (mandatory) -->
+      <line x1="210" y1="122" x2="360" y2="60" stroke="#60656d" stroke-width="1.3"/>
+      <text x="222" y="115" font-size="10.5" font-weight="600" fill="#1e40af">1</text>
+      <text x="345" y="65" font-size="10.5" font-weight="600" fill="#1e40af">N</text>
+      <text x="250" y="83" font-size="9" fill="#8a8f98">created_by</text>
+
+      <!-- users -> projects: pm_user_id (nullable) -->
+      <line x1="210" y1="140" x2="360" y2="95" stroke="#8a8f98" stroke-width="1.3" stroke-dasharray="5 4"/>
+      <text x="250" y="130" font-size="9" fill="#8a8f98">pm_user_id（○|）</text>
+
+      <!-- users -> project_memberships: user_id (mandatory) -->
+      <line x1="210" y1="160" x2="360" y2="205" stroke="#60656d" stroke-width="1.3"/>
+      <text x="222" y="172" font-size="10.5" font-weight="600" fill="#1e40af">1</text>
+      <text x="345" y="200" font-size="10.5" font-weight="600" fill="#1e40af">N</text>
+      <text x="250" y="192" font-size="9" fill="#8a8f98">user_id</text>
+
+      <!-- users -> project_memberships: assigned_by (nullable) -->
+      <line x1="210" y1="175" x2="360" y2="240" stroke="#8a8f98" stroke-width="1.3" stroke-dasharray="5 4"/>
+      <text x="240" y="222" font-size="9" fill="#8a8f98">assigned_by（○|）</text>
+
+      <!-- projects -> project_memberships: project_id (mandatory) -->
+      <line x1="465" y1="118" x2="475" y2="160" stroke="#60656d" stroke-width="1.3"/>
+      <text x="450" y="132" font-size="10.5" font-weight="600" fill="#1e40af">1</text>
+      <text x="450" y="155" font-size="10.5" font-weight="600" fill="#1e40af">N</text>
+      <text x="490" y="140" font-size="9" fill="#8a8f98">project_id</text>
+    </svg>
+  </div>
+
+  <div class="diagram">
+    <svg width="900" height="410" viewBox="0 0 900 410" font-family="'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif">
+      <text x="450" y="18" text-anchor="middle" font-size="13" font-weight="600" fill="#1e3a8a">図2: 教材・目次（3.2節）</text>
+
+      <!-- T-06 materials (hub) -->
+      <rect x="30" y="170" width="190" height="95" rx="8" fill="#eff6ff" stroke="#1e40af" stroke-width="1.5"/>
+      <rect x="30" y="170" width="190" height="26" rx="8" fill="#1e40af"/>
+      <rect x="30" y="186" width="190" height="10" fill="#1e40af"/>
+      <text x="125" y="188" text-anchor="middle" font-size="12" font-weight="600" fill="#ffffff">T-06 materials</text>
+      <text x="125" y="212" text-anchor="middle" font-size="10.5" fill="#1a1d21">教材</text>
+      <text x="125" y="228" text-anchor="middle" font-size="9.5" fill="#60656d">project_id / created_by</text>
+      <text x="125" y="243" text-anchor="middle" font-size="9.5" fill="#60656d">tags / status / attempt_scope</text>
+      <text x="125" y="257" text-anchor="middle" font-size="9.5" fill="#60656d">retake_scope / grading_mode</text>
+
+      <!-- T-23 material_nodes (self-referencing tree) -->
+      <rect x="330" y="35" width="230" height="115" rx="8" fill="#ffffff" stroke="#1e40af" stroke-width="1.5"/>
+      <rect x="330" y="35" width="230" height="24" rx="8" fill="#dbeafe"/>
+      <rect x="330" y="49" width="230" height="10" fill="#dbeafe"/>
+      <text x="445" y="51" text-anchor="middle" font-size="11.5" font-weight="600" fill="#1e3a8a">T-23 material_nodes</text>
+      <text x="445" y="71" text-anchor="middle" font-size="10.5" fill="#1a1d21">目次ノード（章/小見出し/ページ）</text>
+      <text x="445" y="87" text-anchor="middle" font-size="9.5" fill="#60656d">material_id / kind / sort_order</text>
+      <text x="445" y="101" text-anchor="middle" font-size="9.5" fill="#60656d">content_kind / format / body</text>
+      <text x="445" y="115" text-anchor="middle" font-size="9.5" fill="#60656d">quiz_mode / pool_draw_count</text>
+      <text x="445" y="130" text-anchor="middle" font-size="9.5" fill="#b45309">parent_node_id（自己参照, ○|）</text>
+      <path d="M 560 60 C 600 60, 600 100, 560 100" fill="none" stroke="#8a8f98" stroke-width="1.3" stroke-dasharray="5 4"/>
+      <text x="600" y="83" font-size="9" fill="#8a8f98">親ノード</text>
+
+      <!-- T-08 material_revisions -->
+      <rect x="30" y="305" width="190" height="80" rx="8" fill="#ffffff" stroke="#1e40af" stroke-width="1.5"/>
+      <rect x="30" y="305" width="190" height="24" rx="8" fill="#dbeafe"/>
+      <rect x="30" y="319" width="190" height="10" fill="#dbeafe"/>
+      <text x="125" y="321" text-anchor="middle" font-size="11.5" font-weight="600" fill="#1e3a8a">T-08 material_revisions</text>
+      <text x="125" y="341" text-anchor="middle" font-size="10.5" fill="#1a1d21">教材改訂履歴（追記専用）</text>
+      <text x="125" y="357" text-anchor="middle" font-size="9.5" fill="#60656d">source_snapshot / changed_via</text>
+      <text x="125" y="372" text-anchor="middle" font-size="8.5" fill="#8a8f98">changed_by → T-01 users（図1参照）</text>
+
+      <!-- T-09 material_attachments -->
+      <rect x="650" y="230" width="220" height="95" rx="8" fill="#ffffff" stroke="#1e40af" stroke-width="1.5"/>
+      <rect x="650" y="230" width="220" height="24" rx="8" fill="#dbeafe"/>
+      <rect x="650" y="244" width="220" height="10" fill="#dbeafe"/>
+      <text x="760" y="246" text-anchor="middle" font-size="11.5" font-weight="600" fill="#1e3a8a">T-09 material_attachments</text>
+      <text x="760" y="266" text-anchor="middle" font-size="10.5" fill="#1a1d21">添付ファイル・リンク</text>
+      <text x="760" y="282" text-anchor="middle" font-size="9.5" fill="#60656d">kind / storage_key / external_url</text>
+      <text x="760" y="297" text-anchor="middle" font-size="9.5" fill="#b45309">node_id（○|。NULL=教材全体）</text>
+      <text x="760" y="312" text-anchor="middle" font-size="8.5" fill="#8a8f98">node_id指定時はkind='chapter'不可</text>
+
+      <!-- T-10 questions -->
+      <rect x="330" y="260" width="240" height="130" rx="8" fill="#ffffff" stroke="#1e40af" stroke-width="1.5"/>
+      <rect x="330" y="260" width="240" height="24" rx="8" fill="#dbeafe"/>
+      <rect x="330" y="274" width="240" height="10" fill="#dbeafe"/>
+      <text x="450" y="276" text-anchor="middle" font-size="11.5" font-weight="600" fill="#1e3a8a">T-10 questions</text>
+      <text x="450" y="296" text-anchor="middle" font-size="10.5" fill="#1a1d21">問題</text>
+      <text x="450" y="312" text-anchor="middle" font-size="9.5" fill="#60656d">type / prompt / options</text>
+      <text x="450" y="327" text-anchor="middle" font-size="9.5" fill="#60656d">correct_answer / required</text>
+      <text x="450" y="342" text-anchor="middle" font-size="9.5" fill="#60656d">is_critical / grading_mode</text>
+      <text x="450" y="357" text-anchor="middle" font-size="8.5" fill="#8a8f98">material_id（非正規化、node_id経由と一致）</text>
+      <text x="450" y="371" text-anchor="middle" font-size="8.5" fill="#b45309">pool_group_id（自己参照, ○|）</text>
+      <path d="M 570 320 C 610 320, 610 360, 570 360" fill="none" stroke="#8a8f98" stroke-width="1.3" stroke-dasharray="5 4"/>
+      <text x="610" y="343" font-size="9" fill="#8a8f98">プール</text>
+
+      <!-- materials -> material_nodes: material_id (mandatory, CASCADE) -->
+      <line x1="220" y1="200" x2="330" y2="110" stroke="#60656d" stroke-width="1.3"/>
+      <text x="228" y="188" font-size="10.5" font-weight="600" fill="#1e40af">1</text>
+      <text x="312" y="115" font-size="10.5" font-weight="600" fill="#1e40af">N</text>
+      <text x="240" y="150" font-size="9" fill="#8a8f98">material_id（CASCADE）</text>
+
+      <!-- materials -> material_revisions: material_id (mandatory, CASCADE) -->
+      <line x1="125" y1="265" x2="125" y2="305" stroke="#60656d" stroke-width="1.3"/>
+      <text x="132" y="280" font-size="10.5" font-weight="600" fill="#1e40af">1</text>
+      <text x="132" y="300" font-size="10.5" font-weight="600" fill="#1e40af">N</text>
+
+      <!-- materials -> material_attachments: material_id (mandatory, CASCADE) -->
+      <line x1="220" y1="245" x2="650" y2="265" stroke="#60656d" stroke-width="1.3"/>
+      <text x="230" y="240" font-size="10.5" font-weight="600" fill="#1e40af">1</text>
+      <text x="630" y="262" font-size="10.5" font-weight="600" fill="#1e40af">N</text>
+      <text x="380" y="238" font-size="9" fill="#8a8f98">material_id（CASCADE）</text>
+
+      <!-- material_nodes -> material_attachments: node_id (nullable, CASCADE) -->
+      <line x1="560" y1="130" x2="650" y2="250" stroke="#8a8f98" stroke-width="1.3" stroke-dasharray="5 4"/>
+      <text x="568" y="150" font-size="9" fill="#8a8f98">node_id（○|, CASCADE）</text>
+
+      <!-- materials -> questions: material_id (mandatory, denormalized) -->
+      <line x1="220" y1="260" x2="330" y2="330" stroke="#60656d" stroke-width="1.3"/>
+      <text x="228" y="255" font-size="10.5" font-weight="600" fill="#1e40af">1</text>
+      <text x="310" y="325" font-size="10.5" font-weight="600" fill="#1e40af">N</text>
+
+      <!-- material_nodes -> questions: node_id (mandatory, CASCADE) -->
+      <line x1="445" y1="150" x2="450" y2="260" stroke="#60656d" stroke-width="1.3"/>
+      <text x="452" y="165" font-size="10.5" font-weight="600" fill="#1e40af">1</text>
+      <text x="452" y="250" font-size="10.5" font-weight="600" fill="#1e40af">N</text>
+      <text x="458" y="205" font-size="9" fill="#8a8f98">node_id（CASCADE）</text>
+    </svg>
+  </div>
+
+  <div class="diagram">
+    <svg width="900" height="360" viewBox="0 0 900 360" font-family="'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif">
+      <text x="450" y="18" text-anchor="middle" font-size="13" font-weight="600" fill="#1e3a8a">図3: 出題・受験・学習記録（3.3節）</text>
+      <text x="450" y="34" text-anchor="middle" font-size="9" fill="#8a8f98">material_id・user_id・node_id・question_idは全て図1・図2の該当テーブルを参照（外部参照は各枠内に注記、本図では線を引かない）</text>
+
+      <!-- T-11 assignments -->
+      <rect x="40" y="50" width="220" height="130" rx="8" fill="#ffffff" stroke="#1e40af" stroke-width="1.5"/>
+      <rect x="40" y="50" width="220" height="24" rx="8" fill="#dbeafe"/>
+      <rect x="40" y="64" width="220" height="10" fill="#dbeafe"/>
+      <text x="150" y="66" text-anchor="middle" font-size="11.5" font-weight="600" fill="#1e3a8a">T-11 assignments</text>
+      <text x="150" y="86" text-anchor="middle" font-size="10.5" fill="#1a1d21">配信設定</text>
+      <text x="150" y="102" text-anchor="middle" font-size="9.5" fill="#60656d">scope_type / required / due_at</text>
+      <text x="150" y="117" text-anchor="middle" font-size="9.5" fill="#60656d">pass_score_pct / retake_allowed</text>
+      <text x="150" y="132" text-anchor="middle" font-size="9.5" fill="#b45309">scope_id（ポリモーフィック、6.3節）</text>
+      <text x="150" y="148" text-anchor="middle" font-size="8.5" fill="#8a8f98">material_id → 図2 T-06（CASCADE）</text>
+      <text x="150" y="161" text-anchor="middle" font-size="8.5" fill="#8a8f98">created_by → 図1 T-01</text>
+
+      <!-- T-12 enrollment_progress -->
+      <rect x="330" y="50" width="220" height="120" rx="8" fill="#ffffff" stroke="#1e40af" stroke-width="1.5"/>
+      <rect x="330" y="50" width="220" height="24" rx="8" fill="#dbeafe"/>
+      <rect x="330" y="64" width="220" height="10" fill="#dbeafe"/>
+      <text x="440" y="66" text-anchor="middle" font-size="11.5" font-weight="600" fill="#1e3a8a">T-12 enrollment_progress</text>
+      <text x="440" y="86" text-anchor="middle" font-size="10.5" fill="#1a1d21">受講進捗</text>
+      <text x="440" y="102" text-anchor="middle" font-size="9.5" fill="#60656d">status / completed_node_ids</text>
+      <text x="440" y="117" text-anchor="middle" font-size="9.5" fill="#60656d">UNIQUE(user_id, material_id)</text>
+      <text x="440" y="133" text-anchor="middle" font-size="8.5" fill="#8a8f98">user_id → 図1 T-01</text>
+      <text x="440" y="146" text-anchor="middle" font-size="8.5" fill="#8a8f98">material_id → 図2 T-06（CASCADE）</text>
+      <text x="440" y="159" text-anchor="middle" font-size="8.5" fill="#b45309">current_node_id → 図2 T-23（○|, SET NULL）</text>
+
+      <!-- T-13 quiz_attempts -->
+      <rect x="40" y="215" width="240" height="130" rx="8" fill="#eff6ff" stroke="#1e40af" stroke-width="1.5"/>
+      <rect x="40" y="215" width="240" height="26" rx="8" fill="#1e40af"/>
+      <rect x="40" y="231" width="240" height="10" fill="#1e40af"/>
+      <text x="160" y="233" text-anchor="middle" font-size="12" font-weight="600" fill="#ffffff">T-13 quiz_attempts</text>
+      <text x="160" y="257" text-anchor="middle" font-size="10.5" fill="#1a1d21">受験記録（試行）</text>
+      <text x="160" y="273" text-anchor="middle" font-size="9.5" fill="#60656d">mode / attempt_no / score_pct</text>
+      <text x="160" y="288" text-anchor="middle" font-size="9.5" fill="#60656d">passed / fail_reason</text>
+      <text x="160" y="304" text-anchor="middle" font-size="8.5" fill="#8a8f98">user_id → 図1 T-01／material_id → 図2 T-06</text>
+      <text x="160" y="317" text-anchor="middle" font-size="8.5" fill="#b45309">scope_node_id → 図2 T-23（○|, CASCADE）</text>
+      <text x="160" y="333" text-anchor="middle" font-size="8.5" fill="#60656d">question_order / carried_over_question_ids</text>
+
+      <!-- T-14 answers -->
+      <rect x="360" y="215" width="240" height="130" rx="8" fill="#ffffff" stroke="#1e40af" stroke-width="1.5"/>
+      <rect x="360" y="215" width="240" height="24" rx="8" fill="#dbeafe"/>
+      <rect x="360" y="229" width="240" height="10" fill="#dbeafe"/>
+      <text x="480" y="231" text-anchor="middle" font-size="11.5" font-weight="600" fill="#1e3a8a">T-14 answers</text>
+      <text x="480" y="251" text-anchor="middle" font-size="10.5" fill="#1a1d21">回答</text>
+      <text x="480" y="267" text-anchor="middle" font-size="9.5" fill="#60656d">response / is_correct</text>
+      <text x="480" y="282" text-anchor="middle" font-size="9.5" fill="#60656d">ai_score_pct / ai_feedback</text>
+      <text x="480" y="298" text-anchor="middle" font-size="9.5" fill="#60656d">UNIQUE(attempt_id, question_id)</text>
+      <text x="480" y="314" text-anchor="middle" font-size="8.5" fill="#8a8f98">question_id → 図2 T-10（CASCADE）</text>
+      <text x="480" y="327" text-anchor="middle" font-size="8.5" fill="#b45309">reviewed_by → 図1 T-01（○|, SET NULL）</text>
+
+      <!-- quiz_attempts -> answers: attempt_id (mandatory, CASCADE) -->
+      <line x1="280" y1="280" x2="360" y2="280" stroke="#60656d" stroke-width="1.3"/>
+      <text x="288" y="272" font-size="10.5" font-weight="600" fill="#1e40af">1</text>
+      <text x="340" y="272" font-size="10.5" font-weight="600" fill="#1e40af">N</text>
+      <text x="290" y="295" font-size="9" fill="#8a8f98">attempt_id（CASCADE）</text>
+    </svg>
+  </div>
+
+  <div class="diagram">
+    <svg width="900" height="330" viewBox="0 0 900 330" font-family="'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif">
+      <text x="450" y="18" text-anchor="middle" font-size="13" font-weight="600" fill="#1e3a8a">図4: 配信通知・共有・受験後アンケート（3.5節・3.6節）</text>
+
+      <!-- T-20 slack_notification_logs -->
+      <rect x="40" y="40" width="220" height="95" rx="8" fill="#ffffff" stroke="#1e40af" stroke-width="1.5"/>
+      <rect x="40" y="40" width="220" height="24" rx="8" fill="#dbeafe"/>
+      <rect x="40" y="54" width="220" height="10" fill="#dbeafe"/>
+      <text x="150" y="56" text-anchor="middle" font-size="11.5" font-weight="600" fill="#1e3a8a">T-20 slack_notification_logs</text>
+      <text x="150" y="76" text-anchor="middle" font-size="10.5" fill="#1a1d21">Slack送信ログ</text>
+      <text x="150" y="92" text-anchor="middle" font-size="9.5" fill="#60656d">sent_at / status</text>
+      <text x="150" y="108" text-anchor="middle" font-size="8.5" fill="#8a8f98">user_id → 図1 T-01</text>
+      <text x="150" y="121" text-anchor="middle" font-size="8.5" fill="#8a8f98">assignment_id → 図3 T-11（CASCADE）</text>
+
+      <!-- T-22 material_project_shares -->
+      <rect x="40" y="170" width="220" height="140" rx="8" fill="#ffffff" stroke="#1e40af" stroke-width="1.5"/>
+      <rect x="40" y="170" width="220" height="24" rx="8" fill="#dbeafe"/>
+      <rect x="40" y="184" width="220" height="10" fill="#dbeafe"/>
+      <text x="150" y="186" text-anchor="middle" font-size="11.5" font-weight="600" fill="#1e3a8a">T-22 material_project_shares</text>
+      <text x="150" y="206" text-anchor="middle" font-size="10.5" fill="#1a1d21">教材のプロジェクト間共有</text>
+      <text x="150" y="222" text-anchor="middle" font-size="9.5" fill="#60656d">status（pending/accepted/rejected）</text>
+      <text x="150" y="238" text-anchor="middle" font-size="9.5" fill="#60656d">UNIQUE(material_id, shared_to_project_id)</text>
+      <text x="150" y="255" text-anchor="middle" font-size="8.5" fill="#8a8f98">material_id → 図2 T-06（CASCADE、共有元）</text>
+      <text x="150" y="268" text-anchor="middle" font-size="8.5" fill="#8a8f98">shared_to_project_id → 図1 T-03（CASCADE）</text>
+      <text x="150" y="281" text-anchor="middle" font-size="8.5" fill="#8a8f98">shared_by → 図1 T-01</text>
+      <text x="150" y="294" text-anchor="middle" font-size="8.5" fill="#b45309">responded_by → 図1 T-01（○|, SET NULL）</text>
+
+      <!-- T-26 surveys (hub) -->
+      <rect x="340" y="40" width="200" height="110" rx="8" fill="#eff6ff" stroke="#1e40af" stroke-width="1.5"/>
+      <rect x="340" y="40" width="200" height="26" rx="8" fill="#1e40af"/>
+      <rect x="340" y="56" width="200" height="10" fill="#1e40af"/>
+      <text x="440" y="58" text-anchor="middle" font-size="12" font-weight="600" fill="#ffffff">T-26 surveys</text>
+      <text x="440" y="82" text-anchor="middle" font-size="10.5" fill="#1a1d21">受験後アンケート</text>
+      <text x="440" y="98" text-anchor="middle" font-size="9.5" fill="#60656d">title / is_active / repeat_mode</text>
+      <text x="440" y="113" text-anchor="middle" font-size="8.5" fill="#8a8f98">material_id → 図2 T-06（CASCADE）</text>
+      <text x="440" y="126" text-anchor="middle" font-size="8.5" fill="#b45309">node_id → 図2 T-23（○|, CASCADE）</text>
+      <text x="440" y="139" text-anchor="middle" font-size="8" fill="#8a8f98">部分INDEXで1箇所1件まで（本節）</text>
+
+      <!-- T-27 survey_questions -->
+      <rect x="620" y="40" width="230" height="95" rx="8" fill="#ffffff" stroke="#1e40af" stroke-width="1.5"/>
+      <rect x="620" y="40" width="230" height="24" rx="8" fill="#dbeafe"/>
+      <rect x="620" y="54" width="230" height="10" fill="#dbeafe"/>
+      <text x="735" y="56" text-anchor="middle" font-size="11.5" font-weight="600" fill="#1e3a8a">T-27 survey_questions</text>
+      <text x="735" y="76" text-anchor="middle" font-size="10.5" fill="#1a1d21">アンケート設問</text>
+      <text x="735" y="92" text-anchor="middle" font-size="9.5" fill="#60656d">type / prompt / options</text>
+      <text x="735" y="108" text-anchor="middle" font-size="9.5" fill="#60656d">sort_order</text>
+      <text x="735" y="124" text-anchor="middle" font-size="8.5" fill="#8a8f98">correct_answer列を持たない（正誤なし）</text>
+
+      <!-- T-28 survey_responses -->
+      <rect x="340" y="195" width="200" height="95" rx="8" fill="#ffffff" stroke="#1e40af" stroke-width="1.5"/>
+      <rect x="340" y="195" width="200" height="24" rx="8" fill="#dbeafe"/>
+      <rect x="340" y="209" width="200" height="10" fill="#dbeafe"/>
+      <text x="440" y="211" text-anchor="middle" font-size="11.5" font-weight="600" fill="#1e3a8a">T-28 survey_responses</text>
+      <text x="440" y="231" text-anchor="middle" font-size="10.5" fill="#1a1d21">アンケート回答（ヘッダー）</text>
+      <text x="440" y="247" text-anchor="middle" font-size="9.5" fill="#60656d">submitted_at</text>
+      <text x="440" y="263" text-anchor="middle" font-size="8.5" fill="#b45309">user_id → 図1 T-01（○|, SET NULL）</text>
+      <text x="440" y="278" text-anchor="middle" font-size="8" fill="#8a8f98">統計利用のみのためnullable（匿名運用も想定）</text>
+
+      <!-- T-29 survey_answers -->
+      <rect x="620" y="195" width="230" height="110" rx="8" fill="#ffffff" stroke="#1e40af" stroke-width="1.5"/>
+      <rect x="620" y="195" width="230" height="24" rx="8" fill="#dbeafe"/>
+      <rect x="620" y="209" width="230" height="10" fill="#dbeafe"/>
+      <text x="735" y="211" text-anchor="middle" font-size="11.5" font-weight="600" fill="#1e3a8a">T-29 survey_answers</text>
+      <text x="735" y="231" text-anchor="middle" font-size="10.5" fill="#1a1d21">アンケート回答（設問ごと）</text>
+      <text x="735" y="247" text-anchor="middle" font-size="9.5" fill="#60656d">value（JSONB）</text>
+      <text x="735" y="263" text-anchor="middle" font-size="8" fill="#8a8f98">未回答の設問は行を作成しない</text>
+      <text x="735" y="278" text-anchor="middle" font-size="8" fill="#8a8f98">（すべての設問が回答任意）</text>
+
+      <!-- surveys -> survey_questions: survey_id (mandatory, CASCADE) -->
+      <line x1="540" y1="90" x2="620" y2="90" stroke="#60656d" stroke-width="1.3"/>
+      <text x="548" y="82" font-size="10.5" font-weight="600" fill="#1e40af">1</text>
+      <text x="600" y="82" font-size="10.5" font-weight="600" fill="#1e40af">N</text>
+      <text x="545" y="103" font-size="9" fill="#8a8f98">survey_id（CASCADE）</text>
+
+      <!-- surveys -> survey_responses: survey_id (mandatory, CASCADE) -->
+      <line x1="440" y1="150" x2="440" y2="195" stroke="#60656d" stroke-width="1.3"/>
+      <text x="447" y="165" font-size="10.5" font-weight="600" fill="#1e40af">1</text>
+      <text x="447" y="190" font-size="10.5" font-weight="600" fill="#1e40af">N</text>
+
+      <!-- survey_questions -> survey_answers: survey_question_id (mandatory, CASCADE) -->
+      <line x1="735" y1="135" x2="735" y2="195" stroke="#60656d" stroke-width="1.3"/>
+      <text x="742" y="150" font-size="10.5" font-weight="600" fill="#1e40af">1</text>
+      <text x="742" y="190" font-size="10.5" font-weight="600" fill="#1e40af">N</text>
+
+      <!-- survey_responses -> survey_answers: response_id (mandatory, CASCADE) -->
+      <line x1="540" y1="245" x2="620" y2="245" stroke="#60656d" stroke-width="1.3"/>
+      <text x="548" y="237" font-size="10.5" font-weight="600" fill="#1e40af">1</text>
+      <text x="600" y="237" font-size="10.5" font-weight="600" fill="#1e40af">N</text>
+      <text x="545" y="260" font-size="9" fill="#8a8f98">response_id（CASCADE）</text>
+    </svg>
+  </div>
+
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）詳細設計書 v1.1</span>
+    <span>社内学習管理システム（Manabi）詳細設計書 v1.2</span>
     <span>コガソフトウェア株式会社 / 2026-08-24</span>
   </footer>
 
