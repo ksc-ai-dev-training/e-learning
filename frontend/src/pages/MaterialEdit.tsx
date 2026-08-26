@@ -59,9 +59,9 @@ export default function MaterialEdit() {
   const { attachments, isLoading: attachmentsLoading } = useMaterialAttachments(
     activeTab === 'attach' ? savedId : null,
   )
-  const { memberships, isLoading: membershipsLoading } = useProjectMemberships(
-    activeTab === 'members' ? Number(projectId) : null,
-  )
+  // ヘッダーの「プロジェクト管理者」表示にも使うため、タブ表示中かどうかに関わらず取得する
+  const { memberships, isLoading: membershipsLoading } = useProjectMemberships(Number(projectId))
+  const projectAdminNames = memberships.filter((m) => m.role === 'admin').map((m) => m.user_name)
   const { revisions, isLoading: revisionsLoading } = useMaterialRevisions(
     activeTab === 'history' ? savedId : null,
   )
@@ -198,11 +198,22 @@ export default function MaterialEdit() {
     <div className="flex flex-1 flex-col">
       <PageHeader title={`教材編集${title ? ` — ${title}` : ''}`} />
       <div className="px-8 py-6">
-        <p className="mb-4 flex flex-wrap items-center gap-2 text-[11.5px] text-slate-400">
+        <p className="mb-4 flex flex-wrap items-center gap-1.5 text-[11.5px] text-slate-400">
           <Link to={`/projects/${projectId}/materials/edit`} className="text-blue-800 hover:underline">
             ← 教材一覧に戻る
           </Link>
           {savedId !== null && <Badge variant={material?.status === 'published' ? 'published' : 'draft'} />}
+          {project && (
+            <>
+              <span>／ 紐づくプロジェクト: {project.name}</span>
+              <span className="inline-flex items-center gap-1">
+                ／ あなたのロール: <Badge variant={project.role} />
+              </span>
+            </>
+          )}
+          {!membershipsLoading && projectAdminNames.length > 0 && (
+            <span>／ プロジェクト管理者: {projectAdminNames.join('、')}</span>
+          )}
         </p>
 
         <div className="mb-5 flex gap-1 border-b border-slate-200" role="tablist">
