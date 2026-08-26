@@ -16,7 +16,7 @@
     <p class="subtitle">社内学習管理システム（Manabi）</p>
     <div class="meta">
       <span>作成日: 2026-08-24</span>
-      <span>版数: 1.17</span>
+      <span>版数: 1.18</span>
       <span>作成: コガソフトウェア株式会社</span>
     </div>
     <p class="note">本ドキュメントは新人社員向けAI開発研修のサンプル成果物です</p>
@@ -44,6 +44,7 @@
       <tr><td>1.15</td><td>2026-08-26</td><td>S-05の所属プロジェクト・タグの表示を確認結果に合わせて修正した。所属プロジェクトはセレクトではなく変更不可の読み取り専用表示（グレー背景の枠内に名前のみ表示）とし、タグ入力の左隣に並べて配置した。タグは任意項目であることが伝わるよう、プレースホルダーを「タグを入力してEnter」から「タグを設定する場合は入力」に変更した。10.5節を更新した。</td></tr>
       <tr><td>1.16</td><td>2026-08-26</td><td>S-05の目次ツリー編集について3点修正した。(1) タグのプレースホルダーを「タグを設定する場合は入力」から丁寧語の「タグを設定する場合は入力してください」に変更。(2) タグ入力欄はフォーカス中または1文字以上入力中に装飾的な<code>#</code>を前置するようにした（Instagram等のハッシュタグ入力を参考にした見た目のみの変更で、値には含めない）。(3) 小見出しの行を章より字下げし左に境界線を付けて親子関係を視覚的に分かりやすくし、新規追加した小見出しのタイトルは自動採番文字列を入れず「小見出しのタイトルを入力」というプレースホルダー表示にした（章の「第N章」表記はそのまま）。2.1.5・2.7節・10.5節を更新した。</td></tr>
       <tr><td>1.17</td><td>2026-08-26</td><td>S-05に「ファイル・リンク」「プロジェクトメンバー」「AIレビュー結果」「改訂履歴」の4タブを追加した（従来は「目次編集」タブのみ実装）。教材を保存する前（<code>materialId=new</code>）から5タブすべてを表示し、目次編集以外は保存前は案内メッセージのみ、保存後（idが確定した後）に実データを取得する方針にした。ファイル・リンクタブは画面モックアップの追加フォームを実装せず、教材全体＋各ページの添付を横断した参照専用一覧にした（添付の追加はページ編集S-17で行う方針としたため）。バックエンドはA-11（プロジェクトメンバー一覧）・A-22（改訂履歴）・A-28（添付一覧）を実装し、T-09 <code>material_attachments</code>テーブルを追加した。A-11の権限は当初の「管理者/adminのみ」から、S-05の参照専用タブを編集者にも見せるため<code>require_project_role(min_role='editor')</code>相当に緩和した。A-28は<code>node_id</code>省略時の既定を「教材全体のみ」から「教材に属する全件」に変更した。AIレビュー結果タブ（A-32/A-33、Anthropic API連携）は見た目のみ用意し実行は未実装。4.3節・10.5節・2.3〜2.5節を更新した。</td></tr>
+      <tr><td>1.18</td><td>2026-08-26</td><td>サイドバーの2点の不具合を修正した。(1) 「プロフィール編集」への導線が無かったため、フッターのユーザー情報とログアウトの間に追加した（S-15未実装のためグレーアウト表示。<code>UserPen</code>アイコン）。(2) サイドバーを閉じている間はログアウトボタンごと隠れ、ログアウトのためだけにサイドバーを開き直す必要があったため、プロフィール編集・ログアウトとも開閉状態によらず常に表示するようにした（閉じているときはアイコンのみ。ログアウトには<code>LogOut</code>アイコンを追加）。2.1.1・2.4節を更新した。</td></tr>
     </tbody>
   </table>
 
@@ -151,7 +152,7 @@
     <thead><tr><th>コンポーネント</th><th>props</th><th>用途</th></tr></thead>
     <tbody>
       <tr><td><code>AppShell</code></td><td>children</td><td>Sidebar + メインコンテンツ領域のラッパー。全認証後画面（S-02〜S-19）で共通</td></tr>
-      <tr><td><code>Sidebar</code></td><td>activeItem, currentUser</td><td>ロゴ・ナビ項目・ログインユーザー情報・ログアウトボタン。表示するナビ項目はcurrentUser.roleと5.6節のフロントガード条件で出し分ける。アイコンのみの帯に開閉可能。開閉ボタンはサイドバー右端の境界線上に半分はみ出す丸ボタンとして配置し、開閉状態によらず画面上の位置が動かないようにする（keirekiのLayout.tsxはブランド行内に配置しているが、Manabiではボタンの位置がわかりにくいとのフィードバックを受けて境界線上に変更した）。開閉状態は<code>localStorage</code>に保存する（2.6節）</td></tr>
+      <tr><td><code>Sidebar</code></td><td>activeItem, currentUser</td><td>ロゴ・ナビ項目・ログインユーザー情報・プロフィール編集導線・ログアウトボタン。表示するナビ項目はcurrentUser.roleと5.6節のフロントガード条件で出し分ける。アイコンのみの帯に開閉可能。開閉ボタンはサイドバー右端の境界線上に半分はみ出す丸ボタンとして配置し、開閉状態によらず画面上の位置が動かないようにする（keirekiのLayout.tsxはブランド行内に配置しているが、Manabiではボタンの位置がわかりにくいとのフィードバックを受けて境界線上に変更した）。開閉状態は<code>localStorage</code>に保存する（2.6節）。フッターのプロフィール編集・ログアウトは、開閉状態にかかわらず常に表示する（開いているときはラベル付き、閉じているときはアイコンのみ）。ログアウトは操作頻度が高いため、サイドバーを開かないと押せない状態を避けた</td></tr>
       <tr><td><code>PageHeader</code></td><td>title, actions?</td><td>画面タイトル＋右側の操作ボタン群（新規作成・保存等）。ほぼ全画面のヘッダー部分</td></tr>
     </tbody>
   </table>
@@ -268,7 +269,7 @@
       <tr><td><code>App</code><br><span class="muted">Root / —</span></td><td>なし</td><td>なし<br><span class="muted">→ <code>useMe</code>（A-04）</span></td><td>ログイン状態で表示を切り替える。未ログインなら<code>/login</code>のみのRoutes、ログイン済みなら<code>AppShell</code>配下にRoutesを展開する</td></tr>
       <tr><td><code>Login</code><br><span class="muted">Page / S-01</span></td><td>なし</td><td>送信エラー<br><span class="muted">→ <code>useMe().mutate</code>、<code>useSWR</code>（開発用ユーザー一覧）、開発用ログインAPI</span></td><td>URLの<code>?error=</code>を4.1節のメッセージに変換して表示。開発用ログイン成功後に<code>mutate()</code>でログイン状態を更新</td></tr>
       <tr><td><code>AppShell</code><br><span class="muted">Shared / S-02〜S-19</span></td><td><code>me: Me</code>, <code>children</code></td><td>なし<br><span class="muted">→ —</span></td><td><code>Sidebar</code> + メインコンテンツ領域のラッパー。全認証後画面で共通（2.1.1節）</td></tr>
-      <tr><td><code>Sidebar</code><br><span class="muted">Shared / S-02〜S-19</span></td><td><code>me: Me</code></td><td><code>collapsed</code>（アイコンのみ表示への開閉状態。<code>localStorage</code>と同期）<br><span class="muted">→ A-03（ログアウト）</span></td><td>ロゴ・ナビ項目（各項目にアイコン、<code>lucide-react</code>）・ログインユーザー情報・ログアウト。現状は固定メニュー（マイ学習・教材一覧・教材編集・個人学習レポート・プロジェクト作成・プロジェクト管理）を表示するのみで、S-02等の未実装画面へのリンクは今は繋がない。ロール別出し分けはS-08/S-10着手時に追加。開閉ボタン押下で<code>w-60</code>⇄<code>w-14</code>を切り替え、閉じているときはラベル・ユーザー情報・ログアウトボタンを隠す。開閉ボタンはサイドバー右端の境界線上に配置した丸ボタン（アイコンは<code>lucide-react</code>の<code>ChevronLeft</code>/<code>ChevronRight</code>）で、ブランド行内（keirekiのLayout.tsxの配置）から変更した。開閉状態によらずボタンの画面上の位置が変わらない。画面モックアップ側にも同等の開閉機能を<code>docs/03_画面モックアップ/mock-sidebar.js</code>として反映済み</td></tr>
+      <tr><td><code>Sidebar</code><br><span class="muted">Shared / S-02〜S-19</span></td><td><code>me: Me</code></td><td><code>collapsed</code>（アイコンのみ表示への開閉状態。<code>localStorage</code>と同期）<br><span class="muted">→ A-03（ログアウト）</span></td><td>ロゴ・ナビ項目（各項目にアイコン、<code>lucide-react</code>）・ログインユーザー情報・プロフィール編集導線・ログアウト。現状は固定メニュー（マイ学習・教材一覧・教材編集・個人学習レポート・プロジェクト作成・プロジェクト管理）を表示するのみで、S-02等の未実装画面へのリンクは今は繋がない。ロール別出し分けはS-08/S-10着手時に追加。開閉ボタン押下で<code>w-60</code>⇄<code>w-14</code>を切り替え、閉じているときはラベルを隠す。開閉ボタンはサイドバー右端の境界線上に配置した丸ボタン（アイコンは<code>lucide-react</code>の<code>ChevronLeft</code>/<code>ChevronRight</code>）で、ブランド行内（keirekiのLayout.tsxの配置）から変更した。開閉状態によらずボタンの画面上の位置が変わらない。フッターのプロフィール編集（<code>UserPen</code>アイコン、S-15未実装のためグレーアウト）・ログアウト（<code>LogOut</code>アイコン）は、開閉状態によらず常に表示する（閉じているときはアイコンのみ）。以前は閉じている間ログアウトボタンごと隠れ、ログアウトのためだけにサイドバーを開き直す必要があったのを修正した。画面モックアップ側にも同等の開閉機能を<code>docs/03_画面モックアップ/mock-sidebar.js</code>として反映済み</td></tr>
       <tr><td><code>ProjectSelect</code><br><span class="muted">Page / S-13</span></td><td>なし</td><td><code>keyword</code>（検索欄の入力値）<br><span class="muted">→ <code>useProjects</code>（A-81）</span></td><td>editor以上のプロジェクトをカード表示。<code>is_company_wide</code>を先頭固定し、ピンアイコンを付ける。<code>keyword</code>でプロジェクト名をクライアント側フィルタ（A-81は全件取得のためAPI呼び出しなし）。カード選択でS-14へ</td></tr>
       <tr><td><code>ProjectCard</code><br><span class="muted">Shared / S-13</span></td><td><code>project: Project</code>, <code>pinned?: boolean</code></td><td>なし<br><span class="muted">→ —</span></td><td>プロジェクト名・ロールバッジ・教材件数・メンバー数の表示専用カード（2.1.2節）。カード自体が<code>Link</code>でS-14へ遷移する</td></tr>
       <tr><td><code>MaterialsList</code><br><span class="muted">Page / S-14</span></td><td>なし（<code>useParams().projectId</code>）</td><td><code>form</code>（入力中の絞り込み条件）, <code>filter</code>（適用済みの絞り込み条件。既定はキーワード空・状態/更新月「すべて」）<br><span class="muted">→ <code>useProjects</code>（A-81、ヘッダーのプロジェクト名解決に流用）, <code>useMaterials</code>（A-21）</span></td><td>対象プロジェクトの教材一覧（下書き含む）を表示。絞り込みパネル（キーワード・状態・更新月）は「絞り込む」押下で<code>filter</code>に反映、「条件クリア」で両方初期化するクライアント側フィルタ（10.13節、2.2節）。キーワードは教材タイトルとタグ（<code>#タグ名</code>形式で先頭の<code>#</code>を除去して比較）の両方を対象とする。更新月の選択肢は取得した教材の<code>updated_at</code>から動的に生成する。「＋新規教材を作成」ボタンはS-05（<code>materialId=new</code>）への<code>Link</code>。教材一覧の各行タイトルもS-05（既存教材の編集）への<code>Link</code>。教材0件時・絞り込み結果0件時はそれぞれ空状態メッセージを表示</td></tr>
@@ -352,7 +353,7 @@
   </ol>
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）詳細設計書 v1.17</span>
+    <span>社内学習管理システム（Manabi）詳細設計書 v1.18</span>
     <span>コガソフトウェア株式会社 / 2026-08-24</span>
   </footer>
 

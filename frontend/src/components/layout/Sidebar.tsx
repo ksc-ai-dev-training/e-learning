@@ -9,6 +9,8 @@ import {
   LayoutGrid,
   ChevronLeft,
   ChevronRight,
+  UserPen,
+  LogOut,
 } from 'lucide-react'
 import { apiFetch } from '../../lib/api'
 import { useMe } from '../../hooks/useMe'
@@ -122,14 +124,27 @@ export default function Sidebar({ me }: { me: Me }) {
             </div>
           )}
         </div>
-        {!collapsed && (
+        <div className={`mt-2.5 flex flex-col gap-1.5 ${collapsed ? 'items-center' : ''}`}>
+          <span
+            title="プロフィール編集（未実装）"
+            className={`flex h-[30px] cursor-default items-center gap-2 rounded-md border border-slate-200 bg-white text-xs text-slate-300 ${
+              collapsed ? 'w-[30px] justify-center' : 'w-full px-2.5'
+            }`}
+          >
+            <UserPen className="h-3.5 w-3.5 flex-shrink-0" />
+            {!collapsed && <span>プロフィール編集</span>}
+          </span>
           <button
             onClick={logout}
-            className="mt-2.5 w-full rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+            title={collapsed ? 'ログアウト' : undefined}
+            className={`flex h-[30px] items-center gap-2 rounded-md border border-slate-200 bg-white text-xs text-slate-500 hover:bg-slate-100 hover:text-slate-800 ${
+              collapsed ? 'w-[30px] justify-center' : 'w-full px-2.5'
+            }`}
           >
-            ログアウト
+            <LogOut className="h-3.5 w-3.5 flex-shrink-0" />
+            {!collapsed && <span>ログアウト</span>}
           </button>
-        )}
+        </div>
       </div>
     </aside>
   )
