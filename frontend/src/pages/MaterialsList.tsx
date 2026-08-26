@@ -7,6 +7,7 @@ import Select from '../components/ui/Select'
 import TextInput from '../components/ui/TextInput'
 import { useMaterials } from '../hooks/useMaterials'
 import { useProjects } from '../hooks/useProjects'
+import { formatDateJst, formatYearMonthJst } from '../lib/datetime'
 import type { MaterialStatus } from '../types'
 
 const STATUS_OPTIONS = [
@@ -31,7 +32,7 @@ export default function MaterialsList() {
   const [filter, setFilter] = useState<FilterForm>(EMPTY_FILTER)
 
   const monthOptions = useMemo(() => {
-    const months = new Set(materials.map((m) => m.updated_at.slice(0, 7)))
+    const months = new Set(materials.map((m) => formatYearMonthJst(m.updated_at)))
     const sorted = Array.from(months).sort().reverse()
     return [
       { value: 'all', label: 'すべて' },
@@ -50,7 +51,7 @@ export default function MaterialsList() {
       if (!titleMatch && !tagMatch) return false
     }
     if (filter.status !== 'all' && m.status !== (filter.status as MaterialStatus)) return false
-    if (filter.month !== 'all' && m.updated_at.slice(0, 7) !== filter.month) return false
+    if (filter.month !== 'all' && formatYearMonthJst(m.updated_at) !== filter.month) return false
     return true
   })
 
@@ -182,7 +183,7 @@ export default function MaterialsList() {
                     <td className="px-3 py-2 text-slate-500">
                       {m.chapter_count}章・{m.page_count}ページ
                     </td>
-                    <td className="px-3 py-2 text-slate-500">{m.updated_at.slice(0, 10)}</td>
+                    <td className="px-3 py-2 text-slate-500">{formatDateJst(m.updated_at)}</td>
                   </tr>
                 ))}
               </tbody>

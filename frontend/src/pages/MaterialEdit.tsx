@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router'
 import PageHeader from '../components/layout/PageHeader'
 import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
+import Select from '../components/ui/Select'
 import TagInput from '../components/ui/TagInput'
 import TextInput from '../components/ui/TextInput'
 import { useMaterial } from '../hooks/useMaterial'
@@ -11,6 +12,7 @@ import { useMaterialRevisions } from '../hooks/useMaterialRevisions'
 import { useProjectMemberships } from '../hooks/useProjectMemberships'
 import { useProjects } from '../hooks/useProjects'
 import { ApiError, apiFetch, apiFetchText } from '../lib/api'
+import { formatDateJst, formatDateTimeJst, formatYearMonthJst } from '../lib/datetime'
 import { buildMaterialSource } from '../lib/materialSource'
 import type { EditableNode } from '../lib/materialSource'
 import type { Material, MaterialNode } from '../types'
@@ -54,7 +56,11 @@ export default function MaterialEdit() {
   const [chapters, setChapters] = useState<EditableNode[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [savedMessage, setSavedMessage] = useState<string | null>(null)
   const [pendingDelete, setPendingDelete] = useState<string | null>(null)
+  const [historyYear, setHistoryYear] = useState('')
+  const [historyMonth, setHistoryMonth] = useState('all')
+  const [historyShowAll, setHistoryShowAll] = useState(false)
 
   const { attachments, isLoading: attachmentsLoading } = useMaterialAttachments(
     activeTab === 'attach' ? savedId : null,
@@ -75,10 +81,46 @@ export default function MaterialEdit() {
     }
   }, [material])
 
+  // 保存完了メッセージは一定時間で消す（10.5節）
+  useEffect(() => {
+    if (!savedMessage) return
+    const timer = setTimeout(() => setSavedMessage(null), 3000)
+    return () => clearTimeout(timer)
+  }, [savedMessage])
+
+  // 改訂履歴の対象年月は既定で直近（最新の改訂がある年月）に絞る（画面モックアップ、10.5節）
+  useEffect(() => {
+    if (revisions.length > 0 && historyYear === '') {
+      const [y, m] = formatYearMonthJst(revisions[0].created_at).split('-')
+      setHistoryYear(y)
+      setHistoryMonth(m)
+    }
+  }, [revisions, historyYear])
+
+  const revisionYears = Array.from(
+    new Set(revisions.map((r) => formatYearMonthJst(r.created_at).slice(0, 4))),
+  ).sort((a, b) => b.localeCompare(a))
+  const revisionMonthsForYear = Array.from(
+    new Set(
+      revisions
+        .filter((r) => formatYearMonthJst(r.created_at).startsWith(historyYear))
+        .map((r) => formatYearMonthJst(r.created_at).slice(5, 7)),
+    ),
+  ).sort((a, b) => b.localeCompare(a))
+  const filteredRevisions = historyShowAll
+    ? revisions
+    : revisions.filter((r) => {
+        const ym = formatYearMonthJst(r.created_at)
+        if (!ym.startsWith(historyYear)) return false
+        if (historyMonth !== 'all' && ym.slice(5, 7) !== historyMonth) return false
+        return true
+      })
+
   const withMeta = (m: Material): Material => ({ ...m, title, tags })
 
   const saveDraft = async () => {
     setError(null)
+    setSavedMessage(null)
     if (title.trim().length === 0) {
       setError('教材タイトルを入力してください')
       return
@@ -99,6 +141,7 @@ export default function MaterialEdit() {
         })
         await mutate()
       }
+      setSavedMessage('保存しました')
     } catch (e) {
       setError(e instanceof ApiError ? e.message : '保存に失敗しました')
     } finally {
@@ -241,6 +284,11 @@ export default function MaterialEdit() {
 
         {error && (
           <p className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+        )}
+        {savedMessage && (
+          <p className="mb-4 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
+            {savedMessage}
+          </p>
         )}
 
         {activeTab === 'structure' && (
@@ -513,7 +561,7 @@ export default function MaterialEdit() {
                           <td className="px-3 py-2">{m.user_name}</td>
                           <td className="px-3 py-2 text-slate-500">{m.global_role}</td>
                           <td className="px-3 py-2 text-slate-500">{m.role}</td>
-                          <td className="px-3 py-2 text-slate-500">{m.joined_at.slice(0, 10)}</td>
+                          <td className="px-3 py-2 text-slate-500">{formatDateJst(m.joined_at)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -560,30 +608,70 @@ export default function MaterialEdit() {
                 </p>
               )}
               {savedId !== null && revisions.length > 0 && (
-                <div className="overflow-x-auto rounded-md border border-slate-200">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs text-slate-500">
-                        <th className="w-40 px-3 py-2 font-semibold">日時</th>
-                        <th className="w-28 px-3 py-2 font-semibold">変更者</th>
-                        <th className="px-3 py-2 font-semibold">変更内容</th>
-                        <th className="w-24 px-3 py-2 font-semibold">経路</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {revisions.map((r) => (
-                        <tr key={r.id} className="border-b border-slate-100 last:border-0">
-                          <td className="px-3 py-2 text-slate-500">{r.created_at.slice(0, 16).replace('T', ' ')}</td>
-                          <td className="px-3 py-2">{r.changed_by_name}</td>
-                          <td className="px-3 py-2">{r.change_summary}</td>
-                          <td className="px-3 py-2 text-slate-500">
-                            {r.changed_via === 'web' ? '画面' : 'Claude Code'}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <>
+                  <div className="mb-3 flex flex-wrap items-end gap-3">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs font-semibold text-slate-500">対象年月</label>
+                      <div className="flex gap-2">
+                        <Select
+                          value={historyYear}
+                          onChange={(v) => {
+                            setHistoryYear(v)
+                            setHistoryShowAll(false)
+                          }}
+                          options={revisionYears.map((y) => ({ value: y, label: `${y}年` }))}
+                          className="w-24"
+                        />
+                        <Select
+                          value={historyMonth}
+                          onChange={(v) => {
+                            setHistoryMonth(v)
+                            setHistoryShowAll(false)
+                          }}
+                          options={[
+                            { value: 'all', label: 'すべて' },
+                            ...revisionMonthsForYear.map((m) => ({ value: m, label: `${Number(m)}月` })),
+                          ]}
+                          className="w-24"
+                        />
+                      </div>
+                    </div>
+                    <Button variant="secondary" onClick={() => setHistoryShowAll(true)} disabled={historyShowAll}>
+                      全期間を表示
+                    </Button>
+                  </div>
+
+                  {filteredRevisions.length === 0 ? (
+                    <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400">
+                      対象年月に一致する改訂履歴がありません。
+                    </p>
+                  ) : (
+                    <div className="overflow-x-auto rounded-md border border-slate-200">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs text-slate-500">
+                            <th className="w-40 px-3 py-2 font-semibold">日時</th>
+                            <th className="w-28 px-3 py-2 font-semibold">変更者</th>
+                            <th className="px-3 py-2 font-semibold">変更内容</th>
+                            <th className="w-24 px-3 py-2 font-semibold">経路</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredRevisions.map((r) => (
+                            <tr key={r.id} className="border-b border-slate-100 last:border-0">
+                              <td className="px-3 py-2 text-slate-500">{formatDateTimeJst(r.created_at)}</td>
+                              <td className="px-3 py-2">{r.changed_by_name}</td>
+                              <td className="px-3 py-2">{r.change_summary}</td>
+                              <td className="px-3 py-2 text-slate-500">
+                                {r.changed_via === 'web' ? '画面' : 'Claude Code'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </section>
