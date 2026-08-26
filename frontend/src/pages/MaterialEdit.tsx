@@ -6,6 +6,7 @@ import Button from '../components/ui/Button'
 import TagInput from '../components/ui/TagInput'
 import TextInput from '../components/ui/TextInput'
 import { useMaterial } from '../hooks/useMaterial'
+import { useProjects } from '../hooks/useProjects'
 import { ApiError, apiFetch, apiFetchText } from '../lib/api'
 import { buildMaterialSource } from '../lib/materialSource'
 import type { EditableNode } from '../lib/materialSource'
@@ -31,6 +32,8 @@ export default function MaterialEdit() {
   const navigate = useNavigate()
   const isNew = materialId === 'new'
   const { material, isLoading, mutate } = useMaterial(isNew ? null : Number(materialId))
+  const { projects } = useProjects()
+  const project = projects.find((p) => p.id === Number(projectId))
 
   const [savedId, setSavedId] = useState<number | null>(isNew ? null : Number(materialId))
   const [title, setTitle] = useState('')
@@ -195,11 +198,19 @@ export default function MaterialEdit() {
           />
         </div>
 
-        <div className="mb-5 flex max-w-xl flex-col gap-1">
-          <label htmlFor="m-tags" className="text-xs font-semibold text-slate-500">
-            タグ
-          </label>
-          <TagInput id="m-tags" value={tags} onChange={setTags} />
+        <div className="mb-5 flex max-w-xl gap-4">
+          <div className="flex flex-1 flex-col gap-1">
+            <label className="text-xs font-semibold text-slate-500">プロジェクト</label>
+            <div className="flex h-9 items-center rounded-md border border-slate-200 bg-slate-50 px-3 text-sm text-slate-600">
+              {project?.name ?? '—'}
+            </div>
+          </div>
+          <div className="flex flex-1 flex-col gap-1">
+            <label htmlFor="m-tags" className="text-xs font-semibold text-slate-500">
+              タグ（任意）
+            </label>
+            <TagInput id="m-tags" value={tags} onChange={setTags} />
+          </div>
         </div>
 
         <div className="mb-6">

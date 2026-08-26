@@ -64,7 +64,7 @@ export default function TagInput({
         onChange={(e) => setDraft(e.target.value)}
         onKeyDown={handleKeyDown}
         onBlur={addTag}
-        placeholder={value.length === 0 ? 'タグを入力してEnter' : ''}
+        placeholder={value.length === 0 ? 'タグを設定する場合は入力' : ''}
         className="min-w-[120px] flex-1 border-none bg-transparent text-sm outline-none placeholder:text-slate-400"
       />
     </div>

@@ -77,8 +77,8 @@
     <tbody>
       <tr><td>教材タイトル</td><td>テキスト</td><td>○</td><td>1〜200文字</td><td>materials.title（実装済み。「下書き保存」押下時にA-16またはA-17で保存）</td></tr>
       <tr><td>概要</td><td>テキストエリア</td><td>—</td><td>500文字以内</td><td>materials.description（<strong>未実装</strong>。入力欄は無く、常にnull）</td></tr>
-      <tr><td>所属プロジェクト</td><td>セレクト</td><td>○</td><td>新規作成時、未選択なら「全社公開」が既定。付け替えは変更前後どちらの編集権限も必要</td><td>materials.project_id（<strong>実装は固定表示</strong>。S-14から辿った時点のプロジェクトに固定し、付け替えセレクトは未実装。API〔A-17〕は付け替えに対応済み）</td></tr>
-      <tr><td>タグ</td><td>TagInput</td><td>—</td><td>1タグ50文字以内、最大10個</td><td>materials.tags（実装済み。Enterで確定、×で削除。「下書き保存」押下時に保存）</td></tr>
+      <tr><td>所属プロジェクト</td><td>セレクト</td><td>○</td><td>新規作成時、未選択なら「全社公開」が既定。付け替えは変更前後どちらの編集権限も必要</td><td>materials.project_id（<strong>実装は変更不可の読み取り専用表示</strong>。セレクトではなく、S-14から辿った時点のプロジェクト名をグレー背景の枠内に表示するのみ。付け替え機能は未実装だがAPI〔A-17〕は対応済み。教材タイトルの下、タグの左隣に並べて表示する）</td></tr>
+      <tr><td>タグ</td><td>TagInput</td><td>—</td><td>1タグ50文字以内、最大10個</td><td>materials.tags（実装済み。任意項目であることを示すため、プレースホルダーは「タグを設定する場合は入力」とした。Enterで確定、×で削除。「下書き保存」押下時に保存。所属プロジェクト表示の右隣に配置）</td></tr>
       <tr><td>目次ツリー編集</td><td>↑↓ボタン式の並び替え（画面モックアップと同じ簡易UI）</td><td>—</td><td>章・小見出しの追加/削除/並び替えを実装（ページ・入れ子ページは未実装＝「+ページを追加」は準備中表示）。削除はネイティブの<code>window.confirm</code>を避け、行内で「本当に削除？」表示に切り替える簡易確認とした（2.1節の実装規約が求める<code>ConfirmProvider</code>共通モーダルは未導入のため、導入時に置き換える）</td><td>A-20（書き戻し全置換、7.3節）。操作のたびに全チャプターを再シリアライズして呼び出す</td></tr>
       <tr><td>受験単位（attempt_scope）</td><td>セレクト</td><td>○</td><td>教材全体/章/小見出し/ページ</td><td>materials.attempt_scope（<strong>未実装</strong>。作成時のDB既定値'material'のまま変更不可）</td></tr>
       <tr><td>再受験範囲（retake_scope）</td><td>セレクト</td><td>○</td><td>全問/誤答のみ</td><td>materials.retake_scope（<strong>未実装</strong>。既定値'all'のまま）</td></tr>
@@ -269,7 +269,7 @@
 
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）詳細設計書 v1.14</span>
+    <span>社内学習管理システム（Manabi）詳細設計書 v1.15</span>
     <span>コガソフトウェア株式会社 / 2026-08-24</span>
   </footer>
 
