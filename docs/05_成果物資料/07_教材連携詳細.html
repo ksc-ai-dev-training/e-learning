@@ -60,7 +60,7 @@
   </div>
 
   <h3>7.4 changed_via の判定と改訂履歴</h3>
-  <p>基本設計書8.5節のとおり、<code>changed_via</code>はJWTペイロードの<code>token_type</code>クレームで機械的に判定する（<code>'session'</code>→<code>'web'</code>、<code>'cli'</code>→<code>'claude_code'</code>）。<code>change_summary</code>の自動生成ルールは以下のとおり。</p>
+  <p>基本設計書8.5節のとおり、<code>changed_via</code>はJWTペイロードの<code>token_type</code>クレームで機械的に判定する（<code>'session'</code>→<code>'web'</code>、<code>'cli'</code>→<code>'claude_code'</code>）。<strong>現状の実装:</strong> CLIトークン発行（A-62/A-63、7.1節）が未実装のため、<code>issue_jwt</code>は<code>token_type</code>クレームを持たず、A-20の<code>changed_via</code>は暫定的に常に<code>'web'</code>としている。CLI連携着手時にJWTペイロードへ<code>token_type</code>を追加し、本節の判定ロジックに置き換える。<code>change_summary</code>の自動生成ルールは以下のとおり。</p>
   <table>
     <thead><tr><th>変更内容</th><th>自動生成される change_summary</th></tr></thead>
     <tbody>
@@ -108,7 +108,7 @@ def render_material_body(body: str, format: str) -&gt; str:
 
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）詳細設計書 v1.13</span>
+    <span>社内学習管理システム（Manabi）詳細設計書 v1.14</span>
     <span>コガソフトウェア株式会社 / 2026-08-24</span>
   </footer>
 

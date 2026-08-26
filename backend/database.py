@@ -89,7 +89,7 @@ CREATE TABLE IF NOT EXISTS project_memberships (
 CREATE INDEX IF NOT EXISTS idx_project_memberships_user_id ON project_memberships(user_id);
 ALTER TABLE project_memberships ENABLE ROW LEVEL SECURITY;
 
--- T-06 materials（教材。当面はA-81の件数集計にのみ使用。S-14以降で本格利用）
+-- T-06 materials（教材）
 CREATE TABLE IF NOT EXISTS materials (
     id                      BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     project_id              BIGINT NOT NULL REFERENCES projects(id),
@@ -113,7 +113,43 @@ CREATE TABLE IF NOT EXISTS materials (
     updated_at              TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_materials_project_id ON materials(project_id);
+CREATE INDEX IF NOT EXISTS idx_materials_tags ON materials USING GIN (tags jsonb_path_ops);
 ALTER TABLE materials ENABLE ROW LEVEL SECURITY;
+
+-- T-23 material_nodes（教材の目次ノード: 章・小見出し・ページの自己参照ツリー）
+CREATE TABLE IF NOT EXISTS material_nodes (
+    id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    material_id     BIGINT NOT NULL REFERENCES materials(id) ON DELETE CASCADE,
+    parent_node_id  BIGINT REFERENCES material_nodes(id) ON DELETE CASCADE,
+    title           TEXT NOT NULL,
+    kind            TEXT NOT NULL CHECK (kind IN ('chapter', 'section', 'page')),
+    sort_order      INTEGER NOT NULL DEFAULT 0,
+    content_kind    TEXT CHECK (content_kind IS NULL OR content_kind IN ('explanation', 'quiz', 'mixed')),
+    format          TEXT CHECK (format IS NULL OR format IN ('markdown', 'html')),
+    body            TEXT,
+    quiz_mode       TEXT NOT NULL DEFAULT 'all' CHECK (quiz_mode IN ('all', 'pool')),
+    pool_draw_count INTEGER,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CHECK (kind <> 'chapter' OR parent_node_id IS NULL)
+);
+CREATE INDEX IF NOT EXISTS idx_material_nodes_tree
+    ON material_nodes (material_id, parent_node_id, sort_order);
+ALTER TABLE material_nodes ENABLE ROW LEVEL SECURITY;
+
+-- T-08 material_revisions（教材改訂履歴。追記専用）
+CREATE TABLE IF NOT EXISTS material_revisions (
+    id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    material_id     BIGINT NOT NULL REFERENCES materials(id) ON DELETE CASCADE,
+    source_snapshot TEXT NOT NULL,
+    changed_by      BIGINT NOT NULL REFERENCES users(id),
+    changed_via     TEXT NOT NULL CHECK (changed_via IN ('web', 'claude_code')),
+    change_summary  TEXT,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_material_revisions_material_id
+    ON material_revisions (material_id, created_at DESC);
+ALTER TABLE material_revisions ENABLE ROW LEVEL SECURITY;
 """
 
 

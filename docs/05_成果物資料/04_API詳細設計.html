@@ -81,12 +81,12 @@
     <thead><tr><th>API</th><th>メソッド／パス</th><th>権限</th><th>リクエスト</th><th>レスポンス</th></tr></thead>
     <tbody>
       <tr><td>A-14</td><td>GET <code>/api/materials</code></td><td>認証済</td><td>クエリ <code>q</code>（キーワード）, <code>tags</code>（カンマ区切り複数可）, <code>project_id</code>, <code>required</code>, <code>incomplete_only</code>, <code>my_assignments_only</code>, <code>page</code>（既定1）, <code>per_page</code>（20/50/100、既定20）</td><td>200 <code>{"items": [...], "total": int}</code>。6.1節で検索ロジック詳述</td></tr>
-      <tr><td>A-15</td><td>GET <code>/api/materials/{id}</code></td><td>受講対象者、対象プロジェクトの編集者/管理者, admin</td><td>—</td><td>200。教材メタ＋目次ツリー（T-23を<code>parent_node_id</code>から組み立てたネスト構造）＋各ページの問題（T-10）。下書きは編集権限保持者のみ200、それ以外403</td></tr>
+      <tr><td>A-15</td><td>GET <code>/api/materials/{id}</code></td><td>受講対象者、対象プロジェクトの編集者/管理者, admin</td><td>—</td><td>200。教材メタ＋目次ツリー（T-23を<code>parent_node_id</code>から組み立てたネスト構造）＋各ページの問題（T-10）。下書きは編集権限保持者のみ200、それ以外403（<strong>現状の実装は編集権限保持者のみ</strong>。受講対象者への公開閲覧はS-04着手時に追加）</td></tr>
       <tr><td>A-16</td><td>POST <code>/api/materials</code></td><td>対象プロジェクトの編集者/管理者, admin</td><td><code>{"project_id": int|null, "title": str(1-200), "description": str|null, "tags": string[]}</code></td><td>201。<code>project_id</code>省略時は「全社公開」プロジェクトIDを補完（基本設計書5.26節）。作成直後は目次が空の状態（<code>status='draft'</code>）</td></tr>
       <tr><td>A-17</td><td>PUT <code>/api/materials/{id}</code></td><td>対象プロジェクトの管理者/編集者, admin</td><td><code>{"title", "description", "tags", "project_id", "status", "sort_order", "attempt_scope", "retake_scope", "default_feedback_style", "ai_context", "grading_mode"}</code>（部分更新）</td><td>200。<code>project_id</code>変更時は変更前後どちらのプロジェクトについても<code>require_project_role(min_role='editor')</code>を満たすことを検証（不足時403）</td></tr>
       <tr><td>A-18</td><td>DELETE <code>/api/materials/{id}</code></td><td>対象プロジェクトの管理者, admin</td><td>—</td><td>204。T-23〜T-14, T-15〜T-19の関連行はCASCADEで削除</td></tr>
-      <tr><td>A-19</td><td>GET <code>/api/materials/{id}/source</code></td><td>対象プロジェクトの管理者/編集者, admin</td><td>—</td><td><code>text/plain</code>。7章参照</td></tr>
-      <tr><td>A-20</td><td>PUT <code>/api/materials/{id}/source</code></td><td>対象プロジェクトの管理者/編集者, admin</td><td><code>text/plain</code>本文</td><td>200。7章参照</td></tr>
+      <tr><td>A-19</td><td>GET <code>/api/materials/{id}/source</code></td><td>対象プロジェクトの管理者/編集者, admin</td><td>—</td><td><code>text/plain</code>。7章参照。<strong>未実装</strong>（S-05の画面表示はA-15のJSONを使うため現時点では不要。Claude Code連携F-05着手時に追加）</td></tr>
+      <tr><td>A-20</td><td>PUT <code>/api/materials/{id}/source</code></td><td>対象プロジェクトの管理者/編集者, admin</td><td><code>text/plain</code>本文</td><td>200。7章参照。S-05の目次構造編集（章・小見出しの追加/削除/並び替え）はこのAPIを都度呼ぶ形で実装（10.5節）。<code>material_parser.py</code>はページ・問題ブロックの抽出も仕様通り実装済みだが、現在のUIはページを作らないため未使用（S-17着手時に検証を厳密化する）</td></tr>
       <tr><td>A-21</td><td>GET <code>/api/projects/{project_id}/materials/source</code></td><td>対象プロジェクトの編集者/管理者, admin</td><td>—</td><td>200 <code>{"items": [{"id", "title", "status", "updated_at", "tags"}]}</code>。<code>tags</code>はmaterials.tags（string[]）をそのまま返す。S-14のキーワード検索が教材名だけでなくタグも対象にするため追加（10.13節）</td></tr>
       <tr><td>A-22</td><td>GET <code>/api/materials/{id}/revisions</code></td><td>対象プロジェクトの管理者/編集者, admin</td><td>クエリ <code>page</code>, <code>per_page</code></td><td>200 <code>{"items": [{"id", "changed_by_name", "changed_via", "change_summary", "created_at"}], "total"}</code>。新しい順</td></tr>
       <tr><td>A-27</td><td>POST <code>/api/materials/{id}/attachments/upload-url</code></td><td>対象プロジェクトの編集者/管理者, admin</td><td><code>{"filename": str, "mime_type": str, "size_bytes": int}</code></td><td>200 <code>{"upload_url": str, "storage_key": str}</code>。<code>size_bytes</code>が<code>MAX_ATTACHMENT_SIZE_MB</code>（既定200MB）を超える場合は413</td></tr>
@@ -214,7 +214,7 @@
 
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）詳細設計書 v1.13</span>
+    <span>社内学習管理システム（Manabi）詳細設計書 v1.14</span>
     <span>コガソフトウェア株式会社 / 2026-08-24</span>
   </footer>
 

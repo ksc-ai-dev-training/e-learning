@@ -3,6 +3,7 @@ import { useMe } from './hooks/useMe'
 import Login from './pages/Login'
 import ProjectSelect from './pages/ProjectSelect'
 import MaterialsList from './pages/MaterialsList'
+import MaterialEdit from './pages/MaterialEdit'
 import AppShell from './components/layout/AppShell'
 
 // ルーティング定義・認証ガード。S-02（マイ学習、本来"/"）は未実装のため、
@@ -30,6 +31,7 @@ export default function App() {
         <Route path="/login" element={<Navigate to="/materials/edit-projects" replace />} />
         <Route path="/materials/edit-projects" element={<ProjectSelect />} />
         <Route path="/projects/:projectId/materials/edit" element={<MaterialsList />} />
+        <Route path="/projects/:projectId/materials/:materialId/edit" element={<MaterialEdit />} />
         <Route path="*" element={<Navigate to="/materials/edit-projects" replace />} />
       </Routes>
     </AppShell>

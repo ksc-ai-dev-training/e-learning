@@ -3,3 +3,4 @@ uvicorn[standard]>=0.34
 asyncpg>=0.30
 pydantic>=2.10
 PyJWT>=2.10
+PyYAML>=6.0

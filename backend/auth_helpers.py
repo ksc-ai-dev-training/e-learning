@@ -69,23 +69,46 @@ def require_roles(*roles: str):
 ROLE_RANK = {"learner": 1, "editor": 2, "admin": 3}
 
 
-def require_project_role(min_role: str):
+async def check_project_role(user: CurrentUser, project_id: int, min_role: str) -> None:
     """プロジェクトのローカルロールを判定する（詳細設計書5.2節）。システムadminは常に許可。
+
+    project_idがパスパラメータでない場合（例: A-16のようにリクエストボディに含まれる場合）に
+    エンドポイント内から直接呼び出す。パスパラメータの場合は`require_project_role`を使う。
+    """
+    if user.role == "admin":
+        return
+    row = await get_pool().fetchrow(
+        """SELECT role FROM project_memberships
+           WHERE project_id = $1 AND user_id = $2
+             AND status = 'active' AND left_at IS NULL""",
+        project_id, user.id,
+    )
+    if row is None or ROLE_RANK[row["role"]] < ROLE_RANK[min_role]:
+        raise HTTPException(403, detail="この操作を行う権限がありません")
+
+
+def require_project_role(min_role: str):
+    """プロジェクトのローカルロールを判定する（詳細設計書5.2節）。
 
     パスパラメータ `project_id` を持つルート（例: /api/projects/{project_id}/...）で
     `Depends(require_project_role(min_role="editor"))` のように使う。
     project_idはFastAPIがパスから自動解決する。
     """
     async def checker(project_id: int, user: CurrentUser = Depends(require_auth)) -> CurrentUser:
-        if user.role == "admin":
-            return user
-        row = await get_pool().fetchrow(
-            """SELECT role FROM project_memberships
-               WHERE project_id = $1 AND user_id = $2
-                 AND status = 'active' AND left_at IS NULL""",
-            project_id, user.id,
-        )
-        if row is None or ROLE_RANK[row["role"]] < ROLE_RANK[min_role]:
-            raise HTTPException(403, detail="この操作を行う権限がありません")
+        await check_project_role(user, project_id, min_role)
+        return user
+    return checker
+
+
+def require_material_role(min_role: str):
+    """教材IDから所属プロジェクトを引いてローカルロールを判定する（A-15/A-17/A-18/A-20等）。
+
+    パスパラメータ `id`（教材ID）を持つルート（例: /api/materials/{id}）で使う。
+    """
+    async def checker(id: int, user: CurrentUser = Depends(require_auth)) -> CurrentUser:
+        row = await get_pool().fetchrow("SELECT project_id FROM materials WHERE id = $1", id)
+        if row is None:
+            raise HTTPException(404, detail="教材が見つかりません")
+        await check_project_role(user, row["project_id"], min_role)
         return user
     return checker

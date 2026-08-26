@@ -27,6 +27,35 @@ export interface MaterialSource {
   tags: string[]
 }
 
+// A-15 GET /api/materials/{id} の toc 内の1ノード（章・小見出し。ページはS-17着手時に追加）
+export interface MaterialNode {
+  id: number
+  parent_node_id: number | null
+  title: string
+  kind: 'chapter' | 'section' | 'page'
+  sort_order: number
+  children: MaterialNode[]
+}
+
+// A-15/A-16/A-17 のレスポンス（教材メタ。A-15のみtocを含む）
+export interface Material {
+  id: number
+  project_id: number
+  title: string
+  description: string | null
+  tags: string[]
+  status: MaterialStatus
+  sort_order: number
+  attempt_scope: 'material' | 'chapter' | 'section' | 'page'
+  retake_scope: 'all' | 'wrong_only'
+  default_feedback_style: 'show_answer' | 'review_only' | 'hint_only'
+  ai_context: string | null
+  grading_mode: 'ai' | 'manual'
+  created_at: string
+  updated_at: string
+  toc?: MaterialNode[]
+}
+
 export type ProjectRole = 'admin' | 'editor' | 'learner'
 
 // A-81 GET /api/projects のitems

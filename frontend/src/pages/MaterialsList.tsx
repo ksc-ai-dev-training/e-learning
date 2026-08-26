@@ -19,7 +19,6 @@ type FilterForm = { keyword: string; status: string; month: string }
 const EMPTY_FILTER: FilterForm = { keyword: '', status: 'all', month: 'all' }
 
 // S-14 教材編集：教材一覧（詳細設計書10.13節）。
-// 「＋新規教材を作成」の遷移先S-05はまだ無いため、ボタンは現状クリックできない。
 export default function MaterialsList() {
   const { projectId } = useParams<{ projectId: string }>()
   const id = Number(projectId)
@@ -126,12 +125,12 @@ export default function MaterialsList() {
         </details>
 
         <div className="mb-4 flex items-center gap-2.5">
-          <span
-            className="cursor-not-allowed rounded-md border border-slate-300 bg-slate-100 px-3 py-1.5 text-sm font-semibold text-slate-400"
-            title="準備中（S-05実装後に有効化）"
+          <Link
+            to={`/projects/${id}/materials/new/edit`}
+            className="rounded-md border border-blue-800 bg-blue-900 px-3 py-1.5 text-sm font-semibold text-white hover:bg-blue-800"
           >
             ＋ このプロジェクトに新規教材を作成
-          </span>
+          </Link>
           <span className="text-xs text-slate-400">または、下の一覧から既存の教材を編集</span>
         </div>
 
@@ -164,7 +163,12 @@ export default function MaterialsList() {
                 {filtered.map((m) => (
                   <tr key={m.id} className="border-b border-slate-100 last:border-0">
                     <td className="px-3 py-2">
-                      <div>{m.title}</div>
+                      <Link
+                        to={`/projects/${id}/materials/${m.id}/edit`}
+                        className="text-slate-800 hover:text-blue-800 hover:underline"
+                      >
+                        {m.title}
+                      </Link>
                       {m.tags.length > 0 && (
                         <div className="mt-0.5 text-[11px] text-slate-400">
                           {m.tags.map((t) => `#${t}`).join(' ')}
