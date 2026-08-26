@@ -16,7 +16,7 @@
     <p class="subtitle">社内学習管理システム（Manabi）</p>
     <div class="meta">
       <span>作成日: 2026-08-24</span>
-      <span>版数: 1.11</span>
+      <span>版数: 1.12</span>
       <span>作成: コガソフトウェア株式会社</span>
     </div>
     <p class="note">本ドキュメントは新人社員向けAI開発研修のサンプル成果物です</p>
@@ -38,6 +38,7 @@
       <tr><td>1.9</td><td>2026-08-25</td><td>S-13のプロジェクト名検索が大文字小文字を区別してしまい、例えば「lcc」で検索しても「LCC開発」等がヒットしない不具合を修正した。<code>toLowerCase()</code>で双方を小文字化して比較するようにし、10.12節の説明に「大文字小文字を区別しない」旨を明記した。</td></tr>
       <tr><td>1.10</td><td>2026-08-25</td><td>S-14の絞り込みパネル（キーワード・状態・更新月、絞り込む/条件クリアボタン）を実装した（v1.8の改訂履歴で先送りにしていた対応）。画面横断で使う<code>Select</code>・<code>Button</code>コンポーネントを2.1.3〜2.1.5節のカタログに沿って初実装し、2.2節に「検索条件のform/filter分離」の設計方針を追記した（複数項目の絞り込みは入力中の値と適用済みの値を分け、ボタン押下で反映する。keirekiのCareerListと同方針）。更新月の選択肢は教材データから動的に生成する。10.13・2.3〜2.5・2.7節を更新した。</td></tr>
       <tr><td>1.11</td><td>2026-08-25</td><td>S-14のキーワード検索を教材タイトルだけでなくタグ（<code>materials.tags</code>）も対象にした。A-21のレスポンスに<code>tags</code>を追加し（4.2節）、一覧のタイトル下に<code>#タグ名</code>形式で表示するようにした。10.13節のキーワード行・教材一覧行、2.5節の<code>useMaterials</code>を更新した。</td></tr>
+      <tr><td>1.12</td><td>2026-08-26</td><td>左サイドバーをアイコンのみの帯に開閉できるようにした（keirekiの<code>Layout.tsx</code>と同方針）。実装（<code>Sidebar.tsx</code>、開閉状態は<code>localStorage</code>の<code>manabi-sidebar-collapsed</code>に保持）と画面モックアップ（S-02〜S-19。DOM操作で開閉を行う共通スクリプト<code>docs/03_画面モックアップ/mock-sidebar.js</code>を新設し、各HTMLからは1行の<code>&lt;script&gt;</code>読み込みのみ追加）の両方に反映した。ナビ項目にアイコン表示のため<code>lucide-react</code>を採用。2.1.1・2.4節の<code>Sidebar</code>説明、2.6節の永続UI設定行とlocalStorageキー一覧、2.7節のProps仕様を更新した。</td></tr>
     </tbody>
   </table>
 
@@ -145,7 +146,7 @@
     <thead><tr><th>コンポーネント</th><th>props</th><th>用途</th></tr></thead>
     <tbody>
       <tr><td><code>AppShell</code></td><td>children</td><td>Sidebar + メインコンテンツ領域のラッパー。全認証後画面（S-02〜S-19）で共通</td></tr>
-      <tr><td><code>Sidebar</code></td><td>activeItem, currentUser</td><td>ロゴ・ナビ項目・ログインユーザー情報・ログアウトボタン。表示するナビ項目はcurrentUser.roleと5.6節のフロントガード条件で出し分ける</td></tr>
+      <tr><td><code>Sidebar</code></td><td>activeItem, currentUser</td><td>ロゴ・ナビ項目・ログインユーザー情報・ログアウトボタン。表示するナビ項目はcurrentUser.roleと5.6節のフロントガード条件で出し分ける。アイコンのみの帯に開閉可能（keirekiのLayout.tsxと同方針）。開閉状態は<code>localStorage</code>に保存する（2.6節）</td></tr>
       <tr><td><code>PageHeader</code></td><td>title, actions?</td><td>画面タイトル＋右側の操作ボタン群（新規作成・保存等）。ほぼ全画面のヘッダー部分</td></tr>
     </tbody>
   </table>
@@ -260,7 +261,7 @@
       <tr><td><code>App</code><br><span class="muted">Root / —</span></td><td>なし</td><td>なし<br><span class="muted">→ <code>useMe</code>（A-04）</span></td><td>ログイン状態で表示を切り替える。未ログインなら<code>/login</code>のみのRoutes、ログイン済みなら<code>AppShell</code>配下にRoutesを展開する</td></tr>
       <tr><td><code>Login</code><br><span class="muted">Page / S-01</span></td><td>なし</td><td>送信エラー<br><span class="muted">→ <code>useMe().mutate</code>、<code>useSWR</code>（開発用ユーザー一覧）、開発用ログインAPI</span></td><td>URLの<code>?error=</code>を4.1節のメッセージに変換して表示。開発用ログイン成功後に<code>mutate()</code>でログイン状態を更新</td></tr>
       <tr><td><code>AppShell</code><br><span class="muted">Shared / S-02〜S-19</span></td><td><code>me: Me</code>, <code>children</code></td><td>なし<br><span class="muted">→ —</span></td><td><code>Sidebar</code> + メインコンテンツ領域のラッパー。全認証後画面で共通（2.1.1節）</td></tr>
-      <tr><td><code>Sidebar</code><br><span class="muted">Shared / S-02〜S-19</span></td><td><code>me: Me</code></td><td>なし<br><span class="muted">→ A-03（ログアウト）</span></td><td>ロゴ・ナビ項目・ログインユーザー情報・ログアウト。現状は固定メニュー（マイ学習・教材一覧・教材編集・個人学習レポート・プロジェクト作成・プロジェクト管理）を表示するのみで、S-02等の未実装画面へのリンクは今は繋がない。ロール別出し分けはS-08/S-10着手時に追加</td></tr>
+      <tr><td><code>Sidebar</code><br><span class="muted">Shared / S-02〜S-19</span></td><td><code>me: Me</code></td><td><code>collapsed</code>（アイコンのみ表示への開閉状態。<code>localStorage</code>と同期）<br><span class="muted">→ A-03（ログアウト）</span></td><td>ロゴ・ナビ項目（各項目にアイコン、<code>lucide-react</code>）・ログインユーザー情報・ログアウト。現状は固定メニュー（マイ学習・教材一覧・教材編集・個人学習レポート・プロジェクト作成・プロジェクト管理）を表示するのみで、S-02等の未実装画面へのリンクは今は繋がない。ロール別出し分けはS-08/S-10着手時に追加。開閉ボタン押下で<code>w-60</code>⇄<code>w-14</code>を切り替え、閉じているときはラベル・ユーザー情報・ログアウトボタンを隠す（keirekiのLayout.tsxと同方針）。画面モックアップ側にも同等の開閉機能を<code>docs/03_画面モックアップ/mock-sidebar.js</code>として反映済み</td></tr>
       <tr><td><code>ProjectSelect</code><br><span class="muted">Page / S-13</span></td><td>なし</td><td><code>keyword</code>（検索欄の入力値）<br><span class="muted">→ <code>useProjects</code>（A-81）</span></td><td>editor以上のプロジェクトをカード表示。<code>is_company_wide</code>を先頭固定し、ピンアイコンを付ける。<code>keyword</code>でプロジェクト名をクライアント側フィルタ（A-81は全件取得のためAPI呼び出しなし）。カード選択でS-14へ</td></tr>
       <tr><td><code>ProjectCard</code><br><span class="muted">Shared / S-13</span></td><td><code>project: Project</code>, <code>pinned?: boolean</code></td><td>なし<br><span class="muted">→ —</span></td><td>プロジェクト名・ロールバッジ・教材件数・メンバー数の表示専用カード（2.1.2節）。カード自体が<code>Link</code>でS-14へ遷移する</td></tr>
       <tr><td><code>MaterialsList</code><br><span class="muted">Page / S-14</span></td><td>なし（<code>useParams().projectId</code>）</td><td><code>form</code>（入力中の絞り込み条件）, <code>filter</code>（適用済みの絞り込み条件。既定はキーワード空・状態/更新月「すべて」）<br><span class="muted">→ <code>useProjects</code>（A-81、ヘッダーのプロジェクト名解決に流用）, <code>useMaterials</code>（A-21）</span></td><td>対象プロジェクトの教材一覧（下書き含む）を表示。絞り込みパネル（キーワード・状態・更新月）は「絞り込む」押下で<code>filter</code>に反映、「条件クリア」で両方初期化するクライアント側フィルタ（10.13節、2.2節）。キーワードは教材タイトルとタグ（<code>#タグ名</code>形式で先頭の<code>#</code>を除去して比較）の両方を対象とする。更新月の選択肢は取得した教材の<code>updated_at</code>から動的に生成する。「＋新規教材を作成」ボタンはS-05が無いため現状クリック不可（<code>title</code>属性で告知）。教材0件時・絞り込み結果0件時はそれぞれ空状態メッセージを表示</td></tr>
@@ -287,13 +288,19 @@
     <tbody>
       <tr><td>サーバー状態</td><td>SWRキャッシュ（2.5節）</td><td>ログインユーザー（<code>useMe</code>）、開発用ユーザー一覧</td><td>キー単位で共有。フォーカス復帰・ログイン/ログアウト後の<code>mutate()</code>で再検証</td></tr>
       <tr><td>フォーム入力</td><td>ページの<code>useState</code></td><td>該当なし（S-01はメール選択のみでテキスト入力フォームを持たない）</td><td>—</td></tr>
-      <tr><td>UI状態</td><td>コンポーネントの<code>useState</code></td><td><code>Login</code>の送信エラー</td><td>マウント中のみ</td></tr>
+      <tr><td>UI状態</td><td>コンポーネントの<code>useState</code></td><td><code>Login</code>の送信エラー、<code>ProjectSelect</code>/<code>MaterialsList</code>の検索・絞り込み条件</td><td>マウント中のみ</td></tr>
       <tr><td>横断的UI</td><td>React Context</td><td>未導入（<code>ToastProvider</code> / <code>ConfirmProvider</code>、2.2節）</td><td>導入時はアプリ全体</td></tr>
-      <tr><td>永続UI設定</td><td><code>localStorage</code></td><td>未導入</td><td>導入時はブラウザに保持</td></tr>
+      <tr><td>永続UI設定</td><td><code>localStorage</code></td><td><code>Sidebar</code>の開閉状態（下表）</td><td>ブラウザに保持。リロード・ログアウトをまたいで維持</td></tr>
       <tr><td>URL状態</td><td>react-router（<code>useSearchParams</code> / <code>useParams</code>）</td><td><code>/login?error=</code>、<code>/projects/:projectId/materials/edit</code>の<code>projectId</code></td><td>URLと同期</td></tr>
     </tbody>
   </table>
   <p><code>localStorage</code>を使うようになったら、<code>manabi-</code>プレフィックスを付けたキー一覧をここに登録する（keirekiの<code>keireki-</code>プレフィックスに倣う）。<strong>個人情報・入力内容・会話内容は保存しない</strong>。</p>
+  <table>
+    <thead><tr><th>キー</th><th>値</th><th>使用箇所</th></tr></thead>
+    <tbody>
+      <tr><td><code>manabi-sidebar-collapsed</code></td><td><code>'0'</code> / <code>'1'</code></td><td><code>Sidebar</code>（実装）。画面モックアップ側は同等の設定を<code>manabi-mock-sidebar-collapsed</code>キーで別管理する（<code>mock-sidebar.js</code>）</td></tr>
+    </tbody>
+  </table>
 
   <h3>2.7 共通UIコンポーネントのProps仕様</h3>
   <p>2.1節カタログの各部品について、実装した時点で型シグネチャ（<code>value</code> / <code>onChange</code>の形、必須Props等）をkeireki詳細設計書12.6節の形式でここに追記する。S-01は2.1節カタログの部品を使用していない。S-13・S-14で以下を実装した。</p>
@@ -301,7 +308,7 @@
     <thead><tr><th>コンポーネント</th><th>Props</th><th>備考</th></tr></thead>
     <tbody>
       <tr><td><code>AppShell</code></td><td><code>me: Me</code>, <code>children: ReactNode</code></td><td>—</td></tr>
-      <tr><td><code>Sidebar</code></td><td><code>me: Me</code></td><td>アクティブ判定は内部で<code>useLocation()</code>を見て行う（親からactiveItemを渡さない）</td></tr>
+      <tr><td><code>Sidebar</code></td><td><code>me: Me</code></td><td>アクティブ判定は内部で<code>useLocation()</code>を見て行う（親からactiveItemを渡さない）。開閉状態は外部から渡さず内部の<code>collapsed</code>（<code>useState</code>初期値を<code>localStorage['manabi-sidebar-collapsed']</code>から復元）で完結させる</td></tr>
       <tr><td><code>PageHeader</code></td><td><code>title: string</code></td><td>2.1.1節の元案にあった<code>actions?</code>・画面ID表示は未実装（画面IDは設計書・モックアップ限定の識別用で実画面には不要と判断。2026-08-25）</td></tr>
       <tr><td><code>ProjectCard</code></td><td><code>project: Project</code>, <code>pinned?: boolean</code></td><td><code>Project = { id, name, is_company_wide, role, material_published_count, material_draft_count, member_count }</code>（<code>types/index.ts</code>）。カード全体が<code>react-router</code>の<code>Link</code></td></tr>
       <tr><td><code>Badge</code></td><td><code>variant: 'published' | 'draft'</code></td><td>2.1.2節の元案は<code>variant</code>を役割別文字列（role/projrole/status-on/off等）で列挙していたが、実装は用途ごとの具体的なキー（'published'/'draft'）を積み増す方式にした。他のvariant（role等）は使う画面ができた時点で追加する</td></tr>
@@ -330,7 +337,7 @@
   </ol>
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）詳細設計書 v1.11</span>
+    <span>社内学習管理システム（Manabi）詳細設計書 v1.12</span>
     <span>コガソフトウェア株式会社 / 2026-08-24</span>
   </footer>
 
