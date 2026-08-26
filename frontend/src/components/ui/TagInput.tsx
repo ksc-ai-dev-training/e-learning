@@ -15,6 +15,7 @@ export default function TagInput({
   onChange: (tags: string[]) => void
 }) {
   const [draft, setDraft] = useState('')
+  const [focused, setFocused] = useState(false)
 
   const addTag = () => {
     const tag = draft.trim().replace(/^#/, '')
@@ -59,14 +60,21 @@ export default function TagInput({
           </button>
         </span>
       ))}
-      <input
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onKeyDown={handleKeyDown}
-        onBlur={addTag}
-        placeholder={value.length === 0 ? 'タグを設定する場合は入力' : ''}
-        className="min-w-[120px] flex-1 border-none bg-transparent text-sm outline-none placeholder:text-slate-400"
-      />
+      <div className="flex min-w-[120px] flex-1 items-center gap-0.5">
+        {(focused || draft.length > 0) && <span className="text-slate-400">#</span>}
+        <input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value.replace(/^#/, ''))}
+          onKeyDown={handleKeyDown}
+          onFocus={() => setFocused(true)}
+          onBlur={() => {
+            addTag()
+            setFocused(false)
+          }}
+          placeholder={value.length === 0 && !focused ? 'タグを設定する場合は入力してください' : ''}
+          className="w-full flex-1 border-none bg-transparent text-sm outline-none placeholder:text-slate-400"
+        />
+      </div>
     </div>
   )
 }

@@ -111,7 +111,7 @@ export default function MaterialEdit() {
     updateChapters(
       chapters.map((c, i) =>
         i === chapterIdx
-          ? { ...c, children: [...c.children, { id: null, title: '新しい小見出し', kind: 'section' as const, children: [] }] }
+          ? { ...c, children: [...c.children, { id: null, title: '', kind: 'section' as const, children: [] }] }
           : c,
       ),
       true,
@@ -302,12 +302,13 @@ export default function MaterialEdit() {
                       {chapter.children.map((section, si) => (
                         <div
                           key={section.id ?? `new-${si}`}
-                          className="mb-1.5 flex items-center gap-2 rounded-md bg-slate-50 px-2.5 py-1.5"
+                          className="mb-1.5 ml-6 flex items-center gap-2 rounded-md border-l-2 border-slate-200 bg-slate-50 px-2.5 py-1.5"
                         >
                           <TextInput
                             value={section.title}
                             onChange={(e) => renameSection(ci, si, e.target.value)}
                             onBlur={() => saveToc(chapters)}
+                            placeholder="小見出しのタイトルを入力"
                             className="flex-1"
                           />
                           <button

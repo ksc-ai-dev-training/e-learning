@@ -16,7 +16,7 @@
     <p class="subtitle">社内学習管理システム（Manabi）</p>
     <div class="meta">
       <span>作成日: 2026-08-24</span>
-      <span>版数: 1.15</span>
+      <span>版数: 1.16</span>
       <span>作成: コガソフトウェア株式会社</span>
     </div>
     <p class="note">本ドキュメントは新人社員向けAI開発研修のサンプル成果物です</p>
@@ -42,6 +42,7 @@
       <tr><td>1.13</td><td>2026-08-26</td><td>v1.12で実装したサイドバー開閉ボタンについて、ブランド行内（keirekiの<code>Layout.tsx</code>と同じ配置）だと開閉状態でボタンの位置が変わり操作性が悪いとのフィードバックを受け、サイドバー右端の境界線上に半分はみ出す丸ボタンとして配置し直した（開閉状態によらず画面上の位置が動かない）。アイコンも<code>PanelLeftClose</code>/<code>PanelLeftOpen</code>から、よりシンプルな<code>lucide-react</code>の<code>ChevronLeft</code>/<code>ChevronRight</code>に変更した。実装（<code>Sidebar.tsx</code>）・画面モックアップ（<code>mock-sidebar.js</code>・<code>mock.css</code>）の両方に反映した。この変更でManabiのサイドバー開閉UIはkeirekiと意図的に異なる仕様になったため、2.1.1節にその経緯を明記した。</td></tr>
       <tr><td>1.14</td><td>2026-08-26</td><td>S-05 教材編集：目次編集に着手し、教材の新規作成〜章・小見出しの目次構造編集までを実装した（ページ内容編集=S-17、公開判定・AI設定・アンケート等の他タブは対象外。10.5節）。目次の保存はA-20（<code>PUT /source</code>、7.2〜7.3節）を本格実装し、YAMLフロントマター＋見出し階層のパース/シリアライズを行う<code>material_parser.py</code>を新設した。あわせてT-23 <code>material_nodes</code>・T-08 <code>material_revisions</code>テーブルを<code>database.py</code>に追加（既存の設計書DDLへ実装を合わせた）。API層はA-15（取得）・A-16（新規作成）・A-17（部分更新）・A-20（目次全置換）を実装し、A-19（source取得）はCLI連携F-05着手まで未実装とした。認証まわりは<code>project_id</code>がリクエストボディにあるA-16向けに<code>check_project_role</code>を切り出し、教材IDから権限判定する<code>require_material_role</code>を追加した（5.1節）。フロントエンドは<code>TagInput</code>を初実装し、章・小見出しの並び替えは画面モックアップと同じ↑↓ボタン式（<code>DragSortList</code>は未導入）、削除は<code>ConfirmProvider</code>未導入のため行内の簡易確認とした。2.1〜2.8節・10.5節・10.13節・4.3節・7.4節を更新した。</td></tr>
       <tr><td>1.15</td><td>2026-08-26</td><td>S-05の所属プロジェクト・タグの表示を確認結果に合わせて修正した。所属プロジェクトはセレクトではなく変更不可の読み取り専用表示（グレー背景の枠内に名前のみ表示）とし、タグ入力の左隣に並べて配置した。タグは任意項目であることが伝わるよう、プレースホルダーを「タグを入力してEnter」から「タグを設定する場合は入力」に変更した。10.5節を更新した。</td></tr>
+      <tr><td>1.16</td><td>2026-08-26</td><td>S-05の目次ツリー編集について3点修正した。(1) タグのプレースホルダーを「タグを設定する場合は入力」から丁寧語の「タグを設定する場合は入力してください」に変更。(2) タグ入力欄はフォーカス中または1文字以上入力中に装飾的な<code>#</code>を前置するようにした（Instagram等のハッシュタグ入力を参考にした見た目のみの変更で、値には含めない）。(3) 小見出しの行を章より字下げし左に境界線を付けて親子関係を視覚的に分かりやすくし、新規追加した小見出しのタイトルは自動採番文字列を入れず「小見出しのタイトルを入力」というプレースホルダー表示にした（章の「第N章」表記はそのまま）。2.1.5・2.7節・10.5節を更新した。</td></tr>
     </tbody>
   </table>
 
@@ -200,7 +201,7 @@
     <tbody>
       <tr><td><code>Select</code></td><td><code>&lt;select&gt;</code></td><td>固定選択肢のプルダウン。S-06 配信区分 / S-08 担当範囲 / S-10 ロール・AIモデル</td></tr>
       <tr><td><code>Combobox</code></td><td><code>&lt;select&gt;</code></td><td>検索付き・タグ見出し付きの選択。S-03 タグ絞り込み、S-12 メンバー招待の社員検索</td></tr>
-      <tr><td><code>TagInput</code></td><td>自由記述の<code>&lt;input&gt;</code></td><td>教材タグ（<code>materials.tags</code>）の複数入力。S-05目次編集タブで初実装（チップ表示＋Enterで確定・×で削除。2.7節）</td></tr>
+      <tr><td><code>TagInput</code></td><td>自由記述の<code>&lt;input&gt;</code></td><td>教材タグ（<code>materials.tags</code>）の複数入力。S-05目次編集タブで初実装（チップ表示＋Enterで確定・×で削除。フォーカス中または入力中は<code>#</code>を装飾的に前置してハッシュタグ入力であることを示す（Instagram等のタグ入力を参考にした）。2.7節）</td></tr>
       <tr><td><code>MonthPicker</code> / <code>DateTimePicker</code></td><td><code>&lt;input type="month"&gt;</code> / <code>&lt;input type="datetime-local"&gt;</code></td><td>受講期限（<code>due_at</code>）入力。S-06配信設定</td></tr>
       <tr><td><code>TextInput</code> / <code>TextArea</code></td><td><code>&lt;input&gt;</code> / <code>&lt;textarea&gt;</code></td><td>全画面のテキスト入力</td></tr>
       <tr><td><code>MarkdownHtmlEditor</code></td><td>素の<code>&lt;textarea&gt;</code></td><td>説明文編集（S-17）。Markdown/HTML切替タブ＋サニタイズ済みプレビュー分割表示（A-64呼び出し）</td></tr>
@@ -322,7 +323,7 @@
       <tr><td><code>TextInput</code></td><td>ネイティブ<code>&lt;input&gt;</code>属性をそのまま透過</td><td>S-13のプロジェクト名検索欄で初実装。<code>onChange</code>はネイティブのイベントを受け取る（keireki12.6節と同方針）</td></tr>
       <tr><td><code>Select</code></td><td><code>value: string</code>, <code>onChange(value: string)</code>, <code>options: SelectOption[]</code>, <code>id?</code>, <code>className?</code></td><td>S-14の状態・更新月セレクトで初実装。ネイティブ<code>&lt;select&gt;</code>と違い<code>onChange</code>は値そのものを受け取る（keireki12.6節と同方針）</td></tr>
       <tr><td><code>Button</code></td><td>ネイティブ<code>&lt;button&gt;</code>属性をそのまま透過 + <code>variant?: 'primary' | 'secondary'</code></td><td>S-14の「絞り込む」「条件クリア」で初実装。<code>type="button"</code>を既定にし、フォーム内での意図しないsubmitを防ぐ</td></tr>
-      <tr><td><code>TagInput</code></td><td><code>value: string[]</code>, <code>onChange(tags: string[])</code>, <code>id?</code></td><td>S-05のタグ編集で初実装。<code>onChange</code>は画面ローカルstateを更新するのみで、保存は行わない（S-05では教材タイトルと合わせて「下書き保存」押下時にA-16/A-17へ送る）。1タグ50文字以内・最大10個の上限を超える入力・重複タグは無視する</td></tr>
+      <tr><td><code>TagInput</code></td><td><code>value: string[]</code>, <code>onChange(tags: string[])</code>, <code>id?</code></td><td>S-05のタグ編集で初実装。<code>onChange</code>は画面ローカルstateを更新するのみで、保存は行わない（S-05では教材タイトルと合わせて「下書き保存」押下時にA-16/A-17へ送る）。1タグ50文字以内・最大10個の上限を超える入力・重複タグは無視する。未確定の入力欄はフォーカス中または1文字以上入力中のみ装飾的な<code>#</code>を前置し（値には含めない。先頭に<code>#</code>を入力した場合も除去する）、それ以外は「タグを設定する場合は入力してください」というプレースホルダーを表示する</td></tr>
     </tbody>
   </table>
 
@@ -346,7 +347,7 @@
   </ol>
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）詳細設計書 v1.15</span>
+    <span>社内学習管理システム（Manabi）詳細設計書 v1.16</span>
     <span>コガソフトウェア株式会社 / 2026-08-24</span>
   </footer>
 
