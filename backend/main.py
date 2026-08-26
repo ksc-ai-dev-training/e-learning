@@ -19,6 +19,7 @@ app = FastAPI(title="Manabi API", lifespan=lifespan)
 
 app.include_router(auth.router)
 app.include_router(organization.router)
+app.include_router(organization.memberships_router)
 app.include_router(materials.router)
 app.include_router(materials.detail_router)
 

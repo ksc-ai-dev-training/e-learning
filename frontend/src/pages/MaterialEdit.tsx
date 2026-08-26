@@ -6,11 +6,23 @@ import Button from '../components/ui/Button'
 import TagInput from '../components/ui/TagInput'
 import TextInput from '../components/ui/TextInput'
 import { useMaterial } from '../hooks/useMaterial'
+import { useMaterialAttachments } from '../hooks/useMaterialAttachments'
+import { useMaterialRevisions } from '../hooks/useMaterialRevisions'
+import { useProjectMemberships } from '../hooks/useProjectMemberships'
 import { useProjects } from '../hooks/useProjects'
 import { ApiError, apiFetch, apiFetchText } from '../lib/api'
 import { buildMaterialSource } from '../lib/materialSource'
 import type { EditableNode } from '../lib/materialSource'
 import type { Material, MaterialNode } from '../types'
+
+const TABS = [
+  { key: 'structure', label: '目次編集' },
+  { key: 'attach', label: 'ファイル・リンク' },
+  { key: 'members', label: 'プロジェクトメンバー' },
+  { key: 'review', label: 'AIレビュー結果' },
+  { key: 'history', label: '改訂履歴' },
+] as const
+type TabKey = (typeof TABS)[number]['key']
 
 function toEditableChapters(toc: MaterialNode[]): EditableNode[] {
   return toc
@@ -36,12 +48,23 @@ export default function MaterialEdit() {
   const project = projects.find((p) => p.id === Number(projectId))
 
   const [savedId, setSavedId] = useState<number | null>(isNew ? null : Number(materialId))
+  const [activeTab, setActiveTab] = useState<TabKey>('structure')
   const [title, setTitle] = useState('')
   const [tags, setTags] = useState<string[]>([])
   const [chapters, setChapters] = useState<EditableNode[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pendingDelete, setPendingDelete] = useState<string | null>(null)
+
+  const { attachments, isLoading: attachmentsLoading } = useMaterialAttachments(
+    activeTab === 'attach' ? savedId : null,
+  )
+  const { memberships, isLoading: membershipsLoading } = useProjectMemberships(
+    activeTab === 'members' ? Number(projectId) : null,
+  )
+  const { revisions, isLoading: revisionsLoading } = useMaterialRevisions(
+    activeTab === 'history' ? savedId : null,
+  )
 
   useEffect(() => {
     if (material) {
@@ -182,10 +205,31 @@ export default function MaterialEdit() {
           {savedId !== null && <Badge variant={material?.status === 'published' ? 'published' : 'draft'} />}
         </p>
 
+        <div className="mb-5 flex gap-1 border-b border-slate-200" role="tablist">
+          {TABS.map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`-mb-px border-b-2 px-3 py-2 text-sm font-semibold ${
+                activeTab === tab.key
+                  ? 'border-blue-800 text-blue-900'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
         {error && (
           <p className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
         )}
 
+        {activeTab === 'structure' && (
+        <>
         <div className="mb-4 flex max-w-xl flex-col gap-1">
           <label htmlFor="m-title" className="text-xs font-semibold text-slate-500">
             教材タイトル
@@ -390,7 +434,154 @@ export default function MaterialEdit() {
             )}
           </div>
         </section>
+        </>
+        )}
+
+        {activeTab === 'attach' && (
+          <section className="rounded-md border border-slate-200">
+            <div className="border-b border-slate-200 px-4 py-2.5">
+              <span className="text-sm font-semibold text-slate-700">添付ファイル・リンク（教材全体）</span>
+            </div>
+            <div className="p-4">
+              <p className="mb-3 text-xs text-slate-400">
+                このページに追加した各ページの添付を含む、教材に含まれるファイル・リンクの一覧です。追加はページ編集（S-17）から行います。
+              </p>
+              {savedId === null && <TabGateMessage />}
+              {savedId !== null && attachmentsLoading && <p className="text-sm text-slate-400">読み込み中...</p>}
+              {savedId !== null && !attachmentsLoading && attachments.length === 0 && (
+                <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400">
+                  まだファイル・リンクがありません。
+                </p>
+              )}
+              {savedId !== null && attachments.length > 0 && (
+                <div className="divide-y divide-slate-100">
+                  {attachments.map((a) => (
+                    <div key={a.id} className="flex items-center gap-3 py-2 text-sm">
+                      <span className="flex-1 truncate">{a.filename}</span>
+                      <span className="text-xs text-slate-400">
+                        {a.kind === 'file' ? a.mime_type : a.external_url}
+                        {a.node_id === null ? '（教材全体）' : ''}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
+        {activeTab === 'members' && (
+          <section className="rounded-md border border-slate-200">
+            <div className="border-b border-slate-200 px-4 py-2.5">
+              <span className="text-sm font-semibold text-slate-700">プロジェクトメンバー</span>
+            </div>
+            <div className="p-4">
+              <p className="mb-3 text-xs text-slate-400">
+                このタブは参照専用です。メンバーの追加・削除・ロール変更はプロジェクト管理画面（S-12）で行います。
+              </p>
+              {savedId === null && <TabGateMessage />}
+              {savedId !== null && membershipsLoading && <p className="text-sm text-slate-400">読み込み中...</p>}
+              {savedId !== null && !membershipsLoading && (
+                <div className="overflow-x-auto rounded-md border border-slate-200">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs text-slate-500">
+                        <th className="px-3 py-2 font-semibold">氏名</th>
+                        <th className="w-28 px-3 py-2 font-semibold">全社ロール</th>
+                        <th className="w-32 px-3 py-2 font-semibold">プロジェクトロール</th>
+                        <th className="w-28 px-3 py-2 font-semibold">参加日</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {memberships.map((m) => (
+                        <tr key={m.id} className="border-b border-slate-100 last:border-0">
+                          <td className="px-3 py-2">{m.user_name}</td>
+                          <td className="px-3 py-2 text-slate-500">{m.global_role}</td>
+                          <td className="px-3 py-2 text-slate-500">{m.role}</td>
+                          <td className="px-3 py-2 text-slate-500">{m.joined_at.slice(0, 10)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
+        {activeTab === 'review' && (
+          <section className="rounded-md border border-slate-200">
+            <div className="border-b border-slate-200 px-4 py-2.5">
+              <span className="text-sm font-semibold text-slate-700">AIレビュー結果</span>
+            </div>
+            <div className="p-4">
+              {savedId === null ? (
+                <TabGateMessage />
+              ) : (
+                <>
+                  <Button variant="primary" disabled title="準備中（AI連携の実装後に有効化）">
+                    AIレビューを実行
+                  </Button>
+                  <p className="mt-3 rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400">
+                    まだAIレビューを実行していません。
+                  </p>
+                </>
+              )}
+            </div>
+          </section>
+        )}
+
+        {activeTab === 'history' && (
+          <section className="rounded-md border border-slate-200">
+            <div className="border-b border-slate-200 px-4 py-2.5">
+              <span className="text-sm font-semibold text-slate-700">改訂履歴</span>
+            </div>
+            <div className="p-4">
+              {savedId === null && <TabGateMessage />}
+              {savedId !== null && revisionsLoading && <p className="text-sm text-slate-400">読み込み中...</p>}
+              {savedId !== null && !revisionsLoading && revisions.length === 0 && (
+                <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400">
+                  まだ改訂履歴がありません。
+                </p>
+              )}
+              {savedId !== null && revisions.length > 0 && (
+                <div className="overflow-x-auto rounded-md border border-slate-200">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs text-slate-500">
+                        <th className="w-40 px-3 py-2 font-semibold">日時</th>
+                        <th className="w-28 px-3 py-2 font-semibold">変更者</th>
+                        <th className="px-3 py-2 font-semibold">変更内容</th>
+                        <th className="w-24 px-3 py-2 font-semibold">経路</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {revisions.map((r) => (
+                        <tr key={r.id} className="border-b border-slate-100 last:border-0">
+                          <td className="px-3 py-2 text-slate-500">{r.created_at.slice(0, 16).replace('T', ' ')}</td>
+                          <td className="px-3 py-2">{r.changed_by_name}</td>
+                          <td className="px-3 py-2">{r.change_summary}</td>
+                          <td className="px-3 py-2 text-slate-500">
+                            {r.changed_via === 'web' ? '画面' : 'Claude Code'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
       </div>
     </div>
+  )
+}
+
+function TabGateMessage() {
+  return (
+    <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400">
+      先に「下書き保存」してください。教材を保存すると利用できます。
+    </p>
   )
 }

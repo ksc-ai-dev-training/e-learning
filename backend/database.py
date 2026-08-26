@@ -137,6 +137,26 @@ CREATE INDEX IF NOT EXISTS idx_material_nodes_tree
     ON material_nodes (material_id, parent_node_id, sort_order);
 ALTER TABLE material_nodes ENABLE ROW LEVEL SECURITY;
 
+-- T-09 material_attachments（添付ファイル・リンク）
+CREATE TABLE IF NOT EXISTS material_attachments (
+    id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    material_id   BIGINT NOT NULL REFERENCES materials(id) ON DELETE CASCADE,
+    node_id       BIGINT REFERENCES material_nodes(id) ON DELETE CASCADE,
+    kind          TEXT NOT NULL CHECK (kind IN ('file', 'link')),
+    storage_key   TEXT,
+    external_url  TEXT,
+    filename      TEXT NOT NULL,
+    mime_type     TEXT,
+    size_bytes    BIGINT,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CHECK ((kind = 'file' AND storage_key IS NOT NULL AND external_url IS NULL)
+        OR (kind = 'link' AND external_url IS NOT NULL AND storage_key IS NULL))
+);
+CREATE INDEX IF NOT EXISTS idx_material_attachments_material_id
+    ON material_attachments (material_id, node_id);
+ALTER TABLE material_attachments ENABLE ROW LEVEL SECURITY;
+
 -- T-08 material_revisions（教材改訂履歴。追記専用）
 CREATE TABLE IF NOT EXISTS material_revisions (
     id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,

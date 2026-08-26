@@ -235,3 +235,44 @@ async def put_material_source(
             )
 
     return Response(content=new_source, media_type="text/plain")
+
+
+@detail_router.get("/{id}/revisions")
+async def list_material_revisions(
+    id: int,
+    page: int = 1,
+    per_page: int = 20,
+    user: CurrentUser = Depends(require_material_role(min_role="editor")),
+):
+    """A-22: 教材改訂履歴（S-05改訂履歴タブ）。新しい順。"""
+    pool = get_pool()
+    total = await pool.fetchval("SELECT COUNT(*) FROM material_revisions WHERE material_id = $1", id)
+    rows = await pool.fetch(
+        """SELECT mr.id, u.name AS changed_by_name, mr.changed_via, mr.change_summary, mr.created_at
+           FROM material_revisions mr
+           JOIN users u ON u.id = mr.changed_by
+           WHERE mr.material_id = $1
+           ORDER BY mr.created_at DESC
+           LIMIT $2 OFFSET $3""",
+        id, per_page, (page - 1) * per_page,
+    )
+    return {"items": [dict(r) for r in rows], "total": total}
+
+
+@detail_router.get("/{id}/attachments")
+async def list_material_attachments(
+    id: int,
+    node_id: int | None = None,
+    user: CurrentUser = Depends(require_material_role(min_role="editor")),
+):
+    """A-28: 教材の添付ファイル・リンク一覧（S-05ファイル・リンクタブ）。node_id省略時は教材全体
+    （各ページの添付を含む全件）を返す。S-05のこのタブは追加を行わない参照専用の一覧のため、
+    4.3節の「省略時はnode_id IS NULLのみ」から変更した。ページ単位に絞り込みたい場合のみnode_idを指定する。"""
+    where = "material_id = $1" + (" AND node_id = $2" if node_id is not None else "")
+    params = [id] + ([node_id] if node_id is not None else [])
+    rows = await get_pool().fetch(
+        f"""SELECT id, node_id, kind, filename, mime_type, size_bytes, external_url, created_at
+            FROM material_attachments WHERE {where} ORDER BY created_at DESC""",
+        *params,
+    )
+    return {"items": [dict(r) for r in rows]}
