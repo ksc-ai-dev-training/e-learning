@@ -199,6 +199,10 @@ export default function MaterialEdit() {
       <PageHeader title={`教材編集${title ? ` — ${title}` : ''}`} />
       <div className="px-8 py-6">
         <p className="mb-4 flex flex-wrap items-center gap-1.5 text-[11.5px] text-slate-400">
+          <Link to="/materials/edit-projects" className="text-blue-800 hover:underline">
+            ← プロジェクト選択に戻る
+          </Link>
+          <span>／</span>
           <Link to={`/projects/${projectId}/materials/edit`} className="text-blue-800 hover:underline">
             ← 教材一覧に戻る
           </Link>

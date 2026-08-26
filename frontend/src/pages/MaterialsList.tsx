@@ -156,6 +156,7 @@ export default function MaterialsList() {
                 <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs text-slate-500">
                   <th className="px-3 py-2 font-semibold">教材</th>
                   <th className="w-24 px-3 py-2 font-semibold">状態</th>
+                  <th className="w-28 px-3 py-2 font-semibold">構成</th>
                   <th className="w-28 px-3 py-2 font-semibold">更新日</th>
                 </tr>
               </thead>
@@ -177,6 +178,9 @@ export default function MaterialsList() {
                     </td>
                     <td className="px-3 py-2">
                       <Badge variant={m.status === 'published' ? 'published' : 'draft'} />
+                    </td>
+                    <td className="px-3 py-2 text-slate-500">
+                      {m.chapter_count}章・{m.page_count}ページ
                     </td>
                     <td className="px-3 py-2 text-slate-500">{m.updated_at.slice(0, 10)}</td>
                   </tr>

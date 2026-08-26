@@ -25,6 +25,8 @@ export interface MaterialSource {
   status: MaterialStatus
   updated_at: string
   tags: string[]
+  chapter_count: number
+  page_count: number
 }
 
 // A-15 GET /api/materials/{id} の toc 内の1ノード（章・小見出し。ページはS-17着手時に追加）

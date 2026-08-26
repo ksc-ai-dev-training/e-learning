@@ -46,10 +46,21 @@ async def _fetch_tree(executor, material_id: int) -> list[dict]:
 async def list_materials_source(
     project_id: int, user: CurrentUser = Depends(require_project_role(min_role="editor"))
 ):
-    """A-21: 対象プロジェクトの教材一覧（下書き含む）。S-14の一覧表示・タグ検索に使う。"""
+    """A-21: 対象プロジェクトの教材一覧（下書き含む）。S-14の一覧表示・タグ検索・構成列に使う。"""
     rows = await get_pool().fetch(
-        """SELECT id, title, status, updated_at, tags FROM materials
-           WHERE project_id = $1 ORDER BY updated_at DESC""",
+        """SELECT m.id, m.title, m.status, m.updated_at, m.tags,
+                  COALESCE(nc.chapter_count, 0) AS chapter_count,
+                  COALESCE(nc.page_count, 0) AS page_count
+           FROM materials m
+           LEFT JOIN (
+               SELECT material_id,
+                      COUNT(*) FILTER (WHERE kind = 'chapter') AS chapter_count,
+                      COUNT(*) FILTER (WHERE kind = 'page') AS page_count
+               FROM material_nodes
+               GROUP BY material_id
+           ) nc ON nc.material_id = m.id
+           WHERE m.project_id = $1
+           ORDER BY m.updated_at DESC""",
         project_id,
     )
     return {"items": [{**dict(r), "tags": json.loads(r["tags"])} for r in rows]}

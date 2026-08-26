@@ -87,7 +87,7 @@
       <tr><td>A-18</td><td>DELETE <code>/api/materials/{id}</code></td><td>対象プロジェクトの管理者, admin</td><td>—</td><td>204。T-23〜T-14, T-15〜T-19の関連行はCASCADEで削除</td></tr>
       <tr><td>A-19</td><td>GET <code>/api/materials/{id}/source</code></td><td>対象プロジェクトの管理者/編集者, admin</td><td>—</td><td><code>text/plain</code>。7章参照。<strong>未実装</strong>（S-05の画面表示はA-15のJSONを使うため現時点では不要。Claude Code連携F-05着手時に追加）</td></tr>
       <tr><td>A-20</td><td>PUT <code>/api/materials/{id}/source</code></td><td>対象プロジェクトの管理者/編集者, admin</td><td><code>text/plain</code>本文</td><td>200。7章参照。S-05の目次構造編集（章・小見出しの追加/削除/並び替え）はこのAPIを都度呼ぶ形で実装（10.5節）。<code>material_parser.py</code>はページ・問題ブロックの抽出も仕様通り実装済みだが、現在のUIはページを作らないため未使用（S-17着手時に検証を厳密化する）</td></tr>
-      <tr><td>A-21</td><td>GET <code>/api/projects/{project_id}/materials/source</code></td><td>対象プロジェクトの編集者/管理者, admin</td><td>—</td><td>200 <code>{"items": [{"id", "title", "status", "updated_at", "tags"}]}</code>。<code>tags</code>はmaterials.tags（string[]）をそのまま返す。S-14のキーワード検索が教材名だけでなくタグも対象にするため追加（10.13節）</td></tr>
+      <tr><td>A-21</td><td>GET <code>/api/projects/{project_id}/materials/source</code></td><td>対象プロジェクトの編集者/管理者, admin</td><td>—</td><td>200 <code>{"items": [{"id", "title", "status", "updated_at", "tags", "chapter_count", "page_count"}]}</code>。<code>tags</code>はmaterials.tags（string[]）をそのまま返す。S-14のキーワード検索が教材名だけでなくタグも対象にするため追加（10.13節）。<code>chapter_count</code>/<code>page_count</code>はmaterial_nodesを<code>kind</code>別に集計した件数で、S-14の「構成」列表示のため追加した（ページはS-17未実装のため現状は常に0）</td></tr>
       <tr><td>A-22</td><td>GET <code>/api/materials/{id}/revisions</code></td><td>対象プロジェクトの管理者/編集者, admin</td><td>クエリ <code>page</code>, <code>per_page</code></td><td>200 <code>{"items": [{"id", "changed_by_name", "changed_via", "change_summary", "created_at"}], "total"}</code>。新しい順（実装済み。S-05改訂履歴タブ）</td></tr>
       <tr><td>A-27</td><td>POST <code>/api/materials/{id}/attachments/upload-url</code></td><td>対象プロジェクトの編集者/管理者, admin</td><td><code>{"filename": str, "mime_type": str, "size_bytes": int}</code></td><td>200 <code>{"upload_url": str, "storage_key": str}</code>。<code>size_bytes</code>が<code>MAX_ATTACHMENT_SIZE_MB</code>（既定200MB）を超える場合は413</td></tr>
       <tr><td>A-28</td><td>GET <code>/api/materials/{id}/attachments</code></td><td>受講対象者、対象プロジェクトの管理者/編集者, admin</td><td>クエリ <code>node_id</code>（任意）</td><td>200 <code>{"items": [{"id", "node_id", "kind", "filename", "mime_type", "size_bytes", "external_url", "created_at"}]}</code>。<strong>実装済み（S-05ファイル・リンクタブ）。</strong>S-05のこのタブは追加を行わない参照専用の一覧で、教材全体の資料だけでなく各ページの添付も横断的に見せる仕様のため、<code>node_id</code>省略時の既定を「<code>node_id IS NULL</code>の教材全体のみ」から「教材に属する全件（ページ添付含む）」に変更した。特定ページに絞り込みたい場合のみ<code>node_id</code>を指定する。添付の作成（A-27/A-29）はS-17（ページ編集）着手時に実装する</td></tr>
@@ -214,7 +214,7 @@
 
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）詳細設計書 v1.19</span>
+    <span>社内学習管理システム（Manabi）詳細設計書 v1.20</span>
     <span>コガソフトウェア株式会社 / 2026-08-24</span>
   </footer>
 
