@@ -21,7 +21,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 要件定義 | `docs/02_要件定義書.html`（requirements-definitionブランチからマージ） | v1.21 |
 | 画面モックアップ（S-01〜S-19。S-07・S-18は廃止済みで欠番） | `docs/03_画面モックアップ/`（`index.html`がギャラリー・画面遷移図） | — |
 | 基本設計 | `docs/04_基本設計書/`（長大化のため`index.html`〔表紙・改訂履歴・1〜2章〕と3〜11章の個別ファイルに分割） | v1.28 |
-| 詳細設計 | `docs/05_成果物資料/`（検討資料`検討資料/20260821_詳細設計書_仮.html`〔検討稿1.0〜1.4〕をレビュー・合意のうえ正式反映。長大化のため`index.html`〔表紙・改訂履歴・1〜2章〕と3〜11章の個別ファイルに分割。フォルダ名は意図的に`05_成果物資料`とした） | v1.12 |
+| 詳細設計 | `docs/05_成果物資料/`（検討資料`検討資料/20260821_詳細設計書_仮.html`〔検討稿1.0〜1.4〕をレビュー・合意のうえ正式反映。長大化のため`index.html`〔表紙・改訂履歴・1〜2章〕と3〜11章の個別ファイルに分割。フォルダ名は意図的に`05_成果物資料`とした） | v1.13 |
 
 ドキュメントを追加したら、この表を更新する（版数は改訂のたびに必ず更新すること）。
 
@@ -87,6 +87,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 実装状況
 
-- 要求仕様書（v1.0）・要件定義書（v1.21）・基本設計書（v1.28）・画面モックアップ一式（S-01〜S-19、S-07/S-18は欠番）・詳細設計書（v1.12）は完成している。
+- 要求仕様書（v1.0）・要件定義書（v1.21）・基本設計書（v1.28）・画面モックアップ一式（S-01〜S-19、S-07/S-18は欠番）・詳細設計書（v1.13）は完成している。
 - 基本設計フェーズは `basic-design` ブランチ（`requirements-definition` から分岐）で作業中。
-- 実装（backend/frontend）フェーズに着手済み。S-01（ログイン、開発用ログインのみ）・S-13（教材編集：プロジェクト選択）・S-14（教材編集：教材一覧）が動作確認済み。backendはT-01 users・T-03 projects・T-04 project_memberships・T-06 materials（最小限）のスキーマ、A-04系認証API・A-81（プロジェクト一覧）・A-21（教材一覧）と`require_project_role`（プロジェクトのローカルロール判定）を実装済み。DBはDocker上のPostgreSQL 16（`manabi-db`）、seed.pyで初期ユーザーと「全社公開」プロジェクトを投入する。frontendはVite + React + TypeScript + Tailwind CSSで、AppShell/Sidebar/PageHeader/ProjectCard/Badge/TextInput/Select/Button等の共通コンポーネントを実装済み（詳細設計書2.2〜2.9節）。S-13にはプロジェクト名検索欄あり（クライアント側フィルタ）。S-14には絞り込みパネル（キーワード・状態・更新月、絞り込む/条件クリアボタン。フォーム値と適用値を分離）あり。S-14の「＋新規教材を作成」ボタンはS-05が無いため現状クリック不可。左サイドバーはアイコンのみの帯に開閉可能（`lucide-react`使用、開閉状態は`localStorage`の`manabi-sidebar-collapsed`に保持。keirekiの`Layout.tsx`と同方針）で、画面モックアップ（S-02〜S-19）にも共通スクリプト`docs/03_画面モックアップ/mock-sidebar.js`で同等の開閉機能を反映済み。S-05（教材編集：目次編集）・S-17（教材編集：ページ編集）以降は未着手。教材作成・公開の縦の動線（S-13→S-14→S-05→S-17）を優先し、S-11/S-12（プロジェクト作成・管理）は「全社公開」で代替できるため後回しにする方針。環境構築・起動手順は`docs/参考資料_環境構築手順.html`を参照。
+- 実装（backend/frontend）フェーズに着手済み。S-01（ログイン、開発用ログインのみ）・S-13（教材編集：プロジェクト選択）・S-14（教材編集：教材一覧）が動作確認済み。backendはT-01 users・T-03 projects・T-04 project_memberships・T-06 materials（最小限）のスキーマ、A-04系認証API・A-81（プロジェクト一覧）・A-21（教材一覧）と`require_project_role`（プロジェクトのローカルロール判定）を実装済み。DBはDocker上のPostgreSQL 16（`manabi-db`）、seed.pyで初期ユーザーと「全社公開」プロジェクトを投入する。frontendはVite + React + TypeScript + Tailwind CSSで、AppShell/Sidebar/PageHeader/ProjectCard/Badge/TextInput/Select/Button等の共通コンポーネントを実装済み（詳細設計書2.2〜2.9節）。S-13にはプロジェクト名検索欄あり（クライアント側フィルタ）。S-14には絞り込みパネル（キーワード・状態・更新月、絞り込む/条件クリアボタン。フォーム値と適用値を分離）あり。S-14の「＋新規教材を作成」ボタンはS-05が無いため現状クリック不可。左サイドバーはアイコンのみの帯に開閉可能（`lucide-react`の`ChevronLeft`/`ChevronRight`使用、開閉状態は`localStorage`の`manabi-sidebar-collapsed`に保持）で、開閉ボタンはサイドバー右端の境界線上の丸ボタンとして配置している（keirekiの`Layout.tsx`はブランド行内に配置しているが、位置がわかりにくいとのフィードバックを受けてManabiでは境界線上に変更した）。画面モックアップ（S-02〜S-19）にも共通スクリプト`docs/03_画面モックアップ/mock-sidebar.js`で同等の開閉機能を反映済み。S-05（教材編集：目次編集）・S-17（教材編集：ページ編集）以降は未着手。教材作成・公開の縦の動線（S-13→S-14→S-05→S-17）を優先し、S-11/S-12（プロジェクト作成・管理）は「全社公開」で代替できるため後回しにする方針。環境構築・起動手順は`docs/参考資料_環境構築手順.html`を参照。

@@ -7,8 +7,8 @@ import {
   BarChart3,
   Plus,
   LayoutGrid,
-  PanelLeftClose,
-  PanelLeftOpen,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react'
 import { apiFetch } from '../../lib/api'
 import { useMe } from '../../hooks/useMe'
@@ -48,38 +48,32 @@ export default function Sidebar({ me }: { me: Me }) {
 
   return (
     <aside
-      className={`flex h-screen flex-shrink-0 flex-col border-r border-slate-200 bg-slate-50 transition-[width] duration-150 ${
+      className={`relative flex h-screen flex-shrink-0 flex-col border-r border-slate-200 bg-slate-50 transition-[width] duration-150 ${
         collapsed ? 'w-14' : 'w-60'
       }`}
     >
+      <button
+        onClick={toggle}
+        title={collapsed ? 'サイドバーを開く' : 'サイドバーを閉じる'}
+        className="absolute -right-3 top-1/2 z-10 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 shadow-sm hover:text-slate-700"
+      >
+        {collapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronLeft className="h-3.5 w-3.5" />}
+      </button>
+
       <div
         className={`flex items-center border-b border-slate-200 py-4 ${
-          collapsed ? 'justify-center px-0' : 'justify-between px-4'
+          collapsed ? 'justify-center px-0' : 'gap-2.5 px-4'
         }`}
       >
+        <div className="flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-md bg-blue-900 text-sm font-bold text-white">
+          M
+        </div>
         {!collapsed && (
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-md bg-blue-900 text-sm font-bold text-white">
-              M
-            </div>
-            <div>
-              <div className="text-[15px] font-bold leading-tight">Manabi</div>
-              <div className="text-[10.5px] leading-tight text-slate-400">社内学習管理システム</div>
-            </div>
+          <div>
+            <div className="text-[15px] font-bold leading-tight">Manabi</div>
+            <div className="text-[10.5px] leading-tight text-slate-400">社内学習管理システム</div>
           </div>
         )}
-        {collapsed && (
-          <div className="flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-md bg-blue-900 text-sm font-bold text-white">
-            M
-          </div>
-        )}
-        <button
-          onClick={toggle}
-          title={collapsed ? 'サイドバーを開く' : 'サイドバーを閉じる'}
-          className={`flex-shrink-0 rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 ${collapsed ? 'mt-1.5' : ''}`}
-        >
-          {collapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
-        </button>
       </div>
 
       <nav className={`flex-1 overflow-y-auto overflow-x-hidden p-2 ${collapsed ? 'px-1.5' : ''}`}>
