@@ -36,14 +36,13 @@
   // ユーザー情報（氏名・メール）
   markHideable(sidebar.querySelector('.sidebar-user-row > div'));
 
-  // 開閉ボタンをブランド行に追加
-  const brandRow = sidebar.querySelector('.sidebar-brand');
+  // 開閉ボタンはサイドバー右端の境界線上に配置する（実装側Sidebar.tsxと同じ方針）
   const toggleBtn = document.createElement('button');
   toggleBtn.type = 'button';
   toggleBtn.className = 'sidebar-toggle';
   toggleBtn.innerHTML =
     '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>';
-  if (brandRow) brandRow.appendChild(toggleBtn);
+  sidebar.appendChild(toggleBtn);
 
   function applyState(collapsed) {
     sidebar.classList.toggle('collapsed', collapsed);

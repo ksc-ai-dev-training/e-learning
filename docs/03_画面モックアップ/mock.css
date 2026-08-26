@@ -167,23 +167,29 @@ h1 { font-size: 20px; font-weight: 600; letter-spacing: 0.01em; }
 /* サイドバーの開閉（mock-sidebar.js） */
 .sidebar { transition: width 0.15s ease; }
 .sidebar-toggle {
+  position: absolute;
+  top: 50%;
+  right: -12px;
+  transform: translateY(-50%);
+  z-index: 5;
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: transparent;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg);
   color: var(--text-subtle);
+  box-shadow: var(--shadow-sm);
   cursor: pointer;
 }
 .sidebar-toggle:hover { background: var(--bg-hover); color: var(--text); }
 .sidebar-toggle svg { transition: transform 0.15s ease; }
 .sidebar.collapsed { width: 56px; }
 .sidebar.collapsed .collapsible-text { display: none; }
-.sidebar.collapsed .sidebar-brand { flex-direction: column; justify-content: center; gap: 8px; padding: 14px 8px; }
+.sidebar.collapsed .sidebar-brand { justify-content: center; padding: 18px 0 16px; }
 .sidebar.collapsed .nav-item { justify-content: center; padding: 0; }
 .sidebar.collapsed .sidebar-logout { justify-content: center; padding: 5px 0; }
 .sidebar.collapsed .sidebar-user-row { justify-content: center; }
