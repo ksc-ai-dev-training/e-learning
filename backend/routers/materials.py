@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 from auth_helpers import (
     CurrentUser,
     check_project_role,
+    is_company_wide_draft_restricted,
     require_auth,
     require_material_role,
     require_project_role,
@@ -46,22 +47,36 @@ async def _fetch_tree(executor, material_id: int) -> list[dict]:
 async def list_materials_source(
     project_id: int, user: CurrentUser = Depends(require_project_role(min_role="editor"))
 ):
-    """A-21: 対象プロジェクトの教材一覧（下書き含む）。S-14の一覧表示・タグ検索・構成列に使う。"""
-    rows = await get_pool().fetch(
-        """SELECT m.id, m.title, m.status, m.updated_at, m.tags,
-                  COALESCE(nc.chapter_count, 0) AS chapter_count,
-                  COALESCE(nc.page_count, 0) AS page_count
-           FROM materials m
-           LEFT JOIN (
-               SELECT material_id,
-                      COUNT(*) FILTER (WHERE kind = 'chapter') AS chapter_count,
-                      COUNT(*) FILTER (WHERE kind = 'page') AS page_count
-               FROM material_nodes
-               GROUP BY material_id
-           ) nc ON nc.material_id = m.id
-           WHERE m.project_id = $1
-           ORDER BY m.updated_at DESC""",
-        project_id,
+    """A-21: 対象プロジェクトの教材一覧（下書き含む）。S-14の一覧表示・タグ検索・構成列に使う。
+    全社公開プロジェクトでは、作成者・プロジェクト管理者・システムadmin以外には他人の下書きを
+    一覧にも出さない（is_company_wide_draft_restricted、5.2節）。"""
+    pool = get_pool()
+    project = await pool.fetchrow("SELECT is_company_wide FROM projects WHERE id = $1", project_id)
+    restricted = await is_company_wide_draft_restricted(
+        user, project_id, project["is_company_wide"] if project else False
+    )
+
+    where = "m.project_id = $1"
+    params: list = [project_id]
+    if restricted:
+        params.append(user.id)
+        where += f" AND (m.status = 'published' OR m.created_by = ${len(params)})"
+
+    rows = await pool.fetch(
+        f"""SELECT m.id, m.title, m.status, m.updated_at, m.tags,
+                   COALESCE(nc.chapter_count, 0) AS chapter_count,
+                   COALESCE(nc.page_count, 0) AS page_count
+            FROM materials m
+            LEFT JOIN (
+                SELECT material_id,
+                       COUNT(*) FILTER (WHERE kind = 'chapter') AS chapter_count,
+                       COUNT(*) FILTER (WHERE kind = 'page') AS page_count
+                FROM material_nodes
+                GROUP BY material_id
+            ) nc ON nc.material_id = m.id
+            WHERE {where}
+            ORDER BY m.updated_at DESC""",
+        *params,
     )
     return {"items": [{**dict(r), "tags": json.loads(r["tags"])} for r in rows]}
 

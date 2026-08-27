@@ -11,19 +11,22 @@ export default function Select({
   options,
   id,
   className = '',
+  disabled = false,
 }: {
   value: string
   onChange: (value: string) => void
   options: SelectOption[]
   id?: string
   className?: string
+  disabled?: boolean
 }) {
   return (
     <select
       id={id}
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className={`h-9 rounded-md border border-slate-300 bg-white px-2 text-sm focus:border-blue-700 focus:outline-none ${className}`}
+      disabled={disabled}
+      className={`h-9 rounded-md border border-slate-300 bg-white px-2 text-sm focus:border-blue-700 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 ${className}`}
     >
       {options.map((o) => (
         <option key={o.value} value={o.value}>

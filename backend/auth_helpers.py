@@ -100,15 +100,43 @@ def require_project_role(min_role: str):
     return checker
 
 
+async def is_company_wide_draft_restricted(user: CurrentUser, project_id: int, is_company_wide: bool) -> bool:
+    """全社公開プロジェクトの下書きを、作成者・管理者以外に見せない制限が必要かどうかを判定する。
+
+    全社公開は全社員が自動でeditorになる特殊プロジェクトのため、下書きを他メンバーに
+    意図せず見られてしまう問題があった。全社公開以外の（招待制の）プロジェクトはメンバーが
+    元々限定されているため制限しない。呼び出し側で「作成者本人かどうか」も合わせて判定すること
+    （このヘルパーは作成者判定を含まない）。
+    """
+    if not is_company_wide or user.role == "admin":
+        return False
+    project_role = await get_pool().fetchval(
+        """SELECT role FROM project_memberships
+           WHERE project_id = $1 AND user_id = $2 AND status = 'active' AND left_at IS NULL""",
+        project_id, user.id,
+    )
+    return project_role != "admin"
+
+
 def require_material_role(min_role: str):
     """教材IDから所属プロジェクトを引いてローカルロールを判定する（A-15/A-17/A-18/A-20等）。
+    全社公開プロジェクトの下書きは、作成者・プロジェクト管理者・システムadmin以外は403にする
+    （is_company_wide_draft_restricted、5.2節）。
 
     パスパラメータ `id`（教材ID）を持つルート（例: /api/materials/{id}）で使う。
     """
     async def checker(id: int, user: CurrentUser = Depends(require_auth)) -> CurrentUser:
-        row = await get_pool().fetchrow("SELECT project_id FROM materials WHERE id = $1", id)
+        row = await get_pool().fetchrow(
+            """SELECT m.project_id, m.status, m.created_by, p.is_company_wide
+               FROM materials m JOIN projects p ON p.id = m.project_id
+               WHERE m.id = $1""",
+            id,
+        )
         if row is None:
             raise HTTPException(404, detail="教材が見つかりません")
         await check_project_role(user, row["project_id"], min_role)
+        if row["status"] == "draft" and row["created_by"] != user.id:
+            if await is_company_wide_draft_restricted(user, row["project_id"], row["is_company_wide"]):
+                raise HTTPException(403, detail="この下書きを閲覧できるのは作成者とプロジェクト管理者のみです")
         return user
     return checker

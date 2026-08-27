@@ -45,7 +45,7 @@ export default function MaterialEdit() {
   const { projectId, materialId } = useParams<{ projectId: string; materialId: string }>()
   const navigate = useNavigate()
   const isNew = materialId === 'new'
-  const { material, isLoading, mutate } = useMaterial(isNew ? null : Number(materialId))
+  const { material, isLoading, error: materialError, mutate } = useMaterial(isNew ? null : Number(materialId))
   const { projects } = useProjects()
   const project = projects.find((p) => p.id === Number(projectId))
 
@@ -60,7 +60,6 @@ export default function MaterialEdit() {
   const [pendingDelete, setPendingDelete] = useState<string | null>(null)
   const [historyYear, setHistoryYear] = useState('')
   const [historyMonth, setHistoryMonth] = useState('all')
-  const [historyShowAll, setHistoryShowAll] = useState(false)
 
   const { attachments, isLoading: attachmentsLoading } = useMaterialAttachments(
     activeTab === 'attach' ? savedId : null,
@@ -107,14 +106,20 @@ export default function MaterialEdit() {
         .map((r) => formatYearMonthJst(r.created_at).slice(5, 7)),
     ),
   ).sort((a, b) => b.localeCompare(a))
-  const filteredRevisions = historyShowAll
-    ? revisions
-    : revisions.filter((r) => {
-        const ym = formatYearMonthJst(r.created_at)
-        if (!ym.startsWith(historyYear)) return false
-        if (historyMonth !== 'all' && ym.slice(5, 7) !== historyMonth) return false
-        return true
-      })
+  const filteredRevisions =
+    historyYear === 'all'
+      ? revisions
+      : revisions.filter((r) => {
+          const ym = formatYearMonthJst(r.created_at)
+          if (!ym.startsWith(historyYear)) return false
+          if (historyMonth !== 'all' && ym.slice(5, 7) !== historyMonth) return false
+          return true
+        })
+
+  const selectHistoryYear = (value: string) => {
+    setHistoryYear(value)
+    setHistoryMonth('all')
+  }
 
   const withMeta = (m: Material): Material => ({ ...m, title, tags })
 
@@ -235,6 +240,24 @@ export default function MaterialEdit() {
 
   if (!isNew && isLoading) {
     return <div className="p-8 text-sm text-slate-400">読み込み中...</div>
+  }
+
+  if (!isNew && materialError) {
+    const message =
+      materialError instanceof ApiError && materialError.status === 403
+        ? 'この教材を閲覧できません。全社公開プロジェクトの下書きは作成者とプロジェクト管理者のみ閲覧できます。'
+        : '教材を取得できませんでした。'
+    return (
+      <div className="flex flex-1 flex-col">
+        <PageHeader title="教材編集" />
+        <div className="px-8 py-6">
+          <Link to={`/projects/${projectId}/materials/edit`} className="text-blue-800 hover:underline">
+            ← 教材一覧に戻る
+          </Link>
+          <p className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{message}</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -609,36 +632,29 @@ export default function MaterialEdit() {
               )}
               {savedId !== null && revisions.length > 0 && (
                 <>
-                  <div className="mb-3 flex flex-wrap items-end gap-3">
-                    <div className="flex flex-col gap-1">
-                      <label className="text-xs font-semibold text-slate-500">対象年月</label>
-                      <div className="flex gap-2">
-                        <Select
-                          value={historyYear}
-                          onChange={(v) => {
-                            setHistoryYear(v)
-                            setHistoryShowAll(false)
-                          }}
-                          options={revisionYears.map((y) => ({ value: y, label: `${y}年` }))}
-                          className="w-24"
-                        />
-                        <Select
-                          value={historyMonth}
-                          onChange={(v) => {
-                            setHistoryMonth(v)
-                            setHistoryShowAll(false)
-                          }}
-                          options={[
-                            { value: 'all', label: 'すべて' },
-                            ...revisionMonthsForYear.map((m) => ({ value: m, label: `${Number(m)}月` })),
-                          ]}
-                          className="w-24"
-                        />
-                      </div>
+                  <div className="mb-3 flex flex-col gap-1">
+                    <label className="text-xs font-semibold text-slate-500">対象年月</label>
+                    <div className="flex gap-2">
+                      <Select
+                        value={historyYear}
+                        onChange={selectHistoryYear}
+                        options={[
+                          { value: 'all', label: '全期間' },
+                          ...revisionYears.map((y) => ({ value: y, label: `${y}年` })),
+                        ]}
+                        className="w-24"
+                      />
+                      <Select
+                        value={historyMonth}
+                        onChange={setHistoryMonth}
+                        disabled={historyYear === 'all'}
+                        options={[
+                          { value: 'all', label: 'すべて' },
+                          ...revisionMonthsForYear.map((m) => ({ value: m, label: `${Number(m)}月` })),
+                        ]}
+                        className="w-24"
+                      />
                     </div>
-                    <Button variant="secondary" onClick={() => setHistoryShowAll(true)} disabled={historyShowAll}>
-                      全期間を表示
-                    </Button>
                   </div>
 
                   {filteredRevisions.length === 0 ? (
