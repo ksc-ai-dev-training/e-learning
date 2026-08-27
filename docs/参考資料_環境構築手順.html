@@ -16,7 +16,7 @@
     <p class="subtitle">社内学習管理システム（Manabi）— 開発環境のセットアップと起動方法</p>
     <div class="meta">
       <span>作成日: 2026-08-25</span>
-      <span>版数: 1.0</span>
+      <span>版数: 1.1</span>
       <span>作成: コガソフトウェア株式会社</span>
     </div>
     <p class="note">
@@ -31,6 +31,7 @@
     <thead><tr><th>版数</th><th>日付</th><th>改訂内容</th></tr></thead>
     <tbody>
       <tr><td>1.0</td><td>2026-08-25</td><td>初版。S-01ログイン画面の実装にあたり、PostgreSQL（Docker）・backend・frontendのローカル環境構築手順を整理した。keireki（<code>参考資料_環境構築手順.html</code>）の形式を踏襲。この時点ではDockerでのDB構築のみ実施・検証済みで、ローカルインストール版PostgreSQLの手順は未検証（4.2節参照）。<code>start.bat</code>による一括起動はまだ無く、3プロセスを手動で個別起動する。</td></tr>
+      <tr><td>1.1</td><td>2026-08-26</td><td>6.2節「ログイン（開発用ログイン）」の冒頭にアクセスURL（<code>http://localhost:5180/login</code>）を明記した。これまでは6.1節の疎通確認表にしか記載が無く、開発用ログイン画面を開く手順として見つけにくかったため追記した。</td></tr>
     </tbody>
   </table>
 
@@ -163,6 +164,10 @@ npm run dev                       # http://localhost:5180</code></pre>
   </table>
 
   <h3>6.2 ログイン（開発用ログイン）</h3>
+  <p>
+    <strong>アクセスURL:</strong> <code>http://localhost:5180/login</code>
+    （<code>FRONTEND_PORT</code>を変更した場合、またはViteが自動で別ポートに割り当てた場合はそのポート番号に読み替える。6.1節参照）
+  </p>
   <div class="callout warn">
     ログイン画面の「Googleでログイン」ボタンはA-01（Google OAuth）が未実装のため使用できない。
     「開発用ログイン（Google認証の代替）」から選ぶこと。
@@ -225,7 +230,7 @@ npm run dev                       # http://localhost:5180</code></pre>
 
   <footer class="doc-footer">
     <span>社内学習管理システム（Manabi）</span>
-    <span>Ver 1.0 / 2026-08-25</span>
+    <span>Ver 1.1 / 2026-08-26</span>
   </footer>
 
 </div>
