@@ -123,6 +123,9 @@ export default function MaterialEdit() {
 
   const withMeta = (m: Material): Material => ({ ...m, title, tags })
 
+  // 「下書き保存」押下時にタイトル・タグ・目次構造をまとめて保存する。章・小見出しの
+  // 追加/削除/並び替え/リネームはこの保存まではローカルstateのみで、A-20は呼ばない
+  // （以前は操作のたびに自動保存していたが、保存押下時にまとめて確定する方式に変更した）。
   const saveDraft = async () => {
     setError(null)
     setSavedMessage(null)
@@ -139,11 +142,9 @@ export default function MaterialEdit() {
         })
         setSavedId(created.id)
         navigate(`/projects/${projectId}/materials/${created.id}/edit`, { replace: true })
-      } else {
-        await apiFetch<Material>(`/api/materials/${savedId}`, {
-          method: 'PUT',
-          body: JSON.stringify({ title, tags, status: 'draft' }),
-        })
+      } else if (material) {
+        const source = buildMaterialSource(withMeta(material), chapters)
+        await apiFetchText(`/api/materials/${savedId}/source`, source)
         await mutate()
       }
       setSavedMessage('保存しました')
@@ -154,38 +155,17 @@ export default function MaterialEdit() {
     }
   }
 
-  const saveToc = async (nextChapters: EditableNode[]) => {
-    if (savedId === null || !material) return
-    setError(null)
-    try {
-      const source = buildMaterialSource(withMeta(material), nextChapters)
-      await apiFetchText(`/api/materials/${savedId}/source`, source)
-      await mutate()
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : '目次の保存に失敗しました')
-    }
-  }
-
-  const updateChapters = (next: EditableNode[], persist: boolean) => {
-    setChapters(next)
-    if (persist) saveToc(next)
-  }
-
   const addChapter = () => {
-    updateChapters(
-      [...chapters, { id: null, title: `第${chapters.length + 1}章`, kind: 'chapter', children: [] }],
-      true,
-    )
+    setChapters([...chapters, { id: null, title: `第${chapters.length + 1}章`, kind: 'chapter', children: [] }])
   }
 
   const addSection = (chapterIdx: number) => {
-    updateChapters(
+    setChapters(
       chapters.map((c, i) =>
         i === chapterIdx
           ? { ...c, children: [...c.children, { id: null, title: '', kind: 'section' as const, children: [] }] }
           : c,
       ),
-      true,
     )
   }
 
@@ -208,7 +188,7 @@ export default function MaterialEdit() {
     if (target < 0 || target >= chapters.length) return
     const next = [...chapters]
     ;[next[idx], next[target]] = [next[target], next[idx]]
-    updateChapters(next, true)
+    setChapters(next)
   }
 
   const moveSection = (chapterIdx: number, sectionIdx: number, dir: -1 | 1) => {
@@ -217,23 +197,19 @@ export default function MaterialEdit() {
     if (target < 0 || target >= chapter.children.length) return
     const nextChildren = [...chapter.children]
     ;[nextChildren[sectionIdx], nextChildren[target]] = [nextChildren[target], nextChildren[sectionIdx]]
-    updateChapters(
-      chapters.map((c, i) => (i === chapterIdx ? { ...c, children: nextChildren } : c)),
-      true,
-    )
+    setChapters(chapters.map((c, i) => (i === chapterIdx ? { ...c, children: nextChildren } : c)))
   }
 
   const deleteChapter = (idx: number) => {
-    updateChapters(chapters.filter((_, i) => i !== idx), true)
+    setChapters(chapters.filter((_, i) => i !== idx))
     setPendingDelete(null)
   }
 
   const deleteSection = (chapterIdx: number, sectionIdx: number) => {
-    updateChapters(
+    setChapters(
       chapters.map((c, i) =>
         i === chapterIdx ? { ...c, children: c.children.filter((_, j) => j !== sectionIdx) } : c,
       ),
-      true,
     )
     setPendingDelete(null)
   }
@@ -360,7 +336,9 @@ export default function MaterialEdit() {
         <section className="rounded-md border border-slate-200">
           <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2.5">
             <span className="text-sm font-semibold text-slate-700">目次構造</span>
-            <span className="text-xs text-slate-400">{chapters.length}章</span>
+            <span className="text-xs text-slate-400">
+              {chapters.length}章（変更は上の「下書き保存」を押すまで確定しません）
+            </span>
           </div>
           <div className="p-4">
             {savedId === null && (
@@ -378,7 +356,6 @@ export default function MaterialEdit() {
                       <TextInput
                         value={chapter.title}
                         onChange={(e) => renameChapter(ci, e.target.value)}
-                        onBlur={() => saveToc(chapters)}
                         className="flex-1"
                       />
                       <button
@@ -437,7 +414,6 @@ export default function MaterialEdit() {
                           <TextInput
                             value={section.title}
                             onChange={(e) => renameSection(ci, si, e.target.value)}
-                            onBlur={() => saveToc(chapters)}
                             placeholder="小見出しのタイトルを入力"
                             className="flex-1"
                           />
