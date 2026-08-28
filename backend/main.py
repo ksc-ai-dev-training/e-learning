@@ -5,7 +5,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 import database
-from routers import auth, materials, organization
+from routers import auth, materials, organization, uploads
 
 
 @asynccontextmanager
@@ -22,6 +22,7 @@ app.include_router(organization.router)
 app.include_router(organization.memberships_router)
 app.include_router(materials.router)
 app.include_router(materials.detail_router)
+app.include_router(uploads.router)
 
 
 @app.get("/healthz", include_in_schema=False)

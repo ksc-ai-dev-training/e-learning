@@ -4,3 +4,6 @@ asyncpg>=0.30
 pydantic>=2.10
 PyJWT>=2.10
 PyYAML>=6.0
+nh3>=0.2
+markdown>=3.7
+httpx>=0.28

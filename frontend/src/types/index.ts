@@ -23,19 +23,50 @@ export interface MaterialSource {
   id: number
   title: string
   status: MaterialStatus
+  is_archived: boolean
   updated_at: string
   tags: string[]
   chapter_count: number
   page_count: number
 }
 
-// A-15 GET /api/materials/{id} の toc 内の1ノード（章・小見出し。ページはS-17着手時に追加）
+export type QuestionType = 'single' | 'multi' | 'free_text' | 'code' | 'reorder' | 'score_log'
+
+// T-10 questions。今回のスコープで画面から作成・編集できるのはsingle/multi/reorderの3種のみ
+// （free_text/code/score_logはQuestionEditCard上で選択自体はできるが保存はブロックされる）
+export interface Question {
+  id: number | null
+  type: QuestionType
+  prompt: string
+  options: string[] | null
+  correct_answer: string | string[] | null
+  scoring_criteria: string | null
+  code_language: string | null
+  required: boolean
+  is_critical: boolean
+  feedback_style: 'show_answer' | 'review_only' | 'hint_only' | null
+  score_unit: string | null
+  grading_mode: 'ai' | 'manual' | null
+  pool_group: number | null
+}
+
+export type ContentKind = 'explanation' | 'quiz' | 'mixed'
+export type QuizMode = 'all' | 'pool'
+
+// A-15 GET /api/materials/{id} の toc 内の1ノード（章・小見出し・ページ）。
+// content_kind以降はkind='page'のみ意味を持つ（chapter/sectionは常にnull/既定値/空配列）
 export interface MaterialNode {
   id: number
   parent_node_id: number | null
   title: string
   kind: 'chapter' | 'section' | 'page'
   sort_order: number
+  content_kind: ContentKind | null
+  format: 'markdown' | 'html' | null
+  body: string | null
+  quiz_mode: QuizMode
+  pool_draw_count: number | null
+  questions: Question[]
   children: MaterialNode[]
 }
 
@@ -53,6 +84,8 @@ export interface Material {
   default_feedback_style: 'show_answer' | 'review_only' | 'hint_only'
   ai_context: string | null
   grading_mode: 'ai' | 'manual'
+  is_archived: boolean
+  archived_at: string | null
   created_at: string
   updated_at: string
   toc?: MaterialNode[]
@@ -104,4 +137,40 @@ export interface MaterialAttachment {
   size_bytes: number | null
   external_url: string | null
   created_at: string
+}
+
+// 新設GET /api/materials/{id}/questions-summary のitems（S-05「問題一覧」タブ）。
+// 教材内の全設問をページ横断でフラットに集計する。正答率・pending_countはT-13/T-14参照だが、
+// 受講・受験API（A-39〜A-44）が未実装のため現状は常にtotal_answers=0（配線のみ先行実装）
+export interface QuestionSummaryItem {
+  question_id: number
+  node_id: number
+  node_path: string
+  type: QuestionType
+  grading_mode: 'ai' | 'manual' | null
+  prompt: string
+  total_answers: number
+  accuracy_pct: number | null
+  pending_count: number
+}
+
+export type SurveyQuestionType = 'rating_5' | 'single_choice' | 'free_text'
+
+// T-27 survey_questions。T-10 questionsと異なりcorrect_answerを持たない
+export interface SurveyQuestion {
+  id: number | null
+  type: SurveyQuestionType
+  prompt: string
+  options: string[] | null
+}
+
+// A-78/A-79 GET/PUT /api/materials/{id}/surveys のitems（S-05受験後アンケート設置）。
+// node_id=nullは教材全体、指定時は対象の章（kind='chapter'）
+export interface Survey {
+  id: number
+  node_id: number | null
+  title: string
+  is_active: boolean
+  repeat_mode: 'once' | 'every_time'
+  questions: SurveyQuestion[]
 }

@@ -3,6 +3,9 @@
 __pycache__/
 *.pyc
 
+# ローカル開発時の添付ファイル保存先（storage.py。本番はSupabase Storageを使う）
+backend/uploads/
+
 # Node
 node_modules/
 dist/

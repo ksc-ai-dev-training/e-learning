@@ -109,6 +109,9 @@ CREATE TABLE IF NOT EXISTS materials (
     ai_context              TEXT,
     grading_mode            TEXT NOT NULL DEFAULT 'ai'
                             CHECK (grading_mode IN ('ai', 'manual')),
+    is_archived             BOOLEAN NOT NULL DEFAULT false,
+    archived_at             TIMESTAMPTZ,
+    archived_by             BIGINT REFERENCES users(id),
     created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at              TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -136,6 +139,71 @@ CREATE TABLE IF NOT EXISTS material_nodes (
 CREATE INDEX IF NOT EXISTS idx_material_nodes_tree
     ON material_nodes (material_id, parent_node_id, sort_order);
 ALTER TABLE material_nodes ENABLE ROW LEVEL SECURITY;
+
+-- T-10 questions（問題）
+CREATE TABLE IF NOT EXISTS questions (
+    id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    material_id     BIGINT NOT NULL REFERENCES materials(id) ON DELETE CASCADE,
+    node_id         BIGINT NOT NULL REFERENCES material_nodes(id) ON DELETE CASCADE,
+    type            TEXT NOT NULL CHECK (type IN ('single', 'multi', 'free_text', 'code', 'reorder', 'score_log')),
+    prompt          TEXT NOT NULL,
+    options         JSONB,
+    correct_answer  JSONB,
+    scoring_criteria TEXT,
+    code_language   TEXT,
+    sort_order      INTEGER NOT NULL DEFAULT 0,
+    required        BOOLEAN NOT NULL DEFAULT true,
+    is_critical     BOOLEAN NOT NULL DEFAULT false,
+    feedback_style  TEXT CHECK (feedback_style IS NULL OR feedback_style IN ('show_answer', 'review_only', 'hint_only')),
+    pool_group_id   BIGINT REFERENCES questions(id) ON DELETE SET NULL,
+    score_unit      TEXT,
+    grading_mode    TEXT CHECK (grading_mode IS NULL OR grading_mode IN ('ai', 'manual')),
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_questions_node_sort ON questions (node_id, sort_order);
+CREATE INDEX IF NOT EXISTS idx_questions_pool_group_id ON questions (pool_group_id);
+ALTER TABLE questions ENABLE ROW LEVEL SECURITY;
+
+-- T-13 quiz_attempts（受験記録）。S-04/S-16（受講・受験API、A-39〜A-44）は本書の時点では未実装だが、
+-- S-05「問題一覧」タブ・S-19・S-20が参照する集計の土台としてテーブルのみ先行して用意する
+CREATE TABLE IF NOT EXISTS quiz_attempts (
+    id                        BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    user_id                   BIGINT NOT NULL REFERENCES users(id),
+    material_id               BIGINT NOT NULL REFERENCES materials(id) ON DELETE CASCADE,
+    scope_node_id             BIGINT REFERENCES material_nodes(id) ON DELETE CASCADE,
+    mode                      TEXT NOT NULL CHECK (mode IN ('graded', 'practice')),
+    attempt_no                INTEGER NOT NULL DEFAULT 1,
+    score_pct                 NUMERIC,
+    passed                    BOOLEAN,
+    fail_reason               TEXT,
+    question_order            JSONB,
+    carried_over_question_ids JSONB,
+    started_at                TIMESTAMPTZ NOT NULL DEFAULT now(),
+    submitted_at              TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS idx_quiz_attempts_material_id ON quiz_attempts (material_id);
+CREATE INDEX IF NOT EXISTS idx_quiz_attempts_user_id ON quiz_attempts (user_id);
+ALTER TABLE quiz_attempts ENABLE ROW LEVEL SECURITY;
+
+-- T-14 answers（回答）。grading_mode='manual'の設問はis_correct・ai_score_pct・ai_feedbackが
+-- reviewed_by設定（S-20の採点操作）まで常にNULLのまま（「未採点」、5.20節）
+CREATE TABLE IF NOT EXISTS answers (
+    id             BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    attempt_id     BIGINT NOT NULL REFERENCES quiz_attempts(id) ON DELETE CASCADE,
+    question_id    BIGINT NOT NULL REFERENCES questions(id) ON DELETE CASCADE,
+    response       JSONB,
+    is_correct     BOOLEAN,
+    ai_score_pct   NUMERIC,
+    ai_feedback    TEXT,
+    reviewed_by    BIGINT REFERENCES users(id),
+    reviewed_at    TIMESTAMPTZ,
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_answers_attempt_id ON answers (attempt_id);
+CREATE INDEX IF NOT EXISTS idx_answers_question_id ON answers (question_id);
+ALTER TABLE answers ENABLE ROW LEVEL SECURITY;
 
 -- T-09 material_attachments（添付ファイル・リンク）
 CREATE TABLE IF NOT EXISTS material_attachments (
@@ -170,6 +238,52 @@ CREATE TABLE IF NOT EXISTS material_revisions (
 CREATE INDEX IF NOT EXISTS idx_material_revisions_material_id
     ON material_revisions (material_id, created_at DESC);
 ALTER TABLE material_revisions ENABLE ROW LEVEL SECURITY;
+
+-- T-26 surveys（受験後アンケート。node_id=NULLは教材全体、設定時は対象の章）
+CREATE TABLE IF NOT EXISTS surveys (
+    id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    material_id   BIGINT NOT NULL REFERENCES materials(id) ON DELETE CASCADE,
+    node_id       BIGINT REFERENCES material_nodes(id) ON DELETE CASCADE,
+    title         TEXT NOT NULL,
+    is_active     BOOLEAN NOT NULL DEFAULT true,
+    repeat_mode   TEXT NOT NULL DEFAULT 'once' CHECK (repeat_mode IN ('once', 'every_time')),
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (material_id, node_id)
+);
+ALTER TABLE surveys ENABLE ROW LEVEL SECURITY;
+
+-- T-27 survey_questions（アンケート設問。T-10と異なりcorrect_answerを持たない）
+CREATE TABLE IF NOT EXISTS survey_questions (
+    id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    survey_id   BIGINT NOT NULL REFERENCES surveys(id) ON DELETE CASCADE,
+    type        TEXT NOT NULL CHECK (type IN ('rating_5', 'single_choice', 'free_text')),
+    prompt      TEXT NOT NULL,
+    options     JSONB,
+    sort_order  INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_survey_questions_survey_id ON survey_questions (survey_id, sort_order);
+ALTER TABLE survey_questions ENABLE ROW LEVEL SECURITY;
+
+-- T-28 survey_responses（アンケート回答ヘッダー。匿名運用も想定しuser_idはnullable）
+CREATE TABLE IF NOT EXISTS survey_responses (
+    id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    survey_id     BIGINT NOT NULL REFERENCES surveys(id) ON DELETE CASCADE,
+    user_id       BIGINT REFERENCES users(id),
+    submitted_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_survey_responses_survey_id ON survey_responses (survey_id);
+ALTER TABLE survey_responses ENABLE ROW LEVEL SECURITY;
+
+-- T-29 survey_answers（アンケート回答：設問ごと）
+CREATE TABLE IF NOT EXISTS survey_answers (
+    id                  BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    response_id         BIGINT NOT NULL REFERENCES survey_responses(id) ON DELETE CASCADE,
+    survey_question_id  BIGINT NOT NULL REFERENCES survey_questions(id) ON DELETE CASCADE,
+    value               JSONB NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_survey_answers_response_id ON survey_answers (response_id);
+ALTER TABLE survey_answers ENABLE ROW LEVEL SECURITY;
 """
 
 
