@@ -328,6 +328,7 @@ h1 { font-size: 20px; font-weight: 600; letter-spacing: 0.01em; }
 
 .badge-status-on  { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
 .badge-status-off { background: var(--bg-muted); color: var(--text-subtle); border-color: var(--border-strong); }
+.badge-status-archived { background: #f8fafc; color: #64748b; border-color: var(--border-strong); }
 .badge-complete   { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
 .badge-due-soon   { background: #fffbeb; color: #b45309; border-color: #fde68a; }
 .badge-overdue    { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }

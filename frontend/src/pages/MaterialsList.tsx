@@ -8,12 +8,15 @@ import TextInput from '../components/ui/TextInput'
 import { useMaterials } from '../hooks/useMaterials'
 import { useProjects } from '../hooks/useProjects'
 import { formatDateJst, formatYearMonthJst } from '../lib/datetime'
+import { ApiError } from '../lib/api'
+import { restoreMaterial } from '../lib/materialActions'
 import type { MaterialStatus } from '../types'
 
 const STATUS_OPTIONS = [
-  { value: 'all', label: 'すべて' },
+  { value: 'all', label: 'すべて（アーカイブ済みを除く）' },
   { value: 'published', label: '公開中' },
   { value: 'draft', label: '下書き' },
+  { value: 'archived', label: 'アーカイブ済み' },
 ]
 
 type FilterForm = { keyword: string; status: string; month: string }
@@ -24,12 +27,27 @@ export default function MaterialsList() {
   const { projectId } = useParams<{ projectId: string }>()
   const id = Number(projectId)
   const { projects } = useProjects()
-  const { materials, error, isLoading } = useMaterials(id)
-  const project = projects.find((p) => p.id === id)
+  const [restoringId, setRestoringId] = useState<number | null>(null)
+  const [restoreError, setRestoreError] = useState<string | null>(null)
 
   // 検索条件は入力中の値（form）と適用済みの値（filter）を分け、「絞り込む」押下で反映する
   const [form, setForm] = useState<FilterForm>(EMPTY_FILTER)
   const [filter, setFilter] = useState<FilterForm>(EMPTY_FILTER)
+  const { materials, error, isLoading, mutate } = useMaterials(id, filter.status === 'archived')
+  const project = projects.find((p) => p.id === id)
+
+  const restore = async (materialId: number) => {
+    setRestoreError(null)
+    setRestoringId(materialId)
+    try {
+      await restoreMaterial(materialId)
+      await mutate()
+    } catch (e) {
+      setRestoreError(e instanceof ApiError ? e.message : '復元に失敗しました')
+    } finally {
+      setRestoringId(null)
+    }
+  }
 
   const monthOptions = useMemo(() => {
     const months = new Set(materials.map((m) => formatYearMonthJst(m.updated_at)))
@@ -50,7 +68,11 @@ export default function MaterialsList() {
       const tagMatch = m.tags.some((t) => t.toLowerCase().includes(kw))
       if (!titleMatch && !tagMatch) return false
     }
-    if (filter.status !== 'all' && m.status !== (filter.status as MaterialStatus)) return false
+    if (filter.status === 'archived') {
+      if (!m.is_archived) return false
+    } else if (filter.status !== 'all' && m.status !== (filter.status as MaterialStatus)) {
+      return false
+    }
     if (filter.month !== 'all' && formatYearMonthJst(m.updated_at) !== filter.month) return false
     return true
   })
@@ -150,6 +172,8 @@ export default function MaterialsList() {
           </p>
         )}
 
+        {restoreError && <p className="mb-3 text-sm text-red-600">{restoreError}</p>}
+
         {filtered.length > 0 && (
           <div className="overflow-x-auto rounded-md border border-slate-200">
             <table className="w-full text-sm">
@@ -159,18 +183,23 @@ export default function MaterialsList() {
                   <th className="w-24 px-3 py-2 font-semibold">状態</th>
                   <th className="w-28 px-3 py-2 font-semibold">構成</th>
                   <th className="w-28 px-3 py-2 font-semibold">更新日</th>
+                  {filter.status === 'archived' && <th className="w-24 px-3 py-2 font-semibold">操作</th>}
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((m) => (
                   <tr key={m.id} className="border-b border-slate-100 last:border-0">
                     <td className="px-3 py-2">
-                      <Link
-                        to={`/projects/${id}/materials/${m.id}/edit`}
-                        className="text-slate-800 hover:text-blue-800 hover:underline"
-                      >
-                        {m.title}
-                      </Link>
+                      {m.is_archived ? (
+                        <span className="text-slate-400">{m.title}</span>
+                      ) : (
+                        <Link
+                          to={`/projects/${id}/materials/${m.id}/edit`}
+                          className="text-slate-800 hover:text-blue-800 hover:underline"
+                        >
+                          {m.title}
+                        </Link>
+                      )}
                       {m.tags.length > 0 && (
                         <div className="mt-0.5 text-[11px] text-slate-400">
                           {m.tags.map((t) => `#${t}`).join(' ')}
@@ -178,12 +207,24 @@ export default function MaterialsList() {
                       )}
                     </td>
                     <td className="px-3 py-2">
-                      <Badge variant={m.status === 'published' ? 'published' : 'draft'} />
+                      <Badge variant={m.is_archived ? 'archived' : m.status === 'published' ? 'published' : 'draft'} />
                     </td>
                     <td className="px-3 py-2 text-slate-500">
                       {m.chapter_count}章・{m.page_count}ページ
                     </td>
                     <td className="px-3 py-2 text-slate-500">{formatDateJst(m.updated_at)}</td>
+                    {filter.status === 'archived' && (
+                      <td className="px-3 py-2">
+                        <Button
+                          variant="secondary"
+                          onClick={() => restore(m.id)}
+                          disabled={restoringId === m.id}
+                          title="教材一覧・検索に戻します"
+                        >
+                          {restoringId === m.id ? '復元中...' : '復元'}
+                        </Button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

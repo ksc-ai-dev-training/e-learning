@@ -36,6 +36,10 @@
         <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></span>
         教材編集
       </a>
+      <a class="nav-item" href="S-20_grading-queue.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></span>
+        採点
+      </a>
       <a class="nav-item" href="S-09_my-report.html">
         <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
         個人学習レポート
@@ -99,9 +103,10 @@
             <div class="field">
               <label>状態</label>
               <select>
-                <option selected>すべて</option>
+                <option selected>すべて（アーカイブ済みを除く）</option>
                 <option>公開中</option>
                 <option>下書き</option>
+                <option>アーカイブ済み</option>
               </select>
             </div>
             <div class="field">
@@ -164,12 +169,27 @@
                 <a class="btn btn-ghost btn-sm" href="S-05_material-edit.html#duplicated" title="この教材の内容をコピーして新しい下書きを作成">複製</a>
               </td>
             </tr>
+            <tr>
+              <td>
+                <span class="cell-main" style="display:block;color:var(--text-subtle)">旧研修（2024年度版）</span>
+                <div class="cell-sub">単一選択 全6問 ／ 作成: 高橋 大輔</div>
+              </td>
+              <td><span class="badge badge-status-archived">アーカイブ済み</span></td>
+              <td class="num">2章・5ページ</td>
+              <td>2026-06-02</td>
+              <td>
+                <button class="btn btn-secondary btn-sm" type="button" title="教材一覧・検索に戻します">復元</button>
+              </td>
+            </tr>
           </tbody>
         </table>
       </div>
 
       <div class="table-notes" style="margin-top:10px">
         ※ 「複製」を押すと、教材1冊分（目次構造〔章・小見出し・ページ〕と各ページの説明文・問題）をそのままコピーした新しい下書きが作成され、目次編集画面が開きます。年度更新など、既存教材をベースに作り直したい場合に使います（例: 「新人研修2026」を複製して「新人研修2027」の下書きを作る）。複製元の公開状態・改訂履歴は引き継がず、複製後の教材は常に下書きから始まります。
+      </div>
+      <div class="table-notes" style="margin-top:4px">
+        ※ 「アーカイブ済み」（S-05の「アーカイブ」ボタンから設定）は教材一覧・検索から非表示になり、内容・受験記録・アンケート回答は削除されずそのまま保持されます。「状態」の既定値はアーカイブ済みを含まないため、通常の一覧には出てきません。上の行は「アーカイブ済み」を選んだ場合の表示例で、タイトルは編集画面へのリンクにならず（先に復元が必要なため）、操作は「復元」のみになります。
       </div>
 
     </div>
