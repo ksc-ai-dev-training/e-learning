@@ -37,8 +37,10 @@
     <li><strong>フロントマター分離:</strong> 先頭が<code>---</code>で始まる場合、次の<code>---</code>行までをYAMLとしてパースし、<code>id, project_id, tags, title, description, format, status, sort_order, attempt_scope, retake_scope, default_feedback_style, ai_context, grading_mode</code>を取得する（<code>PyYAML</code>の<code>safe_load</code>を使用。任意コード実行を伴う<code>yaml.load</code>は使わない）</li>
     <li><strong>見出し行の走査:</strong> フロントマター以降の本文を行単位で走査し、<code>format='markdown'</code>なら<code>#</code>/<code>##</code>/<code>###</code>で始まる行、<code>format='html'</code>なら<code>&lt;h1&gt;</code>/<code>&lt;h2&gt;</code>/<code>&lt;h3&gt;</code>タグを見出しとして検出する。検出のたびに現在の階層状態（現在の章ノード・現在の小見出しノード）を更新する: <code>#</code>/<code>&lt;h1&gt;</code>→新しい章を開始し小見出し状態をリセット、<code>##</code>/<code>&lt;h2&gt;</code>→現在の章の下に小見出しを開始、<code>###</code>/<code>&lt;h3&gt;</code>→現在の小見出し（あれば）または現在の章（無ければ）の下にページを開始する</li>
     <li><strong>ノードID注記の読み取り:</strong> 各見出し行の直後に<code>&lt;!-- node:123 --&gt;</code>があれば、そのノードは既存ノード（id=123）の更新として扱う。注記が無ければ新規ノードとして扱う（書き戻し時にIDを採番）</li>
-    <li><strong>ページ本文の抽出:</strong> <code>###</code>見出し（＋ノード注記）の直後から、次の見出し行またはテキスト末尾までを、当該ページの<code>body</code>候補とする。この範囲内に含まれる<code>```question</code>フェンスブロック（Markdown）または<code>&lt;!-- question ... --&gt;</code>コメント（HTML）は<code>body</code>から取り除き、問題ブロックとして別途抽出する（本文と問題の分離）</li>
-    <li><strong>問題ブロックのパース:</strong> 各問題ブロックをYAMLとしてパースし、<code>id, type, prompt, options, correct_answer, scoring_criteria, code_language, required, is_critical, feedback_style, pool_group, score_unit, grading_mode</code>を取得する。<code>type</code>ごとの必須フィールド検証（基本設計書8.3節の表）をPydanticモデルで行い、不足時は422で該当ブロックの行番号を含めて返す</li>
+    <li><strong>ページのformat注記の読み取り（v1.32）:</strong> <code>###</code>見出し（＋ノードID注記）の直後に<code>&lt;!-- format:markdown --&gt;</code>または<code>&lt;!-- format:html --&gt;</code>があれば、そのページ固有の本文形式として採用する（省略時はフロントマターの<code>format</code>を既定値とする）。ページごとに独立してMarkdown/HTMLを選べるのはこのためで、フロントマターの<code>format</code>は章・小見出し・ページの区切り自体をどちらの記法（<code>#</code>系／<code>&lt;hN&gt;</code>系）で表すかを決める文書全体の既定値、ページのformat注記はそのページの本文の中身の解釈・見出し記号エスケープ（次項）に使う値、という役割分担になる</li>
+    <li><strong>ページ本文の抽出:</strong> <code>###</code>見出し（＋ノードID注記・format注記）の直後から、次の見出し行またはテキスト末尾までを、当該ページの<code>body</code>候補とする。この範囲内に含まれる<code>```question</code>フェンスブロック（Markdown）または<code>&lt;!-- question ... --&gt;</code>コメント（HTML）は<code>body</code>から取り除き、問題ブロックとして別途抽出する（本文と問題の分離）。本文中に見出し記号（Markdownは<code>#</code>〜<code>###</code>、HTMLは<code>&lt;h1&gt;</code>〜<code>&lt;h3&gt;</code>）と衝突する行があると章・小見出し・ページの区切りと誤認識されるため、書き出し時に該当行をバックスラッシュでエスケープし読み込み時に自動で元へ戻す（<code>material_parser.escape_body_for_source</code>/<code>_unescape_heading_line</code>。どちらの記法を対象にエスケープ・解除するかは、そのページのformat注記で判定する）</li>
+    <li><strong>ページの出題プール注記の読み取り:</strong> format注記に続けて<code>&lt;!-- quiz_mode:pool --&gt;</code>があれば、そのページの出題方式を「プールからランダム抽出」とする（省略時は既定の<code>'all'</code>＝すべて出題）。続けて<code>&lt;!-- pool_draw_count:3 --&gt;</code>があれば1回あたりの抽出数として採用する。<code>quiz_mode='pool'</code>なのに<code>pool_draw_count</code>が省略・0以下の場合は422で拒否する</li>
+    <li><strong>問題ブロックのパース:</strong> 各問題ブロックをYAMLとしてパースし、<code>id, type, prompt, options, correct_answer, scoring_criteria, code_language, required, is_critical, feedback_style, pool_group, score_unit, grading_mode</code>を取得する。<code>type</code>ごとの必須フィールド検証（基本設計書8.3節の表。<code>single</code>/<code>multi</code>はoptions・correct_answer必須、<code>reorder</code>はcorrect_answerが2件以上の配列、<code>free_text</code>/<code>code</code>はscoring_criteria必須〔<code>code</code>はcode_languageも必須〕、<code>score_log</code>はscore_unit必須かつis_critical不可、<code>grading_mode</code>はfree_text/codeのみ設定可）をPydanticモデルで行い、不足時は422で該当ブロックの行番号を含めて返す</li>
     <li><strong>content_kindの自動判定:</strong> ページに<code>body</code>候補があり問題ブロックが無ければ<code>'explanation'</code>、逆なら<code>'quiz'</code>、両方あれば<code>'mixed'</code>。どちらも無ければ422（「説明文・問題のいずれか一方は必須」）</li>
   </ol>
   <div class="callout warn">
@@ -48,7 +50,7 @@
   <p>1回の呼び出しでフロントマターのメタデータ・目次ツリー全体・全問題を<strong>まとめて全置換</strong>する。処理はトランザクション内で行う。</p>
   <ol>
     <li>7.2節の手順でリクエストボディをパースし、パース結果（ノード配列＋各ページの問題配列）を得る</li>
-    <li>フロントマターの<code>id</code>が指定されていればT-06 materialsの対象行、無ければA-16相当の新規作成として扱う。<code>project_id</code>が現在の<code>materials.project_id</code>と異なる場合は400（4.3節A-20の注記参照。プロジェクト付け替えはA-17を使う）</li>
+    <li>フロントマターの<code>id</code>が指定されていればT-06 materialsの対象行、無ければA-16相当の新規作成として扱う。<code>project_id</code>が現在の<code>materials.project_id</code>と異なる場合は400（4.3節A-20の注記参照。所属プロジェクトの変更手段自体がv1.30で廃止されたため、Claude Codeは取得時の<code>project_id</code>をそのまま書き戻す必要がある）</li>
     <li>materials行のメタデータ（title, description, tags, status, sort_order, attempt_scope, retake_scope, default_feedback_style, ai_context, grading_mode）を更新する</li>
     <li><strong>ノードの全置換:</strong> 送信されたノード配列のうちノードID注記があるものは<code>UPDATE material_nodes SET ... WHERE id = ?</code>、無いものは<code>INSERT</code>で新規採番する。<strong>今回のリクエストに含まれなかった既存ノードは削除</strong>する（CASCADE削除により配下の問題・受験記録は残らない点に注意。9.1節エラーハンドリングで警告を検討）</li>
     <li><strong>問題の全置換:</strong> 各ページ（葉ノード）に紐づく問題ブロックについて、A-31と同一のロジック（送信内容で当該<code>node_id</code>の問題を全置換）を適用する</li>
@@ -82,7 +84,8 @@ ALLOWED_TAGS = {
     "tr", "th", "td", "a", "img", "figure", "figcaption",
 }
 ALLOWED_ATTRIBUTES = {
-    "a": {"href", "rel", "target"},
+    # "rel"はlink_rel指定時にnh3が自動管理するため、ここに含めるとValueErrorになる（実装時に判明）
+    "a": {"href", "target"},
     "img": {"src", "alt", "width", "height"},
     "td": {"colspan", "rowspan"},
     "th": {"colspan", "rowspan"},
@@ -104,11 +107,38 @@ def render_material_body(body: str, format: str) -&gt; str:
     html = markdown_render.to_html(body) if format == "markdown" else body
     html = strip_reserved_headings(html)   # h1/h2/h3を除去（8.6節）
     return sanitize_html(html)</code></pre>
-  <p>この<code>render_material_body</code>は、A-15（教材詳細取得）・A-40（受験開始）のレスポンス生成時、A-64（プレビュー）、S-16でのレンダリング直前の3箇所すべてから共通して呼び出す。<code>materials</code>・<code>material_nodes.body</code>には著者の入力した原文をそのまま保存し、上記の関数を経由しない直接描画（フロントエンドの<code>dangerouslySetInnerHTML</code>への生データ投入等）は行わない。</p>
+  <p>この<code>render_material_body</code>は、A-40（受験開始）のレスポンス生成時、A-64（プレビュー）、S-16でのレンダリング直前の3箇所すべてから共通して呼び出す。<code>materials</code>・<code>material_nodes.body</code>には著者の入力した原文をそのまま保存し、上記の関数を経由しない直接描画（フロントエンドの<code>dangerouslySetInnerHTML</code>への生データ投入等）は行わない。</p>
+  <div class="callout warn">
+    <strong>現状の実装: A-15は原文（未サニタイズ）のbodyを返す。</strong> A-15は現状<code>require_material_role(min_role='editor')</code>のみが呼べる（受講対象者向けの公開閲覧はS-04/A-40着手時に追加）。S-05・S-17の編集画面はA-15の目次ツリーJSONから各ページの<code>body</code>・<code>content_kind</code>・<code>format</code>・<code>quiz_mode</code>・<code>questions</code>を取得して編集フォームへ流し込む必要があり、これは著者本人が入力した原文でなければ編集を継続できない（サニタイズ後のHTMLでは往復編集が壊れる）。そのため<strong>A-15のbodyは編集権限保持者向けの原文のまま返し、render_material_bodyは通さない</strong>。S-17の説明文プレビューはA-64（都度サニタイズ）で別途表示することでREQ-F-02の往復性とXSS対策（8.6節）を両立させる。受講対象者がA-15を呼べるようになる時点（S-04着手時）で、呼び出し元ロールに応じてサニタイズ有無を分岐するか、学習者専用のレスポンス経路を新設する必要がある。
+  </div>
 
+  <h3>7.6 添付ファイルのストレージ実装（storage.py）</h3>
+  <p>基本設計書8.2節・要求仕様の運用方針（<code>G:\共有ドライブ\pj_new-employee-training\AI開発研修\supabase-quickstart.html</code>）のとおり、Supabaseはデプロイ時に用意するものでありローカル開発では使わない。添付ファイルの実体保存（A-27〜A-30, A-82が扱うkind='file'）も同じ方針に合わせ、環境変数<code>SUPABASE_URL</code>・<code>SUPABASE_SERVICE_KEY</code>の設定有無で実装を自動的に切り替える。</p>
+  <table>
+    <thead><tr><th>項目</th><th>ローカル開発（既定・環境変数未設定）</th><th>本番（Koyeb+Supabase、環境変数設定時）</th></tr></thead>
+    <tbody>
+      <tr><td>実体の保存先</td><td><code>backend/uploads/</code>配下（<code>.gitignore</code>対象）</td><td>Supabase Storageの<code>SUPABASE_STORAGE_BUCKET</code>バケット</td></tr>
+      <tr><td>A-27のupload_url</td><td><code>/api/uploads/{storage_key}</code>（自ホスト、要認証）へのPUT</td><td>Supabase Storageの署名付きアップロードURLへのPUT</td></tr>
+      <tr><td>A-30のdownload_url</td><td><code>/api/uploads/{storage_key}</code>（自ホスト、要認証）へのGET</td><td>Supabase Storageの署名付きダウンロードURL（有効期限10分）</td></tr>
+      <tr><td>A-82（削除）</td><td><code>backend/uploads/{storage_key}</code>を<code>os.remove</code></td><td>Supabase Storage REST APIの削除エンドポイントを呼び出し</td></tr>
+    </tbody>
+  </table>
+  <p>フロントエンドはどちらの環境でも「A-27で受け取ったupload_urlへPUT」「A-30で受け取ったdownload_urlへGET」という同一の手順のみを行い、環境差分を意識しない（<code>storage_key</code>の形式・APIのレスポンス契約はどちらの実装でも同一）。</p>
+
+  <h3>7.7 本文中の見出し記号エスケープ（escape_body_for_source）</h3>
+  <p>基本設計書8.3節の設計判断のとおり、markdown形式の説明文が<code>#</code>〜<code>###</code>で始まる行を含むと章・小見出し・ページの区切りと衝突する。S-17実装後の実利用で、ユーザーが説明文に普通のMarkdown見出しを含む記事（例:「# ○○とは？ 完全ガイド」から始まる文章）を書いたところ、そのページ自体が「説明文・問題のいずれも設定されていません」という一見無関係に見えるエラーで保存できない不具合として発覚した。原因は、本文中の<code>#</code>行が新しい章の開始と誤認識され、直前のページが空のまま確定してしまうというパース側の仕様どおりの（しかし利用者には理解しづらい）挙動だった。</p>
+  <p>対応として、ユーザーに「本文中で見出しを使う場合の書き方を変えてもらう」のではなく、<strong>システム側でエスケープを透過的に行う</strong>方式にした。</p>
+  <ul>
+    <li><strong>書き出し時（<code>serialize_source</code>の<code>append_page</code>、<code>material_parser.escape_body_for_source</code>）:</strong> 本文を1行ずつ調べ、<code>HEADING_RE</code>（<code>^#{1,3}\s+</code>）にマッチする行の先頭へ<code>\</code>を付与する。<code>####</code>以降（h4相当）は<code>HEADING_RE</code>自体にマッチしないため対象外（8.6節のサニタイズ許可タグ設計と整合）。</li>
+    <li><strong>読み込み時（<code>parse_source</code>のページ本文収集ループ、<code>material_parser._unescape_heading_line</code>）:</strong> <code>^\\(#{1,3}\s.*)$</code>にマッチする行は、先頭の<code>\</code>を取り除いてから<code>body_buffer</code>へ追加する。</li>
+    <li>この往復により、<strong><code>material_nodes.body</code>・S-17の編集欄には常にエスケープ前の原文がそのまま入る</strong>（DBへは一切エスケープ後の文字列を保存しない）。エスケープはA-19/A-20の往復テキスト表現の中だけに一時的に現れる。フロントエンド（<code>lib/materialSource.ts</code>の<code>escapeBodyForSource</code>）も同じ正規表現でA-20 PUT時に書き出し側の処理を行う（バックエンドはPUTされたテキストを読み込む側なので、フロントとバックで書き出し・読み込みの役割がそれぞれ独立して実装されている）。</li>
+    <li>CommonMark標準のバックスラッシュエスケープ（<code>\#</code>は見出しではなくリテラルな<code>#</code>）と同じ考え方のため、Claude Code（F-05）がA-19で取得したテキストをそのまま解釈・編集してA-20へ書き戻しても違和感なく扱える。</li>
+    <li>本文中に本当に<code>\#</code>のような文字列（バックスラッシュ＋見出し記号）を書きたいという極めて稀なケースはエスケープ解除の対象になり区別できないが、許容する（CommonMark自体が持つのと同種の既知の制約）。</li>
+    <li>HTML形式（<code>&lt;h1&gt;</code>〜<code>&lt;h3&gt;</code>）についても理論上同じ問題が起こり得るが、現状のUIで実際に確認できたのはMarkdown形式のみのため、今回はMarkdown形式のみ対応した。HTML形式での本文編集を本格的に使うようになった時点で同様の対応を検討する。</li>
+  </ul>
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）詳細設計書 v1.23</span>
+    <span>社内学習管理システム（Manabi）詳細設計書 v1.37</span>
     <span>コガソフトウェア株式会社 / 2026-08-24</span>
   </footer>
 

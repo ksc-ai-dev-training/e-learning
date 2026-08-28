@@ -131,21 +131,21 @@
     <tbody><tr><td>S-08</td><td>A-45, A-46</td><td>T-01〜T-04, T-11〜T-13</td></tr></tbody></table>
 
   <h3>5.20 F-20 AI記述式採点・講評</h3>
-  <p><strong>処理概要:</strong> 記述式回答をAIが採点し、根拠を伴う講評を返す。採点結果は人が確認・修正できる（対応要求: REQ-F-16）。処理方式（非同期ジョブ）は9章参照。採点結果（<code>ai_score_pct</code>・<code>ai_feedback</code>）は T-14 <code>answers</code> に保存し、<span class="rev-old">教材のオーナー・共同編集者</span><span class="rev-new">対象教材が紐づくプロジェクトの管理者・編集者</span>が <code>reviewed_by</code>・<code>reviewed_at</code> を設定して修正できる（S-19、v1.17）。</p>
+  <p><strong>処理概要:</strong> 記述式回答をAIが採点し、根拠を伴う講評を返す。採点結果は人が確認・修正できる（対応要求: REQ-F-16）。処理方式（非同期ジョブ）は9章参照。採点結果（<code>ai_score_pct</code>・<code>ai_feedback</code>）は T-14 <code>answers</code> に保存し、<span class="rev-old">教材のオーナー・共同編集者</span><span class="rev-new">対象教材が紐づくプロジェクトの管理者・編集者</span>が <code>reviewed_by</code>・<code>reviewed_at</code> を設定して修正できる（<span class="rev-old">S-19、v1.17</span><span class="rev-new">S-20、v1.17新設。v1.26でS-19から採点操作を分離</span>）。</p>
   <p class="rev-new"><strong>AI講評スタイル（v1.17）:</strong> 設問の<code>feedback_style</code>（未設定時は<code>materials.default_feedback_style</code>）に応じてプロンプトの指示を切り替える。<code>show_answer</code>（模範解答＋講評を提示。既定）、<code>review_only</code>（正解は提示せず、コード記述式なら問題箇所の指摘のみ）、<code>hint_only</code>（正解を見せず、考え方のヒントのみ）。<code>materials.ai_context</code>（言語・フレームワーク・「正解を直接教えない」等の教材共通の前提）が設定されている場合は、これもプロンプトに追加する。</p>
   <p class="rev-new"><strong>コード記述式問題（<code>type='code'</code>）の採点:</strong> 提出されたコード（T-14 <code>response</code>）・出題の模範解答/採点基準（T-10 <code>scoring_criteria</code>）・言語ヒント（<code>code_language</code>）をプロンプトに含め、Claude APIにコードを<strong>実行せず読解させ</strong>、想定される実行結果・エラーの有無を推論して正誤を判定させる。<code>ai_feedback</code>には正誤の判定根拠に加え、無駄な処理の簡略化など改善提案があれば含めるよう構造化出力のスキーマに項目を設ける（例: <code>{"correct": bool, "reasoning": str, "improvement_suggestions": str | null}</code>）。</p>
   <div class="callout warn rev-new">
     <strong>なぜコードを実行せず読解のみで採点するか:</strong> 提出されたコードを実際に実行するには、任意のコードを安全に動かせるサンドボックス実行環境（コンテナ分離・リソース制限・ネットワーク遮断等）が必要になり、2章で定めたUvicorn単一プロセス構成には収まらない、独立したインフラの新設を要する。要件定義書3.1節・3.2節は、対象を教育用の簡単な課題（数式処理・辞書操作等）に絞ることでAIの静的読解による採点を許容し、コード実行環境は初期実装の対象外としている。本設計もこれに従い、Claude APIへのコード読解のみで採点を行う。ループの繰り返し回数が多い・数値計算が精密といった、AIの読解精度が下がりやすい課題を出題する場合は、教材編集者が採点結果を確認・修正する運用（REQ-F-16）を徹底する。
   </div>
-  <p class="rev-new"><strong>手動採点（<code>grading_mode='manual'</code>、v1.18）:</strong> 記述式・コード記述式の設問は、教材既定（<code>materials.grading_mode</code>）または設問ごとの上書き（<code>questions.grading_mode</code>）で「AI自動採点」の代わりに「対象教材が紐づくプロジェクトの管理者・編集者による手動採点」を選べる。この場合、回答提出時にAI採点ジョブは実行されず、<code>answers.is_correct</code>・<code>ai_score_pct</code>・<code>ai_feedback</code>はNULLのまま（S-19では「未採点」表示）となる。プロジェクト管理者・編集者がS-19で内容を読んで正誤・講評を入力すると<code>reviewed_by</code>・<code>reviewed_at</code>が設定され、<code>ai_feedback</code>にはAIではなく担当者が入力した講評テキストが保持される。合否判定（F-14）・つまずき分析（F-21）は採点結果の由来（AI/人）を区別せず、確定した<code>is_correct</code>のみを見るため、既存のロジックへの影響はない。<code>feedback_style</code>（AI講評スタイル）は手動採点の設問には適用されない（AIが講評を生成しないため）。</p>
+  <p class="rev-new"><strong>手動採点（<code>grading_mode='manual'</code>、v1.18）:</strong> 記述式・コード記述式の設問は、教材既定（<code>materials.grading_mode</code>）または設問ごとの上書き（<code>questions.grading_mode</code>）で「AI自動採点」の代わりに「対象教材が紐づくプロジェクトの管理者・編集者による手動採点」を選べる。この場合、回答提出時にAI採点ジョブは実行されず、<code>answers.is_correct</code>・<code>ai_score_pct</code>・<code>ai_feedback</code>はNULLのまま（S-19の診断ビューでは「未採点」表示）となる。プロジェクト管理者・編集者がS-20（採点。自分が担当する全プロジェクト・全教材を横断した未採点キュー、v1.26新設）で内容を読んで正誤・講評を入力すると<code>reviewed_by</code>・<code>reviewed_at</code>が設定され、<code>ai_feedback</code>にはAIではなく担当者が入力した講評テキストが保持される。合否判定（F-14）・つまずき分析（F-21）は採点結果の由来（AI/人）を区別せず、確定した<code>is_correct</code>のみを見るため、既存のロジックへの影響はない。<code>feedback_style</code>（AI講評スタイル）は手動採点の設問には適用されない（AIが講評を生成しないため）。</p>
   <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
-    <tbody><tr><td>S-04<span class="rev-new">, S-19</span></td><td>A-42, A-43</td><td>T-14, T-19</td></tr></tbody></table>
+    <tbody><tr><td>S-04<span class="rev-new">, S-19</span><span class="rev-new">, S-20</span></td><td>A-42, A-43<span class="rev-new">, A-73, A-74, A-83</span></td><td>T-14, T-19</td></tr></tbody></table>
 
   <h3>5.21 F-21 AIつまずき分析・教材改善提案</h3>
   <p><strong>処理概要:</strong> 正答率の低い設問や誤答傾向から受講者の理解不足箇所を分析し、教材のどこをどう直すべきかを提案する（対応要求: REQ-F-17）。F-05（Claude Code連携）と組み合わせ、A-35（結果取得）を Claude Code からも取得できるようにすることで「つまずき分析 → 改善提案 → Claude Codeでの修正 → 往復登録（A-20）」の循環を成立させる（8章参照）。</p>
   <p class="rev-new"><strong>受験後アンケートとの合流（v1.17）:</strong> 対象の教材・章に受験後アンケート（T-26 <code>surveys</code>）が設置されている場合、T-28/T-29の集計（評価点の平均、自由記述のテキスト群）を分析入力に追加する。正答率データ（定量）とアンケートの自由記述（定性）を突き合わせることで、「なぜ間違えるのか」を受講者自身の言葉からも分析できる。アンケート未設置の教材・章は従来どおり正答率データのみで分析する。</p>
   <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
-    <tbody><tr><td>S-05</td><td>A-34, A-35</td><td>T-13, T-14, T-16, T-19<span class="rev-new">, T-26〜T-29</span></td></tr></tbody></table>
+    <tbody><tr><td>S-05<span class="rev-new">, S-19</span></td><td>A-34, A-35</td><td>T-13, T-14, T-16, T-19<span class="rev-new">, T-26〜T-29</span></td></tr></tbody></table>
 
   <h3>5.22 F-22 AI個人フィードバック</h3>
   <p><strong>処理概要:</strong> 受講者ごとの回答傾向から、理解不足の点や次に学ぶとよい教材を本人に示す（対応要求: REQ-F-18）。個人学習レポート画面（S-09）を開いたとき、または受講完了時に非同期で生成し、T-17 <code>ai_personal_feedback</code> に保存する。</p>
@@ -188,7 +188,7 @@
   </div>
 
   <h3 class="rev-new">5.26 F-25 プロジェクト単位教材管理</h3>
-  <p class="rev-new"><strong>処理概要:</strong> <span class="rev-old">教材をプロジェクトに紐づけて管理できる</span><span class="rev-new">教材は必ずいずれかのプロジェクトに紐づけて管理する（個人所有の教材は存在しない。v1.5でF-07を統合した）</span>（対応要求: REQ-F-06）。教材作成時に T-06 <code>materials.project_id</code>（<span class="rev-old">既定はNULL＝個人教材</span><span class="rev-new">NOT NULL。6章参照</span>）を指定し、編集権限は<span class="rev-old">オーナー・共同編集者（3.4節）ではなく、</span>そのプロジェクトの管理者・編集者（ローカルロール、3.5節）で判定する。受講権限は、そのプロジェクトの受講者（3.5節）、および配信設定（F-09）で別途対象に指定された利用者が持つ。<span class="rev-old">個人で教材を作りたい場合は、まず自分のプロジェクトを作成する（作成者は自動的にそのプロジェクトの管理者になる。F-24）。</span><span class="rev-new">A-16（教材新規作成）で<code>project_id</code>を省略した場合は、全社員が自動的にeditorとして参加している「全社公開」プロジェクト（<code>is_company_wide=true</code>、5.25節）のIDを既定値として補完する。これにより、個人が単発の教材を作るためだけに使い捨てのプロジェクトを作る必要がなくなる。特定メンバーだけで管理したい場合は、引き続き自分のプロジェクトを作成できる（作成者は自動的にそのプロジェクトの管理者になる。F-24）。</span>作成後の紐づけ変更（<span class="rev-old">個人教材→プロジェクト教材、または</span>別プロジェクトへの付け替え）はA-17（教材更新）で行うが、変更操作自体は変更前・変更後<span class="rev-old">いずれの編集権限も満たす者（3.4節または3.5節の判定）</span><span class="rev-new">いずれのプロジェクトについても編集権限（3.5節の判定）を満たす者</span>に限定する。</p>
+  <p class="rev-new"><strong>処理概要:</strong> <span class="rev-old">教材をプロジェクトに紐づけて管理できる</span><span class="rev-new">教材は必ずいずれかのプロジェクトに紐づけて管理する（個人所有の教材は存在しない。v1.5でF-07を統合した）</span>（対応要求: REQ-F-06）。教材作成時に T-06 <code>materials.project_id</code>（<span class="rev-old">既定はNULL＝個人教材</span><span class="rev-new">NOT NULL。6章参照</span>）を指定し、編集権限は<span class="rev-old">オーナー・共同編集者（3.4節）ではなく、</span>そのプロジェクトの管理者・編集者（ローカルロール、3.5節）で判定する。受講権限は、そのプロジェクトの受講者（3.5節）、および配信設定（F-09）で別途対象に指定された利用者が持つ。<span class="rev-old">個人で教材を作りたい場合は、まず自分のプロジェクトを作成する（作成者は自動的にそのプロジェクトの管理者になる。F-24）。</span><span class="rev-new">A-16（教材新規作成）で<code>project_id</code>を省略した場合は、全社員が自動的にeditorとして参加している「全社公開」プロジェクト（<code>is_company_wide=true</code>、5.25節）のIDを既定値として補完する。これにより、個人が単発の教材を作るためだけに使い捨てのプロジェクトを作る必要がなくなる。特定メンバーだけで管理したい場合は、引き続き自分のプロジェクトを作成できる（作成者は自動的にそのプロジェクトの管理者になる。F-24）。</span><span class="rev-old">作成後の紐づけ変更（<span class="rev-old">個人教材→プロジェクト教材、または</span>別プロジェクトへの付け替え）はA-17（教材更新）で行うが、変更操作自体は変更前・変更後<span class="rev-old">いずれの編集権限も満たす者（3.4節または3.5節の判定）</span><span class="rev-new">いずれのプロジェクトについても編集権限（3.5節の判定）を満たす者</span>に限定する。</span> <span class="rev-new">作成後の所属プロジェクトの付け替え（A-17によるproject_id変更）は廃止した（v1.30）。プロジェクト間で教材を使えるようにしたいだけであれば非破壊的なF-26（教材のプロジェクト間共有、5.27節）で満たせる一方、付け替えは元のプロジェクトから教材が失われる操作であり、誤操作時のリスクが共有機能に比べて大きいと判断した（ユーザーからの指摘を受けての設計判断）。作成時にプロジェクトを間違えた場合は、複製（A-19取得→A-16新規作成→A-20書き戻し）で正しいプロジェクトに複製したうえで元を削除する。</span></p>
   <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
     <tbody><tr><td>S-05, S-12</td><td>A-16, A-17</td><td>T-03, T-04, T-06</td></tr></tbody></table>
   <div class="callout rev-new">
@@ -229,10 +229,24 @@
   <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
     <tbody><tr><td>S-15</td><td>A-04, A-75, A-76, A-77</td><td>T-01</td></tr></tbody></table>
 
+  <h3 class="rev-new">5.30 F-30 教材アーカイブ・下書き削除（ソフト／物理デリート）</h3>
+  <p class="rev-new"><strong>処理概要:</strong> 教材製作者・プロジェクト管理者が、不要になった教材を一覧・検索から非表示にする（アーカイブ、v1.35新設）、または一度も公開していない下書きを完全に削除する（<span class="rev-row">下書き削除、v1.36で追加</span>）。目次・ページ・設問・添付ファイル・受験記録（T-13/T-14）・アンケート回答（T-28/T-29）はアーカイブでは一切削除せず、「復元」でいつでも元の状態に戻せる。</p>
+  <ul class="rev-new">
+    <li><strong>アーカイブ:</strong> S-05のヘッダーから実行する。<span class="rev-row"><code>status='published'</code>の教材のみ対象とし、下書きは400で拒否する（下書きは削除〔A-18〕で足りるため。両者は状態で完全に排他とする）。</span>実行できるのは作成者本人、またはプロジェクト管理者・システムadminのみ（対象プロジェクトの編集者一般には許可しない。教材一覧から非表示になる影響がプロジェクトメンバー全員に及ぶ操作のため、通常の編集権限より一段厳しくする）。</li>
+    <li><strong>復元:</strong> S-05のヘッダー（アーカイブ済み教材を直接開いた場合）、またはS-14の「状態」絞り込みで「アーカイブ済み」を選んだ一覧から実行する。権限はアーカイブと同じ。</li>
+    <li><strong>一覧・検索からの除外:</strong> S-14（教材一覧）・S-03（教材一覧・検索）とも、既定ではアーカイブ済み教材を除外する。S-14のみ「状態」絞り込みに「アーカイブ済み」を選択肢として持ち、選んだときだけ表示する（操作は「復元」のみで、編集画面への遷移は復元後に行う）。</li>
+    <li class="rev-row"><strong>下書き削除（A-18）:</strong> S-05のヘッダーから実行する。<code>status='draft'</code>の教材のみ対象とし、公開済みの教材は400で拒否する（アーカイブに誘導）。目次・ページ・設問・添付ファイル・改訂履歴はCASCADEで完全に削除され、<strong>復元できない</strong>。権限・確認モーダルはアーカイブと同様（作成者本人またはプロジェクト管理者・admin、確認モーダル経由）。</li>
+  </ul>
+  <div class="callout rev-new">
+    <strong>設計判断（物理削除は下書きに限定する理由。アーカイブは公開済みに限定する理由）:</strong> 当初は「一度でも受講された教材を物理削除すると受験記録・アンケート回答が復元不可能に失われる」という理由で物理削除を一切用意しない方針だったが、「作成してすぐ不要になった下書きまでアーカイブという名の“消せないゴミ箱”に残り続けるのは不便」という指摘を受け、方針を見直した。下書き（<code>status='draft'</code>）は受講対象になり得ず、受験記録・アンケート回答が発生する余地が無いため、下書きに限り物理削除（A-18）を解禁しても、受講データ消失のリスクは生じない。さらに検証の過程で「下書きにアーカイブは不要」という指摘も受け、<strong>アーカイブ（A-84）と物理削除（A-18）の対象を<code>status</code>で完全に排他化</strong>した: 下書きはA-18（物理削除）のみ、公開済みはA-84（アーカイブ）のみを提供し、逆方向の呼び出しは400で拒否する。これにより「下書きがアーカイブされた状態」という中間的で分かりにくい状態は仕様上存在しなくなった。全社的なGDPR等の法令対応やストレージコスト管理としての定期パージ機能は、現時点ではその要求が存在しないため引き続き対象外とする（ユーザー承認済みの判断）。
+  </div>
+  <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
+    <tbody><tr><td>S-05, S-14</td><td>A-18, A-84, A-85</td><td>T-06</td></tr></tbody></table>
+
   <!-- ============ 6. データベース設計 ============ -->
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）基本設計書 v1.28</span>
+    <span>社内学習管理システム（Manabi）基本設計書 v1.36</span>
     <span>コガソフトウェア株式会社 / 2026-08-24</span>
   </footer>
 

@@ -102,11 +102,11 @@
     <thead><tr><th>フィールド</th><th>対応カラム</th><th>要否</th><th>内容</th></tr></thead>
     <tbody>
       <tr><td><code>id</code></td><td><code>materials.id</code></td><td>更新時のみ必須</td><td>既存教材の更新対象ID。新規作成時は省略する（省略時はA-16相当の新規作成として扱う）</td></tr>
-      <tr><td><code>project_id</code></td><td><code>materials.project_id</code></td><td>必須</td><td>所属プロジェクトのID（教材は必ずいずれかのプロジェクトに属する。F-25）。既存教材の付け替えはA-20では行わずA-17を使う（8.4節）</td></tr>
+      <tr><td><code>project_id</code></td><td><code>materials.project_id</code></td><td>必須</td><td>所属プロジェクトのID（教材は必ずいずれかのプロジェクトに属する。F-25）。<span class="rev-old">既存教材の付け替えはA-20では行わずA-17を使う（8.4節）</span><span class="rev-new">既存教材の所属プロジェクトは変更できない（v1.30で付け替え機能自体を廃止。5.26節）。現在の値と異なる<code>project_id</code>を送ると400（8.4節）</span></td></tr>
       <tr class="rev-row"><td><span class="rev-old"><code>course_id</code></span><span class="rev-new"><code>tags</code></span></td><td><span class="rev-old"><code>materials.course_id</code></span><span class="rev-new"><code>materials.tags</code></span></td><td>任意</td><td><span class="rev-old">所属コースのID。省略時はいずれのコースにも属さない</span><span class="rev-new">タグ文字列の配列（例: <code>["エンジニア基礎", "Git"]</code>）。「コース」という固定リストの事前登録は廃止し、教材ごとに自由な複数タグを付与する方式に変更した（v1.12。T-05 courses廃止）</span></td></tr>
       <tr><td><code>title</code></td><td><code>materials.title</code></td><td>必須</td><td>教材タイトル</td></tr>
       <tr><td><code>description</code></td><td><code>materials.description</code></td><td>任意</td><td>一覧表示用の概要文</td></tr>
-      <tr class="rev-row"><td><code>format</code></td><td><code>material_nodes.format</code>（葉ノード共通）</td><td>必須</td><td><code>markdown</code> または <code>html</code>。本文全体でどちらか一方に統一する（ページごとの切替は不可。v1.11でmaterials.formatから移管）</td></tr>
+      <tr class="rev-row"><td><code>format</code></td><td><code>material_nodes.format</code>（ページ〔葉ノード〕ごと）</td><td>必須</td><td><code>markdown</code> または <code>html</code>。<span class="rev-old">本文全体でどちらか一方に統一する（ページごとの切替は不可。v1.11でmaterials.formatから移管）</span><span class="rev-new">v1.11でmaterials.formatからmaterial_nodesへ移管した当初は「本文全体で統一・ページごとの切替は不可」としていたが、実装（S-17ページ編集画面）は各ページが独立してMarkdown/HTMLを選べる形で先行していたため、v1.32でページごとの切替を正式な仕様として採用した。フロントマターの<code>format</code>は文書全体の構造見出し記法（章・小見出し・ページ区切りに<code>#</code>〜<code>###</code>と<code>&lt;h1&gt;</code>〜<code>&lt;h3&gt;</code>のどちらを使うか）を表す既定値で、各ページ見出し（<code>###</code>）の直後には<code>&lt;!-- format:markdown --&gt;</code>または<code>&lt;!-- format:html --&gt;</code>という専用のHTMLコメント注記を置き、そのページ固有の本文形式を明示する（注記省略時はフロントマターの既定値を使う）。</span></td></tr>
       <tr><td><code>status</code></td><td><code>materials.status</code></td><td>必須</td><td><code>draft</code> または <code>published</code></td></tr>
       <tr><td><code>sort_order</code></td><td><code>materials.sort_order</code></td><td>任意</td><td><span class="rev-old">コース内の並び順</span><span class="rev-new">一覧表示時の並び順（v1.12でコース廃止に伴い意味を変更）</span></td></tr>
       <tr class="rev-row"><td><code>attempt_scope</code></td><td><code>materials.attempt_scope</code></td><td>任意（既定<code>material</code>）</td><td><code>material</code>/<code>chapter</code>/<code>section</code>/<code>page</code>。合否判定・再受験の単位（受験単位。5.14節）</td></tr>
@@ -117,7 +117,10 @@
     </tbody>
   </table>
   <div class="callout rev-new">
-    <strong>目次構造（T-23 material_nodes）の表現方法:</strong> フロントマター直後の本文は、見出しレベルで章・小見出し・ページの入れ子を表す。<code>#</code>（Markdown）／<code>&lt;h1&gt;</code>（HTML）は常に新しい「章」を開始する。章の直下に <code>##</code>／<code>&lt;h2&gt;</code> が続けば「小見出し」（任意）を開始し、それ以降の <code>###</code>／<code>&lt;h3&gt;</code> はその小見出しの下の「ページ」になる。章の直下に <code>##</code> を挟まず直接 <code>###</code> が続けば、その章に直接ぶら下がる「ページ」になる（小見出しを使わない構成。5.4節・S-05目次編集タブ参照）。各見出しの直後には <code>&lt;!-- node:123 --&gt;</code> というHTMLコメント形式のノードID注記を置く（新規ノードは省略可。書き戻し時にサーバーが新規IDを採番し、以後のGETで注記付きの見出しを返す。T-10の問題ブロック<code>id</code>と同じ「更新時のみ既存IDを明示する」考え方）。<code>###</code>見出し直後、次の見出しまでのテキストがそのページの説明文（<code>material_nodes.body</code>）になる。<strong>ページ見出し1つにつき、説明文（任意）と問題ブロック（任意、複数可。どちらか一方は必須）の組み合わせが1件のページを構成する</strong>（content_kind: explanation/quiz/mixed はサーバー側で自動判定する）。この設計は5.4節旧版の「単元はテーブルを持たず本文中の見出しから動的に抽出する」という考え方を、3階層の見出しと明示的なノードID注記に拡張したものである（T-23はA-20書き戻し時に全置換で再構築する。A-31と同じ全置換セマンティクス）。
+    <strong>目次構造（T-23 material_nodes）の表現方法:</strong> フロントマター直後の本文は、見出しレベルで章・小見出し・ページの入れ子を表す。<code>#</code>（Markdown）／<code>&lt;h1&gt;</code>（HTML）は常に新しい「章」を開始する。章の直下に <code>##</code>／<code>&lt;h2&gt;</code> が続けば「小見出し」（任意）を開始し、それ以降の <code>###</code>／<code>&lt;h3&gt;</code> はその小見出しの下の「ページ」になる。章の直下に <code>##</code> を挟まず直接 <code>###</code> が続けば、その章に直接ぶら下がる「ページ」になる（小見出しを使わない構成。5.4節・S-05目次編集タブ参照）。各見出しの直後には <code>&lt;!-- node:123 --&gt;</code> というHTMLコメント形式のノードID注記を置く（新規ノードは省略可。書き戻し時にサーバーが新規IDを採番し、以後のGETで注記付きの見出しを返す。T-10の問題ブロック<code>id</code>と同じ「更新時のみ既存IDを明示する」考え方）。<span class="rev-new">ページ見出し（<code>###</code>）の場合はノードID注記に続けて <code>&lt;!-- format:markdown --&gt;</code> または <code>&lt;!-- format:html --&gt;</code> を置き、そのページの本文形式を明示する（省略時はフロントマターの<code>format</code>を既定値とする。v1.32）。</span><code>###</code>見出し直後、次の見出しまでのテキストがそのページの説明文（<code>material_nodes.body</code>）になる。<strong>ページ見出し1つにつき、説明文（任意）と問題ブロック（任意、複数可。どちらか一方は必須）の組み合わせが1件のページを構成する</strong>（content_kind: explanation/quiz/mixed はサーバー側で自動判定する）。この設計は5.4節旧版の「単元はテーブルを持たず本文中の見出しから動的に抽出する」という考え方を、3階層の見出しと明示的なノードID注記に拡張したものである（T-23はA-20書き戻し時に全置換で再構築する。A-31と同じ全置換セマンティクス）。
+  </div>
+  <div class="callout rev-new">
+    <strong>本文（<code>material_nodes.body</code>）中の見出し記号エスケープ:</strong> markdown形式の説明文が、それ自体<code>#</code>〜<code>###</code>で始まる行（ユーザーが本文中に普通のMarkdown見出しを書いた場合）を含むと、章・小見出し・ページの区切りと衝突してしまう。これを解消するため、本文をソーステキストへ書き出す際、<code>#</code>〜<code>###</code>で始まる行はバックスラッシュでエスケープ（<code>\#</code>）し、読み込み時に自動で元へ戻す（CommonMark標準のバックスラッシュエスケープと同じ考え方）。エスケープはソーステキストの往復表現のみに現れ、<code>material_nodes.body</code>・画面の編集欄には常に元のテキストがそのまま入る（ユーザーはエスケープの存在を意識しなくてよい）。Claude Code（F-05）がA-19で取得したテキストをそのまま編集してA-20へ書き戻す限り、この往復も保たれる。<span class="rev-old">HTML形式（<code>&lt;h1&gt;</code>〜<code>&lt;h3&gt;</code>）についても理論上同種の衝突があり得るが、現状のUIではMarkdown形式のみで実際に発生を確認したため、Markdown形式のみ対応済み（HTML形式は今後の検討課題）。</span><span class="rev-new">HTML形式のページ（本文が<code>&lt;h1&gt;</code>〜<code>&lt;h3&gt;</code>だけから成る行を含む場合）についても同種の衝突が起こり得るため、v1.32でMarkdown形式と同じ考え方（バックスラッシュエスケープ）をHTML形式にも拡張した。エスケープに使う見出しパターンは、当該ページの<code>format</code>注記（本節「目次構造の表現方法」参照）に従って切り替える。</span>
   </div>
   <p>問題（T-10 <code>questions</code>）はフロントマターの配列としては持たせず、<span class="rev-old">本文中の単元見出し（Markdownの<code>##</code>／HTMLの<code>&lt;h2&gt;</code>、5.4節）</span><span class="rev-new">本文中のページ見出し（Markdownの<code>###</code>／HTMLの<code>&lt;h3&gt;</code>）</span>の直後に、専用のフェンス付きコードブロック（Markdown時は<code>```question</code>、HTML時は<code>&lt;!-- question ... --&gt;</code>コメント）として埋め込む。1つの見出しセクション内に複数の問題ブロックを置くことができる。</p>
   <table>
@@ -156,6 +159,7 @@ sort_order: 10
 
 ### 変数と型
 &lt;!-- node:810 --&gt;
+&lt;!-- format:markdown --&gt;
 
 Pythonの変数は型を宣言せずに使うことができる……
 
@@ -174,6 +178,7 @@ correct_answer: "my_value"
 
 ### for文とwhile文
 &lt;!-- node:821 --&gt;
+&lt;!-- format:markdown --&gt;
 
 for文とwhile文は、どちらも繰り返し処理を行う構文である……
 
@@ -191,6 +196,7 @@ scoring_criteria: |
 
 ### 関数の定義と再利用
 &lt;!-- node:831 --&gt;
+&lt;!-- format:markdown --&gt;
 
 関数を使うと、同じ処理をまとめて再利用できる……
 
@@ -214,13 +220,14 @@ scoring_criteria: |
     <thead><tr><th>API</th><th>内容</th></tr></thead>
     <tbody>
       <tr><td>A-19 <code>GET /api/materials/{id}/source</code></td><td>権限判定は <code>require_project_role(materials.project_id, user, min_role='editor')</code>（対象教材が紐づくプロジェクトの管理者・編集者、admin）。学習者は呼び出せない（記述式の<code>scoring_criteria</code>や正解データを含むため）。レスポンスは <code>text/plain; charset=utf-8</code> で、8.3節のフロントマター＋本文＋問題ブロックをそのまま返す。<code>materials.body</code>に保存された原文（サニタイズ前）を返す（8.6節）</td></tr>
-      <tr><td>A-20 <code>PUT /api/materials/{id}/source</code></td><td>権限判定は同上。リクエストボディはA-19と同形式のテキスト。フロントマターの<code>project_id</code>が現在の<code>materials.project_id</code>と異なる場合は400を返し、プロジェクトの付け替えはA-17を使うよう案内する（5.26節の「変更前後どちらの編集権限も要する」ルールをA-17に一本化するため）。処理順は、①フロントマター解析、②本文中の問題ブロック抽出（<code>unit_index</code>を見出し出現順から算出）、③T-10へのupsert（送信されなかった既存問題は削除。A-31と同じ全置換セマンティクス）、④T-06 <code>body</code>・メタデータ更新、⑤T-08への改訂履歴行追加（8.5節）。<code>id</code>省略時はA-16相当の新規作成として扱う</td></tr>
+      <tr><td>A-20 <code>PUT /api/materials/{id}/source</code></td><td>権限判定は同上。リクエストボディはA-19と同形式のテキスト。フロントマターの<code>project_id</code>が現在の<code>materials.project_id</code>と異なる場合は400を返す<span class="rev-old">。プロジェクトの付け替えはA-17を使うよう案内する（5.26節の「変更前後どちらの編集権限も要する」ルールをA-17に一本化するため）</span><span class="rev-new">（所属プロジェクトの変更手段自体がv1.30で廃止されたため、Claude Code側は取得時の<code>project_id</code>をそのまま書き戻す必要がある。5.26節）</span>。処理順は、①フロントマター解析、②本文中の問題ブロック抽出（<code>unit_index</code>を見出し出現順から算出）、③T-10へのupsert（送信されなかった既存問題は削除。A-31と同じ全置換セマンティクス）、④T-06 <code>body</code>・メタデータ更新、⑤T-08への改訂履歴行追加（8.5節）。<code>id</code>省略時はA-16相当の新規作成として扱う</td></tr>
       <tr><td>A-21 <code>GET /api/projects/{project_id}/materials/source</code></td><td>権限判定は <code>require_project_role(project_id, user, min_role='editor')</code>。Claude Codeが「このプロジェクトにどの教材があるか」を把握する起点となるAPIで、各教材の<code>id・title・status・updated_at</code>の要約のみをJSONで返す（本文は含まない）。個々の本文はA-19で取得する</td></tr>
       <tr><td>A-22 <code>GET /api/materials/{id}/revisions</code></td><td>権限判定はA-19と同じ。改訂履歴一覧（日時・変更者・<code>changed_via</code>・変更概要）を新しい順に返す。個々の版の本文全文（<code>body_snapshot</code>）や版間の差分取得は、利用頻度が低いことを踏まえ本設計の対象外とし、必要になった場合の拡張として詳細設計で扱う</td></tr>
     </tbody>
   </table>
   <div class="callout">
-    <strong>なぜA-20はプロジェクトの付け替えを拒否するか:</strong> A-20は「本文・問題のテキスト往復」に責務を絞っている。プロジェクトの付け替え（5.26節）は、変更前・変更後どちらのプロジェクトについても編集権限を満たす者に限定するという、単純な<code>require_project_role</code>一発では表現できない特別な認可ルールを伴う。この特別ルールをA-20（本文往復という高頻度の操作）に混在させると実装・検証が複雑になるため、A-17（低頻度のメタデータ操作）側に一本化した。Claude Codeからプロジェクトを付け替えたい場合は、A-19で取得した教材のフロントマターの<code>project_id</code>は変更せずに提出し、別途A-17を呼び出す運用とする。
+<span class="rev-old"><strong>なぜA-20はプロジェクトの付け替えを拒否するか:</strong> A-20は「本文・問題のテキスト往復」に責務を絞っている。プロジェクトの付け替え（5.26節）は、変更前・変更後どちらのプロジェクトについても編集権限を満たす者に限定するという、単純な<code>require_project_role</code>一発では表現できない特別な認可ルールを伴う。この特別ルールをA-20（本文往復という高頻度の操作）に混在させると実装・検証が複雑になるため、A-17（低頻度のメタデータ操作）側に一本化した。Claude Codeからプロジェクトを付け替えたい場合は、A-19で取得した教材のフロントマターの<code>project_id</code>は変更せずに提出し、別途A-17を呼び出す運用とする。</span>
+    <strong class="rev-new">なぜ所属プロジェクトの付け替え機能自体を廃止したか（v1.30）:</strong> <span class="rev-new">プロジェクト間で教材を使い回したいという要求は、F-26（教材のプロジェクト間共有、5.27節）で非破壊的に満たせる。共有は元のプロジェクトから教材が失われず、「共有を解除」でいつでも取り消せる。一方、所属プロジェクトの付け替えは元のプロジェクトの一覧・権限から教材が完全に外れる不可逆に近い操作であり、共有という安全な代替手段がある以上、誤操作時のリスクに見合うだけの必要性が無いと判断した。作成時にプロジェクトを間違えた場合は、複製（A-19取得→A-16新規作成→A-20書き戻し、S-05「複製」ボタン）で正しいプロジェクトに複製したうえで元を削除する運用とする。この判断に伴い、A-20が<code>project_id</code>の変更を拒否する理由も「A-17に処理を一本化するため」から「そもそも変更手段が存在しないため」に変わった。</span>
   </div>
 
   <h3>8.5 改訂履歴（T-08 material_revisions）の記録方式</h3>
@@ -248,7 +255,7 @@ scoring_criteria: |
   <!-- ============ 9. AI機能設計 ============ -->
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）基本設計書 v1.28</span>
+    <span>社内学習管理システム（Manabi）基本設計書 v1.36</span>
     <span>コガソフトウェア株式会社 / 2026-08-24</span>
   </footer>
 
