@@ -29,6 +29,124 @@ def _material_dict(row) -> dict:
     return {**dict(row), "tags": json.loads(row["tags"])}
 
 
+@detail_router.get("")
+async def search_materials(
+    q: str | None = None,
+    tags: str | None = None,
+    project_id: int | None = None,
+    required: bool | None = None,
+    incomplete_only: bool = False,
+    my_assignments_only: bool = False,
+    page: int = 1,
+    per_page: int = 20,
+    user: CurrentUser = Depends(require_auth),
+):
+    """A-14: 公開教材の一覧・検索（学習者向け、S-03）。status='published'の教材のみを対象とし、
+    下書きは一切含めない（S-14はA-21の別経路）。6.1節のSQLを実装レベルへ落とし込む。
+
+    project_idはmaterials.project_idの一致のみで判定する（F-26のプロジェクト間共有〔T-22
+    material_project_shares〕は本書の時点で未実装のため、共有先への表示は対象外。実装時に追加する）。
+    my_assignments_onlyは5.3節の3条件のうち、プロジェクトの現役メンバーである・個人指定の配信
+    （assignments, scope_type='individual'）があるの2条件のみ判定する（3条件目の共有経由は同じ理由で対象外）。
+    """
+    if per_page not in (20, 50, 100):
+        raise HTTPException(422, detail="per_pageは20/50/100のいずれかを指定してください")
+    if page < 1:
+        raise HTTPException(422, detail="pageは1以上を指定してください")
+
+    pool = get_pool()
+    conditions = ["m.status = 'published'"]
+    params: list = []
+
+    def add_param(value) -> str:
+        params.append(value)
+        return f"${len(params)}"
+
+    if q:
+        ph = add_param(f"%{q}%")
+        conditions.append(
+            f"(m.title ILIKE {ph} OR m.description ILIKE {ph} OR EXISTS ("
+            f"SELECT 1 FROM material_nodes n WHERE n.material_id = m.id AND n.title ILIKE {ph}))"
+        )
+    tag_list = [t.strip() for t in tags.split(",") if t.strip()] if tags else []
+    if tag_list:
+        ph = add_param(json.dumps(tag_list))
+        conditions.append(f"m.tags @> {ph}::jsonb")
+    if project_id is not None:
+        ph = add_param(project_id)
+        conditions.append(f"m.project_id = {ph}")
+    if required is not None:
+        ph = add_param(required)
+        conditions.append(
+            f"EXISTS (SELECT 1 FROM assignments a WHERE a.material_id = m.id AND a.required = {ph})"
+        )
+    if incomplete_only:
+        ph = add_param(user.id)
+        conditions.append(
+            f"NOT EXISTS (SELECT 1 FROM enrollment_progress ep "
+            f"WHERE ep.user_id = {ph} AND ep.material_id = m.id AND ep.status = 'completed')"
+        )
+    if my_assignments_only:
+        ph = add_param(user.id)
+        conditions.append(f"""(
+            EXISTS (SELECT 1 FROM project_memberships pm WHERE pm.project_id = m.project_id
+                    AND pm.user_id = {ph} AND pm.status = 'active' AND pm.left_at IS NULL)
+            OR EXISTS (SELECT 1 FROM assignments ia WHERE ia.material_id = m.id
+                       AND ia.scope_type = 'individual' AND ia.scope_id = {ph})
+        )""")
+
+    where_sql = " AND ".join(conditions)
+    total = await pool.fetchval(f"SELECT COUNT(*) FROM materials m WHERE {where_sql}", *params)
+
+    user_ph = add_param(user.id)
+    limit_ph = add_param(per_page)
+    offset_ph = add_param((page - 1) * per_page)
+    rows = await pool.fetch(
+        f"""SELECT m.id, m.title, m.description, m.tags, m.project_id,
+                   p.name AS project_name, p.is_company_wide,
+                   COALESCE(nc.chapter_count, 0) AS chapter_count,
+                   COALESCE(nc.page_count, 0) AS page_count,
+                   COALESCE(qc.question_count, 0) AS question_count,
+                   COALESCE(qc.question_types, '[]') AS question_types,
+                   EXISTS (SELECT 1 FROM assignments a WHERE a.material_id = m.id AND a.required = true) AS required,
+                   COALESCE(ep.status, 'not_started') AS progress_status,
+                   m.updated_at
+            FROM materials m
+            JOIN projects p ON p.id = m.project_id
+            LEFT JOIN (
+                SELECT material_id,
+                       COUNT(*) FILTER (WHERE kind = 'chapter') AS chapter_count,
+                       COUNT(*) FILTER (WHERE kind = 'page') AS page_count
+                FROM material_nodes GROUP BY material_id
+            ) nc ON nc.material_id = m.id
+            LEFT JOIN (
+                SELECT n.material_id, COUNT(q.id) AS question_count,
+                       jsonb_agg(DISTINCT q.type) AS question_types
+                FROM questions q JOIN material_nodes n ON n.id = q.node_id
+                GROUP BY n.material_id
+            ) qc ON qc.material_id = m.id
+            LEFT JOIN enrollment_progress ep ON ep.material_id = m.id AND ep.user_id = {user_ph}
+            WHERE {where_sql}
+            ORDER BY m.updated_at DESC
+            LIMIT {limit_ph} OFFSET {offset_ph}""",
+        *params,
+    )
+
+    tag_rows = await pool.fetch(
+        "SELECT DISTINCT jsonb_array_elements_text(tags) AS tag FROM materials "
+        "WHERE status = 'published' ORDER BY tag"
+    )
+
+    items = []
+    for r in rows:
+        d = dict(r)
+        d["tags"] = json.loads(d["tags"])
+        d["question_types"] = json.loads(d["question_types"])
+        items.append(d)
+
+    return {"items": items, "total": total, "available_tags": [t["tag"] for t in tag_rows]}
+
+
 async def _fetch_tree(executor, material_id: int) -> list[dict]:
     """material_nodesをネスト済みの目次ツリー（章→小見出し→ページ）に組み立てる。
     各ページ（kind='page'）にはbody・content_kind・format・quiz_mode・pool_draw_count・questionsが乗る

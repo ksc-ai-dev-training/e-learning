@@ -30,6 +30,33 @@ export interface MaterialSource {
   page_count: number
 }
 
+export type EnrollmentStatus = 'not_started' | 'in_progress' | 'completed'
+
+// A-14 GET /api/materials（学習者向け一覧・検索、S-03）のitems
+export interface MaterialSearchItem {
+  id: number
+  title: string
+  description: string | null
+  tags: string[]
+  project_id: number
+  project_name: string
+  is_company_wide: boolean
+  chapter_count: number
+  page_count: number
+  question_count: number
+  question_types: QuestionType[]
+  required: boolean
+  progress_status: EnrollmentStatus
+  updated_at: string
+}
+
+// A-14のレスポンス
+export interface MaterialSearchResponse {
+  items: MaterialSearchItem[]
+  total: number
+  available_tags: string[]
+}
+
 export type QuestionType = 'single' | 'multi' | 'free_text' | 'code' | 'reorder' | 'score_log'
 
 // T-10 questions。今回のスコープで画面から作成・編集できるのはsingle/multi/reorderの3種のみ

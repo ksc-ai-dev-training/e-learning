@@ -1,7 +1,7 @@
 # A-81/A-11 プロジェクト・メンバー一覧API。プロジェクト作成・招待等はS-11/S-12着手時に追加する。
 from fastapi import APIRouter, Depends, HTTPException
 
-from auth_helpers import CurrentUser, check_project_role, require_auth
+from auth_helpers import ROLE_RANK, CurrentUser, check_project_role, require_auth
 from database import get_pool
 
 router = APIRouter(prefix="/api/projects", tags=["organization"])
@@ -9,8 +9,13 @@ memberships_router = APIRouter(prefix="/api/project-memberships", tags=["organiz
 
 
 @router.get("")
-async def list_projects(user: CurrentUser = Depends(require_auth)):
-    """A-81: 自分がeditor以上のプロジェクト一覧（教材件数・メンバー数つき）。全社公開を先頭固定。"""
+async def list_projects(min_role: str = "editor", user: CurrentUser = Depends(require_auth)):
+    """A-81: 自分がmin_role以上のプロジェクト一覧（教材件数・メンバー数つき）。全社公開を先頭固定。
+    既定はeditor（S-13教材編集：プロジェクト選択と同じ、従来どおり）。S-03（教材一覧・検索）は
+    min_role='learner'を指定し、学習者としてのみ参加しているプロジェクトも含める（新規、2026-08-28）。"""
+    if min_role not in ROLE_RANK:
+        raise HTTPException(422, detail="min_roleが不正です")
+    allowed_roles = [r for r, rank in ROLE_RANK.items() if rank >= ROLE_RANK[min_role]]
     rows = await get_pool().fetch(
         """
         SELECT
@@ -24,7 +29,7 @@ async def list_projects(user: CurrentUser = Depends(require_auth)):
         FROM projects p
         JOIN project_memberships pm
             ON pm.project_id = p.id AND pm.user_id = $1
-            AND pm.status = 'active' AND pm.role IN ('editor', 'admin')
+            AND pm.status = 'active' AND pm.role = ANY($2::text[])
         LEFT JOIN (
             SELECT project_id,
                 COUNT(*) FILTER (WHERE status = 'published') AS published_count,
@@ -41,7 +46,7 @@ async def list_projects(user: CurrentUser = Depends(require_auth)):
         WHERE p.status = 'active'
         ORDER BY p.is_company_wide DESC, p.name ASC
         """,
-        user.id,
+        user.id, allowed_roles,
     )
     return {"items": [dict(r) for r in rows]}
 

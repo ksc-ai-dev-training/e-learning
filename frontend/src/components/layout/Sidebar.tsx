@@ -23,7 +23,7 @@ const COLLAPSED_KEY = 'manabi-sidebar-collapsed'
 // 現状はS-13のみ実装のため、他のメニュー項目は画面ができるまで非活性表示にする。
 const NAV_ITEMS = [
   { href: '/', label: 'マイ学習', icon: Home, implemented: false },
-  { href: '/materials', label: '教材一覧・検索', icon: BookOpen, implemented: false },
+  { href: '/materials', label: '教材一覧・検索', icon: BookOpen, implemented: true },
   { href: '/materials/edit-projects', label: '教材編集', icon: Pencil, implemented: true },
   { href: '/grading', label: '採点', icon: CircleCheckBig, implemented: false },
   { href: '/reports/me', label: '個人学習レポート', icon: BarChart3, implemented: false },

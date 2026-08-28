@@ -1,0 +1,329 @@
+import { useState } from 'react'
+import PageHeader from '../components/layout/PageHeader'
+import Badge from '../components/ui/Badge'
+import Button from '../components/ui/Button'
+import Select from '../components/ui/Select'
+import TextInput from '../components/ui/TextInput'
+import { useMaterialsSearch, EMPTY_SEARCH_PARAMS } from '../hooks/useMaterialsSearch'
+import type { MaterialSearchParams } from '../hooks/useMaterialsSearch'
+import { useProjects } from '../hooks/useProjects'
+import { formatDateJst } from '../lib/datetime'
+import { questionTypeLabel } from '../lib/questionDefaults'
+import type { EnrollmentStatus } from '../types'
+
+const REQUIRED_OPTIONS = [
+  { value: 'all', label: 'すべて' },
+  { value: 'required', label: '必修のみ' },
+  { value: 'optional', label: '任意のみ' },
+]
+
+const PER_PAGE_OPTIONS = [
+  { value: '20', label: '20件' },
+  { value: '50', label: '50件' },
+  { value: '100', label: '100件' },
+]
+
+type FilterForm = {
+  q: string
+  tags: string[]
+  required: MaterialSearchParams['required']
+  incompleteOnly: boolean
+  myAssignmentsOnly: boolean
+}
+const EMPTY_FILTER: FilterForm = {
+  q: '',
+  tags: [],
+  required: 'all',
+  incompleteOnly: false,
+  myAssignmentsOnly: false,
+}
+
+function actionLabel(status: EnrollmentStatus, required: boolean): string {
+  if (status === 'not_started') return '受講する'
+  if (status === 'in_progress') return '続きから受講'
+  return required ? '復習する' : '反復演習'
+}
+
+// S-03 教材一覧・検索（詳細設計書10.3節）。公開教材のみを対象に、プロジェクト・キーワード・
+// タグ・区分・受講状況で絞り込む。S-04（教材受講）は未実装のため、操作列は無効化表示にする。
+export default function MaterialsSearch() {
+  const { projects } = useProjects('learner')
+  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null)
+
+  // 検索条件は入力中の値（form）と適用済みの値（filter）を分け、「検索」押下で反映する
+  const [form, setForm] = useState<FilterForm>(EMPTY_FILTER)
+  const [filter, setFilter] = useState<FilterForm>(EMPTY_FILTER)
+  const [page, setPage] = useState(1)
+  const [perPage, setPerPage] = useState<20 | 50 | 100>(20)
+
+  const searchParams: MaterialSearchParams = {
+    ...EMPTY_SEARCH_PARAMS,
+    q: filter.q,
+    tags: filter.tags,
+    projectId: selectedProjectId,
+    required: filter.required,
+    incompleteOnly: filter.incompleteOnly,
+    myAssignmentsOnly: filter.myAssignmentsOnly,
+    page,
+    perPage,
+  }
+  const { items, total, availableTags, error, isLoading } = useMaterialsSearch(searchParams)
+
+  const applyFilter = () => {
+    setFilter(form)
+    setPage(1)
+  }
+  const clearFilter = () => {
+    setForm(EMPTY_FILTER)
+    setFilter(EMPTY_FILTER)
+    setPage(1)
+  }
+  const selectProject = (id: number | null) => {
+    setSelectedProjectId(id)
+    setPage(1)
+  }
+  const toggleTag = (tag: string) => {
+    setForm((prev) => ({
+      ...prev,
+      tags: prev.tags.includes(tag) ? prev.tags.filter((t) => t !== tag) : [...prev.tags, tag],
+    }))
+  }
+  const changePerPage = (v: string) => {
+    setPerPage(Number(v) as 20 | 50 | 100)
+    setPage(1)
+  }
+
+  const totalPages = Math.max(1, Math.ceil(total / perPage))
+  const rangeStart = total === 0 ? 0 : (page - 1) * perPage + 1
+  const rangeEnd = Math.min(page * perPage, total)
+
+  return (
+    <div className="flex flex-1 flex-col">
+      <PageHeader title="教材一覧・検索" />
+      <div className="px-8 py-6">
+        <div className="mb-4 flex flex-wrap gap-2" role="tablist">
+          <button
+            type="button"
+            onClick={() => selectProject(null)}
+            className={`rounded-md border px-3 py-1.5 text-sm font-semibold ${
+              selectedProjectId === null
+                ? 'border-blue-800 bg-blue-900 text-white'
+                : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            すべて
+          </button>
+          {projects.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => selectProject(p.id)}
+              className={`rounded-md border px-3 py-1.5 text-sm font-semibold ${
+                selectedProjectId === p.id
+                  ? 'border-blue-800 bg-blue-900 text-white'
+                  : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              {p.is_company_wide ? '📌 ' : ''}
+              {p.name}
+              <span className="ml-1.5 text-xs font-normal opacity-70">
+                {p.material_published_count}件
+              </span>
+            </button>
+          ))}
+        </div>
+
+        <details className="mb-4 rounded-md border border-slate-200" open>
+          <summary className="cursor-pointer px-4 py-2.5 text-sm font-semibold text-slate-600">
+            検索条件 <span className="ml-1 text-xs font-normal text-slate-400">クリックで開閉</span>
+          </summary>
+          <div className="border-t border-slate-200 p-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1">
+                <label htmlFor="m-keyword" className="text-xs font-semibold text-slate-500">
+                  キーワード
+                </label>
+                <TextInput
+                  id="m-keyword"
+                  type="search"
+                  placeholder="教材名、見出し名"
+                  value={form.q}
+                  onChange={(e) => setForm({ ...form, q: e.target.value })}
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label htmlFor="m-required" className="text-xs font-semibold text-slate-500">
+                  区分
+                </label>
+                <Select
+                  id="m-required"
+                  value={form.required}
+                  onChange={(v) => setForm({ ...form, required: v as FilterForm['required'] })}
+                  options={REQUIRED_OPTIONS}
+                />
+              </div>
+            </div>
+
+            {availableTags.length > 0 && (
+              <div className="mt-3 flex flex-col gap-1.5">
+                <span className="text-xs font-semibold text-slate-500">タグ（クリックで絞り込み、複数選択でAND条件）</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {availableTags.map((tag) => {
+                    const selected = form.tags.includes(tag)
+                    return (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => toggleTag(tag)}
+                        className={`rounded-full border px-2.5 py-1 text-xs font-medium ${
+                          selected
+                            ? 'border-blue-700 bg-blue-50 text-blue-800'
+                            : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50'
+                        }`}
+                      >
+                        #{tag}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            <div className="mt-3.5 flex flex-col gap-1.5">
+              <label className="flex items-center gap-1.5 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={form.incompleteOnly}
+                  onChange={(e) => setForm({ ...form, incompleteOnly: e.target.checked })}
+                />
+                未受講のみ表示
+              </label>
+              <label className="flex items-center gap-1.5 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={form.myAssignmentsOnly}
+                  onChange={(e) => setForm({ ...form, myAssignmentsOnly: e.target.checked })}
+                />
+                自分が受講対象の教材のみ表示
+              </label>
+            </div>
+
+            <div className="mt-3.5 flex items-center gap-2.5 border-t border-slate-100 pt-3.5">
+              <Button variant="primary" onClick={applyFilter}>
+                検索
+              </Button>
+              <Button variant="secondary" onClick={clearFilter}>
+                条件クリア
+              </Button>
+            </div>
+          </div>
+        </details>
+
+        {isLoading && <p className="text-sm text-slate-400">読み込み中...</p>}
+        {error && <p className="text-sm text-red-600">教材一覧を取得できませんでした</p>}
+
+        {!isLoading && !error && items.length === 0 && (
+          <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400">
+            条件に一致する教材がありません。
+          </p>
+        )}
+
+        {items.length > 0 && (
+          <div className="overflow-x-auto rounded-md border border-slate-200">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs text-slate-500">
+                  <th className="px-3 py-2 font-semibold">教材</th>
+                  <th className="px-3 py-2 font-semibold">プロジェクト</th>
+                  <th className="px-3 py-2 font-semibold">タグ</th>
+                  <th className="w-20 px-3 py-2 font-semibold">区分</th>
+                  <th className="w-28 px-3 py-2 font-semibold">更新日</th>
+                  <th className="w-32 px-3 py-2 font-semibold">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((m) => (
+                  <tr key={m.id} className="border-b border-slate-100 last:border-0">
+                    <td className="px-3 py-2">
+                      <div className="text-slate-800">{m.title}</div>
+                      <div className="mt-0.5 text-[11px] text-slate-400">
+                        {m.chapter_count}章・{m.page_count}ページ
+                        {m.question_count > 0 && (
+                          <>
+                            {' ／ '}
+                            {m.question_types.map(questionTypeLabel).join('・')} 全{m.question_count}問
+                          </>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-3 py-2 text-slate-600">
+                      {m.is_company_wide ? '📌 ' : ''}
+                      {m.project_name}
+                    </td>
+                    <td className="px-3 py-2">
+                      {m.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {m.tags.map((t) => (
+                            <span
+                              key={t}
+                              className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] text-slate-600"
+                            >
+                              #{t}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-3 py-2">
+                      <Badge variant={m.required ? 'required' : 'optional'} />
+                    </td>
+                    <td className="px-3 py-2 text-slate-500">{formatDateJst(m.updated_at)}</td>
+                    <td className="px-3 py-2">
+                      <Button variant="secondary" disabled title="準備中（S-04実装後に有効化）">
+                        {actionLabel(m.progress_status, m.required)}
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <div className="mt-4 flex items-center justify-between text-sm text-slate-500">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-400">表示件数</span>
+            <Select
+              value={String(perPage)}
+              onChange={changePerPage}
+              options={PER_PAGE_OPTIONS}
+              className="w-24"
+            />
+            <span className="text-xs text-slate-400">
+              {rangeStart} - {rangeEnd} / {total}件
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <Button
+              variant="secondary"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1}
+            >
+              «
+            </Button>
+            <span className="px-2 text-xs text-slate-500">
+              {page} / {totalPages}
+            </span>
+            <Button
+              variant="secondary"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+            >
+              »
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}

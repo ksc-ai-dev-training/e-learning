@@ -165,6 +165,43 @@ CREATE INDEX IF NOT EXISTS idx_questions_node_sort ON questions (node_id, sort_o
 CREATE INDEX IF NOT EXISTS idx_questions_pool_group_id ON questions (pool_group_id);
 ALTER TABLE questions ENABLE ROW LEVEL SECURITY;
 
+-- T-11 assignments（配信設定）。S-06（配信設定画面、A-36〜A-38）は本書の時点では未実装だが、
+-- S-03「区分」バッジ・「未受講のみ」等のフィルタが参照する土台としてテーブルのみ先行して用意する
+CREATE TABLE IF NOT EXISTS assignments (
+    id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    material_id     BIGINT NOT NULL REFERENCES materials(id) ON DELETE CASCADE,
+    scope_type      TEXT NOT NULL CHECK (scope_type IN ('company', 'project', 'individual')),
+    scope_id        BIGINT,
+    required        BOOLEAN NOT NULL DEFAULT true,
+    due_at          TIMESTAMPTZ,
+    pass_score_pct  NUMERIC(5, 2),
+    retake_allowed  BOOLEAN NOT NULL DEFAULT true,
+    retake_limit    INTEGER,
+    created_by      BIGINT NOT NULL REFERENCES users(id),
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_assignments_material_id ON assignments (material_id);
+ALTER TABLE assignments ENABLE ROW LEVEL SECURITY;
+
+-- T-12 enrollment_progress（受講進捗）。S-16（受講API、A-39〜A-44）は本書の時点では未実装だが、
+-- S-03「未受講のみ表示」フィルタ・一覧の受講状況表示が参照する土台としてテーブルのみ先行して用意する
+CREATE TABLE IF NOT EXISTS enrollment_progress (
+    id                  BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    user_id             BIGINT NOT NULL REFERENCES users(id),
+    material_id         BIGINT NOT NULL REFERENCES materials(id) ON DELETE CASCADE,
+    status              TEXT NOT NULL DEFAULT 'not_started'
+                        CHECK (status IN ('not_started', 'in_progress', 'completed')),
+    current_node_id     BIGINT REFERENCES material_nodes(id) ON DELETE SET NULL,
+    completed_node_ids  JSONB NOT NULL DEFAULT '[]',
+    started_at          TIMESTAMPTZ,
+    completed_at        TIMESTAMPTZ,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (user_id, material_id)
+);
+ALTER TABLE enrollment_progress ENABLE ROW LEVEL SECURITY;
+
 -- T-13 quiz_attempts（受験記録）。S-04/S-16（受講・受験API、A-39〜A-44）は本書の時点では未実装だが、
 -- S-05「問題一覧」タブ・S-19・S-20が参照する集計の土台としてテーブルのみ先行して用意する
 CREATE TABLE IF NOT EXISTS quiz_attempts (

@@ -3,6 +3,7 @@ import { useMe } from './hooks/useMe'
 import Login from './pages/Login'
 import ProjectSelect from './pages/ProjectSelect'
 import MaterialsList from './pages/MaterialsList'
+import MaterialsSearch from './pages/MaterialsSearch'
 import MaterialEdit from './pages/MaterialEdit'
 import MaterialPageEdit from './pages/MaterialPageEdit'
 import AppShell from './components/layout/AppShell'
@@ -31,6 +32,7 @@ export default function App() {
         <Route path="/" element={<Navigate to="/materials/edit-projects" replace />} />
         <Route path="/login" element={<Navigate to="/materials/edit-projects" replace />} />
         <Route path="/materials/edit-projects" element={<ProjectSelect />} />
+        <Route path="/materials" element={<MaterialsSearch />} />
         <Route path="/projects/:projectId/materials/edit" element={<MaterialsList />} />
         <Route path="/projects/:projectId/materials/:materialId/edit" element={<MaterialEdit />} />
         <Route
