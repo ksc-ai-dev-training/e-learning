@@ -30,11 +30,20 @@ export default function MaterialsList() {
   const [restoringId, setRestoringId] = useState<number | null>(null)
   const [restoreError, setRestoreError] = useState<string | null>(null)
 
-  // 検索条件は入力中の値（form）と適用済みの値（filter）を分け、「絞り込む」押下で反映する
+  // 検索条件は入力中の値（form）と適用済みの値（filter）を分け、キーワードのみ「絞り込む」押下で
+  // 反映する。状態・更新月はプルダウンを選んだ瞬間に反映する（キーワードと違い1文字ごとの連続入力が
+  // 発生しないため、選択直後に反映しても過剰な再取得にならない。「セレクトを選んだだけでは絞り込みが
+  // 反映されない」という分かりにくさの指摘を受けて変更した。2026-08-28）
   const [form, setForm] = useState<FilterForm>(EMPTY_FILTER)
   const [filter, setFilter] = useState<FilterForm>(EMPTY_FILTER)
   const { materials, error, isLoading, mutate } = useMaterials(id, filter.status === 'archived')
   const project = projects.find((p) => p.id === id)
+
+  const applyImmediate = (patch: Partial<FilterForm>) => {
+    const next = { ...form, ...patch }
+    setForm(next)
+    setFilter(next)
+  }
 
   const restore = async (materialId: number) => {
     setRestoreError(null)
@@ -120,7 +129,7 @@ export default function MaterialsList() {
                 <Select
                   id="m-status"
                   value={form.status}
-                  onChange={(v) => setForm({ ...form, status: v })}
+                  onChange={(v) => applyImmediate({ status: v })}
                   options={STATUS_OPTIONS}
                 />
               </div>
@@ -131,7 +140,7 @@ export default function MaterialsList() {
                 <Select
                   id="m-month"
                   value={form.month}
-                  onChange={(v) => setForm({ ...form, month: v })}
+                  onChange={(v) => applyImmediate({ month: v })}
                   options={monthOptions}
                 />
               </div>

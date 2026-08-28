@@ -982,6 +982,9 @@ export default function MaterialEdit() {
                                 placeholder="小見出しのタイトルを入力"
                                 className="flex-1"
                               />
+                              <span className="flex-shrink-0 rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-600">
+                                小見出し
+                              </span>
                               <button
                                 type="button"
                                 onClick={() => moveSection(ci, si, -1)}

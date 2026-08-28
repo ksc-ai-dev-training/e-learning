@@ -22,6 +22,13 @@
   .toc-edit-page-row input[type=text] { flex:1; border:none; background:transparent; font-size:12.5px; padding:3px 6px; }
   .toc-edit-page-row input[type=text]:focus { outline:1px solid var(--accent-600); border-radius:4px; background:#fff; }
   .toc-edit-page-kind { font-size:10.5px; color:var(--text-subtle); flex-shrink:0; min-width:76px; }
+  .toc-edit-section-row {
+    display:flex; align-items:center; gap:8px; padding:6px 8px; margin:4px 0;
+    border-radius:6px; background:#eef2ff; border:1px solid #c7d2fe;
+  }
+  .toc-edit-section-row input[type=text] { flex:1; border:none; background:transparent; font-size:12.5px; font-weight:600; padding:3px 6px; }
+  .toc-edit-section-row input[type=text]:focus { outline:1px solid var(--accent-600); border-radius:4px; background:#fff; }
+  .toc-edit-section-label { font-size:10.5px; font-weight:700; color:#4338ca; background:#e0e7ff; border-radius:4px; padding:2px 6px; flex-shrink:0; }
   .toc-add-row { display:flex; gap:8px; margin:6px 0; }
   .tag-chip-row {
     display:flex; flex-wrap:wrap; align-items:center; gap:6px;
@@ -188,6 +195,13 @@
                   <input type="text" value="Gitとは何か">
                   <span class="toc-edit-page-kind">説明</span>
                   <a class="btn btn-secondary btn-sm" href="S-17_material-page-edit.html">編集する</a>
+                  <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
+                </div>
+                <div class="toc-edit-section-row">
+                  <input type="text" value="環境構築編">
+                  <span class="toc-edit-section-label">小見出し</span>
+                  <button class="icon-btn" type="button" title="上へ">↑</button>
+                  <button class="icon-btn" type="button" title="下へ">↓</button>
                   <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
                 </div>
                 <div class="toc-edit-page-row">

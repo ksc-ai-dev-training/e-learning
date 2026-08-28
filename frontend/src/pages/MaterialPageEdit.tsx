@@ -9,12 +9,18 @@ import TextInput from '../components/ui/TextInput'
 import { useMaterial } from '../hooks/useMaterial'
 import { useMaterialAttachments } from '../hooks/useMaterialAttachments'
 import { addLinkAttachment, deleteAttachment, uploadFileAttachment } from '../lib/attachmentActions'
-import { ApiError, apiFetchText } from '../lib/api'
+import { ApiError, apiFetch, apiFetchText } from '../lib/api'
 import { buildMaterialSource } from '../lib/materialSource'
 import type { EditableNode } from '../lib/materialSource'
 import { findNode, insertPageInTree, replacePageInTree, toEditableChapters } from '../lib/materialTree'
 import { emptyQuestionForType } from '../lib/questionDefaults'
-import type { Question } from '../types'
+import type { Material, Question } from '../types'
+
+// 新規ページ作成中、まだノードが存在せずA-27/A-29を呼べない添付ファイル・リンクを
+// ローカルに保持しておくための型。「下書き保存」時にページ作成後まとめて登録する
+type PendingAttachment =
+  | { key: string; kind: 'file'; file: File }
+  | { key: string; kind: 'link'; url: string }
 
 // S-17 教材編集：ページ編集（詳細設計書10.16節）。説明文編集・添付ファイル・設問編集
 // （単一選択・複数選択・並び替え・記述式・コード記述式・スコア記録の6種）まで実装済み。保存はS-05と同じくA-20（PUT /source）の
@@ -51,6 +57,7 @@ export default function MaterialPageEdit() {
   const [linkUrl, setLinkUrl] = useState('')
   const [attachmentError, setAttachmentError] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([])
 
   useEffect(() => {
     if (!material || initialized) return
@@ -164,6 +171,34 @@ export default function MaterialPageEdit() {
         : replacePageInTree(tree, Number(nodeId), page)
       const source = buildMaterialSource(material, updatedTree)
       await apiFetchText(`/api/materials/${materialId}/source`, source)
+
+      // 新規ページの場合、保存前に追加していた添付ファイル・リンクをこのタイミングで登録する
+      // （保存するまでnode_idが存在せずA-27/A-29を呼べないため、保存後に新しいnode_idを
+      // 取得してからまとめて反映する）
+      if (isNew && pendingAttachments.length > 0) {
+        try {
+          const freshMaterial = await apiFetch<Material>(`/api/materials/${materialId}`)
+          const freshTree = toEditableChapters(freshMaterial.toc ?? [])
+          const parent = findNode(freshTree, parentNodeId)
+          const newPage = parent?.children.find((c) => c.kind === 'page' && c.title === title)
+          if (newPage) {
+            for (const pending of pendingAttachments) {
+              if (pending.kind === 'file') {
+                await uploadFileAttachment(Number(materialId), newPage.id!, pending.file)
+              } else {
+                await addLinkAttachment(Number(materialId), newPage.id!, pending.url)
+              }
+            }
+          } else {
+            setError('ページは保存されましたが、添付ファイル・リンクの登録に失敗しました。ページ編集画面から改めて追加してください。')
+            return
+          }
+        } catch {
+          setError('ページは保存されましたが、添付ファイル・リンクの登録に失敗しました。ページ編集画面から改めて追加してください。')
+          return
+        }
+      }
+
       backToStructure()
     } catch (e) {
       setError(e instanceof ApiError ? e.message : '保存に失敗しました')
@@ -175,7 +210,11 @@ export default function MaterialPageEdit() {
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     e.target.value = ''
-    if (!file || isNew) return
+    if (!file) return
+    if (isNew) {
+      setPendingAttachments((prev) => [...prev, { key: crypto.randomUUID(), kind: 'file', file }])
+      return
+    }
     setAttachmentError(null)
     setUploading(true)
     try {
@@ -189,7 +228,12 @@ export default function MaterialPageEdit() {
   }
 
   const handleAddLink = async () => {
-    if (isNew || !linkUrl.trim()) return
+    if (!linkUrl.trim()) return
+    if (isNew) {
+      setPendingAttachments((prev) => [...prev, { key: crypto.randomUUID(), kind: 'link', url: linkUrl.trim() }])
+      setLinkUrl('')
+      return
+    }
     setAttachmentError(null)
     try {
       await addLinkAttachment(Number(materialId), Number(nodeId), linkUrl.trim())
@@ -198,6 +242,10 @@ export default function MaterialPageEdit() {
     } catch (err) {
       setAttachmentError(err instanceof ApiError ? err.message : '追加に失敗しました')
     }
+  }
+
+  const handleRemovePending = (key: string) => {
+    setPendingAttachments((prev) => prev.filter((p) => p.key !== key))
   }
 
   const handleDeleteAttachment = async (attachmentId: number) => {
@@ -293,43 +341,67 @@ export default function MaterialPageEdit() {
         <section className="mb-6 rounded-md border border-slate-200">
           <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2.5">
             <span className="text-sm font-semibold text-slate-700">このページの添付ファイル・リンク</span>
-            <span className="text-xs text-slate-400">{attachments.length}件</span>
+            <span className="text-xs text-slate-400">
+              {isNew ? pendingAttachments.length : attachments.length}件
+            </span>
           </div>
           <div className="p-4">
-            {isNew ? (
-              <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400">
-                先にこのページを保存してください。保存すると添付ファイル・リンクを追加できます。
+            {attachmentError && (
+              <p className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                {attachmentError}
               </p>
-            ) : (
-              <>
-                {attachmentError && (
-                  <p className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-                    {attachmentError}
-                  </p>
-                )}
-                <AttachmentList
-                  attachments={attachments}
-                  isLoading={attachmentsLoading}
-                  onDelete={handleDeleteAttachment}
-                />
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <label className="flex h-9 min-w-[160px] flex-1 cursor-pointer items-center justify-center rounded-md border border-slate-300 text-xs font-semibold text-slate-600 hover:bg-slate-50">
-                    {uploading ? 'アップロード中...' : 'ファイルを選択'}
-                    <input type="file" className="hidden" onChange={handleFileSelect} disabled={uploading} />
-                  </label>
-                  <TextInput
-                    type="url"
-                    value={linkUrl}
-                    onChange={(e) => setLinkUrl(e.target.value)}
-                    placeholder="または外部リンクを追加 https://..."
-                    className="min-w-[200px] flex-1"
-                  />
-                  <Button variant="secondary" onClick={handleAddLink} disabled={!linkUrl.trim()}>
-                    追加
-                  </Button>
-                </div>
-              </>
             )}
+            {isNew ? (
+              <>
+                {pendingAttachments.length > 0 && (
+                  <ul className="mb-3 flex flex-col gap-1.5">
+                    {pendingAttachments.map((p) => (
+                      <li
+                        key={p.key}
+                        className="flex items-center justify-between gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-600"
+                      >
+                        <span className="truncate">
+                          {p.kind === 'file' ? p.file.name : p.url}
+                          <span className="ml-1.5 text-[10px] text-amber-600">（保存すると登録されます）</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemovePending(p.key)}
+                          className="flex-shrink-0 text-slate-400 hover:text-red-600"
+                        >
+                          ×
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <p className="mb-2 text-xs text-slate-400">
+                  ここで追加したファイル・リンクは、「下書き保存」を押したときにまとめて登録されます。
+                </p>
+              </>
+            ) : (
+              <AttachmentList
+                attachments={attachments}
+                isLoading={attachmentsLoading}
+                onDelete={handleDeleteAttachment}
+              />
+            )}
+            <div className="mt-3 flex flex-wrap gap-2">
+              <label className="flex h-9 min-w-[160px] flex-1 cursor-pointer items-center justify-center rounded-md border border-slate-300 text-xs font-semibold text-slate-600 hover:bg-slate-50">
+                {uploading ? 'アップロード中...' : 'ファイルを選択'}
+                <input type="file" className="hidden" onChange={handleFileSelect} disabled={uploading} />
+              </label>
+              <TextInput
+                type="url"
+                value={linkUrl}
+                onChange={(e) => setLinkUrl(e.target.value)}
+                placeholder="または外部リンクを追加 https://..."
+                className="min-w-[200px] flex-1"
+              />
+              <Button variant="secondary" onClick={handleAddLink} disabled={!linkUrl.trim()}>
+                追加
+              </Button>
+            </div>
           </div>
         </section>
 
@@ -392,7 +464,7 @@ export default function MaterialPageEdit() {
 
         <div className="flex items-center gap-3">
           <Button variant="primary" onClick={save} disabled={saving}>
-            このページを保存
+            下書き保存
           </Button>
         </div>
       </div>

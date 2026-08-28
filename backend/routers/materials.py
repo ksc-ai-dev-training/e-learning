@@ -70,8 +70,8 @@ async def search_materials(
         )
     tag_list = [t.strip() for t in tags.split(",") if t.strip()] if tags else []
     if tag_list:
-        ph = add_param(json.dumps(tag_list))
-        conditions.append(f"m.tags @> {ph}::jsonb")
+        ph = add_param(tag_list)
+        conditions.append(f"m.tags ?| {ph}::text[]")
     if project_id is not None:
         ph = add_param(project_id)
         conditions.append(f"m.project_id = {ph}")

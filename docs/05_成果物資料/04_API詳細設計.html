@@ -93,7 +93,7 @@
       <tr><td>A-28</td><td>GET <code>/api/materials/{id}/attachments</code></td><td>受講対象者、対象プロジェクトの管理者/編集者, admin</td><td>クエリ <code>node_id</code>（任意）</td><td>200 <code>{"items": [{"id", "node_id", "kind", "filename", "mime_type", "size_bytes", "external_url", "created_at"}]}</code>。<strong>実装済み（S-05ファイル・リンクタブ）。</strong>S-05のこのタブは追加を行わない参照専用の一覧で、教材全体の資料だけでなく各ページの添付も横断的に見せる仕様のため、<code>node_id</code>省略時の既定を「<code>node_id IS NULL</code>の教材全体のみ」から「教材に属する全件（ページ添付含む）」に変更した。特定ページに絞り込みたい場合のみ<code>node_id</code>を指定する</td></tr>
       <tr><td>A-29</td><td>POST <code>/api/materials/{id}/attachments</code></td><td>対象プロジェクトの編集者/管理者, admin</td><td><code>{"node_id": int|null, "kind": "file"|"link", "storage_key": str|null, "external_url": str|null, "filename": str, "mime_type": str|null, "size_bytes": int|null}</code></td><td>201。<strong>実装済み。</strong>S-17添付セクションのファイル追加（アップロード完了後）・外部リンク追加（「追加」ボタン）の両方で呼ばれる</td></tr>
       <tr><td>A-30</td><td>GET <code>/api/materials/{id}/attachments/{attachment_id}/download</code></td><td>受講対象者、対象プロジェクトの管理者/編集者, admin</td><td>—</td><td>200 <code>{"download_url": str, "expires_at": str}</code>。署名付きURLの有効期限は10分（ローカル実装では<code>expires_at</code>はnull、7.6節）。<strong>バックエンド実装・curl疎通確認済み。</strong>画面モックアップのS-17添付一覧行にダウンロード導線が無いため、現状はどの画面からも呼ばれない（S-16〔ページ受講〕着手時に受講者向けの参照経路として使う想定）</td></tr>
-      <tr><td>A-31</td><td>PUT <code>/api/materials/{id}/questions</code></td><td>対象プロジェクトの編集者/管理者, admin</td><td><code>{"node_id": int, "questions": [...]}</code>（8.3節スキーマ）</td><td>200。<strong>送信内容で当該<code>node_id</code>の問題を全置換</strong>（送信されなかった既存問題行は削除。<code>id</code>ありは更新、<code>id</code>なしは新規追加）。<strong>実装済み・curl疎通確認済み</strong>（<code>upsert_questions_for_node</code>をA-20と共通利用、7.3節）。現状はsingle/multi/reorderの3種のみ受け付け（422で拒否）。<strong>S-17画面（<code>QuestionEditCard</code>）は実装済みだが、「このページを保存」ボタンはA-20（本文・目次構造・問題をまとめて1回のPUTで保存）のみを呼び、A-31は単独では呼ばない</strong>（S-05の下書き保存と同じ、まとめて保存する方式に統一したため）。設問単独の保存操作を将来追加する場合にA-31を利用する</td></tr>
+      <tr><td>A-31</td><td>PUT <code>/api/materials/{id}/questions</code></td><td>対象プロジェクトの編集者/管理者, admin</td><td><code>{"node_id": int, "questions": [...]}</code>（8.3節スキーマ）</td><td>200。<strong>送信内容で当該<code>node_id</code>の問題を全置換</strong>（送信されなかった既存問題行は削除。<code>id</code>ありは更新、<code>id</code>なしは新規追加）。<strong>実装済み・curl疎通確認済み</strong>（<code>upsert_questions_for_node</code>をA-20と共通利用、7.3節）。現状はsingle/multi/reorderの3種のみ受け付け（422で拒否）。<strong>S-17画面（<code>QuestionEditCard</code>）は実装済みだが、「下書き保存」ボタン（当初「このページを保存」という名称だったが、実際の保存動作がS-05の「下書き保存」と同一のため名称を統一した。2026-08-28）はA-20（本文・目次構造・問題をまとめて1回のPUTで保存）のみを呼び、A-31は単独では呼ばない</strong>（S-05の下書き保存と同じ、まとめて保存する方式に統一したため）。設問単独の保存操作を将来追加する場合にA-31を利用する</td></tr>
       <tr><td>A-32</td><td>POST <code>/api/materials/{id}/ai-review</code></td><td>対象プロジェクトの編集者/管理者, admin</td><td>ボディなし</td><td>200。同期呼び出し（8.1節）。8.6節でスキーマ詳述。<strong>未実装</strong>（<code>ai_client.py</code>・T-15 <code>ai_material_reviews</code>とも未着手。S-05のAIレビュー結果タブは「AIレビューを実行」ボタンの見た目のみ用意し、準備中表示にしている）</td></tr>
       <tr><td>A-33</td><td>GET <code>/api/materials/{id}/ai-review</code></td><td>対象プロジェクトの編集者/管理者, admin</td><td>—</td><td>200（直近の結果）／404（未実施）。<strong>未実装</strong>（A-32と同時に実装する）</td></tr>
       <tr><td>A-34</td><td>POST <code>/api/materials/{id}/ai-insights</code></td><td>対象プロジェクトの編集者/管理者, admin</td><td>ボディなし</td><td>202 <code>{"status": "pending"}</code>。非同期（8.2節）</td></tr>
@@ -225,7 +225,7 @@
 
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）詳細設計書 v1.39</span>
+    <span>社内学習管理システム（Manabi）詳細設計書 v1.41</span>
     <span>コガソフトウェア株式会社 / 2026-08-24</span>
   </footer>
 

@@ -50,7 +50,10 @@ export default function MaterialsSearch() {
   const { projects } = useProjects('learner')
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null)
 
-  // 検索条件は入力中の値（form）と適用済みの値（filter）を分け、「検索」押下で反映する
+  // 検索条件は入力中の値（form）と適用済みの値（filter）を分け、キーワードのみ「検索」押下で
+  // 反映する。区分・タグ・チェックボックスは選んだ瞬間に反映する（キーワードと違い1文字ごとの連続
+  // 入力が発生しないため、選択直後に反映しても過剰な再取得にならない。「セレクト等を選んだだけでは
+  // 絞り込みが反映されない」という分かりにくさの指摘を受けて変更した。2026-08-28）
   const [form, setForm] = useState<FilterForm>(EMPTY_FILTER)
   const [filter, setFilter] = useState<FilterForm>(EMPTY_FILTER)
   const [page, setPage] = useState(1)
@@ -82,11 +85,15 @@ export default function MaterialsSearch() {
     setSelectedProjectId(id)
     setPage(1)
   }
+  const applyImmediate = (patch: Partial<FilterForm>) => {
+    const next = { ...form, ...patch }
+    setForm(next)
+    setFilter(next)
+    setPage(1)
+  }
   const toggleTag = (tag: string) => {
-    setForm((prev) => ({
-      ...prev,
-      tags: prev.tags.includes(tag) ? prev.tags.filter((t) => t !== tag) : [...prev.tags, tag],
-    }))
+    const nextTags = form.tags.includes(tag) ? form.tags.filter((t) => t !== tag) : [...form.tags, tag]
+    applyImmediate({ tags: nextTags })
   }
   const changePerPage = (v: string) => {
     setPerPage(Number(v) as 20 | 50 | 100)
@@ -158,7 +165,7 @@ export default function MaterialsSearch() {
                 <Select
                   id="m-required"
                   value={form.required}
-                  onChange={(v) => setForm({ ...form, required: v as FilterForm['required'] })}
+                  onChange={(v) => applyImmediate({ required: v as FilterForm['required'] })}
                   options={REQUIRED_OPTIONS}
                 />
               </div>
@@ -166,7 +173,7 @@ export default function MaterialsSearch() {
 
             {availableTags.length > 0 && (
               <div className="mt-3 flex flex-col gap-1.5">
-                <span className="text-xs font-semibold text-slate-500">タグ（クリックで絞り込み、複数選択でAND条件）</span>
+                <span className="text-xs font-semibold text-slate-500">タグ（クリックで絞り込み、複数選択でOR条件）</span>
                 <div className="flex flex-wrap gap-1.5">
                   {availableTags.map((tag) => {
                     const selected = form.tags.includes(tag)
@@ -194,7 +201,7 @@ export default function MaterialsSearch() {
                 <input
                   type="checkbox"
                   checked={form.incompleteOnly}
-                  onChange={(e) => setForm({ ...form, incompleteOnly: e.target.checked })}
+                  onChange={(e) => applyImmediate({ incompleteOnly: e.target.checked })}
                 />
                 未受講のみ表示
               </label>
@@ -202,7 +209,7 @@ export default function MaterialsSearch() {
                 <input
                   type="checkbox"
                   checked={form.myAssignmentsOnly}
-                  onChange={(e) => setForm({ ...form, myAssignmentsOnly: e.target.checked })}
+                  onChange={(e) => applyImmediate({ myAssignmentsOnly: e.target.checked })}
                 />
                 自分が受講対象の教材のみ表示
               </label>

@@ -21,14 +21,49 @@ const COLLAPSED_KEY = 'manabi-sidebar-collapsed'
 
 // サイドバー共通コンポーネント（詳細設計書2.1.1節）。全認証後画面で共通。
 // 現状はS-13のみ実装のため、他のメニュー項目は画面ができるまで非活性表示にする。
+//
+// matchは「今どのナビ項目に居るか」の判定に使う。hrefそのものとの完全一致だけでは、
+// 教材編集のようにナビ項目のリンク先（S-13 /materials/edit-projects）と実際の画面遷移先
+// （S-14/S-05/S-17、/projects/:id/materials配下）のURLが異なる場合にハイライトが外れて
+// しまう不具合があったため、項目ごとに判定関数を持たせた（2026-08-28）
 const NAV_ITEMS = [
-  { href: '/', label: 'マイ学習', icon: Home, implemented: false },
-  { href: '/materials', label: '教材一覧・検索', icon: BookOpen, implemented: true },
-  { href: '/materials/edit-projects', label: '教材編集', icon: Pencil, implemented: true },
-  { href: '/grading', label: '採点', icon: CircleCheckBig, implemented: false },
-  { href: '/reports/me', label: '個人学習レポート', icon: BarChart3, implemented: false },
-  { href: '/projects/new', label: 'プロジェクト作成', icon: Plus, implemented: false },
-  { href: '/projects/manage', label: 'プロジェクト管理', icon: LayoutGrid, implemented: false },
+  { href: '/', label: 'マイ学習', icon: Home, implemented: false, match: (p: string) => p === '/' },
+  {
+    href: '/materials',
+    label: '教材一覧・検索',
+    icon: BookOpen,
+    implemented: true,
+    match: (p: string) => p === '/materials',
+  },
+  {
+    href: '/materials/edit-projects',
+    label: '教材編集',
+    icon: Pencil,
+    implemented: true,
+    match: (p: string) => p === '/materials/edit-projects' || /^\/projects\/[^/]+\/materials(\/|$)/.test(p),
+  },
+  { href: '/grading', label: '採点', icon: CircleCheckBig, implemented: false, match: (p: string) => p === '/grading' },
+  {
+    href: '/reports/me',
+    label: '個人学習レポート',
+    icon: BarChart3,
+    implemented: false,
+    match: (p: string) => p.startsWith('/reports/'),
+  },
+  {
+    href: '/projects/new',
+    label: 'プロジェクト作成',
+    icon: Plus,
+    implemented: false,
+    match: (p: string) => p === '/projects/new',
+  },
+  {
+    href: '/projects/manage',
+    label: 'プロジェクト管理',
+    icon: LayoutGrid,
+    implemented: false,
+    match: (p: string) => p === '/projects/manage' || /^\/projects\/[^/]+\/manage(\/|$)/.test(p),
+  },
 ]
 
 export default function Sidebar({ me }: { me: Me }) {
@@ -97,7 +132,7 @@ export default function Sidebar({ me }: { me: Me }) {
             collapsed ? 'justify-center px-0' : 'px-2.5'
           } ${
             item.implemented
-              ? location.pathname === item.href
+              ? item.match(location.pathname)
                 ? 'bg-blue-50 font-semibold text-blue-900'
                 : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'
               : 'cursor-default text-slate-300'
