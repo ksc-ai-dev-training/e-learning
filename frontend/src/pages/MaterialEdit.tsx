@@ -19,7 +19,7 @@ import { useSurveys } from '../hooks/useSurveys'
 import { ApiError, apiFetch, apiFetchText } from '../lib/api'
 import { formatDateJst, formatDateTimeJst, formatYearMonthJst } from '../lib/datetime'
 import { buildMaterialSource } from '../lib/materialSource'
-import { archiveMaterial, deleteMaterial, restoreMaterial } from '../lib/materialActions'
+import { archiveMaterial, deleteMaterial, publishMaterial, restoreMaterial } from '../lib/materialActions'
 import { pageKindLabel, toEditableChapters } from '../lib/materialTree'
 import { questionTypeLabel } from '../lib/questionDefaults'
 import type { Material } from '../types'
@@ -62,6 +62,7 @@ export default function MaterialEdit() {
   const [archiveModalOpen, setArchiveModalOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+  const [publishing, setPublishing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [savedMessage, setSavedMessage] = useState<string | null>(null)
   const [pendingDelete, setPendingDelete] = useState<string | null>(null)
@@ -278,6 +279,22 @@ export default function MaterialEdit() {
       setError(e instanceof ApiError ? e.message : '削除に失敗しました')
     } finally {
       setDeleting(false)
+    }
+  }
+
+  // 「公開する」: 保存時点（A-20/A-31）で設問の必須項目は既に検証済みのため、
+  // 公開時に改めて内容検証は行わない（単にstatusを変更するだけ）
+  const doPublish = async () => {
+    if (savedId === null) return
+    setError(null)
+    setPublishing(true)
+    try {
+      await publishMaterial(savedId)
+      await mutate()
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : '公開に失敗しました')
+    } finally {
+      setPublishing(false)
     }
   }
 
@@ -687,14 +704,17 @@ export default function MaterialEdit() {
           <Button variant="primary" onClick={saveDraft} disabled={saving}>
             下書き保存
           </Button>
-          <Button
-            variant="secondary"
-            className="ml-2"
-            disabled
-            title="準備中（公開判定の実装後に有効化）"
-          >
-            公開する
-          </Button>
+          {savedId !== null && material?.status === 'draft' && (
+            <Button
+              variant="secondary"
+              className="ml-2"
+              onClick={doPublish}
+              disabled={publishing || dirty}
+              title={dirty ? '保存していない変更があります。先に「下書き保存」を押してください' : undefined}
+            >
+              {publishing ? '公開中...' : '公開する'}
+            </Button>
+          )}
           {savedId !== null && (
             <Button
               variant="secondary"

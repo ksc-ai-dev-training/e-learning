@@ -416,8 +416,12 @@ class MaterialUpdate(BaseModel):
 async def update_material(
     id: int, body: MaterialUpdate, user: CurrentUser = Depends(require_material_role(min_role="editor"))
 ):
-    """A-17: 教材メタデータの部分更新。所属プロジェクトの変更はできない（プロジェクト間での
-    教材共有はF-26で対応済みのため、破壊的なプロジェクト付け替え機能は設計から削除した）。"""
+    """A-17: 教材メタデータの部分更新（公開判定を含む）。所属プロジェクトの変更はできない
+    （プロジェクト間での教材共有はF-26で対応済みのため、破壊的なプロジェクト付け替え機能は
+    設計から削除した）。公開前の内容検証は行わない。単一選択・複数選択・並び替えの正解、
+    記述式・コード記述式の採点基準はQuestionInのバリデータで保存時点（A-20/A-31）に既に
+    必須項目としてチェック済みのため、公開時点で改めて検証する意味が無いと判断した
+    （検証しようとして初めて気づいた。2026-08-28）。"""
     updates = body.model_dump(exclude_unset=True)
     if not updates:
         row = await get_pool().fetchrow(

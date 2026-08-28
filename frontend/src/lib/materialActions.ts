@@ -14,3 +14,12 @@ export function restoreMaterial(id: number): Promise<Material> {
 export function deleteMaterial(id: number): Promise<void> {
   return apiFetch<void>(`/api/materials/${id}`, { method: 'DELETE' })
 }
+
+// 新規（A-17、status='published'）: 教材の公開。設問の必須項目は保存時点（A-20/A-31）で
+// 既に検証済みのため、公開時に改めての内容検証は行わない
+export function publishMaterial(id: number): Promise<Material> {
+  return apiFetch<Material>(`/api/materials/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify({ status: 'published' }),
+  })
+}
