@@ -54,11 +54,11 @@
       <tr><td>status</td><td>TEXT</td><td>NO</td><td>'active'</td><td>'active' / 'completed'</td></tr>
       <tr><td>pm_user_id</td><td>BIGINT</td><td>YES</td><td>—</td><td>FK→users。表示用の参考情報（PM）。アクセス可否判定には用いない（基本設計書5.19節）</td></tr>
       <tr><td>created_by</td><td>BIGINT</td><td>NO</td><td>—</td><td>FK→users。作成者</td></tr>
-      <tr><td>is_company_wide</td><td>BOOLEAN</td><td>NO</td><td>false</td><td>「全社公開」プロジェクトを表すフラグ。true行は初期データとして1行のみ投入し、A-09/A-10からtrueへ変更する手段は提供しない</td></tr>
+      <tr><td>is_company_wide</td><td>BOOLEAN</td><td>NO</td><td>false</td><td>「全社Wiki」プロジェクトを表すフラグ。true行は初期データとして1行のみ投入し、A-09/A-10からtrueへ変更する手段は提供しない</td></tr>
       <tr><td>created_at / updated_at</td><td>TIMESTAMPTZ</td><td>NO</td><td>now()</td><td></td></tr>
     </tbody>
   </table>
-  <p><strong>制約:</strong> PK(id)、FK(pm_user_id→users.id) ON DELETE SET NULL、FK(created_by→users.id)。<strong>初期データ:</strong> <code>database.py</code>のマイグレーション処理で、<code>is_company_wide=true</code>の行が0件のときのみ「全社公開」を1行INSERTする（起動のたびに重複投入しないよう存在確認してから挿入する）。</p>
+  <p><strong>制約:</strong> PK(id)、FK(pm_user_id→users.id) ON DELETE SET NULL、FK(created_by→users.id)。<strong>初期データ:</strong> <code>database.py</code>のマイグレーション処理で、<code>is_company_wide=true</code>の行が0件のときのみ「全社Wiki」を1行INSERTする（起動のたびに重複投入しないよう存在確認してから挿入する）。</p>
 
   <h4>T-04 project_memberships（プロジェクトメンバー）</h4>
   <table>
@@ -187,9 +187,9 @@
     <tbody>
       <tr><td>id</td><td>BIGINT</td><td>NO</td><td>IDENTITY</td><td>PK</td></tr>
       <tr><td>material_id</td><td>BIGINT</td><td>NO</td><td>—</td><td>FK→materials</td></tr>
-      <tr><td>scope_type</td><td>TEXT</td><td>NO</td><td>—</td><td>'company' / 'project' / 'individual'</td></tr>
-      <tr><td>scope_id</td><td>BIGINT</td><td>YES</td><td>—</td><td>scope_type='project'ならprojects.id、'individual'ならusers.id。'company'ではNULL</td></tr>
-      <tr><td>required</td><td>BOOLEAN</td><td>NO</td><td>true</td><td>必修／任意。scope_type='company'では権限分岐にも使用（基本設計書5.9節）</td></tr>
+      <tr><td>scope_type</td><td>TEXT</td><td>NO</td><td>—</td><td>'project' / 'individual'（'company'はv1.42で廃止。全社スコープの抜け道対策。基本設計書5.9節「設計判断（全社スコープを廃止した理由）」参照）</td></tr>
+      <tr><td>scope_id</td><td>BIGINT</td><td>NO</td><td>—</td><td>scope_type='project'なら常にmaterials.project_idと同値（教材自身の所属プロジェクトに固定、他プロジェクトは選べない）、'individual'ならそのプロジェクトの現役メンバーのusers.id</td></tr>
+      <tr><td>required</td><td>BOOLEAN</td><td>NO</td><td>true</td><td>必修／任意。教材が全社Wiki（materials.project_idの参照先projects.is_company_wide=true）に属する場合はtrueを設定不可（アプリ層でバリデーション。基本設計書5.9節）</td></tr>
       <tr><td>due_at</td><td>TIMESTAMPTZ</td><td>YES</td><td>—</td><td>受講期限。required=falseでは無効化して入力させない（画面制御）が、DB上は保持可</td></tr>
       <tr><td>pass_score_pct</td><td>NUMERIC(5,2)</td><td>YES</td><td>—</td><td>合格基準（正答率%）</td></tr>
       <tr><td>retake_allowed</td><td>BOOLEAN</td><td>NO</td><td>true</td><td>再受験可否</td></tr>
@@ -198,7 +198,7 @@
       <tr><td>created_at / updated_at</td><td>TIMESTAMPTZ</td><td>NO</td><td>now()</td><td></td></tr>
     </tbody>
   </table>
-  <p><strong>制約:</strong> PK(id)、FK(material_id→materials.id) ON DELETE CASCADE、FK(created_by→users.id)、CHECK(scope_type IN ('company','project','individual'))、CHECK(scope_type = 'company' OR scope_id IS NOT NULL)。<strong>インデックス:</strong> <code>(scope_type, scope_id)</code>の複合インデックスで6.3節の対象者判定を高速化。<code>material_id</code>にもBTreeインデックス。</p>
+  <p><strong>制約:</strong> PK(id)、FK(material_id→materials.id) ON DELETE CASCADE、FK(created_by→users.id)、CHECK(scope_type IN ('project','individual'))、scope_idはNOT NULL（v1.42で'company'スコープ廃止に伴いNULL許容を廃止）。<strong>インデックス:</strong> <code>material_id</code>にBTreeインデックス。</p>
 
   <h4>T-12 enrollment_progress（受講進捗）</h4>
   <table>
@@ -845,7 +845,7 @@ ALTER TABLE surveys ENABLE ROW LEVEL SECURITY;</code></pre>
 
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）詳細設計書 v1.41</span>
+    <span>社内学習管理システム（Manabi）詳細設計書 v1.43</span>
     <span>コガソフトウェア株式会社 / 2026-08-24</span>
   </footer>
 

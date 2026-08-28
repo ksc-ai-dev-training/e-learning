@@ -19,18 +19,18 @@
     <thead><tr><th>画面ID</th><th>画面名</th><th>パス</th><th>アクセス可能ロール</th><th>概要</th></tr></thead>
     <tbody>
       <tr><td>S-01</td><td>ログイン</td><td><code>/login</code></td><td>全員（未認証）</td><td>Googleでログインボタンのみのシンプルな画面</td></tr>
-      <tr><td>S-02</td><td>マイ学習</td><td><code>/</code>（ログイン後の初期画面）</td><td>全員</td><td>自分が受けるべき必修・任意教材の一覧と進捗状況。期限が近い必修教材を強調表示<span class="rev-new">。教材ごとに所属プロジェクトを表示し、プロジェクトタブ（「全社公開」を含む）で絞り込める</span></td></tr>
+      <tr><td>S-02</td><td>マイ学習</td><td><code>/</code>（ログイン後の初期画面）</td><td>全員</td><td>自分が受けるべき必修・任意教材の一覧と進捗状況。期限が近い必修教材を強調表示<span class="rev-new">。教材ごとに所属プロジェクトを表示し、プロジェクトタブ（「全社Wiki」を含む）で絞り込める</span></td></tr>
       <tr><td>S-03</td><td>教材一覧・検索</td><td><code>/materials</code></td><td>全員</td><td>公開されている教材の一覧・検索。<span class="rev-old">単元・コース単位で表示</span><span class="rev-new">章・ページ数とタグで表示（v1.11、6.2節 T-23参照）</span><span class="rev-new">。テーブルに「プロジェクト」列を追加し、プロジェクトタブでも絞り込める。タグはハッシュタグ形式で複数付与でき、検索欄・タグチップで横断的に絞り込める（v1.12でコース〔T-05〕をタグに置き換え）</span></td></tr>
       <tr><td>S-04</td><td><span class="rev-old">教材受講</span><span class="rev-new">教材受講：目次</span></td><td><code>/materials/:materialId</code></td><td>対象者（全員）</td><td><span class="rev-old">教材本文の閲覧、選択式・記述式問題への回答。通常受講／反復演習／誤答のみ抽出の3タブ</span><span class="rev-new">教材の目次（章・小見出し・ページの入れ子構造）と全体進捗、合否判定・再受験結果（<code>materials.attempt_scope</code>で定まる受験単位ごとに独立して判定。既定は教材全体。F-14は変更なし）を表示。目次／反復演習／誤答のみ抽出の3タブ。ページを選ぶとS-16へ遷移する（v1.11）。ドボン問題（<code>is_critical</code>）に起因する不合格は理由を明示。教材全体・章の受験後アンケート（任意設置時）もここで表示する（v1.17）</span></td></tr>
-      <tr><td>S-05</td><td><span class="rev-old">教材編集</span><span class="rev-new">教材編集：目次編集</span></td><td><code>/materials/:materialId/edit</code></td><td><span class="rev-old">対象教材のオーナー・共同編集者、対象教材が紐づくプロジェクトの管理者・編集者</span><span class="rev-new">対象教材が紐づくプロジェクトの管理者・編集者</span>、<span class="badge badge-admin">admin</span></td><td><span class="rev-old">本文・問題編集、単元/コース構成、</span><span class="rev-new">目次（章・小見出し・ページ）編集、タグ付け、合否判定・再受験設定、</span>ファイル・リンク添付、<span class="rev-old">共同編集者管理（個人教材の場合）／</span>プロジェクトメンバーの確認とS-12への導線<span class="rev-old">（プロジェクト教材の場合）</span>、AIレビュー結果・改訂履歴の確認<span class="rev-old">。個人教材（3.4節）とプロジェクトに紐づく教材（3.5節）の両方に対応する</span><span class="rev-new">。教材は必ずいずれかのプロジェクトに属するため（F-25）、アクセス可否・編集権限は常に3.5節のロジックのみで判定する。目次編集タブに所属プロジェクトの選択欄を持ち、新規作成時に未指定なら「全社公開」が既定選択となる。各ページの説明文・問題そのものの編集はS-17で行う（v1.11）</span><span class="rev-new">。受験単位（教材/章/小見出し/ページ）・再受験範囲（全問/誤答のみ）・AI講評スタイルの既定・AI採点コンテキスト・受験後アンケートの設置（教材全体・章ごと、任意）を目次編集タブで設定する（v1.17）</span></td></tr>
-      <tr><td>S-06</td><td>配信設定</td><td><code>/admin/assignments</code></td><td><span class="rev-old"><span class="badge badge-admin">admin</span></span><span class="rev-new"><span class="badge badge-admin">admin</span>（全社スコープ）、対象プロジェクトの管理者（自プロジェクトのスコープ）</span></td><td>教材の配信対象（全社/<span class="rev-old">部署/</span>プロジェクト/個人）、必修/任意、受講期限の設定</td></tr>
+      <tr><td>S-05</td><td><span class="rev-old">教材編集</span><span class="rev-new">教材編集：目次編集</span></td><td><code>/materials/:materialId/edit</code></td><td><span class="rev-old">対象教材のオーナー・共同編集者、対象教材が紐づくプロジェクトの管理者・編集者</span><span class="rev-new">対象教材が紐づくプロジェクトの管理者・編集者</span>、<span class="badge badge-admin">admin</span></td><td><span class="rev-old">本文・問題編集、単元/コース構成、</span><span class="rev-new">目次（章・小見出し・ページ）編集、タグ付け、合否判定・再受験設定、</span>ファイル・リンク添付、<span class="rev-old">共同編集者管理（個人教材の場合）／</span>プロジェクトメンバーの確認とS-12への導線<span class="rev-old">（プロジェクト教材の場合）</span>、AIレビュー結果・改訂履歴の確認<span class="rev-old">。個人教材（3.4節）とプロジェクトに紐づく教材（3.5節）の両方に対応する</span><span class="rev-new">。教材は必ずいずれかのプロジェクトに属するため（F-25）、アクセス可否・編集権限は常に3.5節のロジックのみで判定する。目次編集タブに所属プロジェクトの選択欄を持ち、新規作成時に未指定なら「全社Wiki」が既定選択となる。各ページの説明文・問題そのものの編集はS-17で行う（v1.11）</span><span class="rev-new">。受験単位（教材/章/小見出し/ページ）・再受験範囲（全問/誤答のみ）・AI講評スタイルの既定・AI採点コンテキスト・受験後アンケートの設置（教材全体・章ごと、任意）を目次編集タブで設定する（v1.17）</span></td></tr>
+      <tr><td>S-06</td><td>配信設定</td><td><span class="rev-old"><code>/admin/assignments</code></span><span class="rev-new"><code>/assignments</code></span></td><td><span class="rev-old"><span class="badge badge-admin">admin</span></span><span class="rev-old"><span class="badge badge-admin">admin</span>（全社スコープ）、対象プロジェクトの管理者（自プロジェクトのスコープ）</span><span class="rev-new">全員（サイドバーの通常メニューに常設。プロジェクト・教材を1つも持たない社員にも表示し、管理できる教材が無ければ空状態を表示）。実際に配信設定を編集できるのは<span class="badge badge-admin">admin</span>（全教材）、対象プロジェクトの管理者（自プロジェクトに属する教材のみ）</span></td><td>教材の配信対象（<span class="rev-old">全社/部署/</span><span class="rev-old">全社/</span><span class="rev-new">教材自身が所属するプロジェクトに固定。他プロジェクトは選べない/</span>個人）、必修/任意、受講期限の設定。<span class="rev-new">教材が全社Wikiに属する場合は必修に設定不可（v1.42）</span></td></tr>
       <tr class="rev-row"><td>S-07</td><td><span class="rev-old">組織管理</span></td><td><span class="rev-old"><code>/admin/organization</code></span></td><td><span class="rev-old"><span class="badge badge-admin">admin</span></span></td><td><span class="rev-old">部署の登録のみを扱う。プロジェクトの作成・メンバー管理はS-11・S-12へ移管した（誰でも作成できるため、管理者専用画面からは分離した）</span><span class="rev-new">廃止（v1.5）。部署（department）の概念をシステムから廃止したため、部署登録を行う画面自体が不要になった。プロジェクトの作成・管理はS-11・S-12を参照。画面ID・パスは欠番として保持する。</span></td></tr>
       <tr><td>S-08</td><td>受講状況ダッシュボード</td><td><code>/dashboard</code></td><td><span class="rev-old"><span class="badge badge-manager">manager</span> <span class="badge badge-admin">admin</span>、対象プロジェクトの管理者（自プロジェクト分のみ）</span><span class="rev-new"><span class="badge badge-admin">admin</span>（全社スコープ）、対象プロジェクトの管理者（自プロジェクトのスコープ）</span></td><td>担当範囲（<span class="rev-old">部署/</span>プロジェクト/全社）の受講率・合格率・未受講者の確認。AI組織レポートの表示</td></tr>
       <tr><td>S-09</td><td>個人学習レポート</td><td><code>/reports/:userId</code></td><td>本人, <span class="rev-old"><span class="badge badge-manager">manager</span> <span class="badge badge-admin">admin</span></span><span class="rev-new">対象者が所属するプロジェクトの管理者, <span class="badge badge-admin">admin</span></span></td><td>AIによる個人フィードバック（理解不足点・推奨教材）と学習履歴の表示</td></tr>
       <tr><td>S-10</td><td>管理</td><td><code>/admin/settings</code></td><td><span class="badge badge-admin">admin</span></td><td>タブ構成: 「ユーザー管理」（ロール変更・有効/無効）、「システム設定」（AI利用設定・Slack通知・猶予期間）</td></tr>
       <tr class="rev-row"><td>S-11</td><td>プロジェクト作成</td><td><code>/projects/new</code></td><td>全員</td><td>プロジェクト名・説明を入力して新規作成する。作成者は自動的にそのプロジェクトの管理者になる（F-24）</td></tr>
       <tr class="rev-row"><td>S-12</td><td>プロジェクト管理</td><td><code>/projects/:projectId/manage</code></td><td>対象プロジェクトの管理者、<span class="badge badge-admin">admin</span></td><td>プロジェクト情報の編集、メンバーの<span class="rev-old">追加</span><span class="rev-new">招待</span>・削除・ロール設定、プロジェクトに紐づく教材の他プロジェクトへの共有<span class="rev-new">申請</span>設定（F-24〜F-26）。<span class="rev-new">自プロジェクト宛ての共有リクエストの確認・承認・却下も行う</span></td></tr>
-      <tr class="rev-row"><td>S-13</td><td>教材編集：プロジェクト選択</td><td><code>/materials/edit-projects</code></td><td>全員</td><td>「教材編集」ナビの入口。編集する教材が属するプロジェクトをカードから選ぶ。全社員が「全社公開」の編集者を自動的に持つため常時表示される（v1.9）</td></tr>
+      <tr class="rev-row"><td>S-13</td><td>教材編集：プロジェクト選択</td><td><code>/materials/edit-projects</code></td><td>全員</td><td>「教材編集」ナビの入口。編集する教材が属するプロジェクトをカードから選ぶ。全社員が「全社Wiki」の編集者を自動的に持つため常時表示される（v1.9）</td></tr>
       <tr class="rev-row"><td>S-14</td><td>教材編集：教材一覧</td><td><code>/projects/:projectId/materials/edit</code></td><td>対象プロジェクトの編集者・管理者、<span class="badge badge-admin">admin</span></td><td>選んだプロジェクトの教材一覧（下書きを含む）。「＋新規教材を作成」「複製」「編集する」の起点。S-03と異なり公開済みでない教材も表示する<span class="rev-new">。「状態」絞り込みに「アーカイブ済み」を選ぶと、既定では非表示のアーカイブ済み教材（F-30）を表示し、「復元」できる</span></td></tr>
       <tr class="rev-row"><td>S-15</td><td>プロフィール編集</td><td><code>/profile</code></td><td>全員</td><td><span class="rev-old">アイコン画像の設定、氏名・メールアドレス（Googleアカウント連動、参照のみ）の確認、</span><span class="rev-new">表示名・アイコン画像の変更（v1.22。4.14a節）、メールアドレス（Googleアカウント連動、参照のみ）の確認、</span>所属プロジェクト一覧の確認。<span class="rev-new">自分宛てのプロジェクト招待（F-24）の一覧確認・承諾・辞退</span></td></tr>
       <tr class="rev-row"><td>S-16</td><td>教材受講：ページ</td><td><code>/materials/:materialId/pages/:nodeId</code></td><td>対象者（全員）</td><td>1ページ分の説明文の閲覧、単一選択・複数選択・<span class="rev-new">並び替え・</span>記述式・コード記述式<span class="rev-new">・スコア記録</span>問題への回答。ページは説明のみ／問題のみ／両方のいずれもあり得る。S-04（目次）から遷移する（v1.11新設）。<span class="rev-new">設問ごとの回答必須／任意（<code>required</code>）、ドボン問題（<code>is_critical</code>）の明示、出題プール（<code>quiz_mode='pool'</code>）からのランダム出題に対応。受験後アンケート（任意設置時）をここで表示することもある（v1.17）</span></td></tr>
@@ -80,7 +80,7 @@
 
       <rect x="200" y="220" width="130" height="56" rx="8" fill="#fafbfc" stroke="#8a8f98" stroke-width="1.5"/>
       <text x="265" y="243" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1a1d21">S-06 配信設定</text>
-      <text x="265" y="261" text-anchor="middle" font-size="10.5" fill="#60656d">adminのみ</text>
+      <text x="265" y="261" text-anchor="middle" font-size="10.5" fill="#60656d">全員（編集可否は管理者のみ）</text>
 
       <!-- v1.2: S-07 組織管理は要件定義書v1.5対応で廃止（部署の概念を廃止） -->
 
@@ -138,7 +138,7 @@
   </div>
 
   <div class="callout">
-    <strong>共通レイアウト:</strong> 左サイドバー（メニュー: マイ学習、教材一覧・検索、教材編集[<span class="rev-old">オーナー・共同編集者、またはプロジェクトの管理者・編集者</span><span class="rev-new">プロジェクトの管理者・編集者</span>を持つ教材がある場合のみ表示]、プロジェクト作成[全員に常時表示]、個人学習レポート／管理者メニュー: プロジェクト管理[自分が管理者であるプロジェクトがある場合のみ表示]、受講状況ダッシュボード、配信設定、<span class="rev-old">組織管理、</span>管理[adminのみ表示]）＋ ヘッダー（システム名、ユーザー名/アバター/ロールバッジ、ログアウト）。<span class="rev-new">組織管理（S-07）はv1.5で廃止した。</span>認証ガードは <code>frontend/src/App.tsx</code> で行い、未認証時は S-01 へ、権限外パスへのアクセス時は S-02 へ誘導する。フォーム部品はKeirekiと同様に自作の共通UIコンポーネント（<code>frontend/src/components/ui/</code>）に統一する。
+    <strong>共通レイアウト:</strong> 左サイドバー（メニュー: マイ学習、教材一覧・検索、教材編集[<span class="rev-old">オーナー・共同編集者、またはプロジェクトの管理者・編集者</span><span class="rev-new">プロジェクトの管理者・編集者</span>を持つ教材がある場合のみ表示]、プロジェクト作成[全員に常時表示]、個人学習レポート、<span class="rev-new">配信設定[プロジェクト・教材の有無や管理者かどうかによらず全員に常時表示。v1.42でこの位置に移動]</span>／管理者メニュー: プロジェクト管理[自分が管理者であるプロジェクトがある場合のみ表示]、受講状況ダッシュボード、<span class="rev-old">配信設定、</span><span class="rev-old">組織管理、</span>管理[adminのみ表示]）＋ ヘッダー（システム名、ユーザー名/アバター/ロールバッジ、ログアウト）。<span class="rev-new">組織管理（S-07）はv1.5で廃止した。</span>認証ガードは <code>frontend/src/App.tsx</code> で行い、未認証時は S-01 へ、権限外パスへのアクセス時は S-02 へ誘導する。フォーム部品はKeirekiと同様に自作の共通UIコンポーネント（<code>frontend/src/components/ui/</code>）に統一する。
   </div>
 
   <p>各画面の具体的なレイアウト・UI項目は画面モックアップ「<a href="../03_画面モックアップ/index.html">03_画面モックアップ/</a>」を参照のこと。以下では各画面の設計概要のみ記す。</p>
@@ -221,10 +221,11 @@
 
   <h3>4.8 S-06 配信設定</h3>
   <ul>
+    <li><strong>サイドバー表示:</strong> <span class="rev-new">「配信設定」は他の画面と同じ通常のメニューに常設し、admin・プロジェクト管理者に限らず全社員に表示する（プロジェクト・教材を1つも持たない一般社員にも表示）。管理できる教材が1件も無い場合は、一覧を0件にして「配信設定できる教材がありません」と画面側で案内する（v1.42）。</span></li>
     <li><strong>一覧テーブル:</strong> 教材／配信対象（<span class="rev-old">部署・</span>プロジェクト・個人名を要約表示）／区分（必修/任意）／期限／状態（公開中/下書き）／操作。検索・状態フィルタを備える。</li>
-    <li><strong>編集パネル:</strong> 配信対象（全社/<span class="rev-old">部署/</span>プロジェクト/個人。複数選択可）、必修・任意の切替（任意選択時は期限入力を無効化）、対象者プレビュー人数表示。<span class="rev-new">全社を選択した場合、管理者以外は「任意公開」のみ選択可能で「必修配信」はグレーアウトして選べないようにする（理由をツールチップで表示）。</span></li>
+    <li><strong>編集パネル:</strong> <span class="rev-old">配信対象（全社/部署/プロジェクト/個人。複数選択可）、必修・任意の切替（任意選択時は期限入力を無効化）、対象者プレビュー人数表示。全社を選択した場合、管理者以外は「任意公開」のみ選択可能で「必修配信」はグレーアウトして選べないようにする（理由をツールチップで表示）。</span><span class="rev-new">配信対象（プロジェクト全体。教材自身が所属するプロジェクトに固定表示、選択不可）、個人を追加指定（任意。候補は教材自身のプロジェクトの現役メンバーのみ）、必修・任意の切替（任意選択時は期限入力を無効化）、対象者プレビュー人数表示。教材が全社Wiki（<code>is_company_wide=true</code>）に属する場合、役割・adminを問わず「必修」を選択不可（グレーアウト＋ツールチップ「全社Wikiの教材は必修にできません」）。</span></li>
     <li><strong>操作:</strong> A-37（特定教材の配信設定取得）、A-38（配信設定の更新）。</li>
-    <li><strong>アクセス制御:</strong> <span class="rev-old">admin のみ。admin（全社スコープの配信対象を設定可能）、対象プロジェクトの管理者（自プロジェクトをスコープとする配信対象のみ設定可能）。</span><span class="rev-new">admin（全スコープを設定可能）、対象プロジェクトの管理者（自プロジェクトをスコープとする配信対象、および自分の教材の全社任意公開を設定可能。全社必修配信はadmin限定。5.9節）。</span></li>
+    <li><strong>アクセス制御:</strong> <span class="rev-old">admin のみ。admin（全社スコープの配信対象を設定可能）、対象プロジェクトの管理者（自プロジェクトをスコープとする配信対象のみ設定可能）。</span><span class="rev-old">admin（全スコープを設定可能）、対象プロジェクトの管理者（自プロジェクトをスコープとする配信対象、および自分の教材の全社任意公開を設定可能。全社必修配信はadmin限定。5.9節）。</span><span class="rev-new">画面自体は全員に表示するが、実際に配信設定を編集できるのはadmin（全教材が対象）、対象教材が紐づくプロジェクトの管理者（自プロジェクトに属する教材のみ）。「全社」スコープの廃止に伴い、権限分岐は「対象教材のプロジェクト管理者かどうか」の1軸のみになった（v1.42、5.9節）。</span></li>
   </ul>
 
   <h3 class="rev-row">4.9 <span class="rev-old">S-07 組織管理</span></h3>
@@ -281,7 +282,7 @@
   <!-- ============ 5. 機能設計 ============ -->
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）基本設計書 v1.36</span>
+    <span>社内学習管理システム（Manabi）基本設計書 v1.37</span>
     <span>コガソフトウェア株式会社 / 2026-08-24</span>
   </footer>
 

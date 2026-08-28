@@ -87,6 +87,10 @@
         <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg></span>
         プロジェクト管理
       </a>
+      <a class="nav-item" href="S-06_assignment-settings.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></span>
+        配信設定
+      </a>
     </nav>
     <div class="sidebar-user">
       <div class="sidebar-user-row">
@@ -141,6 +145,7 @@
     <div class="page-body">
 
       <p class="tab-note">※ この画面には対象教材が紐づくプロジェクトの管理者・編集者（3.5節）、または admin がアクセスできます。教材は必ずいずれかのプロジェクトに属するため（F-25）、アクセス可否・編集権限は常にプロジェクトのローカルロールのみで判定されます。個人所有の教材（オーナー・共同編集者モデル）はv1.5で廃止されました。</p>
+      <p class="tab-note">※ ヘッダー右上のボタンは教材の状態で一部入れ替わる（F-30）。公開中はここに示す「アーカイブ」を表示し、下書きのときは代わりに「削除」（完全な物理削除、元に戻せない）を表示、アーカイブ済みのときは「アーカイブ」の位置に「復元」を表示する。「公開する」も下書きのときのみ表示する。</p>
 
       <!-- タブ -->
       <div class="tabs" role="tablist">
@@ -162,7 +167,7 @@
           <div class="field">
             <label>所属プロジェクト</label>
             <div style="display:flex;align-items:center;height:36px;padding:0 10px;background:var(--bg-subtle);border:1px solid var(--border);border-radius:6px;color:var(--text-muted)">LCC CRM刷新</div>
-            <span class="field-help">教材の編集権限を持つ単位です。変更不可（プロジェクト間で教材を使えるようにしたい場合はF-26の共有機能を使う）。未選択で新規作成した場合は「全社公開」が既定で選ばれます。</span>
+            <span class="field-help">教材の編集権限を持つ単位です。変更不可（プロジェクト間で教材を使えるようにしたい場合はF-26の共有機能を使う）。未選択で新規作成した場合は「全社Wiki」が既定で選ばれます。</span>
           </div>
           <div class="field">
             <label>タグ</label>

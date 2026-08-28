@@ -14,7 +14,7 @@
 
   <h2 id="sec11">11. 処理シーケンス</h2>
 
-  <h3>11.1 初回ログイン〜「全社公開」プロジェクトへの自動参加（S-01 → S-02）</h3>
+  <h3>11.1 初回ログイン〜「全社Wiki」プロジェクトへの自動参加（S-01 → S-02）</h3>
   <ol>
     <li>【ブラウザ】未認証で<code>/</code>にアクセス → App.tsxがA-04を呼ぶ → 401 → <code>/login</code>（S-01）へリダイレクト</li>
     <li>【ブラウザ】「Googleでログイン」押下 → A-01へ遷移 → Google認証・同意 → A-02へコールバック</li>
@@ -22,12 +22,12 @@
     <li>【backend】同一トランザクションで、<code>is_company_wide=true</code>のプロジェクトIDに対するT-04 project_memberships行を<code>role='editor', status='active', joined_at=now()</code>で作成（4.1節・基本設計書5.25節）</li>
     <li>【backend】JWT発行（<code>token_type='session'</code>）→ HttpOnly Cookieに設定 → 構造化ログ<code>event=login</code>（<code>is_new=true</code>）記録 → 302で<code>/</code>へ</li>
     <li>【ブラウザ】App.tsxが再度A-04を呼び200を取得 → S-02（マイ学習）を表示。A-39を呼ぶが、まだ配信設定（assignments）が無いため一覧は空</li>
-    <li>【ブラウザ】サイドバーの「教材編集」メニューを押下 → S-13（プロジェクト選択）に「全社公開」カードが表示されていることを確認できる（editorとして自動参加済みのため）</li>
+    <li>【ブラウザ】サイドバーの「教材編集」メニューを押下 → S-13（プロジェクト選択）に「全社Wiki」カードが表示されていることを確認できる（editorとして自動参加済みのため）</li>
   </ol>
 
   <h3>11.2 教材新規作成〜Claude Codeでの往復編集（F-05, S-14 → S-05 → Claude Code）</h3>
   <ol>
-    <li>【ブラウザ】S-14「＋新規教材を作成」押下 → A-16（<code>project_id</code>省略。「全社公開」が既定補完）→ 201、下書き教材IDを取得 → S-05へ遷移</li>
+    <li>【ブラウザ】S-14「＋新規教材を作成」押下 → A-16（<code>project_id</code>省略。「全社Wiki」が既定補完）→ 201、下書き教材IDを取得 → S-05へ遷移</li>
     <li>【ブラウザ】S-05目次編集タブでタイトルのみ入力し「下書き保存」→ A-17でtitleを更新</li>
     <li>【利用者端末】Claude Codeで<code>Manabi materials get {id}</code>相当のCLIコマンドを実行 → CLIヘルパーが保存済みのCLIトークン（7.1節）でA-19（GET /source）を呼ぶ → フロントマター＋空の本文（目次未作成のためタイトルのみ）を<code>text/plain</code>で取得</li>
     <li>【利用者】ローカルでMarkdownファイルとして章・小見出し・ページ・問題を執筆（基本設計書8.3節のスキーマに従う）</li>
@@ -90,7 +90,7 @@
 
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）詳細設計書 v1.41</span>
+    <span>社内学習管理システム（Manabi）詳細設計書 v1.43</span>
     <span>コガソフトウェア株式会社 / 2026-08-24</span>
   </footer>
 

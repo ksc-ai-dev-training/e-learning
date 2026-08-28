@@ -59,11 +59,11 @@ async def require_project_role(project_id: int, min_role: str):
   <p><code>status != 'active'</code>（招待中<code>invited</code>・辞退<code>declined</code>）のメンバーはロールを問わず不許可となる。<code>left_at IS NOT NULL</code>（削除済み）の行はそもそも<code>status</code>を条件に含めても除外されない可能性があるため、実装上は<code>WHERE ... AND status = 'active' AND left_at IS NULL</code>とする（削除時に<code>status</code>は変更しないため。4.2節A-13参照）。</p>
 
   <div class="callout">
-    <strong>実装との対応（S-05着手分）:</strong> 本節の<code>require_project_role</code>・5.1節の<code>require_material_editor</code>は、実装では<code>backend/auth_helpers.py</code>の<code>check_project_role(user, project_id, min_role)</code>（本文だけの判定関数）と、それを使う<code>require_project_role(min_role)</code>／<code>require_material_role(min_role)</code>という2つのFastAPI依存性ファクトリに分かれている。<code>require_material_role</code>は教材IDパスパラメータから<code>project_id</code>を引いて<code>check_project_role</code>に委譲する点は本節の設計通りだが、加えて<strong>全社公開プロジェクトの下書き制限</strong>（<code>is_company_wide_draft_restricted</code>）も行う：教材が<code>status='draft'</code>かつ所属プロジェクトが<code>is_company_wide=true</code>の場合、作成者本人・そのプロジェクトの管理者・システムadmin以外は403にする。全社公開は全社員が自動でeditorになる特殊プロジェクトのため、下書きが他メンバーに意図せず見られてしまう問題があり追加した（教材保存時のフィードバックを受けて2026-08-27追加）。A-21（教材一覧）も同じ条件で一覧から除外する。全社公開以外の（招待制の）プロジェクトはメンバーが元々限定されているため、この追加制限は適用しない。
+    <strong>実装との対応（S-05着手分）:</strong> 本節の<code>require_project_role</code>・5.1節の<code>require_material_editor</code>は、実装では<code>backend/auth_helpers.py</code>の<code>check_project_role(user, project_id, min_role)</code>（本文だけの判定関数）と、それを使う<code>require_project_role(min_role)</code>／<code>require_material_role(min_role)</code>という2つのFastAPI依存性ファクトリに分かれている。<code>require_material_role</code>は教材IDパスパラメータから<code>project_id</code>を引いて<code>check_project_role</code>に委譲する点は本節の設計通りだが、加えて<strong>全社Wikiプロジェクトの下書き制限</strong>（<code>is_company_wide_draft_restricted</code>）も行う：教材が<code>status='draft'</code>かつ所属プロジェクトが<code>is_company_wide=true</code>の場合、作成者本人・そのプロジェクトの管理者・システムadmin以外は403にする。全社Wikiは全社員が自動でeditorになる特殊プロジェクトのため、下書きが他メンバーに意図せず見られてしまう問題があり追加した（教材保存時のフィードバックを受けて2026-08-27追加）。A-21（教材一覧）も同じ条件で一覧から除外する。全社Wiki以外の（招待制の）プロジェクトはメンバーが元々限定されているため、この追加制限は適用しない。
   </div>
 
   <h3>5.3 require_material_access の実装（受講対象者判定）</h3>
-  <p>基本設計書7.3節が定める「対象教材の受講対象者」のOR条件を1つの依存関数に集約する。個々のルーターが判定ロジックを重複実装しないようにするための共通化である。</p>
+  <p>基本設計書7.3節が定める「対象教材の受講対象者」のOR条件を1つの依存関数に集約する。個々のルーターが判定ロジックを重複実装しないようにするための共通化である。<strong>2条件（当初3条件から簡素化。2026-08-28）:</strong> F-26（教材共有、基本設計書5.27節）を「共有先には権限だけを付与する参照共有モデル」から「承認時に共有先プロジェクトへ教材の複製を新規作成する複製モデル」に変更したことに伴い、複製後の教材は共有先プロジェクト自身の<code>project_id</code>を持つ独立レコードになるため、共有先メンバーは条件1（プロジェクトの現役メンバー）だけで自然にアクセスでき、専用の「条件3: 共有先メンバーシップ」は不要になった。</p>
   <pre><code>async def require_material_access(material_id: int):
     async def checker(request: Request) -&gt; User:
         user = await require_auth(request)
@@ -84,19 +84,13 @@ async def require_project_role(project_id: int, min_role: str):
             material_id, user.id)
         if is_individual_target:
             return user
-        # 条件3: status='accepted' で共有された先のプロジェクトの現役メンバー
-        shared_project_ids = await conn.fetch(
-            """SELECT shared_to_project_id FROM material_project_shares
-                WHERE material_id = $1 AND status = 'accepted'""",
-            material_id)
-        for row in shared_project_ids:
-            if await has_active_project_role(
-                    row["shared_to_project_id"], user.id, min_role="learner"):
-                return user
         raise HTTPException(403, detail="この教材の受講対象ではありません")
     return checker</code></pre>
   <div class="callout">
-    <strong>なぜ3条件のORが必要か:</strong> プロジェクトのローカルロール（5.2節）だけでは、プロジェクトのメンバーでない社員を個人指定で受講対象に加える配信設定（F-09）を表現できない。また教材のプロジェクト間共有（F-26）も、共有先プロジェクトのメンバーという別経路でのアクセスを許可する必要がある。この3条件は「教材が紐づく1つのプロジェクトのメンバーであること」を必須としない設計であり、必ずどれか1つを満たせばよい。
+    <strong>なぜ2条件のORが必要か:</strong> プロジェクトのローカルロール（5.2節）だけでは、プロジェクトのメンバーでない社員を個人指定で受講対象に加える配信設定（F-09）を表現できない。この2条件は「教材が紐づく1つのプロジェクトのメンバーであること」を必須としない設計であり、必ずどちらか1つを満たせばよい。教材のプロジェクト間共有（F-26）は、共有先プロジェクトへ教材そのものの複製を作る方式（複製モデル）のため、この判定関数に共有専用の条件を追加する必要はない（共有先の複製は、その複製自身のproject_idに対する条件1で自然にアクセスできる）。
+  </div>
+  <div class="callout">
+    <strong>実装上の注意（F-26着手時）:</strong> F-26実装前の設計検討過程では「共有先プロジェクトのメンバーである」という条件3の追加が一時的に構想されていた（`material_project_shares`テーブルを参照する版）。この構想は複製モデルの採用により不要になったため、F-26に着手する際は本節の2条件版を正とし、既存コードのコメント等に「条件3を追加する」という古い記述が残っていても従わないこと（基本設計書5.27節「参照共有モデルから複製モデルへ変更した理由」を参照）。
   </div>
 
   <h3>5.4 「対象者が所属するプロジェクトの管理者」判定</h3>
@@ -139,7 +133,7 @@ async def require_project_role(project_id: int, min_role: str):
   <p><code>frontend/src/App.tsx</code>でA-04（<code>/api/auth/me</code>）の結果とS-11「自分が参加しているプロジェクト」の集計に基づきルート・メニュー表示を制御する。権限の正はサーバー側検証（5.1〜5.5節）であり、以下はUX目的の表示制御に過ぎない。</p>
   <ul>
     <li>未認証（A-04が401）→ S-01（<code>/login</code>）へリダイレクト</li>
-    <li>「教材編集」メニュー: 常時表示（全社員が「全社公開」プロジェクトの編集者を自動的に持つため、実質的に誰でもS-13へ進める。基本設計書4.2節）</li>
+    <li>「教材編集」メニュー: 常時表示（全社員が「全社Wiki」プロジェクトの編集者を自動的に持つため、実質的に誰でもS-13へ進める。基本設計書4.2節）</li>
     <li>「プロジェクト管理」メニュー（S-12への導線）: 自分が管理者であるプロジェクトが1件以上ある場合のみ表示</li>
     <li>「受講状況ダッシュボード」（S-08）・「配信設定」（S-06）メニュー: adminは常時表示。member はプロジェクト管理者であるプロジェクトが1件以上ある場合のみ表示（自プロジェクト範囲）</li>
     <li>「管理」メニュー（S-10）: adminのみ表示</li>
@@ -151,7 +145,7 @@ async def require_project_role(project_id: int, min_role: str):
 
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）詳細設計書 v1.41</span>
+    <span>社内学習管理システム（Manabi）詳細設計書 v1.43</span>
     <span>コガソフトウェア株式会社 / 2026-08-24</span>
   </footer>
 

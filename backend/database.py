@@ -166,12 +166,15 @@ CREATE INDEX IF NOT EXISTS idx_questions_pool_group_id ON questions (pool_group_
 ALTER TABLE questions ENABLE ROW LEVEL SECURITY;
 
 -- T-11 assignments（配信設定）。S-06（配信設定画面、A-36〜A-38）は本書の時点では未実装だが、
--- S-03「区分」バッジ・「未受講のみ」等のフィルタが参照する土台としてテーブルのみ先行して用意する
+-- S-03「区分」バッジ・「未受講のみ」等のフィルタが参照する土台としてテーブルのみ先行して用意する。
+-- scope_typeは当初'company'/'project'/'individual'の3種だったが、'company'（全社スコープ）はプロジェクト
+-- 管理者が実質的な全社必修を作れてしまう抜け道があったため2026-08-28に廃止し、'project'/'individual'の
+-- 2種に簡素化した（プロジェクトスコープは常にmaterials.project_idと同値に固定。基本設計書5.9節参照）。
 CREATE TABLE IF NOT EXISTS assignments (
     id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     material_id     BIGINT NOT NULL REFERENCES materials(id) ON DELETE CASCADE,
-    scope_type      TEXT NOT NULL CHECK (scope_type IN ('company', 'project', 'individual')),
-    scope_id        BIGINT,
+    scope_type      TEXT NOT NULL CHECK (scope_type IN ('project', 'individual')),
+    scope_id        BIGINT NOT NULL,
     required        BOOLEAN NOT NULL DEFAULT true,
     due_at          TIMESTAMPTZ,
     pass_score_pct  NUMERIC(5, 2),

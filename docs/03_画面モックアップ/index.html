@@ -176,7 +176,7 @@
       <div class="card-roles">
         <span class="badge">全員</span>
       </div>
-      <p class="card-desc">「教材編集」ナビの入口。編集する教材が属するプロジェクトを選ぶ。全社員が「全社公開」の編集者を自動的に持つため（5.25節）、このメニューは常に表示される。v1.9新設。</p>
+      <p class="card-desc">「教材編集」ナビの入口。編集する教材が属するプロジェクトを選ぶ。全社員が「全社Wiki」の編集者を自動的に持つため（5.25節）、このメニューは常に表示される。v1.9新設。</p>
     </a>
 
     <a class="mock-card" href="S-14_material-edit-list.html">
@@ -330,7 +330,7 @@
           <div class="flow-id">S-17</div>
           <div class="flow-name">教材編集：ページ編集</div>
         </div>
-        <div class="flow-branch-note">← サイドバーの「教材編集」から遷移。全社員が「全社公開」の編集者を自動的に持つため常時表示（v1.9）。S-05は目次（章・小見出し・ページ）を編集する画面で、各ページの「編集する」からS-17（説明文・問題の編集）に入ります（v1.11）</div>
+        <div class="flow-branch-note">← サイドバーの「教材編集」から遷移。全社員が「全社Wiki」の編集者を自動的に持つため常時表示（v1.9）。S-05は目次（章・小見出し・ページ）を編集する画面で、各ページの「編集する」からS-17（説明文・問題の編集）に入ります（v1.11）</div>
       </div>
 
       <div class="flow-branch">
@@ -390,11 +390,11 @@
           <div class="flow-id">S-10</div>
           <div class="flow-name">管理</div>
         </div>
-        <div class="flow-branch-note">← サイドバーの管理者メニューから遷移（adminのみ表示。S-07組織管理はv1.5で廃止）</div>
+        <div class="flow-branch-note">← S-08・S-10はサイドバーの管理者メニューから遷移（S-10「管理」はadminのみ表示。S-07組織管理はv1.5で廃止）</div>
       </div>
 
       <div class="flow-branch">
-        <div class="flow-branch-note">※ S-08（受講状況ダッシュボード）・S-06（配信設定）は、システム全体のロールによらず、対象プロジェクトの管理者〔ローカルロール〕であれば自プロジェクト分がメニュー表示されます（adminは全社分）</div>
+        <div class="flow-branch-note">※ S-06（配信設定）は管理者メニューではなく通常のメニューに常設し、システム全体のロールによらず全社員に表示する（管理できる教材が1件も無い場合は画面側で案内。6.1節）。S-08（受講状況ダッシュボード）は引き続き対象プロジェクトの管理者〔ローカルロール〕であれば自プロジェクト分がメニュー表示され（adminは全社分）、S-10「管理」はadmin限定</div>
       </div>
 
       <div class="flow-branch">

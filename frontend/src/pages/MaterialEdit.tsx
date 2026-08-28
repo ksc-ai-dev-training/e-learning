@@ -452,7 +452,7 @@ export default function MaterialEdit() {
   if (!isNew && materialError) {
     const message =
       materialError instanceof ApiError && materialError.status === 403
-        ? 'この教材を閲覧できません。全社公開プロジェクトの下書きは作成者とプロジェクト管理者のみ閲覧できます。'
+        ? 'この教材を閲覧できません。全社Wikiプロジェクトの下書きは作成者とプロジェクト管理者のみ閲覧できます。'
         : '教材を取得できませんでした。'
     return (
       <div className="flex flex-1 flex-col">
@@ -467,9 +467,62 @@ export default function MaterialEdit() {
     )
   }
 
+  const headerActions = (
+    <>
+      <Button variant="primary" onClick={saveDraft} disabled={saving}>
+        下書き保存
+      </Button>
+      {savedId !== null && material?.status === 'draft' && (
+        <Button
+          variant="secondary"
+          onClick={doPublish}
+          disabled={publishing || dirty}
+          title={dirty ? '保存していない変更があります。先に「下書き保存」を押してください' : undefined}
+        >
+          {publishing ? '公開中...' : '公開する'}
+        </Button>
+      )}
+      {savedId !== null && (
+        <Button
+          variant="secondary"
+          onClick={duplicateMaterial}
+          disabled={duplicating || dirty}
+          title={dirty ? '保存していない変更があります。先に「下書き保存」を押してください' : undefined}
+        >
+          {duplicating ? '複製中...' : '複製'}
+        </Button>
+      )}
+      {savedId !== null && material?.is_archived && (
+        <Button variant="secondary" onClick={doRestore} disabled={archiving}>
+          {archiving ? '復元中...' : '復元'}
+        </Button>
+      )}
+      {savedId !== null && !material?.is_archived && material?.status === 'published' && (
+        <Button
+          variant="danger-ghost"
+          onClick={() => setArchiveModalOpen(true)}
+          disabled={archiving}
+          title="教材一覧・検索から非表示にします（データは削除されず、いつでも復元できます）"
+        >
+          アーカイブ
+        </Button>
+      )}
+      {savedId !== null && material?.status === 'draft' && (
+        <Button
+          variant="danger-ghost"
+          onClick={() => setDeleteModalOpen(true)}
+          disabled={deleting}
+          title="この教材を完全に削除します（元に戻せません）"
+        >
+          削除
+        </Button>
+      )}
+    </>
+  )
+
   return (
     <div className="flex flex-1 flex-col">
-      <PageHeader title={`教材編集${title ? ` — ${title}` : ''}`} />
+      <PageHeader title={`教材編集${title ? ` — ${title}` : ''}`} actions={headerActions} />
       <div className="px-8 py-6">
         <p className="mb-4 flex flex-wrap items-center gap-1.5 text-[11.5px] text-slate-400">
           <Link to="/materials/edit-projects" className="text-blue-800 hover:underline">
@@ -699,61 +752,6 @@ export default function MaterialEdit() {
             )}
           </div>
         </section>
-
-        <div className="mb-6">
-          <Button variant="primary" onClick={saveDraft} disabled={saving}>
-            下書き保存
-          </Button>
-          {savedId !== null && material?.status === 'draft' && (
-            <Button
-              variant="secondary"
-              className="ml-2"
-              onClick={doPublish}
-              disabled={publishing || dirty}
-              title={dirty ? '保存していない変更があります。先に「下書き保存」を押してください' : undefined}
-            >
-              {publishing ? '公開中...' : '公開する'}
-            </Button>
-          )}
-          {savedId !== null && (
-            <Button
-              variant="secondary"
-              className="ml-2"
-              onClick={duplicateMaterial}
-              disabled={duplicating || dirty}
-              title={dirty ? '保存していない変更があります。先に「下書き保存」を押してください' : undefined}
-            >
-              {duplicating ? '複製中...' : '複製'}
-            </Button>
-          )}
-          {savedId !== null && material?.is_archived && (
-            <Button variant="secondary" className="ml-2" onClick={doRestore} disabled={archiving}>
-              {archiving ? '復元中...' : '復元'}
-            </Button>
-          )}
-          {savedId !== null && !material?.is_archived && material?.status === 'published' && (
-            <Button
-              variant="danger-ghost"
-              className="ml-2"
-              onClick={() => setArchiveModalOpen(true)}
-              disabled={archiving}
-              title="教材一覧・検索から非表示にします（データは削除されず、いつでも復元できます）"
-            >
-              アーカイブ
-            </Button>
-          )}
-          {savedId !== null && material?.status === 'draft' && (
-            <Button
-              variant="danger-ghost"
-              className="ml-2"
-              onClick={() => setDeleteModalOpen(true)}
-              disabled={deleting}
-              title="この教材を完全に削除します（元に戻せません）"
-            >
-              削除
-            </Button>
-          )}
-        </div>
 
         {archiveModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">

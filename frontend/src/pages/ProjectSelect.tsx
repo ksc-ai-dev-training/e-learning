@@ -16,7 +16,7 @@ export default function ProjectSelect() {
       <PageHeader title="教材編集" />
       <div className="px-8 py-6">
         <p className="mb-4 text-[11.5px] text-slate-400">
-          編集する教材が属するプロジェクトを選ぶ。全社員が「全社公開」の編集者を自動的に持つため、このメニューは常に表示される。
+          編集する教材が属するプロジェクトを選ぶ。全社員が「全社Wiki」の編集者を自動的に持つため、このメニューは常に表示される。
         </p>
 
         <div className="mb-4 flex max-w-xs flex-col gap-1">

@@ -42,7 +42,10 @@ async def search_materials(
     user: CurrentUser = Depends(require_auth),
 ):
     """A-14: 公開教材の一覧・検索（学習者向け、S-03）。status='published'の教材のみを対象とし、
-    下書きは一切含めない（S-14はA-21の別経路）。6.1節のSQLを実装レベルへ落とし込む。
+    下書きは一切含めない（S-14はA-21の別経路）。アーカイブ（F-30）はstatusを変更せずis_archivedフラグの
+    みを立てる仕様のため、is_archived=falseも明示的に条件へ含める（当初この条件が漏れており、
+    アーカイブ済み教材がS-03の一覧に表示され続ける不具合があった。2026-08-28）。6.1節のSQLを
+    実装レベルへ落とし込む。
 
     project_idはmaterials.project_idの一致のみで判定する（F-26のプロジェクト間共有〔T-22
     material_project_shares〕は本書の時点で未実装のため、共有先への表示は対象外。実装時に追加する）。
@@ -55,7 +58,7 @@ async def search_materials(
         raise HTTPException(422, detail="pageは1以上を指定してください")
 
     pool = get_pool()
-    conditions = ["m.status = 'published'"]
+    conditions = ["m.status = 'published'", "m.is_archived = false"]
     params: list = []
 
     def add_param(value) -> str:
