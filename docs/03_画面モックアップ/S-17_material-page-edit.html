@@ -41,6 +41,10 @@
         <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></span>
         教材編集
       </a>
+      <a class="nav-item" href="S-20_grading-queue.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></span>
+        採点
+      </a>
       <a class="nav-item" href="S-09_my-report.html">
         <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
         個人学習レポート
@@ -92,15 +96,9 @@
 
     <div class="page-body">
 
-      <div class="field-row">
-        <div class="field">
-          <label>ページタイトル</label>
-          <input type="text" value="ブランチを作成する">
-        </div>
-        <div class="field">
-          <label>概要（一覧表示用）</label>
-          <input type="text" value="作業ブランチの作成から命名規則までを学びます">
-        </div>
+      <div class="field" style="max-width:420px">
+        <label>ページタイトル</label>
+        <input type="text" value="ブランチを作成する">
       </div>
 
       <div class="field">
@@ -206,7 +204,7 @@ git checkout -b feature/add-login
         <div class="edit-card-head">
           <span class="edit-card-title">設問1（単一選択）</span>
           <div style="display:flex;gap:6px">
-            <a class="btn btn-secondary btn-sm" href="S-19_question-answers.html">回答一覧</a>
+            <a class="btn btn-secondary btn-sm" href="S-19_question-answers.html">回答傾向を見る</a>
             <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
           </div>
         </div>
@@ -256,7 +254,7 @@ git checkout -b feature/add-login
         <div class="edit-card-head">
           <span class="edit-card-title">設問2（記述式）<span class="bomb-tag" style="display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;color:#991b1b;background:#fee2e2;border-radius:999px;padding:1px 8px;margin-left:6px">⚠ ドボン</span></span>
           <div style="display:flex;gap:6px">
-            <a class="btn btn-secondary btn-sm" href="S-19_question-answers.html">回答一覧</a>
+            <a class="btn btn-secondary btn-sm" href="S-19_question-answers.html">回答傾向を見る</a>
             <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
           </div>
         </div>
@@ -300,7 +298,7 @@ git checkout -b feature/add-login
             <option selected>AI自動採点</option>
             <option>プロジェクト担当者（管理者・編集者）が手動採点</option>
           </select>
-          <span class="field-help">「手動採点」を選ぶと、この設問はAIによる正誤判定を行わずS-19「回答一覧」で担当者が採点します。AIはその結果をF-21のつまずき分析にのみ利用します。</span>
+          <span class="field-help">「手動採点」を選ぶと、この設問はAIによる正誤判定を行わず、サイドバー「採点」（S-20）で担当者が採点します。AIはその結果をF-21のつまずき分析にのみ利用します。</span>
         </div>
         <div class="field" id="q2-feedback-style" style="margin-bottom:0">
           <label>AI講評のスタイル</label>
@@ -318,7 +316,7 @@ git checkout -b feature/add-login
         <div class="edit-card-head">
           <span class="edit-card-title">設問3（並び替え）</span>
           <div style="display:flex;gap:6px">
-            <a class="btn btn-secondary btn-sm" href="S-19_question-answers.html">回答一覧</a>
+            <a class="btn btn-secondary btn-sm" href="S-19_question-answers.html">回答傾向を見る</a>
             <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
           </div>
         </div>
@@ -352,7 +350,7 @@ git checkout -b feature/add-login
         <div class="edit-card-head">
           <span class="edit-card-title">設問4（スコア記録）</span>
           <div style="display:flex;gap:6px">
-            <a class="btn btn-secondary btn-sm" href="S-19_question-answers.html">回答一覧</a>
+            <a class="btn btn-secondary btn-sm" href="S-19_question-answers.html">回答傾向を見る</a>
             <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
           </div>
         </div>
@@ -384,7 +382,7 @@ git checkout -b feature/add-login
 
       <div class="form-actions" style="margin-top:18px">
         <button class="btn btn-primary" type="button">このページを保存</button>
-        <span class="actions-note">保存すると目次編集画面（S-05）に戻ります。Claude Code連携APIからも同じページ内容を取得・更新できます（往復編集）</span>
+        <span class="actions-note">Claude Code連携APIからも同じページ内容を取得・更新できます（往復編集）</span>
       </div>
 
     </div>
