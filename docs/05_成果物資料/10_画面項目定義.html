@@ -36,17 +36,20 @@
   </table>
 
   <h3>10.3 S-03 教材一覧・検索（<code>/materials</code>）</h3>
+  <div class="callout">
+    <strong>現状の実装範囲:</strong> <strong>実装済み</strong>（2026-08-28。学習者向け画面として初めて実装した画面。プロジェクトタブ・キーワード・タグチップ・区分・未受講のみ・自分が受講対象のみ・表示件数/ページネーションすべて動作する）。この画面の実装にあたり、design上参照していたT-11 <code>assignments</code>（配信設定）・T-12 <code>enrollment_progress</code>（受講進捗）が未作成だったため、テーブルのみ先行して新設した（S-06配信設定・S-16受講画面は本書の時点でも未実装のため、実運用でこれらのテーブルに行が作られる経路が無く、現状は「区分＝常に任意」「未受講のみ表示＝常に全件」相当の結果になる。配線は完成済み）。プロジェクトタブ・「自分が受講対象の教材のみ表示」は、F-26教材のプロジェクト間共有（T-22 <code>material_project_shares</code>）が本書の時点でも未実装のため、共有先経由の判定は対象外とし、5.3節の3条件のうち「プロジェクトの現役メンバー」「個人指定の配信」の2条件のみで判定する（共有経由の条件は未実装。F-26実装時に追加する）。一覧テーブルの「操作」列（受講する等）はS-04が未実装のため常に無効化表示。プロジェクトタブは新設のA-81 <code>min_role</code>クエリ（既定<code>editor</code>、S-03のみ<code>learner</code>を指定）で、学習者としてのみ参加しているプロジェクトも含める。
+  </div>
   <table>
     <thead><tr><th>項目名</th><th>型</th><th>必須</th><th>バリデーション</th><th>対応API</th></tr></thead>
     <tbody>
-      <tr><td>キーワード</td><td>テキスト</td><td>—</td><td>100文字以内。タイトル・概要・見出しを対象</td><td>A-14 クエリ q</td></tr>
-      <tr><td>タグチップ</td><td>タグ選択（複数）</td><td>—</td><td>クリックでAND条件の絞り込み</td><td>A-14 クエリ tags</td></tr>
-      <tr><td>プロジェクトタブ</td><td>タブ</td><td>—</td><td>共有先として含まれる教材も表示（6.1節）</td><td>A-14 クエリ project_id</td></tr>
-      <tr><td>区分</td><td>セレクト</td><td>—</td><td>必修/任意</td><td>A-14 クエリ required</td></tr>
-      <tr><td>未受講のみ表示</td><td>チェックボックス</td><td>—</td><td>ONで自分の未受講教材のみ</td><td>A-14 クエリ incomplete_only</td></tr>
-      <tr><td>自分が受講対象の教材のみ表示</td><td>チェックボックス</td><td>—</td><td>ONで5.3節の3条件を満たす教材のみ</td><td>A-14 クエリ my_assignments_only</td></tr>
-      <tr><td>一覧テーブル</td><td>表示</td><td>—</td><td>タイトル・章数/ページ数・問題種別・タグ・プロジェクト・区分・更新日・操作</td><td>A-14</td></tr>
-      <tr><td>表示件数・ページネーション</td><td>セレクト＋ページャ</td><td>—</td><td>20/50/100件（既定20）</td><td>A-14 クエリ page, per_page</td></tr>
+      <tr><td>キーワード</td><td>テキスト</td><td>—</td><td>100文字以内。タイトル・概要・見出しを対象</td><td>A-14 クエリ q。<strong>実装済み</strong></td></tr>
+      <tr><td>タグチップ</td><td>タグ選択（複数）</td><td>—</td><td>クリックでAND条件の絞り込み。選択肢は公開教材全体から動的に集計する（<code>available_tags</code>）</td><td>A-14 クエリtags。<strong>実装済み</strong></td></tr>
+      <tr><td>プロジェクトタブ</td><td>タブ</td><td>—</td><td>「すべて」＋自分がlearner以上で参加するプロジェクト（全社公開を先頭固定）。<strong>共有先として含まれる教材の表示（6.1節）はF-26未実装のため対象外</strong></td><td>A-14 クエリproject_id、A-81 <code>min_role=learner</code>。<strong>実装済み</strong>（共有分を除く）</td></tr>
+      <tr><td>区分</td><td>セレクト</td><td>—</td><td>必修/任意</td><td>A-14 クエリrequired。<strong>実装済み</strong></td></tr>
+      <tr><td>未受講のみ表示</td><td>チェックボックス</td><td>—</td><td>ONで自分の未受講教材のみ</td><td>A-14 クエリincomplete_only。<strong>実装済み</strong></td></tr>
+      <tr><td>自分が受講対象の教材のみ表示</td><td>チェックボックス</td><td>—</td><td>ONで5.3節の3条件のうちプロジェクトの現役メンバー・個人指定の配信の2条件を満たす教材のみ（共有経由の条件はF-26未実装のため対象外）</td><td>A-14 クエリmy_assignments_only。<strong>実装済み</strong>（一部簡略化）</td></tr>
+      <tr><td>一覧テーブル</td><td>表示</td><td>—</td><td>タイトル・章数/ページ数・問題種別・問題数・タグ・プロジェクト・区分・更新日・操作。「操作」列はS-04未実装のため常に無効化表示（受講状況に応じたラベルは表示する）</td><td>A-14。<strong>実装済み</strong></td></tr>
+      <tr><td>表示件数・ページネーション</td><td>セレクト＋ページャ</td><td>—</td><td>20/50/100件（既定20）</td><td>A-14 クエリpage, per_page。<strong>実装済み</strong></td></tr>
     </tbody>
   </table>
 
@@ -294,7 +297,7 @@
 
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）詳細設計書 v1.38</span>
+    <span>社内学習管理システム（Manabi）詳細設計書 v1.39</span>
     <span>コガソフトウェア株式会社 / 2026-08-24</span>
   </footer>
 
