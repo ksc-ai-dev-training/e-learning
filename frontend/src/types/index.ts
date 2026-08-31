@@ -47,6 +47,8 @@ export interface MaterialSearchItem {
   question_types: QuestionType[]
   required: boolean
   progress_status: EnrollmentStatus
+  // マイ学習への登録有無（F-31）。全社Wiki所属の任意教材の行にのみ登録ボタンを出す判定に使う
+  registered: boolean
   updated_at: string
 }
 
@@ -55,6 +57,41 @@ export interface MaterialSearchResponse {
   items: MaterialSearchItem[]
   total: number
   available_tags: string[]
+}
+
+export type NextAction = 'start' | 'resume' | 'review'
+
+// A-39 GET /api/my-learning のitems（S-02マイ学習、必修・任意・学習履歴で共通）
+export interface MyLearningItem {
+  id: number
+  title: string
+  tags: string[]
+  project_id: number
+  project_name: string
+  is_company_wide: boolean
+  page_count: number
+  required: boolean
+  due_at: string | null
+  progress_status: EnrollmentStatus
+  completed_page_count: number
+  progress_pct: number
+  next_action: NextAction
+  completed_at: string | null
+  updated_at: string | null
+  // 必修/任意一覧（history=false）のみ。学習履歴（history=true）では常にundefined
+  registered?: boolean
+}
+
+// A-39のレスポンス（history=false）
+export interface MyLearningResponse {
+  required: MyLearningItem[]
+  optional: MyLearningItem[]
+  stats: {
+    required_completion_pct: number
+    urgent_required_count: number
+    optional_completed_count: number
+    last_activity_at: string | null
+  }
 }
 
 export type QuestionType = 'single' | 'multi' | 'free_text' | 'code' | 'reorder' | 'score_log'
@@ -210,6 +247,9 @@ export interface Material {
   due_at?: string | null
   progress?: EnrollmentProgress
   page_count?: number
+  // マイ学習登録（F-31）向け。A-15のみが返す（S-02実装時に追加）
+  is_company_wide?: boolean
+  registered?: boolean
 }
 
 export type ProjectRole = 'admin' | 'editor' | 'learner'

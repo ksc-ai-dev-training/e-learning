@@ -17,7 +17,7 @@
   <h3>6.1 A-14 教材一覧・検索</h3>
   <p>実装は<code>routers/materials.py</code>。指定された条件のみをANDで結合する。<code>status='published'</code>かつ<code>is_archived=false</code>の教材のみを対象とし、下書きはS-14（教材編集：教材一覧）側の別クエリで扱う。<strong>実装済み</strong>（2026-08-28、S-03）。<code>is_archived=false</code>条件は当初漏れており、アーカイブ（F-30、statusを変更せずis_archivedのみを立てる仕様）済みの教材が一覧に表示され続ける不具合があったため追加した（2026-08-28）。</p>
   <div class="callout">
-    <strong>実装時の簡略化（F-26未実装のため）:</strong> F-26教材のプロジェクト間共有（T-22 <code>material_project_shares</code>）は本書の時点でも未実装のため、以下の下線部の共有経由の判定は今回対象外とした。<code>project_id</code>は<code>materials.project_id</code>の一致のみ、<code>my_assignments_only</code>は5.3節3条件のうち条件1（プロジェクトの現役メンバー）・条件2（個人指定の配信）の2条件のみで判定する。F-26実装時に、下記SQLのコメント付き行を有効化する形で追加する。
+    <strong>実装時の簡略化（F-26未実装のため）:</strong> F-26教材のプロジェクト間共有（T-22 <code>material_project_shares</code>）は本書の時点でも未実装のため、以下の下線部の共有経由の判定は今回対象外とした。<code>project_id</code>は<code>materials.project_id</code>の一致のみ、<code>my_assignments_only</code>は5.3節の2条件（プロジェクトの現役メンバー・個人指定の配信。2026-08-28にF-26複製モデル採用に伴い3条件から簡素化済み）で判定する。<strong>F-26は複製モデルのため、共有先の教材は複製後に独自の<code>project_id</code>を持つ通常の教材として扱われ、本節の共有経由判定（下記SQLのコメント付き行）は実装対象外となった。</strong>下記の共有経由判定は初期の参照共有モデル検討時の名残であり、F-26着手時に本節ごと見直すこと。
   </div>
   <ul>
     <li><strong>キーワードq:</strong> タイトル（<code>materials.title</code>）／概要（<code>description</code>）／目次の見出し（<code>material_nodes.title</code>）に対する<code>ILIKE '%q%'</code>の部分一致（OR結合）</li>
@@ -25,7 +25,7 @@
     <li><strong>project_id:</strong> 指定時はそのプロジェクトの教材のみ（本来はそのプロジェクトへ<code>status='accepted'</code>で共有された教材も含める仕様だが、F-26未実装のため現状は対象外）</li>
     <li><strong>required:</strong> 指定時、当該教材のassignments行に<code>required</code>が一致する行が1件以上あるかで判定</li>
     <li><strong>incomplete_only:</strong> リクエストユーザーのenrollment_progress（T-12）が<code>status != 'completed'</code>または存在しない教材のみに絞る</li>
-    <li><strong>my_assignments_only:</strong> 5.3節の<code>require_material_access</code>の3条件のうち、条件1（プロジェクトの現役メンバー）・条件2（個人指定の配信）のいずれかを満たす教材のみに絞る（条件3〔共有先メンバーシップ〕はF-26未実装のため対象外）</li>
+    <li><strong>my_assignments_only:</strong> 5.3節の<code>require_material_access</code>の2条件（プロジェクトの現役メンバー・個人指定の配信）のいずれかを満たす教材のみに絞る</li>
   </ul>
   <pre><code>SELECT m.id, m.title, m.description, m.tags, m.project_id, p.name AS project_name,
        (SELECT COUNT(*) FROM material_nodes n WHERE n.material_id = m.id AND n.kind = 'chapter') AS chapter_count,
@@ -49,14 +49,17 @@ ORDER BY m.updated_at DESC
 LIMIT $4 OFFSET $5;</code></pre>
 
   <h3>6.2 A-39 マイ学習の集計ロジック</h3>
-  <p>実装は<code>routers/learning.py</code>。5.3節の<code>require_material_access</code>と同じ3条件のORで対象教材を求め、必修（<code>assignments.required=true</code>の行が1件以上ある）／任意に分類して返す。</p>
+  <p>実装は<code>routers/learning.py</code>。<strong>実装済み</strong>（2026-08-31、S-02）。5.3節の<code>require_material_access</code>と同じ2条件のOR（プロジェクトメンバーシップ／個人指定の配信。2026-08-28にF-26複製モデル採用に伴い3条件から簡素化済み。6.2節は当初3条件のまま記述が古くなっていたため、S-16着手時の見直しで本節も合わせて修正した）で対象教材を求め、必修（<code>assignments.required=true</code>の行が1件以上ある）／任意に分類して返す。</p>
   <ol>
-    <li>対象教材ID集合を、プロジェクトメンバーシップ（5.3節条件1）・個人指定（条件2）・共有先メンバーシップ（条件3）のUNIONで求める</li>
+    <li>対象教材ID集合を、プロジェクトメンバーシップ（5.3節条件1）・個人指定（条件2）のUNIONで求める</li>
+    <li><strong>任意教材のうち、所属プロジェクトが全社Wiki（<code>is_company_wide=true</code>）のものは、さらにT-30 <code>my_learning_registrations</code>に本人の登録行が存在する場合のみ残す（F-31、基本設計書v1.38）。</strong>招待制プロジェクトの任意教材はこの絞り込みを適用しない（プロジェクトメンバーシップのみで表示）。必修教材（<code>assignments.required=true</code>）はどちらの場合も登録有無を問わず常に含める。</li>
     <li>各教材についてT-12 enrollment_progressをLEFT JOINし、<code>status</code>・<code>completed_node_ids</code>から進捗率（<code>completed_node_ids</code>の要素数 ÷ 教材の全ページ数）を算出する</li>
     <li><code>next_action</code>を決定する: 進捗なし→<code>"start"</code>、<code>status='in_progress'</code>→<code>"resume"</code>、<code>status='completed'</code>かつ再受験可→<code>"review"</code></li>
     <li>必修教材は<code>due_at</code>昇順（NULLS LAST）、任意教材は<code>updated_at</code>降順でソートして返す</li>
     <li>「期限が近い必修教材」（S-02強調表示）は、<code>due_at</code>が7日以内かつ<code>status != 'completed'</code>の教材として抽出する</li>
+    <li><strong>「学習履歴」（F-31）:</strong> 上記の必修/任意一覧とは別に、登録有無を問わず<code>enrollment_progress</code>の行が存在する（着手済みの）教材を横断的に返す絞り込みも用意する。クエリ<code>history=true</code>で切り替え、この場合は必修/任意に分類せず<code>items</code>1本のフラットな配列として返す（過去に参加していたプロジェクトを離任した後でも履歴として残るよう、5.3節の受講対象判定を経由しない）。</li>
   </ol>
+  <p><strong>next_actionの判定について:</strong> 「必修は"復習する"、任意は"反復演習する"」というボタン文言の出し分け（S-02画面モックアップ）は、バックエンドの<code>next_action</code>には反映せず、フロントエンド側で<code>next_action==='review'</code>と<code>required</code>の組み合わせから決定する（バックエンドは受講状況の抽象的な区分のみを返し、表示文言はフロントエンドの責務とする方針）。</p>
 
   <h3>6.3 プロジェクト離任後の猶予期間（実装の参照）</h3>
   <p>5.5節の<code>has_active_project_role</code>を参照。6.1節・6.2節の対象者判定はいずれもこの関数を経由するため、猶予期間の考慮は自動的に反映される。</p>
@@ -95,15 +98,15 @@ SELECT ta.material_id,
     <li><code>scope='material'</code>: 当該教材の設問のうち、リクエストユーザーの直近回答（<code>answers</code>を<code>question_id</code>ごとに<code>created_at</code>降順で1件取得）が<code>is_correct=false</code>のもの</li>
     <li><code>scope='all'</code>: 全教材を対象に同様の条件で抽出する（受講対象外の教材の設問は含めない。5.3節の判定を教材ごとに適用）</li>
     <li>正答率50%未満の設問（全受講者のanswers集計）も対象に含める: <code>SELECT question_id FROM answers GROUP BY question_id HAVING AVG(is_correct::int) &lt; 0.5</code></li>
-    <li>抽出結果を<code>mode='practice'</code>の新規<code>quiz_attempts</code>として作成し、<code>question_order</code>に対象設問IDを記録する。<code>type='score_log'</code>の設問はそもそも正誤の概念を持たないため抽出対象から除外する</li>
+    <li>抽出結果を<code>mode='practice', practice_kind='wrong_only'</code>の<code>quiz_attempts</code>として作成し、<code>question_order</code>に対象設問IDを記録する。<code>type='score_log'</code>の設問はそもそも正誤の概念を持たないため抽出対象から除外する。<code>practice_kind='wrong_only'</code>を含む部分ユニークインデックスへの<code>ON CONFLICT DO UPDATE</code>で、同一抽出条件の未提出試行があれば取得し直す（二重クリック対策。反復演習の'repeat'と同じmode/scope_node_idだが<code>practice_kind</code>で区別するため衝突しない。2026-08-31修正、3.3節T-13参照）</li>
   </ol>
 
   <h3>6.6 提出時の進捗更新（T-12 enrollment_progress）</h3>
-  <p>A-41（回答保存）の都度、当該ページの<code>node_id</code>を<code>current_node_id</code>に設定し、<code>status</code>が<code>'not_started'</code>であれば<code>'in_progress'</code>に更新して<code>started_at</code>を設定する。A-42（提出）で<code>mode='graded'</code>かつ<code>materials.attempt_scope='material'</code>の場合、提出済みページのnode_idを<code>completed_node_ids</code>へ追加し、全ページが含まれたら<code>status='completed', completed_at=now()</code>とする。<code>attempt_scope</code>が'material'以外の場合は、当該<code>scope_node_id</code>配下のページのみを<code>completed_node_ids</code>に追加し、教材全体の<code>status</code>は「全ての受験単位が合格しているか」を都度再計算して決定する。</p>
+  <p>A-41（回答保存）の都度、<code>mode='graded'</code>の試行に対する回答である場合のみ、当該ページの<code>node_id</code>を<code>current_node_id</code>に設定し、<code>status</code>が<code>'not_started'</code>であれば<code>'in_progress'</code>に更新して<code>started_at</code>を設定する（<strong>2026-08-31修正:</strong> 当初はmodeを問わず常に更新していたため、反復演習・誤答のみ抽出（mode='practice'）で回答すると本来のgraded進行の「続きから受講」再開位置を意図せず書き換えてしまう不具合があった）。A-42（提出）で<code>mode='graded'</code>かつ<code>materials.attempt_scope='material'</code>の場合、提出済みページのnode_idを<code>completed_node_ids</code>へ追加し、全ページが含まれたら<code>status='completed', completed_at=now()</code>とする。<code>attempt_scope</code>が'material'以外の場合は、当該<code>scope_node_id</code>配下のページのみを<code>completed_node_ids</code>に追加し、教材全体の<code>status</code>は「全ての受験単位が合格しているか」を都度再計算して決定する。<code>mode='practice'</code>の提出（A-42）はこの更新自体を行わない（`submit_attempt`が<code>if attempt["mode"] == "graded":</code>のときのみ<code>_update_enrollment_progress</code>を呼ぶ、既存実装のまま）。</p>
 
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）詳細設計書 v1.44</span>
+    <span>社内学習管理システム（Manabi）詳細設計書 v1.53</span>
     <span>コガソフトウェア株式会社 / 2026-08-24</span>
   </footer>
 

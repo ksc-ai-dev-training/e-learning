@@ -25,13 +25,18 @@
   </table>
 
   <h3>10.2 S-02 マイ学習（<code>/</code>）</h3>
+  <div class="callout">
+    <strong>現状の実装範囲:</strong> <strong>実装済み</strong>（2026-08-31）。F-31（マイ学習登録、基本設計書v1.38）を伴う初の実装で、プロジェクトタブ・「必修・任意」/「学習履歴」の2ビュー切替・サマリーカード・期限が近い必修教材の強調パネル・必修/任意教材カード一覧・学習履歴一覧のすべてを実装した。プロジェクトでの絞り込みは、A-39のレスポンス（必修・任意あわせて個人の受講範囲に収まる小規模な件数）をフロントエンドで集計・フィルタする方式にした（クエリ再送信が不要で、タブ切替のたびに件数を数え直す必要がない。API設計は6.2節参照）。「任意教材 受講済み」サマリーカードは、押下すると任意教材一覧を受講済みのみに絞り込み、パネルまでスクロールする（<code>StatCard</code>の<code>onClick</code>、2.1.2節）。「期限が近い必修教材」サマリーカードは対象が無ければリンクにならない。
+  </div>
   <table>
     <thead><tr><th>項目名</th><th>型</th><th>仕様</th><th>対応API</th></tr></thead>
     <tbody>
-      <tr><td>プロジェクトタブ</td><td>タブ</td><td>所属プロジェクト（「全社Wiki」含む）で絞り込み。既定は「すべて」</td><td>A-39 クエリ project_id</td></tr>
-      <tr><td>サマリーカード</td><td>表示</td><td>必修受講率・期限が近い必修件数・任意受講済み件数・直近受講日</td><td>A-39</td></tr>
-      <tr><td>期限が近い必修教材パネル</td><td>表示</td><td>due_atが7日以内の未完了必修教材を強調表示（6.2節）</td><td>A-39</td></tr>
-      <tr><td>必修/任意 教材カード一覧</td><td>表示</td><td>進捗バー・必修/任意バッジ・期限・所属プロジェクト名。ボタンはnext_actionに応じ「受講を開始」「続きから受講」「復習する」「反復演習する」</td><td>A-39</td></tr>
+      <tr><td>プロジェクトタブ</td><td>タブ</td><td>所属プロジェクト（「全社Wiki」を先頭固定）で絞り込み。既定は「すべて」。フロントエンド側でA-39レスポンスから件数を集計する</td><td>A-39</td></tr>
+      <tr><td>ビュー切替（必修・任意／学習履歴）</td><td>タブ</td><td>既定は「必修・任意」。「学習履歴」選択時のみA-39を<code>history=true</code>で呼び直す</td><td>A-39</td></tr>
+      <tr><td>サマリーカード</td><td>表示</td><td>必修受講率・期限が近い必修件数・任意受講済み件数・直近受講日（<code>StatCard</code>、2.1.2節）</td><td>A-39</td></tr>
+      <tr><td>期限が近い必修教材パネル</td><td>表示</td><td>due_atが7日以内の未完了必修教材を強調表示（6.2節）。対象0件のときはパネル自体を表示しない</td><td>A-39</td></tr>
+      <tr><td>必修/任意 教材カード一覧</td><td>表示</td><td>進捗バー・必修/任意バッジ・期限・所属プロジェクト名・タグ（<code>MaterialCard</code>、2.1.2節）。ボタンはnext_actionに応じ「受講を開始」「続きから受講」、完了時は必修なら「復習する」・任意なら「反復演習する」（フロントエンドでnext_action×requiredから決定、6.2節）。<strong>任意一覧は全社Wiki所属についてはマイ学習登録済みのもののみ表示（F-31）</strong>。クリックするとS-04（<code>/materials/{id}?from=my-learning</code>）へ遷移する。この<code>from=my-learning</code>はS-04・S-16の「戻る」系リンクの遷移先をマイ学習（<code>/</code>）に切り替えるためのマーカーで、S-03の「受講する」がS-04（<code>/materials/{id}</code>、fromなし）へ遷移するのと動作は同じだが戻り先だけが異なる（<code>lib/backLink.ts</code>）</td><td>A-39</td></tr>
+      <tr><td>学習履歴一覧</td><td>表示</td><td>マイ学習登録の有無・現在の受講対象かどうかを問わず、<code>enrollment_progress</code>の行がある（着手済みの）教材を横断表示する（F-31）。必修/任意の区別なくフラットな一覧</td><td>A-39（<code>history=true</code>）</td></tr>
     </tbody>
   </table>
 
@@ -50,27 +55,31 @@
       <tr><td>自分が受講対象の教材のみ表示</td><td>チェックボックス</td><td>—</td><td>ONで5.3節の3条件のうちプロジェクトの現役メンバー・個人指定の配信の2条件を満たす教材のみ（共有経由の条件はF-26未実装のため対象外）</td><td>A-14 クエリmy_assignments_only。<strong>実装済み</strong>（一部簡略化）</td></tr>
       <tr><td>一覧テーブル</td><td>表示</td><td>—</td><td>タイトル・章数/ページ数・問題種別・問題数・タグ・プロジェクト・区分・更新日・操作。「操作」列はS-04未実装のため常に無効化表示（受講状況に応じたラベルは表示する）</td><td>A-14。<strong>実装済み</strong></td></tr>
       <tr><td>表示件数・ページネーション</td><td>セレクト＋ページャ</td><td>—</td><td>20/50/100件（既定20）</td><td>A-14 クエリpage, per_page。<strong>実装済み</strong></td></tr>
+      <tr><td>「マイ学習に追加」/「マイ学習から外す」ボタン</td><td>ボタン</td><td>—</td><td>全社Wiki所属の任意教材の行にのみ表示（F-31、基本設計書v1.38）。必修教材・招待制プロジェクトの任意教材は登録不要のため表示しない。A-14レスポンスの<code>registered</code>で現在の登録状態を判定し、押下後はA-14を再取得（SWRの<code>mutate</code>）してボタンの表示を切り替える。<strong>実装済み</strong>（2026-08-31、S-02実装時）</td><td>A-89</td></tr>
     </tbody>
   </table>
 
   <h3>10.4 S-04 教材受講：目次（<code>/materials/:materialId</code>）</h3>
-  <p>タブ構成: 「目次」「反復演習」「誤答のみ抽出」。</p>
+  <p>タブ構成: 「目次」「反復演習」「誤答のみ抽出」。<strong>全タブとも実装済み</strong>（2026-08-31）。</p>
   <div class="callout">
-    <strong>現状の実装範囲:</strong> 「目次」タブのみ<strong>実装済み</strong>（2026-08-31）。ヘッダー（必修/任意バッジ・期限・章数/ページ数）、教材全体の進捗バー、教材全体の資料、目次ツリー（完了/未完了マーク・種別バッジ・小見出し行の「小見出し」バッジ）を実装した。「反復演習」「誤答のみ抽出」タブはタブ自体は表示するが中身は「準備中です」の案内のみで、A-40〜A-44・S-16（受講ページ）実装後に着手する。目次ツリーの各ページ行はS-16が未実装のためクリック不可（ツールチップで案内）。前回の受験結果パネル・受験後アンケート・「一時中断する」「続きから受講」ボタンも同じ理由で未実装。<br>
-    実装にあたり、A-15（教材メタ＋目次ツリー）を編集権限保持者専用から、<strong>受講対象者（公開済みのみ）にも公開</strong>するよう拡張した（<code>_require_view_access</code>ヘルパーを新設し、A-28・A-30も同様に拡張）。受講対象判定は詳細設計書5.3節の2条件（プロジェクトの現役メンバー／個人指定の配信）に従う。A-15のレスポンスに<code>required</code>・<code>due_at</code>（自分に適用される配信設定を必修優先・期限が近い順で1件に要約。S-06未実装のため現状は常に<code>false</code>/<code>null</code>）・<code>progress</code>（<code>enrollment_progress</code>。行が無い場合は<code>not_started</code>扱い）・<code>page_count</code>を追加した。
+    <strong>現状の実装範囲:</strong> ヘッダー（必修/任意バッジ・期限・章数/ページ数）、教材全体の進捗バー、教材全体の資料、目次ツリー（完了/未完了マーク・種別バッジ・小見出し行の「小見出し」バッジ、各ページ行はS-16へのリンク）、「一時中断する」/「続きから受講」・「受講を開始」ボタンをS-16実装時に完成させた。<strong>今回さらに以下を実装した:</strong> (1) 前回の受験結果パネル（A-86。attempt_scopeで定まるスコープ群ごとに最新graded試行を表示。不合格時は再受験可否・残り回数・ドボンなら<code>fail_reason</code>を表示）。(2) AI採点結果パネル（同じA-86の記述式・コード記述式の回答をスコープ横断で表示。AI採点未完了は「採点中」）。(3) 受験後アンケートcallout（A-78。合格済みスコープに未回答の設置済みアンケートがあれば表示、<code>SurveyModal</code>を開いてA-72で回答、または「今回はスキップ」）。(4) 反復演習タブ（A-87の実施履歴テーブル＋「反復演習を開始」）。(5) 誤答のみ抽出タブ（出題範囲ラジオ＋「誤答問題を解く」、A-44）。<br>
+    <strong>実装にあたりA-78の権限を編集者専用から受講対象者にも開放した</strong>（<code>_require_view_access</code>ベース、A-64と同じ拡張パターン）。あわせて<code>answered_by_me</code>（<code>survey_responses</code>に自分の行があるか）をレスポンスに追加し、<code>repeat_mode='once'</code>の表示要否判定に使う。<br>
+    実装にあたり、A-15（教材メタ＋目次ツリー）を編集権限保持者専用から、<strong>受講対象者（公開済みのみ）にも公開</strong>するよう拡張した（<code>_require_view_access</code>ヘルパーを新設し、A-28・A-30も同様に拡張）。受講対象判定は詳細設計書5.3節の2条件（プロジェクトの現役メンバー／個人指定の配信）に従う。A-15のレスポンスに<code>required</code>・<code>due_at</code>（自分に適用される配信設定を必修優先・期限が近い順で1件に要約。S-06未実装のため現状は常に<code>false</code>/<code>null</code>）・<code>progress</code>（<code>enrollment_progress</code>。行が無い場合は<code>not_started</code>扱い）・<code>page_count</code>を追加した。<br>
+    <strong>実装過程で発見・修正した不具合:</strong> A-41（回答保存）が受験モードに関わらず常に<code>enrollment_progress.current_node_id</code>を更新していたため、反復演習・誤答のみ抽出で回答すると本来のgraded進行の「続きから受講」再開位置が意図せず書き換わってしまう不具合を発見。<code>mode='graded'</code>のときのみ更新するよう修正した。あわせて、A-40（受験開始）が<code>attempt_scope</code>が'material'以外の教材で反復演習（<code>mode='practice'</code>）を開始すると「scope_node_idの指定が必要です」という422エラーになる不具合を発見（反復演習は本来attempt_scopeの設定によらず教材全体を対象にすべきところ、<code>mode='practice'</code>の特別扱いが無かった）。<code>mode='practice'</code>のときは常に教材全体のページを対象にするよう修正した。ヘッドレスEdgeで、attempt_scope='chapter'のテスト教材を用いて、章ごとの受験結果パネル・AI採点結果パネル・アンケートcallout表示とモーダルからの回答、反復演習の開始→全ページ回答（attempt_scopeを無視した通し）→提出→履歴反映、誤答のみ抽出（誤答のみに絞られたページ遷移・提出）までの一連の流れを実機確認した（検証用データは確認後削除）。
   </div>
   <table>
     <thead><tr><th>項目名</th><th>型</th><th>仕様</th><th>対応API</th></tr></thead>
     <tbody>
       <tr><td>ヘッダー</td><td>表示</td><td>必修/任意バッジ・期限・章数/ページ数。<strong>実装済み</strong></td><td>A-15</td></tr>
-      <tr><td>前回の受験結果パネル</td><td>表示</td><td>attempt_scopeで定まる受験単位ごとに独立表示。不合格時は再受験可否・残り回数・ドボン問題の場合は<code>fail_reason</code>を表示。<strong>未実装</strong>（A-43未実装のため）</td><td>A-43</td></tr>
+      <tr><td>前回の受験結果パネル</td><td>表示</td><td>attempt_scopeで定まる受験単位ごとに独立表示。不合格時は再受験可否・残り回数・ドボン問題の場合は<code>fail_reason</code>を表示。<strong>実装済み</strong>（2026-08-31）</td><td>A-86</td></tr>
+      <tr><td>AI採点結果パネル</td><td>表示</td><td>記述式・コード記述式の回答をスコープ横断で一覧表示。AI採点済みは点数・講評、未完了は「採点中」。<strong>実装済み</strong>（2026-08-31）</td><td>A-86</td></tr>
       <tr><td>教材全体の進捗バー</td><td>表示</td><td>完了ページ数/全ページ数。<strong>実装済み</strong></td><td>A-15, T-12</td></tr>
       <tr><td>教材全体の資料</td><td>一覧表示</td><td>node_id未設定の添付ファイル・リンク。<strong>実装済み</strong>（フロント側でnode_id IS NULLに絞り込み。ファイルはA-30でダウンロードURLを発行）</td><td>A-28（node_id省略）, A-30</td></tr>
-      <tr><td>目次ツリー</td><td>表示</td><td>章・小見出し・ページ。各ページに完了/未完了マーク・種別バッジ（説明／問題×N／説明＋問題×N）を表示。<strong>実装済み</strong>（スコア記録の専用バッジ表示は既存の<code>pageKindLabel</code>ヘルパーが未対応のため今回も対象外）。行選択でS-16へ：<strong>未実装</strong>（S-16自体が無いため行はクリック不可）</td><td>A-15</td></tr>
-      <tr><td>受験後アンケート</td><td>モーダル</td><td>対象受験単位を完了した直後に表示（repeat_mode='once'なら2回目以降は非表示）。回答は任意でスキップ可。<strong>未実装</strong></td><td>A-72</td></tr>
-      <tr><td>「一時中断する」「続きから受講」ボタン</td><td>ボタン</td><td>—。<strong>未実装</strong>（A-40未実装のため）</td><td>A-40</td></tr>
-      <tr><td>反復演習タブ: 実施履歴・「反復演習を開始」</td><td>表示＋ボタン</td><td>合否に影響しない旨を明示。<strong>未実装</strong>（タブ自体は表示、中身は準備中の案内のみ）</td><td>A-40（mode='practice'）</td></tr>
-      <tr><td>誤答のみ抽出タブ: 出題範囲</td><td>ラジオボタン</td><td>「この教材内の誤答のみ」／「全教材の誤答から出題」。<strong>未実装</strong>（タブ自体は表示、中身は準備中の案内のみ）</td><td>A-44</td></tr>
+      <tr><td>目次ツリー</td><td>表示</td><td>章・小見出し・ページ。各ページに完了/未完了マーク・種別バッジ（説明／問題×N／説明＋問題×N）を表示。<strong>実装済み</strong>（スコア記録の専用バッジ表示は既存の<code>pageKindLabel</code>ヘルパーが未対応のため今回も対象外）。行選択でS-16へ：<strong>実装済み</strong>（2026-08-31）</td><td>A-15</td></tr>
+      <tr><td>受験後アンケートcallout</td><td>callout＋モーダル</td><td>直近合格したスコープに設置されたアンケート（<code>is_active</code>かつ未回答、または<code>repeat_mode='every_time'</code>）を1件表示。「回答する」で<code>SurveyModal</code>を開きA-72で送信、「今回はスキップ」でその場では閉じる（次回訪問時にはまた表示される、永続的なスキップ記録は持たない）。<strong>実装済み</strong>（2026-08-31）</td><td>A-78, A-72</td></tr>
+      <tr><td>「一時中断する」「続きから受講」ボタン</td><td>ボタン</td><td>「一時中断する」は教材一覧（S-03）へのリンク（進捗は都度A-41で自動保存されるため専用の中断APIは無い）。「続きから受講」/「受講を開始」は<code>progress.current_node_id</code>優先、無ければ目次先頭ページへ遷移。<strong>実装済み</strong>（2026-08-31）</td><td>A-40（遷移先のS-16内で呼ばれる）</td></tr>
+      <tr><td>反復演習タブ: 実施履歴・「反復演習を開始」</td><td>表示＋ボタン</td><td>合否に影響しない旨を明示。実施履歴は実施日時・正答数・所要時間の一覧。「反復演習を開始」はattempt_scopeの設定によらず教材全体を対象にする。<strong>実装済み</strong>（2026-08-31）</td><td>A-87（履歴）, A-40（mode='practice'で開始）</td></tr>
+      <tr><td>誤答のみ抽出タブ: 出題範囲</td><td>ラジオボタン</td><td>「この教材内の誤答のみ」／「全教材の誤答から出題」。事前の対象件数プレビュー（「対象N問」）は今回省略した（簡素化）。<strong>実装済み</strong>（2026-08-31）</td><td>A-44</td></tr>
     </tbody>
   </table>
 
@@ -233,20 +242,27 @@
   </table>
 
   <h3>10.15 S-16 教材受講：ページ（<code>/materials/:materialId/pages/:nodeId</code>）</h3>
+  <div class="callout">
+    <strong>現状の実装範囲:</strong> 説明文パネル・設問カード6種すべて（単一選択・複数選択・並び替え・記述式・コード記述式・スコア記録）・設問の順次アンロック・任意設問のスキップ・ドボンバッジ・ページ送り・スコープ最終ページでの提出＆結果表示・「続きから受講」に加え、<strong>受験後アンケートモーダル・スコア記録の過去推移表示・反復演習（practice）モード・誤答のみ抽出（wrong_only）モードまですべて実装済み</strong>（2026-08-31）。並び替えはドラッグ&ドロップではなく上下ボタン式（<code>QuestionEditCard</code>の編集用UIと同じ操作感、<code>AnswerReorderList</code>）。<br>
+    <strong>3つのモード（?modeクエリ）を1つのコンポーネントで扱う:</strong> <code>graded</code>（既定）は<code>attempt_scope</code>（教材/章/小見出し/ページ）ごとに独立した受験記録を扱い、ページ遷移のたびにA-40を呼んで現在のスコープの試行を再開または新規開始する（フロントエンド専用ヘルパー<code>lib/pageNav.ts</code>の<code>resolveScopeNodeId</code>で対応する祖先ノードIDを求める）。次ページのスコープが現在と異なる（＝現在のスコープの最終ページ）場合のみA-42（提出）を呼び、結果（合否・正答率・ドボンの場合は<code>fail_reason</code>）を簡易パネルで表示してから次へ進む。合格した場合、直近合格したスコープに未回答のアンケートがあれば<code>SurveyModal</code>を表示する（章内最終ページ完了時、A-78）。<code>practice</code>（反復演習）は<code>scope_node_id</code>を常にnullにし教材の全ページを通しで解いて最後のページでのみ提出する（合否・アンケートは対象外）。<code>wrong_only</code>（誤答のみ抽出）はA-44が事前に作成したattemptを対象にし、A-40は呼ばずA-43（<code>getAttempt</code>）で状態取得する。対象ページはこのattemptの<code>question_order</code>に含まれるものだけに絞り込む（<code>sequencePages</code>、他の設問・ページは自動的に読み飛ばす）。複数教材にまたがる場合（<code>scope='all'</code>）は<code>sessionStorage</code>に残りのattemptキューを積み、1件提出するたびに次のattemptの教材・ページへ遷移する。<br>
+    スコア記録設問の「これまでの記録」はA-88（本人の過去<code>response.score</code>を新しい順で取得）で実装した。<br>
+    <strong>実装過程で発見・修正した不具合:</strong> (1) 並び替え設問は<code>correct_answer</code>（正解順の配列）に項目そのものを保持する設計（<code>QuestionEditCard</code>の<code>ReorderEditor</code>が<code>options</code>を使わないため）のため、受講者向けに<code>_fetch_tree(strip_answers=True)</code>で<code>correct_answer</code>をNULLにすると項目自体が見えなくなる不具合を発見。シャッフルした項目を<code>options</code>へ移してから正解の順序を隠すよう修正した。(2) A-64（本文プレビュー）が編集者専用のままだったため、受講者が説明文パネルを表示できない状態だった。<code>_require_view_access</code>ベースの判定に拡張した（受講者は元々body原文を取得できるため、サニタイズ結果を見られるようにするのはセキュリティ上問題ない）。(3) 任意設問を「スキップして次へ」で読み飛ばしても、その設問自身の入力・送信ボタンが無効化されないままだったため、その後の操作で意図せず空回答が保存されてしまう不具合を発見（<code>AnswerQuestionCard</code>の<code>disabled</code>判定に<code>skipped</code>を追加）。(4) A-40（受験開始）が「無ければSELECTしてから無ければINSERT」という素朴な実装だったため、Reactの開発時StrictModeによるページ遷移エフェクトの二重発火や、二重クリック・複数タブでの同時アクセスにより同一スコープの未提出試行が2件作られてしまう競合状態を発見。<code>(user_id, material_id, mode, scope_node_id, practice_kind)</code>でNULLも区別する部分ユニークインデックス（<code>uq_quiz_attempts_active</code>、<code>NULLS NOT DISTINCT</code>）を追加し、<code>INSERT ... ON CONFLICT DO UPDATE ... RETURNING *, (xmax = 0) AS inserted</code>で「無ければ作る・あれば取得する」を1クエリでアトミックに行う方式に修正した。(5) 反復演習と誤答のみ抽出は共にmode='practice'・scope_node_id=NULLで、上記のユニークインデックスと同じキーになり衝突する不具合を発見。<code>practice_kind</code>（'repeat'/'wrong_only'）列を追加して区別した。(6) A-41（回答保存）がmodeに関わらず常に<code>enrollment_progress.current_node_id</code>を更新していたため、反復演習・誤答のみ抽出で回答すると本来のgraded進行の再開位置を書き換えてしまう不具合を発見。<code>mode='graded'</code>のときのみ更新するよう修正した。(7) A-40が、<code>attempt_scope</code>が'material'以外の教材で反復演習を開始すると「scope_node_idの指定が必要です」と422エラーになる不具合を発見。<code>mode='practice'</code>のときは常にattempt_scopeの設定によらず教材全体を対象にするよう修正した。<br>
+    ヘッドレスEdgeで、attempt_scope='chapter'の複数章教材を用いて、単一選択・複数選択・記述式・スコア記録すべての回答保存、順次アンロック、章ごとの合否判定・アンケートcallout表示とモーダルからの回答、AI採点結果パネルへの反映、反復演習の開始（attempt_scopeを無視した全ページ通し）→提出→履歴反映、誤答のみ抽出（誤答のみに絞られたページ遷移・提出、途中の正解済みページの自動スキップ）、スコア記録の過去記録表示までの一連の流れを実機確認した（検証用データは確認後削除）。
+  </div>
   <table>
     <thead><tr><th>項目名</th><th>型</th><th>仕様</th><th>対応API</th></tr></thead>
     <tbody>
-      <tr><td>パンくず</td><td>表示</td><td>教材名／章／小見出し</td><td>A-15</td></tr>
-      <tr><td>教材全体の進捗バー</td><td>表示</td><td>—</td><td>A-40</td></tr>
-      <tr><td>説明文パネル</td><td>表示</td><td>content_kindが'explanation'/'mixed'のときのみ。サニタイズ済みHTML</td><td>A-40</td></tr>
-      <tr><td>設問カード（単一/複数選択）</td><td>ラジオ/チェックボックス</td><td>必須設問は未回答で次へ進めない</td><td>A-41</td></tr>
-      <tr><td>設問カード（並び替え）</td><td>DragSortList</td><td>項目をドラッグして順序決定</td><td>A-41</td></tr>
-      <tr><td>設問カード（記述式/コード記述式）</td><td>テキストエリア/コードエディタ</td><td>コード記述式はシンタックスハイライト表示（code_language）</td><td>A-41</td></tr>
-      <tr><td>設問カード（スコア記録）</td><td>NumberInput＋表示</td><td>「これまでの記録」（過去のresponse.score推移）を併記</td><td>A-41</td></tr>
-      <tr><td>スキップ操作</td><td>ボタン</td><td>required=falseの設問にのみ表示</td><td>—</td></tr>
-      <tr><td>ドボンバッジ</td><td>表示</td><td>is_critical=trueの設問に表示</td><td>—</td></tr>
-      <tr><td>「目次へ戻る」「回答して次のページへ」</td><td>ボタン</td><td>—</td><td>A-41, A-42（最終ページで提出）</td></tr>
-      <tr><td>受験後アンケート</td><td>モーダル</td><td>該当章に設置されている場合、章内最終ページ完了時に表示</td><td>A-72</td></tr>
+      <tr><td>パンくず</td><td>表示</td><td>教材名／章／小見出し。<strong>実装済み</strong></td><td>A-15</td></tr>
+      <tr><td>教材全体の進捗バー</td><td>表示</td><td>ページ位置ベース（現在ページ番号/全ページ数）。<strong>実装済み</strong></td><td>A-15</td></tr>
+      <tr><td>説明文パネル</td><td>表示</td><td>bodyが空でないときのみ表示。サニタイズ済みHTML。<strong>実装済み</strong></td><td>A-64</td></tr>
+      <tr><td>設問カード（単一/複数選択）</td><td>ラジオ/チェックボックス</td><td>単一選択は選択と同時に即時保存、複数選択は「回答する」ボタンで保存。必須設問は未回答で次へ進めない。<strong>実装済み</strong></td><td>A-41</td></tr>
+      <tr><td>設問カード（並び替え）</td><td>上下ボタン式リスト（<code>AnswerReorderList</code>）</td><td>シャッフルされた項目を上下ボタンで並び替えて「この順序で回答する」。<strong>実装済み</strong></td><td>A-41</td></tr>
+      <tr><td>設問カード（記述式/コード記述式）</td><td>テキストエリア＋「回答する」</td><td>コード記述式は<code>font-mono</code>表示＋<code>code_language</code>バッジ。シンタックスハイライトは無し。<strong>実装済み</strong></td><td>A-41</td></tr>
+      <tr><td>設問カード（スコア記録）</td><td>NumberInput＋「記録する」</td><td>「これまでの記録」（本人の過去<code>response.score</code>を新しい順で数件表示）を併記。<strong>実装済み</strong>（2026-08-31）</td><td>A-41, A-88</td></tr>
+      <tr><td>スキップ操作</td><td>ボタン</td><td>required=falseの設問にのみ表示。ローカル状態のみでA-41は呼ばない。<strong>実装済み</strong></td><td>—</td></tr>
+      <tr><td>ドボンバッジ</td><td>表示</td><td>is_critical=trueの設問に表示。<strong>実装済み</strong></td><td>—</td></tr>
+      <tr><td>「目次へ戻る」「回答して次のページへ」</td><td>ボタン</td><td>全設問が回答済み/スキップ済みになるまで「次のページへ」は無効化。<strong>実装済み</strong></td><td>A-41, A-42（スコープ最終ページで提出）</td></tr>
+      <tr><td>受験後アンケート</td><td>モーダル</td><td>該当スコープに設置されている場合、graded modeでの合格・スコープ最終ページ完了直後にのみ表示（practice/wrong_onlyでは表示しない）。<strong>実装済み</strong>（2026-08-31）</td><td>A-78, A-72</td></tr>
     </tbody>
   </table>
 
@@ -306,7 +322,7 @@
 
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）詳細設計書 v1.44</span>
+    <span>社内学習管理システム（Manabi）詳細設計書 v1.53</span>
     <span>コガソフトウェア株式会社 / 2026-08-24</span>
   </footer>
 

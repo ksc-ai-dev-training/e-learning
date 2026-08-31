@@ -13,7 +13,7 @@
 <p class="chapter-nav" style="display:flex;justify-content:space-between;font-size:13px;margin:0 0 16px"><span></span><a href="index.html">目次</a><a href="04_API詳細設計.html">4. API詳細設計 →</a></p>
 
   <h2 id="sec3">3. テーブル定義</h2>
-  <p>PostgreSQL (Supabase) を使用する。テーブルは<strong>T-01〜T-29のうち実働24テーブル</strong>とする（T-02, T-05, T-07, T-24, T-25は基本設計書で廃止済みのため欠番。6.2節参照）。共通方針は以下のとおり。</p>
+  <p>PostgreSQL (Supabase) を使用する。テーブルは<strong>T-01〜T-31のうち実働25テーブル</strong>とする（T-02, T-05, T-07, T-24, T-25は基本設計書で廃止済みのため欠番。T-30は設計のみ先行反映済みで未実装。6.2節参照）。共通方針は以下のとおり。</p>
   <ul>
     <li><code>id</code>は全テーブル<code>BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY</code>（T-21のみ<code>key</code> TEXTを主キーとする）。</li>
     <li><code>created_at</code>は全テーブル<code>TIMESTAMPTZ NOT NULL DEFAULT now()</code>。<code>updated_at</code>は更新が発生しうるテーブルにのみ付与し、アプリケーション側で更新時に<code>now()</code>を設定する（T-15〜T-20, T-27〜T-29は追記専用のため<code>updated_at</code>を持たない）。</li>
@@ -234,9 +234,10 @@
       <tr><td>carried_over_question_ids</td><td>JSONB</td><td>YES</td><td>—</td><td>retake_scope='wrong_only'の再受験で前回正解済みとして持ち越した設問ID配列</td></tr>
       <tr><td>started_at</td><td>TIMESTAMPTZ</td><td>NO</td><td>now()</td><td></td></tr>
       <tr><td>submitted_at</td><td>TIMESTAMPTZ</td><td>YES</td><td>—</td><td>提出日時。未提出（中断中）はNULL</td></tr>
+      <tr><td>practice_kind</td><td>TEXT</td><td>YES</td><td>—</td><td>'repeat'（反復演習、A-40起動）／'wrong_only'（誤答のみ抽出、A-44起動）／NULL（mode='graded'）。反復演習と誤答のみ抽出は共にmode='practice', scope_node_id=NULLで区別が付かず、下記の部分ユニークインデックスに衝突していた不具合を発見し追加した列（2026-08-31）</td></tr>
     </tbody>
   </table>
-  <p><strong>制約:</strong> PK(id)、FK(user_id→users.id)、FK(material_id→materials.id) ON DELETE CASCADE、FK(scope_node_id→material_nodes.id) ON DELETE CASCADE、CHECK(mode IN ('graded','practice'))。<strong>インデックス:</strong> <code>(user_id, material_id, mode)</code>の複合インデックスでA-40の「未提出の試行があれば再開」判定・進捗集計を高速化。</p>
+  <p><strong>制約:</strong> PK(id)、FK(user_id→users.id)、FK(material_id→materials.id) ON DELETE CASCADE、FK(scope_node_id→material_nodes.id) ON DELETE CASCADE、CHECK(mode IN ('graded','practice'))、CHECK(practice_kind IN ('repeat','wrong_only'))。<strong>インデックス:</strong> <code>(user_id, material_id, mode)</code>の複合インデックスでA-40の「未提出の試行があれば再開」判定・進捗集計を高速化。<strong>部分ユニークインデックス</strong> <code>uq_quiz_attempts_active</code> ON <code>(user_id, material_id, mode, scope_node_id, practice_kind)</code> <code>NULLS NOT DISTINCT</code> WHERE <code>submitted_at IS NULL</code>（同一スコープ・同一種別の未提出試行を高々1件に保つ。S-16実装時、A-40の「SELECTしてから無ければINSERT」という素朴な実装だと二重クリック・複数タブ・Reactの開発時StrictModeの効果二重発火で未提出試行が2件作られてしまう競合状態を発見し、この一意制約とINSERT ... ON CONFLICT DO UPDATEの組み合わせで解消した。2026-08-31）。<code>practice_kind</code>追加前は反復演習と誤答のみ抽出が同じキーで衝突する不具合もあった（同日修正）。</p>
 
   <h4>T-14 answers（回答）</h4>
   <table>
@@ -438,6 +439,37 @@
     </tbody>
   </table>
   <p><strong>制約:</strong> PK(id)、FK(response_id→survey_responses.id) ON DELETE CASCADE、FK(survey_question_id→survey_questions.id) ON DELETE CASCADE。すべての設問への回答が必須ではない（要件定義書F-28。回答はすべて任意でスキップ可）ため、未回答の設問は行自体を作成しない。</p>
+
+  <h3>3.6a マイ学習登録（T-30、F-31）</h3>
+  <div class="callout">
+    <strong>現状の実装範囲:</strong> 未実装（S-02着手時に対応。基本設計書v1.38で先行設計）。全社Wiki（<code>is_company_wide=true</code>）は全社員が自動的に<code>editor</code>としてメンバーになる特殊プロジェクトのため、A-39（マイ学習一覧）が既存の受講対象判定（5.3節の条件1〜3のOR）をそのまま流用すると、全社Wikiの任意教材は1ページも触れていなくても全員のマイ学習に表示され続けてしまう不整合がある。このテーブルで、受講者本人が全社Wikiの任意教材を「マイ学習に追加」した意思表示のみを記録する（招待制プロジェクトの任意教材・必修教材は対象外＝このテーブルに行が無くても表示される）。
+  </div>
+  <h4>T-30 my_learning_registrations（マイ学習登録）</h4>
+  <table>
+    <thead><tr><th>カラム</th><th>型</th><th>NULL</th><th>デフォルト</th><th>説明</th></tr></thead>
+    <tbody>
+      <tr><td>id</td><td>BIGINT</td><td>NO</td><td>IDENTITY</td><td>PK</td></tr>
+      <tr><td>user_id</td><td>BIGINT</td><td>NO</td><td>—</td><td>FK→users</td></tr>
+      <tr><td>material_id</td><td>BIGINT</td><td>NO</td><td>—</td><td>FK→materials</td></tr>
+      <tr><td>created_at</td><td>TIMESTAMPTZ</td><td>NO</td><td>now()</td><td>登録日時</td></tr>
+    </tbody>
+  </table>
+  <p><strong>制約:</strong> PK(id)、FK(user_id→users.id) ON DELETE CASCADE、FK(material_id→materials.id) ON DELETE CASCADE、UNIQUE(user_id, material_id)（二重登録防止、A-89のON CONFLICT DO NOTHINGが前提とする）。<strong>インデックス:</strong> UNIQUE(user_id, material_id)がA-39の判定・A-89のupsertを兼ねる。</p>
+
+  <h3>3.6b CLIトークン失効管理（T-31、F-05）</h3>
+  <div class="callout">
+    <strong>現状の実装範囲:</strong> 実装済み（Googleログイン・Claude Code CLI連携と同時に実装）。CLIトークン（A-62で発行、<code>token_type='cli'</code>のJWT、有効期限90日）はJWT自体がステートレスなため、A-63（失効）を意味のあるものにするにはサーバー側に失効済みトークンの一覧が必要。このテーブルはCLIトークンの<code>jti</code>（JWT ID）を失効時に記録するためだけに使う（セッションCookie側のJWTには<code>jti</code>を付与せず、このテーブルの対象外）。
+  </div>
+  <h4>T-31 cli_token_revocations（CLIトークン失効一覧）</h4>
+  <table>
+    <thead><tr><th>カラム</th><th>型</th><th>NULL</th><th>デフォルト</th><th>説明</th></tr></thead>
+    <tbody>
+      <tr><td>jti</td><td>TEXT</td><td>NO</td><td>—</td><td>PK。失効させたJWTの<code>jti</code>クレーム</td></tr>
+      <tr><td>user_id</td><td>BIGINT</td><td>NO</td><td>—</td><td>FK→users（どのユーザーのトークンかの記録用）</td></tr>
+      <tr><td>revoked_at</td><td>TIMESTAMPTZ</td><td>NO</td><td>now()</td><td>失効日時</td></tr>
+    </tbody>
+  </table>
+  <p><strong>制約:</strong> PK(jti)、FK(user_id→users.id)。<strong>インデックス:</strong> PK(jti)自体が<code>require_auth</code>の失効チェック（<code>token_type='cli'</code>のときのみ<code>jti</code>で検索）を兼ねる。</p>
 
   <h3>3.7 CREATE TABLE 例</h3>
   <p><code>database.py</code>のSCHEMA定義に全24テーブルのDDLを記載する。代表として、自己参照ツリー（T-23）・部分インデックスによる条件付き一意性（T-26）・JSONB既定値とGINインデックス（T-06）・複数CHECK制約の組み合わせ（T-04）を示す（他テーブルも同一の書式）。</p>
@@ -845,7 +877,7 @@ ALTER TABLE surveys ENABLE ROW LEVEL SECURITY;</code></pre>
 
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）詳細設計書 v1.44</span>
+    <span>社内学習管理システム（Manabi）詳細設計書 v1.53</span>
     <span>コガソフトウェア株式会社 / 2026-08-24</span>
   </footer>
 

@@ -1,16 +1,17 @@
 import { Navigate, Route, Routes } from 'react-router'
 import { useMe } from './hooks/useMe'
 import Login from './pages/Login'
+import MyLearning from './pages/MyLearning'
 import ProjectSelect from './pages/ProjectSelect'
 import MaterialsList from './pages/MaterialsList'
 import MaterialsSearch from './pages/MaterialsSearch'
 import MaterialView from './pages/MaterialView'
+import MaterialPageView from './pages/MaterialPageView'
 import MaterialEdit from './pages/MaterialEdit'
 import MaterialPageEdit from './pages/MaterialPageEdit'
 import AppShell from './components/layout/AppShell'
 
-// ルーティング定義・認証ガード。S-02（マイ学習、本来"/"）は未実装のため、
-// 暫定的に"/"をS-13（今のところ唯一実装済みの画面）へリダイレクトする。
+// ルーティング定義・認証ガード。
 export default function App() {
   const { me, isLoading } = useMe()
 
@@ -30,18 +31,19 @@ export default function App() {
   return (
     <AppShell me={me}>
       <Routes>
-        <Route path="/" element={<Navigate to="/materials/edit-projects" replace />} />
-        <Route path="/login" element={<Navigate to="/materials/edit-projects" replace />} />
+        <Route path="/" element={<MyLearning />} />
+        <Route path="/login" element={<Navigate to="/" replace />} />
         <Route path="/materials/edit-projects" element={<ProjectSelect />} />
         <Route path="/materials" element={<MaterialsSearch />} />
         <Route path="/materials/:materialId" element={<MaterialView />} />
+        <Route path="/materials/:materialId/pages/:nodeId" element={<MaterialPageView />} />
         <Route path="/projects/:projectId/materials/edit" element={<MaterialsList />} />
         <Route path="/projects/:projectId/materials/:materialId/edit" element={<MaterialEdit />} />
         <Route
           path="/projects/:projectId/materials/:materialId/pages/:nodeId/edit"
           element={<MaterialPageEdit />}
         />
-        <Route path="*" element={<Navigate to="/materials/edit-projects" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AppShell>
   )

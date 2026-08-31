@@ -26,15 +26,26 @@ const COLLAPSED_KEY = 'manabi-sidebar-collapsed'
 // matchは「今どのナビ項目に居るか」の判定に使う。hrefそのものとの完全一致だけでは、
 // 教材編集のようにナビ項目のリンク先（S-13 /materials/edit-projects）と実際の画面遷移先
 // （S-14/S-05/S-17、/projects/:id/materials配下）のURLが異なる場合にハイライトが外れて
-// しまう不具合があったため、項目ごとに判定関数を持たせた（2026-08-28）
+// しまう不具合があったため、項目ごとに判定関数を持たせた（2026-08-28）。
+// S-04/S-16（/materials/:id, /materials/:id/pages/:nodeId）はマイ学習・教材一覧・検索の
+// どちらからも遷移しうる共通の受講画面のため、pathnameだけでは出所を判定できない。
+// 遷移元はlib/backLink.tsの`from=my-learning`クエリで引き継いでいるため、matchにも
+// search文字列を渡してこれを判定に使う（2026-08-31。以前はどちらのナビ項目もハイライト
+// されなくなる不具合があった）。
 const NAV_ITEMS = [
-  { href: '/', label: 'マイ学習', icon: Home, implemented: false, match: (p: string) => p === '/' },
+  {
+    href: '/',
+    label: 'マイ学習',
+    icon: Home,
+    implemented: true,
+    match: (p: string, search: string) => p === '/' || (/^\/materials\/\d+(\/|$)/.test(p) && search.includes('from=my-learning')),
+  },
   {
     href: '/materials',
     label: '教材一覧・検索',
     icon: BookOpen,
     implemented: true,
-    match: (p: string) => p === '/materials',
+    match: (p: string, search: string) => p === '/materials' || (/^\/materials\/\d+(\/|$)/.test(p) && !search.includes('from=my-learning')),
   },
   {
     href: '/materials/edit-projects',
@@ -140,7 +151,7 @@ export default function Sidebar({ me }: { me: Me }) {
             collapsed ? 'justify-center px-0' : 'px-2.5'
           } ${
             item.implemented
-              ? item.match(location.pathname)
+              ? item.match(location.pathname, location.search)
                 ? 'bg-blue-50 font-semibold text-blue-900'
                 : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'
               : 'cursor-default text-slate-300'

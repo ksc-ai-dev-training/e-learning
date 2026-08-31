@@ -212,6 +212,17 @@ CREATE TABLE IF NOT EXISTS enrollment_progress (
 );
 ALTER TABLE enrollment_progress ENABLE ROW LEVEL SECURITY;
 
+-- T-30 my_learning_registrations（マイ学習登録、F-31）。全社Wiki所属の任意教材は、本人がここに
+-- 登録しない限りA-39（マイ学習一覧）に表示しない（招待制プロジェクトの任意教材・必修教材は対象外）
+CREATE TABLE IF NOT EXISTS my_learning_registrations (
+    id           BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    user_id      BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    material_id  BIGINT NOT NULL REFERENCES materials(id) ON DELETE CASCADE,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (user_id, material_id)
+);
+ALTER TABLE my_learning_registrations ENABLE ROW LEVEL SECURITY;
+
 -- T-13 quiz_attempts（受験記録）。S-04/S-16（受講・受験API、A-39〜A-44）は本書の時点では未実装だが、
 -- S-05「問題一覧」タブ・S-19・S-20が参照する集計の土台としてテーブルのみ先行して用意する
 CREATE TABLE IF NOT EXISTS quiz_attempts (

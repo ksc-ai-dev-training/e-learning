@@ -249,6 +249,7 @@
       <tr class="rev-row"><td>T-27</td><td><code>survey_questions</code></td><td>アンケート設問</td><td>survey_id（FK→surveys）、type（'rating_5'/'single_choice'/'free_text'）、prompt、options（JSONB、選択式のみ）、sort_order。T-10 questionsと異なりcorrect_answerは持たない（正誤のない設問のため）。v1.17新設</td></tr>
       <tr class="rev-row"><td>T-28</td><td><code>survey_responses</code></td><td>アンケート回答（ヘッダー）</td><td>survey_id（FK→surveys）、user_id（FK→users、nullable。統計利用のみで個別表示はしないため匿名運用も想定しnullable）、submitted_at。v1.17新設</td></tr>
       <tr class="rev-row"><td>T-29</td><td><code>survey_answers</code></td><td>アンケート回答（設問ごと）</td><td>response_id（FK→survey_responses）、survey_question_id（FK→survey_questions）、value（JSONB。評価点・選択値・自由記述文のいずれか）。v1.17新設</td></tr>
+      <tr class="rev-new"><td>T-30</td><td><code>my_learning_registrations</code></td><td>マイ学習登録（F-31）</td><td>user_id（FK→users）、material_id（FK→materials ON DELETE CASCADE）、created_at。UNIQUE(user_id, material_id)。全社Wiki所属の任意教材をマイ学習に表示するかどうかの明示的な意思表示（S-02着手前の設計検討で新設）</td></tr>
     </tbody>
   </table>
 

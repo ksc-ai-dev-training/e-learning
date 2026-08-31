@@ -40,12 +40,13 @@ function buildQuery(params: MaterialSearchParams): string {
 // A-14: 公開教材の一覧・検索（S-03）
 export function useMaterialsSearch(params: MaterialSearchParams) {
   const key = `/api/materials?${buildQuery(params)}`
-  const { data, error, isLoading } = useSWR<MaterialSearchResponse>(key, apiFetch)
+  const { data, error, isLoading, mutate } = useSWR<MaterialSearchResponse>(key, apiFetch)
   return {
     items: data?.items ?? [],
     total: data?.total ?? 0,
     availableTags: data?.available_tags ?? [],
     error,
     isLoading,
+    mutate,
   }
 }

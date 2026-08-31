@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router'
 import PageHeader from '../components/layout/PageHeader'
 import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
+import MyLearningToggle from '../components/ui/MyLearningToggle'
 import Select from '../components/ui/Select'
 import TextInput from '../components/ui/TextInput'
 import { useMaterialsSearch, EMPTY_SEARCH_PARAMS } from '../hooks/useMaterialsSearch'
@@ -72,7 +73,7 @@ export default function MaterialsSearch() {
     page,
     perPage,
   }
-  const { items, total, availableTags, error, isLoading } = useMaterialsSearch(searchParams)
+  const { items, total, availableTags, error, isLoading, mutate } = useMaterialsSearch(searchParams)
 
   const applyFilter = () => {
     setFilter(form)
@@ -288,9 +289,14 @@ export default function MaterialsSearch() {
                     </td>
                     <td className="px-3 py-2 text-slate-500">{formatDateJst(m.updated_at)}</td>
                     <td className="px-3 py-2">
-                      <Button variant="secondary" onClick={() => navigate(`/materials/${m.id}`)}>
-                        {actionLabel(m.progress_status, m.required)}
-                      </Button>
+                      <div className="flex flex-col items-start gap-1.5">
+                        <Button variant="secondary" onClick={() => navigate(`/materials/${m.id}`)}>
+                          {actionLabel(m.progress_status, m.required)}
+                        </Button>
+                        {m.is_company_wide && !m.required && (
+                          <MyLearningToggle materialId={m.id} registered={m.registered} onToggled={mutate} />
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

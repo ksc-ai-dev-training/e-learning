@@ -22,11 +22,12 @@
     <li>Google認証完了後、A-02相当のコールバック処理（ドメイン検証・ユーザー登録/取得は共通）を行い、<strong>ブラウザCookieへのセット代わりに</strong>、<code>token_type='cli'</code>・有効期限90日のJWTを発行し、<code>http://127.0.0.1:{callback_port}/callback?token=...</code>へリダイレクトする</li>
     <li>CLIヘルパーが一時サーバーでトークンを受け取り、<code>~/.config/Manabi/credentials</code>（パーミッション600）に保存し、一時サーバーを終了する</li>
     <li>以降のCLIからのAPI呼び出しは<code>Authorization: Bearer &lt;token&gt;</code>ヘッダーを自動付与する</li>
-    <li>A-63（<code>POST /api/auth/cli/revoke</code>）は、失効させたいトークンの<code>jti</code>（JWT ID。発行時にランダム値を採番）をT-21 <code>app_settings</code>とは別の<strong>失効リスト</strong>（<code>revoked_cli_tokens</code>、jti・失効日時のみを持つ簡易テーブル。詳細設計の対象だがテーブル一覧6.2節には含めない運用テーブルとして<code>database.py</code>に追加する）へ記録する。認証ミドルウェアは<code>token_type='cli'</code>のJWT検証時にこのリストを参照し、失効済みなら401とする。</li>
+    <li>A-63（<code>POST /api/auth/cli/revoke</code>）は、失効させたいトークンの<code>jti</code>（JWT ID。発行時にランダム値を採番）をT-31 <code>cli_token_revocations</code>（jti・user_id・失効日時のみを持つ簡易テーブル、3.6b節）へ記録する。<code>require_auth</code>は<code>token_type='cli'</code>のJWT検証時にこのテーブルを参照し、失効済みなら401とする。</li>
   </ol>
   <div class="callout">
     <strong>なぜセッションJWTと同じ検証パスに統合するか:</strong> 基本設計書8.2節の設計判断のとおり、CLIトークンはAPIキー方式ではなく本人のJWTの一種として発行する。これにより認証ミドルウェア・権限判定（5章）・改訂履歴の<code>changed_by</code>は発行経路によらず同一のコードパスで処理でき、Claude Code経由の変更もWeb画面と同じ本人性・権限で行われる。
   </div>
+  <p><strong>現状の実装範囲:</strong> A-01/A-02/A-62/A-63すべて実装済み（2026-08-31）。<code>google_auth.py</code>（認可URL生成・トークン交換・JWKSによるIDトークン署名検証）・<code>auth_helpers.py</code>（<code>Authorization: Bearer</code>ヘッダー対応・<code>jti</code>失効チェック）・CLIヘルパー<code>cli/manabi_login.py</code>/<code>manabi_logout.py</code>・Claude Code用スキル<code>.claude/skills/manabi-material/SKILL.md</code>を実装した。curlでCLIトークンによるA-19取得→A-20書き戻し→A-63失効→失効後401を実機確認済み。</p>
 
   <h3>7.2 フロントマター・本文パース（material_parser.py、A-20/A-31が使用）</h3>
   <p>A-20（<code>PUT /api/materials/{id}/source</code>）が受け取るテキストは、基本設計書8.3節のスキーマに従う。パースは以下の順で行う。</p>
@@ -62,7 +63,7 @@
   </div>
 
   <h3>7.4 changed_via の判定と改訂履歴</h3>
-  <p>基本設計書8.5節のとおり、<code>changed_via</code>はJWTペイロードの<code>token_type</code>クレームで機械的に判定する（<code>'session'</code>→<code>'web'</code>、<code>'cli'</code>→<code>'claude_code'</code>）。<strong>現状の実装:</strong> CLIトークン発行（A-62/A-63、7.1節）が未実装のため、<code>issue_jwt</code>は<code>token_type</code>クレームを持たず、A-20の<code>changed_via</code>は暫定的に常に<code>'web'</code>としている。CLI連携着手時にJWTペイロードへ<code>token_type</code>を追加し、本節の判定ロジックに置き換える。<code>change_summary</code>の自動生成ルールは以下のとおり。</p>
+  <p>基本設計書8.5節のとおり、<code>changed_via</code>はJWTペイロードの<code>token_type</code>クレームで機械的に判定する（<code>'session'</code>→<code>'web'</code>、<code>'cli'</code>→<code>'claude_code'</code>）。<strong>現状の実装:</strong> CLIトークン発行（A-62/A-63、7.1節）実装済み（2026-08-31）。<code>issue_jwt</code>が<code>token_type</code>クレームを持つようになり、A-20の<code>put_material_source</code>は<code>user.token_type == 'cli'</code>を判定して<code>changed_via</code>を出し分ける（従来は<code>'web'</code>固定になっていた実装漏れを同時に修正）。<code>change_summary</code>の自動生成ルールは以下のとおり。</p>
   <table>
     <thead><tr><th>変更内容</th><th>自動生成される change_summary</th></tr></thead>
     <tbody>
@@ -138,7 +139,7 @@ def render_material_body(body: str, format: str) -&gt; str:
   </ul>
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）詳細設計書 v1.44</span>
+    <span>社内学習管理システム（Manabi）詳細設計書 v1.53</span>
     <span>コガソフトウェア株式会社 / 2026-08-24</span>
   </footer>
 

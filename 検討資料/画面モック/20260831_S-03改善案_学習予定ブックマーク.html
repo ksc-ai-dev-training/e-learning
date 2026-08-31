@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>【検討中】S-03改善案: 学習予定ブックマーク | Manabi</title>
+<link rel="stylesheet" href="../../docs/03_画面モックアップ/mock.css">
+<style>
+  .tag-pill {
+    display:inline-block; font-size:11.5px; font-weight:600; color: var(--accent-600);
+    background: var(--accent-100); border-radius:999px; padding:2px 8px; margin:1px 2px 1px 0;
+  }
+  .tag-filter-row { display:flex; flex-wrap:wrap; gap:6px; }
+  .tag-filter-chip {
+    font-size:11.5px; font-weight:600; color: var(--text-muted); background: var(--bg-subtle);
+    border:1px solid var(--border-strong); border-radius:999px; padding:4px 10px; cursor:pointer;
+  }
+  .tag-filter-chip:hover { border-color: var(--accent-600); color: var(--accent-600); }
+  .tag-pill-sm {
+    display:inline-block; font-size:11px; font-weight:600; color: var(--accent-600);
+    background: var(--accent-100); border-radius:999px; padding:1px 7px;
+  }
+
+  /* 新規: ブックマーク（学習予定登録）ボタン */
+  .bookmark-col { width: 34px; text-align: center; }
+  .bookmark-btn {
+    background: none; border: none; cursor: pointer; padding: 4px;
+    color: var(--text-subtle); display: inline-flex; line-height: 0;
+    transition: color .1s, transform .1s;
+  }
+  .bookmark-btn:hover { color: #f59e0b; transform: scale(1.1); }
+  .bookmark-btn.on { color: #f59e0b; }
+  .bookmark-btn svg { width: 18px; height: 18px; }
+
+  .section-note {
+    font-size: 12.5px; color: var(--text-muted); background: var(--bg-subtle);
+    border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; margin-bottom: 16px;
+  }
+  .section-note b { color: var(--text-strong, #1f2937); }
+
+  .divider-heading {
+    display: flex; align-items: center; gap: 10px; margin: 36px 0 14px;
+  }
+  .divider-heading h2 { font-size: 15px; margin: 0; white-space: nowrap; }
+  .divider-heading .line { flex: 1; height: 1px; background: var(--border-strong); }
+</style>
+</head>
+<body>
+
+<div style="background:#fef3c7;border-bottom:1px solid #fbbf24;color:#78350f;font-size:12px;font-weight:600;text-align:center;padding:6px;">
+  【検討中】S-03改善案: 学習予定ブックマーク ／ 正式版ではありません（docs/ には未反映）
+</div>
+
+<div class="app">
+
+  <!-- サイドバー（受講者: 佐藤 健一） -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-mark">M</div>
+      <div>
+        <div class="brand-name">Manabi</div>
+        <div class="brand-sub">社内学習管理システム</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-label">メニュー</div>
+      <a class="nav-item" href="#">マイ学習</a>
+      <a class="nav-item active" href="#">教材一覧・検索</a>
+      <a class="nav-item" href="#">教材編集</a>
+      <a class="nav-item" href="#">採点</a>
+      <a class="nav-item" href="#">個人学習レポート</a>
+      <a class="nav-item" href="#">プロジェクト作成</a>
+      <a class="nav-item" href="#">プロジェクト管理</a>
+      <a class="nav-item" href="#">配信設定</a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="sidebar-user-row">
+        <span class="avatar">佐</span>
+        <div>
+          <div class="user-name">佐藤 健一 <span class="badge badge-role role-member">member</span></div>
+          <div class="user-mail">k.sato@kogasoftware.com</div>
+        </div>
+      </div>
+      <a class="sidebar-logout" href="#">プロフィール編集</a>
+      <a class="sidebar-logout" href="#">ログアウト</a>
+    </div>
+  </aside>
+
+  <!-- メインエリア -->
+  <div class="main">
+    <header class="page-header">
+      <div class="page-title-group">
+        <h1>教材一覧・検索</h1>
+        <span class="screen-id">S-03改善案</span>
+      </div>
+    </header>
+
+    <div class="page-body">
+
+      <div class="section-note">
+        <b>検討中の機能:</b> 教材一覧の各行に★（ブックマーク）ボタンを追加する。押すと「学習予定」として個人的に印を付けられ、絞り込みチェックボックスで学習予定のみを一覧表示できる。必修/任意の判定や受講対象の判定（配信設定）とは無関係の、<b>個人のメモ的な機能</b>という位置づけ（他の人からは見えない）。付けた教材は<b>マイ学習（S-02）にも「学習予定」として表示</b>し、あとで見返しやすくする（ページ下部に反映イメージあり）。実際に触れる部分のみ星の色が変わるよう動作する。
+      </div>
+
+      <!-- プロジェクトタブ -->
+      <div class="proj-tabs" role="tablist" aria-label="所属プロジェクトで絞り込み">
+        <button class="proj-tab active" type="button">すべて <span class="proj-count">9件</span></button>
+        <button class="proj-tab pinned" type="button">
+          <svg class="pin-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a1 1 0 0 0 0-2H8a1 1 0 0 0 0 2h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/></svg>
+          全社Wiki <span class="proj-count">1件</span>
+        </button>
+        <button class="proj-tab" type="button">新人研修2026運営 <span class="proj-count">2件</span></button>
+        <button class="proj-tab" type="button">情報セキュリティ委員会 <span class="proj-count">2件</span></button>
+        <button class="proj-tab" type="button">LCC CRM刷新 <span class="proj-count">2件</span></button>
+        <button class="proj-tab" type="button">Manabi新規構築 <span class="proj-count">2件</span></button>
+      </div>
+
+      <!-- 検索パネル -->
+      <details class="search-panel" open>
+        <summary>
+          <span class="summary-caret"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+          検索条件
+          <span class="summary-hint">クリックで開閉</span>
+        </summary>
+        <div class="search-panel-body">
+          <div class="search-grid">
+            <div class="field">
+              <label for="q">キーワード</label>
+              <input type="search" id="q" placeholder="教材名、見出し名、#タグ">
+            </div>
+            <div class="field">
+              <label>区分</label>
+              <select>
+                <option selected>すべて</option>
+                <option>必修のみ</option>
+                <option>任意のみ</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="field" style="margin-bottom:10px">
+            <label>タグで絞り込む</label>
+            <div class="tag-filter-row">
+              <button type="button" class="tag-filter-chip">#新人研修2026</button>
+              <button type="button" class="tag-filter-chip">#エンジニア基礎</button>
+              <button type="button" class="tag-filter-chip">#フロントエンド基礎</button>
+              <button type="button" class="tag-filter-chip">#Git</button>
+              <button type="button" class="tag-filter-chip">#セキュリティ</button>
+            </div>
+          </div>
+
+          <div class="checkbox-group" style="margin-bottom:10px">
+            <label class="checkbox-line"><input type="checkbox"> 未受講のみ表示</label>
+            <label class="checkbox-line"><input type="checkbox"> 自分が受講対象の教材のみ表示</label>
+            <label class="checkbox-line"><input type="checkbox" id="filter-bookmarked" onchange="applyBookmarkFilter()"> ★ 学習予定のみ表示 <span id="bookmark-count-hint" style="color:var(--text-subtle);font-weight:400"></span></label>
+          </div>
+
+          <div class="search-actions">
+            <button class="btn btn-primary" type="button">
+              <span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+              検索
+            </button>
+            <button class="btn btn-secondary" type="button">条件クリア</button>
+          </div>
+        </div>
+      </details>
+
+      <div class="table-notes">
+        ※ ★は個人的な「学習予定」の目印で、必修/任意の区分や配信設定（受講対象の判定）には一切影響しません。他の受講者やプロジェクト管理者からは見えない、あなただけのメモです。
+      </div>
+
+      <!-- 教材テーブル -->
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th class="bookmark-col" title="学習予定に登録"></th>
+              <th>教材</th>
+              <th>プロジェクト</th>
+              <th>タグ</th>
+              <th style="width:80px">区分</th>
+              <th style="width:100px">所要時間</th>
+              <th style="width:110px">更新日</th>
+              <th style="width:110px">操作</th>
+            </tr>
+          </thead>
+          <tbody id="materials-tbody">
+            <tr data-required="true" data-status="not_started" data-bookmarked="false">
+              <td class="bookmark-col"><button class="bookmark-btn" type="button" onclick="toggleBookmark(this)" title="学習予定に登録">★</button></td>
+              <td>
+                <div class="cell-main">AI開発研修 基礎編 — Claude Codeの使い方</div>
+                <div class="cell-sub">全5章・14ページ ／ 単一選択・記述式 全8問</div>
+              </td>
+              <td><span class="chip">新人研修2026運営</span></td>
+              <td><span class="tag-pill">#新人研修2026</span></td>
+              <td><span class="badge badge-required">必修</span></td>
+              <td class="num">約90分</td>
+              <td>2026-08-10</td>
+              <td><a class="btn btn-secondary btn-sm" href="#">受講する</a></td>
+            </tr>
+            <tr data-required="true" data-status="not_started" data-bookmarked="false">
+              <td class="bookmark-col"><button class="bookmark-btn" type="button" onclick="toggleBookmark(this)" title="学習予定に登録">★</button></td>
+              <td>
+                <div class="cell-main">ビジネスマナー研修</div>
+                <div class="cell-sub">全3章・8ページ ／ 単一選択 全6問</div>
+              </td>
+              <td><span class="chip">新人研修2026運営</span></td>
+              <td><span class="tag-pill">#新人研修2026</span></td>
+              <td><span class="badge badge-required">必修</span></td>
+              <td class="num">約40分</td>
+              <td>2026-07-20</td>
+              <td><a class="btn btn-secondary btn-sm" href="#">受講する</a></td>
+            </tr>
+            <tr data-required="true" data-status="not_started" data-bookmarked="false">
+              <td class="bookmark-col"><button class="bookmark-btn" type="button" onclick="toggleBookmark(this)" title="学習予定に登録">★</button></td>
+              <td>
+                <div class="cell-main">情報セキュリティ研修 2026</div>
+                <div class="cell-sub">全4章・11ページ ／ 単一選択・複数選択 全10問</div>
+              </td>
+              <td><span class="chip">情報セキュリティ委員会</span></td>
+              <td><span class="tag-pill">#セキュリティ</span></td>
+              <td><span class="badge badge-required">必修</span></td>
+              <td class="num">約60分</td>
+              <td>2026-08-01</td>
+              <td><a class="btn btn-secondary btn-sm" href="#">受講する</a></td>
+            </tr>
+            <tr data-required="true" data-status="completed" data-bookmarked="false">
+              <td class="bookmark-col"><button class="bookmark-btn" type="button" onclick="toggleBookmark(this)" title="学習予定に登録">★</button></td>
+              <td>
+                <div class="cell-main">ハラスメント防止研修</div>
+                <div class="cell-sub">全2章・5ページ ／ 単一選択 全4問</div>
+              </td>
+              <td><span class="chip">情報セキュリティ委員会</span></td>
+              <td><span class="tag-pill">#セキュリティ</span></td>
+              <td><span class="badge badge-required">必修</span></td>
+              <td class="num">約30分</td>
+              <td>2026-06-15</td>
+              <td><a class="btn btn-ghost btn-sm" href="#">復習する</a></td>
+            </tr>
+            <tr data-required="false" data-status="completed" data-bookmarked="false">
+              <td class="bookmark-col"><button class="bookmark-btn" type="button" onclick="toggleBookmark(this)" title="学習予定に登録">★</button></td>
+              <td>
+                <div class="cell-main">新人向けGit入門</div>
+                <div class="cell-sub">全4章・9ページ ／ 記述式 全5問 ／ 作成: 鈴木 美咲</div>
+              </td>
+              <td><span class="chip">LCC CRM刷新</span></td>
+              <td><span class="tag-pill">#エンジニア基礎</span> <span class="tag-pill">#Git</span></td>
+              <td><span class="badge badge-optional">任意</span></td>
+              <td class="num">約45分</td>
+              <td>2026-08-14</td>
+              <td><a class="btn btn-ghost btn-sm" href="#">反復演習</a></td>
+            </tr>
+            <tr data-required="false" data-status="not_started" data-bookmarked="true">
+              <td class="bookmark-col"><button class="bookmark-btn on" type="button" onclick="toggleBookmark(this)" title="学習予定から外す">★</button></td>
+              <td>
+                <div class="cell-main">データベース設計入門</div>
+                <div class="cell-sub">全5章・13ページ ／ 単一選択・記述式 全9問 ／ 作成: 鈴木 美咲</div>
+              </td>
+              <td><span class="chip">LCC CRM刷新</span></td>
+              <td><span class="tag-pill">#エンジニア基礎</span></td>
+              <td><span class="badge badge-optional">任意</span></td>
+              <td class="num">約70分</td>
+              <td>2026-08-12</td>
+              <td><a class="btn btn-secondary btn-sm" href="#">受講する</a></td>
+            </tr>
+            <tr data-required="false" data-status="in_progress" data-bookmarked="false">
+              <td class="bookmark-col"><button class="bookmark-btn" type="button" onclick="toggleBookmark(this)" title="学習予定に登録">★</button></td>
+              <td>
+                <div class="cell-main">TypeScript入門</div>
+                <div class="cell-sub">全6章・17ページ ／ 単一選択・記述式 全12問</div>
+              </td>
+              <td><span class="chip">Manabi新規構築</span></td>
+              <td><span class="tag-pill">#フロントエンド基礎</span></td>
+              <td><span class="badge badge-optional">任意</span></td>
+              <td class="num">約100分</td>
+              <td>2026-08-05</td>
+              <td><a class="btn btn-secondary btn-sm" href="#">続きから受講</a></td>
+            </tr>
+            <tr data-required="false" data-status="not_started" data-bookmarked="true">
+              <td class="bookmark-col"><button class="bookmark-btn on" type="button" onclick="toggleBookmark(this)" title="学習予定から外す">★</button></td>
+              <td>
+                <div class="cell-main">React入門</div>
+                <div class="cell-sub">全5章・12ページ ／ 単一選択 全8問</div>
+              </td>
+              <td><span class="chip">Manabi新規構築</span></td>
+              <td><span class="tag-pill">#フロントエンド基礎</span></td>
+              <td><span class="badge badge-optional">任意</span></td>
+              <td class="num">約80分</td>
+              <td>2026-08-05</td>
+              <td><a class="btn btn-secondary btn-sm" href="#">受講する</a></td>
+            </tr>
+            <tr data-required="false" data-status="not_started" data-bookmarked="false">
+              <td class="bookmark-col"><button class="bookmark-btn" type="button" onclick="toggleBookmark(this)" title="学習予定に登録">★</button></td>
+              <td>
+                <div class="cell-main">Python基礎ハンズオン資料</div>
+                <div class="cell-sub">全2章・6ページ ／ 記述式・コード記述式 全5問 ／ 作成: 高橋 大輔</div>
+              </td>
+              <td><span class="chip chip-proj">📌 全社Wiki</span></td>
+              <td><span class="tag-pill">#Python</span></td>
+              <td><span class="badge badge-optional">任意</span></td>
+              <td class="num">約30分</td>
+              <td>2026-08-17</td>
+              <td><a class="btn btn-secondary btn-sm" href="#">受講する</a></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="list-footer">
+        <span class="filter-label">表示件数</span>
+        <select style="width:90px">
+          <option selected>20件</option>
+          <option>50件</option>
+          <option>100件</option>
+        </select>
+        <span class="total-count" id="total-count-text"><strong>1 - 9</strong> / 9件</span>
+        <div class="pagination">
+          <button class="page-btn" type="button" disabled>«</button>
+          <button class="page-btn current" type="button">1</button>
+          <button class="page-btn" type="button" disabled>»</button>
+        </div>
+      </div>
+
+      <!-- ==================== マイ学習（S-02）への反映イメージ ==================== -->
+      <div class="divider-heading">
+        <h2>参考: マイ学習（S-02）への反映イメージ</h2>
+        <div class="line"></div>
+      </div>
+      <div class="section-note">
+        ★を付けた教材は、マイ学習の「必修教材」「任意教材」パネルの<b>手前に新設する「学習予定」パネル</b>にもまとめて表示される案。まだ手を付けていない教材を後で見つけやすくする狙い。受講を開始する、または一覧から★を外すと、この一覧から自然に消える（進捗が0%より進んだ時点で「学習予定」から「受講中」の通常表示に切り替わり、このパネルには出さなくなる想定）。
+      </div>
+
+      <section class="panel" style="border-color:#fde68a">
+        <div class="panel-header" style="background:#fffbeb">
+          <div class="panel-title">
+            <span style="color:#d97706;font-size:15px;line-height:0">★</span>
+            学習予定
+          </div>
+          <span class="panel-count">2件（まだ受講していません）</span>
+        </div>
+        <div class="panel-body">
+          <div class="material-card">
+            <div class="material-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+            </div>
+            <div class="material-body">
+              <div class="material-title">データベース設計入門</div>
+              <div class="material-meta">
+                <span class="badge badge-optional">任意</span>
+                <span class="chip">LCC CRM刷新</span>
+                <span class="tag-pill-sm">#エンジニア基礎</span>
+              </div>
+            </div>
+            <div class="material-actions">
+              <button class="bookmark-btn on" type="button" title="学習予定から外す">★</button>
+              <a class="btn btn-secondary btn-sm" href="#">受講する</a>
+            </div>
+          </div>
+          <div class="material-card">
+            <div class="material-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+            </div>
+            <div class="material-body">
+              <div class="material-title">React入門</div>
+              <div class="material-meta">
+                <span class="badge badge-optional">任意</span>
+                <span class="chip">Manabi新規構築</span>
+                <span class="tag-pill-sm">#フロントエンド基礎</span>
+              </div>
+            </div>
+            <div class="material-actions">
+              <button class="bookmark-btn on" type="button" title="学習予定から外す">★</button>
+              <a class="btn btn-secondary btn-sm" href="#">受講する</a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="table-notes" style="margin-top:20px">
+        <b>実装イメージのメモ（検討用）:</b><br>
+        ・新規テーブル 例: <code>material_bookmarks</code>（user_id, material_id, created_at。UNIQUE(user_id, material_id)）を追加。既存の受講対象判定（assignments・enrollment_progress）とは独立させ、単純なON/OFFのみ持つ。<br>
+        ・新規API 例: <code>PUT /api/materials/{id}/bookmark</code>（登録）・<code>DELETE /api/materials/{id}/bookmark</code>（解除）・S-03一覧（A-14）のレスポンスに<code>bookmarked: boolean</code>を追加。<br>
+        ・「学習予定のみ表示」フィルタはA-14へのクエリパラメータ追加で対応可能。マイ学習（S-02）側は新規に「学習予定」パネル用の集計クエリが必要（進捗0%かつbookmarked=trueの教材）。
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="mock-note">検討資料（画面モック）/ 研修サンプル ／ 2026-08-31</div>
+
+<script>
+function toggleBookmark(btn) {
+  var row = btn.closest('tr');
+  var on = btn.classList.toggle('on');
+  btn.title = on ? '学習予定から外す' : '学習予定に登録';
+  if (row) row.setAttribute('data-bookmarked', on ? 'true' : 'false');
+  updateBookmarkHint();
+  applyBookmarkFilter();
+}
+
+function updateBookmarkHint() {
+  var count = document.querySelectorAll('#materials-tbody tr[data-bookmarked="true"]').length;
+  document.getElementById('bookmark-count-hint').textContent = count > 0 ? '(' + count + '件)' : '';
+}
+
+function applyBookmarkFilter() {
+  var active = document.getElementById('filter-bookmarked').checked;
+  var rows = document.querySelectorAll('#materials-tbody tr');
+  var visibleCount = 0;
+  rows.forEach(function (row) {
+    var matches = !active || row.getAttribute('data-bookmarked') === 'true';
+    row.style.display = matches ? '' : 'none';
+    if (matches) visibleCount++;
+  });
+  document.getElementById('total-count-text').innerHTML =
+    '<strong>1 - ' + visibleCount + '</strong> / ' + visibleCount + '件' + (active ? '（学習予定のみ）' : '');
+}
+
+updateBookmarkHint();
+</script>
+</body>
+</html>

@@ -95,6 +95,9 @@ async def search_materials(
 
     project_idはmaterials.project_idの一致のみで判定する（F-26のプロジェクト間共有〔T-22
     material_project_shares〕は本書の時点で未実装のため、共有先への表示は対象外。実装時に追加する）。
+
+    レスポンスの`registered`（T-30 my_learning_registrations、F-31）は、全社Wiki所属の任意教材の
+    行にのみ「マイ学習に追加」/「マイ学習から外す」ボタンを出し分けるためにS-02実装時に追加した。
     my_assignments_onlyは5.3節の3条件のうち、プロジェクトの現役メンバーである・個人指定の配信
     （assignments, scope_type='individual'）があるの2条件のみ判定する（3条件目の共有経由は同じ理由で対象外）。
     """
@@ -159,6 +162,8 @@ async def search_materials(
                    COALESCE(qc.question_types, '[]') AS question_types,
                    EXISTS (SELECT 1 FROM assignments a WHERE a.material_id = m.id AND a.required = true) AS required,
                    COALESCE(ep.status, 'not_started') AS progress_status,
+                   EXISTS (SELECT 1 FROM my_learning_registrations r
+                           WHERE r.user_id = {user_ph} AND r.material_id = m.id) AS registered,
                    m.updated_at
             FROM materials m
             JOIN projects p ON p.id = m.project_id
@@ -469,6 +474,12 @@ async def get_material(id: int, user: CurrentUser = Depends(require_auth)):
         else {"status": "not_started", "current_node_id": None, "completed_node_ids": []}
     )
 
+    # S-04/S-16向け: マイ学習登録有無（F-31）。全社Wiki所属の任意教材でのみボタンを表示する判定に使う
+    registered = await pool.fetchval(
+        "SELECT EXISTS(SELECT 1 FROM my_learning_registrations WHERE user_id = $1 AND material_id = $2)",
+        user.id, id,
+    )
+
     return {
         **_material_dict(row),
         "toc": tree,
@@ -476,6 +487,8 @@ async def get_material(id: int, user: CurrentUser = Depends(require_auth)):
         "due_at": due_at,
         "progress": progress,
         "page_count": _count_pages(tree),
+        "is_company_wide": perm_row["is_company_wide"],
+        "registered": registered,
     }
 
 
