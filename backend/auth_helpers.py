@@ -1,6 +1,7 @@
 # JWT発行/検証、権限ヘルパー（詳細設計書 5.1節）
 import os
 import time
+import uuid
 from dataclasses import dataclass
 
 import jwt
@@ -14,6 +15,7 @@ if APP_ENV == "production" and JWT_SECRET == _DEV_SECRET:
     # 開発用の既定鍵のまま本番起動するとセッションを偽造できてしまうため、起動時に落とす
     raise RuntimeError("APP_ENV=production では JWT_SECRET の設定が必須です")
 JWT_EXPIRES_SECONDS = int(os.environ.get("JWT_EXPIRES_SECONDS", str(12 * 3600)))
+CLI_TOKEN_EXPIRES_SECONDS = 90 * 24 * 3600  # A-62: CLIトークンは90日（詳細設計書7.1節）
 SESSION_COOKIE = "manabi_session"
 # 本番（HTTPS）ではセッションCookieに Secure 属性を付与する
 COOKIE_SECURE = os.environ.get("COOKIE_SECURE", "1" if APP_ENV == "production" else "0") == "1"
@@ -26,11 +28,26 @@ class CurrentUser:
     name: str
     role: str
     picture_url: str | None
+    token_type: str = "session"
+    jti: str | None = None
 
 
-def issue_jwt(user_id: int, role: str) -> str:
+def issue_jwt(
+    user_id: int,
+    role: str,
+    token_type: str = "session",
+    jti: str | None = None,
+    expires_seconds: int | None = None,
+) -> str:
+    """token_type='cli'の場合、jtiを埋め込み90日有効期限で発行する（A-62）。
+    material_revisions.changed_via の判定にもtoken_typeをそのまま使う（詳細設計書7.1節）。"""
     now = int(time.time())
-    payload = {"sub": str(user_id), "role": role, "iat": now, "exp": now + JWT_EXPIRES_SECONDS}
+    expires = expires_seconds if expires_seconds is not None else JWT_EXPIRES_SECONDS
+    if token_type == "cli" and jti is None:
+        jti = uuid.uuid4().hex
+    payload = {"sub": str(user_id), "role": role, "token_type": token_type, "iat": now, "exp": now + expires}
+    if jti is not None:
+        payload["jti"] = jti
     return jwt.encode(payload, JWT_SECRET, algorithm="HS256")
 
 
@@ -44,8 +61,19 @@ def verify_jwt(token: str) -> dict:
 async def require_auth(request: Request) -> CurrentUser:
     token = request.cookies.get(SESSION_COOKIE)
     if token is None:
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            token = auth_header[len("Bearer "):]
+    if token is None:
         raise HTTPException(401, detail="認証が必要です")
     payload = verify_jwt(token)
+    if payload.get("token_type") == "cli":
+        jti = payload.get("jti")
+        revoked = await get_pool().fetchval(
+            "SELECT 1 FROM cli_token_revocations WHERE jti = $1", jti,
+        )
+        if revoked:
+            raise HTTPException(401, detail="失効済みのCLIトークンです")
     row = await get_pool().fetchrow(
         "SELECT id, email, name, role, is_active, picture_url FROM users WHERE id = $1",
         int(payload["sub"]),
@@ -55,6 +83,7 @@ async def require_auth(request: Request) -> CurrentUser:
     return CurrentUser(
         id=row["id"], email=row["email"], name=row["name"],
         role=row["role"], picture_url=row["picture_url"],
+        token_type=payload.get("token_type", "session"), jti=payload.get("jti"),
     )
 
 

@@ -21,6 +21,13 @@ def load_root_env() -> dict[str, str]:
 
 
 ROOT_ENV = load_root_env()
+# ルート.envの値をプロセス環境変数へ反映する（既に実OS環境変数が設定されている場合はそちらを優先、
+# setdefaultのため上書きしない）。これが無いと、database.py以外のモジュール（ai_client.pyの
+# ANTHROPIC_API_KEY、auth_helpers.pyのJWT_SECRET、google_auth.pyのGOOGLE_CLIENT_ID等）が素の
+# os.environ.get()で読んでいるため、.envに値を書いても一切反映されない不具合になっていた
+# （Google OAuth実装時に発見。start.bat未整備でこれまで顕在化していなかった）。
+for _k, _v in ROOT_ENV.items():
+    os.environ.setdefault(_k, _v)
 
 _db_port = os.environ.get("DB_PORT") or ROOT_ENV.get("DB_PORT", "55433")
 DATABASE_URL = (
@@ -364,6 +371,15 @@ CREATE TABLE IF NOT EXISTS survey_answers (
 );
 CREATE INDEX IF NOT EXISTS idx_survey_answers_response_id ON survey_answers (response_id);
 ALTER TABLE survey_answers ENABLE ROW LEVEL SECURITY;
+
+-- T-31 cli_token_revocations（A-63で失効させたCLIトークンのjtiを記録。JWT自体はステートレスな
+-- ため、失効を表現するにはサーバー側にこの一覧を持つ必要がある。詳細設計書7.1節）
+CREATE TABLE IF NOT EXISTS cli_token_revocations (
+    jti         TEXT PRIMARY KEY,
+    user_id     BIGINT NOT NULL REFERENCES users(id),
+    revoked_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE cli_token_revocations ENABLE ROW LEVEL SECURITY;
 """
 
 

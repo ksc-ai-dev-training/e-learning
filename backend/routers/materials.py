@@ -805,10 +805,11 @@ async def put_material_source(
                 summary_parts.append(f"問題を{q_added}件追加/{q_updated}件更新/{q_deleted}件削除")
             change_summary = "、".join(summary_parts) or "教材情報を更新"
 
+            changed_via = "claude_code" if user.token_type == "cli" else "web"
             await conn.execute(
                 """INSERT INTO material_revisions (material_id, source_snapshot, changed_by, changed_via, change_summary)
-                   VALUES ($1, $2, $3, 'web', $4)""",
-                id, new_source, user.id, change_summary,
+                   VALUES ($1, $2, $3, $4, $5)""",
+                id, new_source, user.id, changed_via, change_summary,
             )
 
     return Response(content=new_source, media_type="text/plain")

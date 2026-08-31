@@ -7,3 +7,5 @@ PyYAML>=6.0
 nh3>=0.2
 markdown>=3.7
 httpx>=0.28
+anthropic>=0.40
+cryptography>=43.0
