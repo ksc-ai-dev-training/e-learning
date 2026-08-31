@@ -1,6 +1,7 @@
-# 教材API（A-15〜A-22, A-27, A-29〜A-31, A-64, A-82）。AI機能（A-32〜A-35）は未着手。
+# 教材API（A-15〜A-22, A-27, A-29〜A-32/A-33, A-64, A-82）。AI機能のうちA-34/A-35（F-21）は未着手。
 import json
 import os
+import random
 from typing import Literal
 from uuid import uuid4
 
@@ -8,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import Response
 from pydantic import BaseModel, Field, model_validator
 
+import ai_client
 import storage
 from auth_helpers import (
     ROLE_RANK,
@@ -222,6 +224,14 @@ async def _fetch_tree(executor, material_id: int, *, strip_answers: bool = False
         d["correct_answer"] = json.loads(d["correct_answer"]) if d["correct_answer"] is not None else None
         d["pool_group"] = d.pop("pool_group_id")
         if strip_answers:
+            # 並び替え（reorder）はcorrect_answerが並び替え対象の項目そのものを保持する
+            # （QuestionEditCardのReorderEditorがoptionsを使わない設計のため）。correct_answerを
+            # そのままNULLにすると受講者は並び替える項目自体が分からなくなるため、シャッフルした
+            # 項目をoptionsへ移してから正解の順序を隠す。
+            if d["type"] == "reorder" and d["correct_answer"] is not None:
+                shuffled = d["correct_answer"][:]
+                random.shuffle(shuffled)
+                d["options"] = shuffled
             d["correct_answer"] = None
             d["scoring_criteria"] = None
         questions_by_node.setdefault(d["node_id"], []).append(d)
@@ -844,10 +854,56 @@ class PreviewRequest(BaseModel):
 async def preview_material_body(
     id: int,
     body: PreviewRequest,
-    user: CurrentUser = Depends(require_material_role(min_role="editor")),
+    user: CurrentUser = Depends(require_auth),
 ):
-    """A-64: S-17説明文プレビュー用。保存せずサニタイズ済みHTMLを返す（8.6節）。"""
+    """A-64: S-17説明文プレビュー・S-16本文表示用。保存せずサニタイズ済みHTMLを返す（8.6節）。
+    受講対象者は元々_fetch_tree経由でbody原文を取得できるため、そのサニタイズ結果を見られる
+    ようにするのはセキュリティ上問題ない（S-16着手時にeditor専用から拡張、_require_view_access）。"""
+    await _require_view_access(get_pool(), id, user)
     return {"html": render_material_body(body.body, body.format)}
+
+
+def _review_row_dict(row) -> dict:
+    return {**dict(row), "findings": json.loads(row["findings"])}
+
+
+@detail_router.post("/{id}/ai-review")
+async def run_ai_review(id: int, user: CurrentUser = Depends(require_material_role(min_role="editor"))):
+    """A-32: 教材AIレビューを実行する（F-08、8.6節）。同期呼び出し。教材本文（サニタイズ前の原文）・
+    問題定義をAnthropic Claude APIへ送り、結果をT-15へ保存して返す。AI呼び出しが最終的に失敗した場合は
+    502を返す（APIキー未設定・Anthropic側障害等を利用者に詳細を見せず伝える、8.7節）。"""
+    pool = get_pool()
+    source_text = await _rebuild_source(pool, id)
+    try:
+        findings = await ai_client.review_material(material_text=source_text, user_id=user.id)
+    except Exception:
+        raise HTTPException(502, detail="AIレビューの実行に失敗しました。しばらくしてから再度お試しください")
+
+    row = await pool.fetchrow(
+        """INSERT INTO ai_material_reviews (material_id, requested_by, findings)
+           VALUES ($1, $2, $3)
+           RETURNING *""",
+        id, user.id, json.dumps(findings),
+    )
+    result = _review_row_dict(row)
+    result["requested_by_name"] = await pool.fetchval("SELECT name FROM users WHERE id = $1", user.id)
+    return result
+
+
+@detail_router.get("/{id}/ai-review")
+async def get_ai_review(id: int, user: CurrentUser = Depends(require_material_role(min_role="editor"))):
+    """A-33: 直近のAIレビュー結果を取得する。一度も実行していない場合は404。"""
+    pool = get_pool()
+    row = await pool.fetchrow(
+        """SELECT r.*, u.name AS requested_by_name
+           FROM ai_material_reviews r JOIN users u ON u.id = r.requested_by
+           WHERE r.material_id = $1
+           ORDER BY r.created_at DESC LIMIT 1""",
+        id,
+    )
+    if row is None:
+        raise HTTPException(404, detail="AIレビューはまだ実行されていません")
+    return _review_row_dict(row)
 
 
 class UploadUrlRequest(BaseModel):
@@ -1015,16 +1071,26 @@ class SurveyUpsert(BaseModel):
 
 
 @detail_router.get("/{id}/surveys")
-async def list_surveys(id: int, user: CurrentUser = Depends(require_material_role(min_role="editor"))):
-    """A-78: 教材に設置されたアンケート一覧（教材全体分＋章ごと）を設問込みで取得する。"""
+async def list_surveys(id: int, user: CurrentUser = Depends(require_auth)):
+    """A-78: 教材に設置されたアンケート一覧（教材全体分＋章ごと）を設問込みで取得する。
+    編集者・管理者（S-05設置画面）だけでなく受講対象者（S-04/S-16の回答画面）からも呼べるよう
+    _require_view_accessベースに拡張した（S-16着手時、A-64と同じ拡張パターン）。あわせて
+    answered_by_me（自分が既に回答済みか）を追加し、repeat_mode='once'の表示要否判定に使う。"""
     pool = get_pool()
+    perm = await _require_view_access(pool, id, user)
     rows = await pool.fetch(
-        """SELECT id, node_id, title, is_active, repeat_mode FROM surveys
-           WHERE material_id = $1 ORDER BY node_id NULLS FIRST""",
-        id,
+        """SELECT s.id, s.node_id, s.title, s.is_active, s.repeat_mode,
+                  EXISTS (
+                      SELECT 1 FROM survey_responses sr WHERE sr.survey_id = s.id AND sr.user_id = $2
+                  ) AS answered_by_me
+           FROM surveys s
+           WHERE s.material_id = $1 ORDER BY s.node_id NULLS FIRST""",
+        id, user.id,
     )
     items = []
     for r in rows:
+        # 編集者向け画面（S-05）は未回答者数の目安として、受講者は自分の回答状況のみ気にすればよいため
+        # 設問一覧は常に返す（設問内容自体に受講者向けの機微情報は無い）。
         qrows = await pool.fetch(
             "SELECT id, type, prompt, options FROM survey_questions WHERE survey_id = $1 ORDER BY sort_order",
             r["id"],

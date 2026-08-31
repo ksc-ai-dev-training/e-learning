@@ -11,6 +11,7 @@ import TextArea from '../components/ui/TextArea'
 import TextInput from '../components/ui/TextInput'
 import { useMaterial } from '../hooks/useMaterial'
 import { useMaterialAttachments } from '../hooks/useMaterialAttachments'
+import { useAiReview, runAiReview } from '../hooks/useAiReview'
 import { useMaterialRevisions } from '../hooks/useMaterialRevisions'
 import { useProjectMemberships } from '../hooks/useProjectMemberships'
 import { useProjects } from '../hooks/useProjects'
@@ -89,6 +90,13 @@ export default function MaterialEdit() {
   const { items: questionSummaryItems, isLoading: questionsSummaryLoading } = useQuestionsSummary(
     activeTab === 'questions' ? savedId : null,
   )
+  const {
+    review: aiReview,
+    isLoading: aiReviewLoading,
+    mutate: mutateAiReview,
+  } = useAiReview(activeTab === 'review' ? savedId : null)
+  const [runningAiReview, setRunningAiReview] = useState(false)
+  const [aiReviewRunError, setAiReviewRunError] = useState<string | null>(null)
 
   useEffect(() => {
     if (material) {
@@ -279,6 +287,21 @@ export default function MaterialEdit() {
       setError(e instanceof ApiError ? e.message : '削除に失敗しました')
     } finally {
       setDeleting(false)
+    }
+  }
+
+  // 「AIレビューを実行」（A-32）。教材本文・問題定義をAnthropic Claude APIへ送り指摘事項を受け取る（F-08）
+  const doRunAiReview = async () => {
+    if (savedId === null) return
+    setAiReviewRunError(null)
+    setRunningAiReview(true)
+    try {
+      const result = await runAiReview(savedId)
+      await mutateAiReview(result)
+    } catch (e) {
+      setAiReviewRunError(e instanceof ApiError ? e.message : 'AIレビューの実行に失敗しました')
+    } finally {
+      setRunningAiReview(false)
     }
   }
 
@@ -1289,12 +1312,53 @@ export default function MaterialEdit() {
                 <TabGateMessage />
               ) : (
                 <>
-                  <Button variant="primary" disabled title="準備中（AI連携の実装後に有効化）">
-                    AIレビューを実行
-                  </Button>
-                  <p className="mt-3 rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400">
-                    まだAIレビューを実行していません。
-                  </p>
+                  <div className="flex items-center gap-3">
+                    <Button variant="primary" onClick={doRunAiReview} disabled={runningAiReview}>
+                      {runningAiReview ? '実行中…' : 'AIレビューを実行'}
+                    </Button>
+                    {aiReview && !runningAiReview && (
+                      <span className="text-xs text-slate-500">
+                        最終実行: {formatDateTimeJst(aiReview.created_at)}（{aiReview.requested_by_name}）
+                      </span>
+                    )}
+                  </div>
+                  {aiReviewRunError && (
+                    <p className="mt-3 text-sm text-red-600">{aiReviewRunError}</p>
+                  )}
+                  {aiReviewLoading && !aiReview && (
+                    <p className="mt-3 text-sm text-slate-400">読み込み中…</p>
+                  )}
+                  {!aiReviewLoading && !runningAiReview && !aiReview && !aiReviewRunError && (
+                    <p className="mt-3 rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400">
+                      まだAIレビューを実行していません。
+                    </p>
+                  )}
+                  {aiReview && (
+                    <div className="mt-3 space-y-2">
+                      {aiReview.findings.length === 0 && (
+                        <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400">
+                          指摘事項はありませんでした。
+                        </p>
+                      )}
+                      {aiReview.findings.map((f, i) => (
+                        <div key={i} className="flex items-start gap-3 rounded-md border border-slate-200 p-3">
+                          <Badge variant={f.severity === 'warning' ? 'ai-warning' : 'ai-info'} />
+                          <div>
+                            <div className="text-[12.5px] font-semibold text-slate-700">
+                              {f.location ? `【${f.location}】` : ''}
+                              {f.issue}
+                            </div>
+                            {f.suggestion && (
+                              <div className="mt-0.5 text-xs text-slate-500">{f.suggestion}</div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                      <p className="text-xs text-slate-400">
+                        ※ AIレビューの指摘に従うかどうかは、教材が紐づくプロジェクトの編集者・管理者の判断に委ねられます。この結果は教材の品質を保証するものではありません。
+                      </p>
+                    </div>
+                  )}
                 </>
               )}
             </div>

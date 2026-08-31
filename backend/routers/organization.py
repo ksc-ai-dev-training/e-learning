@@ -35,6 +35,7 @@ async def list_projects(min_role: str = "editor", user: CurrentUser = Depends(re
                 COUNT(*) FILTER (WHERE status = 'published') AS published_count,
                 COUNT(*) FILTER (WHERE status = 'draft') AS draft_count
             FROM materials
+            WHERE is_archived = false
             GROUP BY project_id
         ) mc ON mc.project_id = p.id
         LEFT JOIN (

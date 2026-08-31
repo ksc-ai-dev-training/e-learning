@@ -220,8 +220,20 @@ CREATE TABLE IF NOT EXISTS quiz_attempts (
     question_order            JSONB,
     carried_over_question_ids JSONB,
     started_at                TIMESTAMPTZ NOT NULL DEFAULT now(),
-    submitted_at              TIMESTAMPTZ
+    submitted_at              TIMESTAMPTZ,
+    practice_kind             TEXT CHECK (practice_kind IN ('repeat', 'wrong_only'))
 );
+-- (user_id, material_id, mode, scope_node_id, practice_kind)の組でsubmitted_at IS NULLな行を
+-- 高々1件に保つ。A-40がINSERT ... ON CONFLICTでこれを対象にし、「無ければ作る・あれば取得する」を
+-- アトミックに行う（StrictModeのエフェクト二重発火・二重クリック等で同一スコープの未提出試行が
+-- 2件作られる不具合の防止）。practice_kindは反復演習（'repeat'）と誤答のみ抽出（'wrong_only'）を
+-- 区別するために追加した。両方ともmode='practice', scope_node_id=NULLで区別が付かず、
+-- 一方が進行中にもう一方を開始しようとすると本インデックスに衝突していた不具合を発見・修正した
+-- （A-44実装時、2026-08-31）。
+DROP INDEX IF EXISTS uq_quiz_attempts_active;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_quiz_attempts_active
+    ON quiz_attempts (user_id, material_id, mode, scope_node_id, practice_kind) NULLS NOT DISTINCT
+    WHERE submitted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_quiz_attempts_material_id ON quiz_attempts (material_id);
 CREATE INDEX IF NOT EXISTS idx_quiz_attempts_user_id ON quiz_attempts (user_id);
 ALTER TABLE quiz_attempts ENABLE ROW LEVEL SECURITY;
@@ -239,11 +251,39 @@ CREATE TABLE IF NOT EXISTS answers (
     reviewed_by    BIGINT REFERENCES users(id),
     reviewed_at    TIMESTAMPTZ,
     created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+    updated_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (attempt_id, question_id)
 );
 CREATE INDEX IF NOT EXISTS idx_answers_attempt_id ON answers (attempt_id);
 CREATE INDEX IF NOT EXISTS idx_answers_question_id ON answers (question_id);
 ALTER TABLE answers ENABLE ROW LEVEL SECURITY;
+
+-- T-19 ai_usage_logs（AI利用ログ）。F-08/F-20〜F-23共通で`ai_client.py`が呼び出しのたびに1行書き込む。
+-- 質問・回答の内容そのものは保存しない（Keireki T-09と同方針）
+CREATE TABLE IF NOT EXISTS ai_usage_logs (
+    id             BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    user_id        BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    feature        TEXT NOT NULL
+                   CHECK (feature IN ('material_review', 'grading', 'insight_analysis', 'personal_feedback', 'org_report')),
+    model          TEXT NOT NULL,
+    input_tokens   INTEGER NOT NULL DEFAULT 0,
+    output_tokens  INTEGER NOT NULL DEFAULT 0,
+    cost_estimate  NUMERIC(10, 6) NOT NULL DEFAULT 0,
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_ai_usage_logs_created_at_feature ON ai_usage_logs (created_at, feature);
+ALTER TABLE ai_usage_logs ENABLE ROW LEVEL SECURITY;
+
+-- T-15 ai_material_reviews（AI教材レビュー結果、F-08）。追記専用（updated_atを持たない）
+CREATE TABLE IF NOT EXISTS ai_material_reviews (
+    id             BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    material_id    BIGINT NOT NULL REFERENCES materials(id) ON DELETE CASCADE,
+    requested_by   BIGINT NOT NULL REFERENCES users(id),
+    findings       JSONB NOT NULL,
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_ai_material_reviews_material_id ON ai_material_reviews (material_id, created_at DESC);
+ALTER TABLE ai_material_reviews ENABLE ROW LEVEL SECURITY;
 
 -- T-09 material_attachments（添付ファイル・リンク）
 CREATE TABLE IF NOT EXISTS material_attachments (

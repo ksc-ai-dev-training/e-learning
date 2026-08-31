@@ -41,3 +41,10 @@ export function formatDateTimeJst(iso: string): string {
 export function formatYearMonthJst(iso: string): string {
   return formatDateJst(iso).slice(0, 7)
 }
+
+// 秒数を「N分」表示に変換する（反復演習の実施履歴「所要時間」列）。1分未満は「1分未満」
+export function formatDurationMinutes(seconds: number | null): string {
+  if (seconds === null) return '—'
+  const minutes = Math.round(seconds / 60)
+  return minutes < 1 ? '1分未満' : `${minutes}分`
+}

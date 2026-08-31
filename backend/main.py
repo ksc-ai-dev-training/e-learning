@@ -1,17 +1,21 @@
 # FastAPIアプリ生成、ルーター登録、起動設定（詳細設計書 2章）
+import asyncio
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 import database
-from routers import auth, materials, organization, uploads
+import job_sweep
+from routers import auth, learning, materials, organization, uploads
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await database.init_pool()
+    sweep_task = asyncio.create_task(job_sweep.run_periodic_sweep())
     yield
+    sweep_task.cancel()
     await database.close_pool()
 
 
@@ -22,6 +26,7 @@ app.include_router(organization.router)
 app.include_router(organization.memberships_router)
 app.include_router(materials.router)
 app.include_router(materials.detail_router)
+app.include_router(learning.router)
 app.include_router(uploads.router)
 
 

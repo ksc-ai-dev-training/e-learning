@@ -1,6 +1,9 @@
+import type { ReactNode } from 'react'
+
 // 色分けラベル（詳細設計書2.1.2節）。variantは使う場所が増えるたびに追加する。
 // 現状: 'published' / 'draft' / 'archived'（教材のstatus表示、S-14）、'admin' / 'editor' / 'learner'（プロジェクトのローカルロール表示、S-05）、
-// 'required' / 'optional'（教材の区分表示、S-03）
+// 'required' / 'optional'（教材の区分表示、S-03）、'ai-warning' / 'ai-info'（AIレビュー結果の重要度、S-05）、
+// 'complete' / 'overdue'（受講完了・期限接近の強調表示、S-02。日付を含む動的な文言のためchildrenで上書きする）
 const VARIANT_CLASSES: Record<string, string> = {
   published: 'bg-green-50 text-green-700 border-green-200',
   draft: 'bg-slate-100 text-slate-400 border-slate-300',
@@ -10,6 +13,10 @@ const VARIANT_CLASSES: Record<string, string> = {
   learner: 'bg-slate-100 text-slate-600 border-slate-300',
   required: 'bg-red-50 text-red-700 border-red-200',
   optional: 'bg-slate-100 text-slate-500 border-slate-300',
+  'ai-warning': 'bg-amber-50 text-amber-700 border-amber-200',
+  'ai-info': 'bg-slate-100 text-slate-500 border-slate-300',
+  complete: 'bg-green-50 text-green-700 border-green-200',
+  overdue: 'bg-red-50 text-red-700 border-red-200',
 }
 
 const VARIANT_LABELS: Record<string, string> = {
@@ -21,14 +28,22 @@ const VARIANT_LABELS: Record<string, string> = {
   learner: '受講者',
   required: '必修',
   optional: '任意',
+  'ai-warning': '指摘',
+  'ai-info': '提案',
 }
 
-export default function Badge({ variant }: { variant: keyof typeof VARIANT_CLASSES }) {
+export default function Badge({
+  variant,
+  children,
+}: {
+  variant: keyof typeof VARIANT_CLASSES
+  children?: ReactNode
+}) {
   return (
     <span
       className={`inline-block rounded border px-1.5 py-0.5 text-[11px] font-semibold ${VARIANT_CLASSES[variant]}`}
     >
-      {VARIANT_LABELS[variant]}
+      {children ?? VARIANT_LABELS[variant]}
     </span>
   )
 }

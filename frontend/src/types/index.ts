@@ -104,6 +104,88 @@ export interface EnrollmentProgress {
   completed_node_ids: number[]
 }
 
+// A-40〜A-43（受講・受験、S-16）のレスポンス
+export interface QuizAttempt {
+  id: number
+  user_id: number
+  material_id: number
+  scope_node_id: number | null
+  mode: 'graded' | 'practice'
+  attempt_no: number
+  score_pct: number | null
+  passed: boolean | null
+  fail_reason: string | null
+  question_order: Record<string, number[]>
+  carried_over_question_ids: number[]
+  started_at: string
+  submitted_at: string | null
+}
+
+export interface Answer {
+  id: number
+  attempt_id: number
+  question_id: number
+  response: unknown
+  is_correct: boolean | null
+  ai_score_pct: number | null
+  ai_feedback: string | null
+  reviewed_by: number | null
+  reviewed_at: string | null
+}
+
+// A-86 GET /materials/{id}/attempt-summary のitems（S-04 前回の受験結果パネル・AI採点結果パネル）
+export interface AttemptSummaryEntry {
+  scope_node_id: number | null
+  scope_label: string
+  attempt: {
+    id: number
+    attempt_no: number
+    score_pct: number | null
+    passed: boolean | null
+    fail_reason: string | null
+    submitted_at: string
+  }
+  attempt_count: number
+  retake_allowed: boolean
+  retake_limit: number | null
+  answers: {
+    question_id: number
+    prompt: string
+    type: 'free_text' | 'code'
+    is_correct: boolean | null
+    ai_score_pct: number | null
+    ai_feedback: string | null
+  }[]
+}
+
+// A-87 GET /materials/{id}/practice-attempts のitems（S-04 反復演習タブの実施履歴）
+export interface PracticeAttemptSummary {
+  id: number
+  score_pct: number | null
+  submitted_at: string
+  duration_seconds: number | null
+  total_count: number
+  correct_count: number
+}
+
+// A-78 GET /materials/{id}/surveys のitems
+export interface SurveyQuestion {
+  id: number
+  type: 'rating_5' | 'single_choice' | 'free_text'
+  prompt: string
+  options: string[] | null
+}
+
+export interface Survey {
+  id: number
+  node_id: number | null
+  title: string
+  is_active: boolean
+  repeat_mode: 'once' | 'every_time'
+  answered_by_me: boolean
+  questions: SurveyQuestion[]
+}
+
 // A-15/A-16/A-17 のレスポンス（教材メタ。A-15のみtoc・required・due_at・progress・page_countを含む）
 export interface Material {
   id: number
@@ -163,6 +245,23 @@ export interface MaterialRevision {
   changed_by_name: string
   changed_via: 'web' | 'claude_code'
   change_summary: string | null
+  created_at: string
+}
+
+// A-32/A-33 教材AIレビュー結果（S-05 AIレビュー結果タブ）
+export interface AiReviewFinding {
+  location: string
+  severity: 'info' | 'warning'
+  issue: string
+  suggestion?: string | null
+}
+
+export interface AiMaterialReview {
+  id: number
+  material_id: number
+  requested_by: number
+  requested_by_name: string
+  findings: AiReviewFinding[]
   created_at: string
 }
 
