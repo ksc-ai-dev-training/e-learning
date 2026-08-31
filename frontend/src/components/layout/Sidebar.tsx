@@ -8,6 +8,7 @@ import {
   BarChart3,
   Plus,
   LayoutGrid,
+  Send,
   ChevronLeft,
   ChevronRight,
   UserPen,
@@ -63,6 +64,13 @@ const NAV_ITEMS = [
     icon: LayoutGrid,
     implemented: false,
     match: (p: string) => p === '/projects/manage' || /^\/projects\/[^/]+\/manage(\/|$)/.test(p),
+  },
+  {
+    href: '/assignments',
+    label: '配信設定',
+    icon: Send,
+    implemented: false,
+    match: (p: string) => p === '/assignments',
   },
 ]
 

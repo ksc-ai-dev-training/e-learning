@@ -97,7 +97,14 @@ export interface MaterialNode {
   children: MaterialNode[]
 }
 
-// A-15/A-16/A-17 のレスポンス（教材メタ。A-15のみtocを含む）
+// A-40等の受講進捗（enrollment_progress）。A-15レスポンスのprogressフィールドに含まれる
+export interface EnrollmentProgress {
+  status: 'not_started' | 'in_progress' | 'completed'
+  current_node_id: number | null
+  completed_node_ids: number[]
+}
+
+// A-15/A-16/A-17 のレスポンス（教材メタ。A-15のみtoc・required・due_at・progress・page_countを含む）
 export interface Material {
   id: number
   project_id: number
@@ -116,6 +123,11 @@ export interface Material {
   created_at: string
   updated_at: string
   toc?: MaterialNode[]
+  // S-04（教材受講：目次）向け。A-15のみが返す（S-04着手時に追加）
+  required?: boolean
+  due_at?: string | null
+  progress?: EnrollmentProgress
+  page_count?: number
 }
 
 export type ProjectRole = 'admin' | 'editor' | 'learner'

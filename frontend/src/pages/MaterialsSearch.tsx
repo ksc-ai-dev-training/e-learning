@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router'
 import PageHeader from '../components/layout/PageHeader'
 import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
@@ -45,8 +46,9 @@ function actionLabel(status: EnrollmentStatus, required: boolean): string {
 }
 
 // S-03 教材一覧・検索（詳細設計書10.3節）。公開教材のみを対象に、プロジェクト・キーワード・
-// タグ・区分・受講状況で絞り込む。S-04（教材受講）は未実装のため、操作列は無効化表示にする。
+// タグ・区分・受講状況で絞り込む。
 export default function MaterialsSearch() {
+  const navigate = useNavigate()
   const { projects } = useProjects('learner')
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null)
 
@@ -286,7 +288,7 @@ export default function MaterialsSearch() {
                     </td>
                     <td className="px-3 py-2 text-slate-500">{formatDateJst(m.updated_at)}</td>
                     <td className="px-3 py-2">
-                      <Button variant="secondary" disabled title="準備中（S-04実装後に有効化）">
+                      <Button variant="secondary" onClick={() => navigate(`/materials/${m.id}`)}>
                         {actionLabel(m.progress_status, m.required)}
                       </Button>
                     </td>

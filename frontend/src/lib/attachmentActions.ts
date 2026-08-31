@@ -42,3 +42,11 @@ export async function addLinkAttachment(materialId: number, nodeId: number, url:
 export async function deleteAttachment(materialId: number, attachmentId: number): Promise<void> {
   await apiFetch(`/api/materials/${materialId}/attachments/${attachmentId}`, { method: 'DELETE' })
 }
+
+// A-30: 署名付きダウンロードURLを発行し、新しいタブで開く（S-04教材全体の資料）
+export async function openAttachmentDownload(materialId: number, attachmentId: number): Promise<void> {
+  const { download_url } = await apiFetch<{ download_url: string; expires_at: string | null }>(
+    `/api/materials/${materialId}/attachments/${attachmentId}/download`,
+  )
+  window.open(download_url, '_blank', 'noopener')
+}

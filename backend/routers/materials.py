@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field, model_validator
 
 import storage
 from auth_helpers import (
+    ROLE_RANK,
     CurrentUser,
     check_project_role,
     is_company_wide_draft_restricted,
@@ -27,6 +28,49 @@ detail_router = APIRouter(prefix="/api/materials", tags=["materials"])
 
 def _material_dict(row) -> dict:
     return {**dict(row), "tags": json.loads(row["tags"])}
+
+
+async def _require_view_access(pool, id: int, user: CurrentUser) -> dict:
+    """A-15/A-28共通の閲覧権限判定。編集権限者（下書き含む、全社Wiki下書きは作成者・
+    プロジェクト管理者・システムadmin限定）と、受講対象者（公開済みのみ。require_material_access
+    の2条件＝プロジェクトの現役メンバー・個人指定の配信、詳細設計書5.3節）の両方を許可する。
+    S-04（教材受講：目次）着手時に受講対象者向けアクセスを追加した。"""
+    row = await pool.fetchrow(
+        """SELECT m.project_id, m.status, m.created_by, p.is_company_wide
+           FROM materials m JOIN projects p ON p.id = m.project_id
+           WHERE m.id = $1""",
+        id,
+    )
+    if row is None:
+        raise HTTPException(404, detail="教材が見つかりません")
+
+    project_role = None
+    if user.role != "admin":
+        project_role = await pool.fetchval(
+            """SELECT role FROM project_memberships
+               WHERE project_id = $1 AND user_id = $2 AND status = 'active' AND left_at IS NULL""",
+            row["project_id"], user.id,
+        )
+    is_editor = user.role == "admin" or (project_role is not None and ROLE_RANK[project_role] >= ROLE_RANK["editor"])
+
+    if is_editor:
+        if row["status"] == "draft" and row["created_by"] != user.id:
+            if await is_company_wide_draft_restricted(user, row["project_id"], row["is_company_wide"]):
+                raise HTTPException(403, detail="この下書きを閲覧できるのは作成者とプロジェクト管理者のみです")
+        return {**dict(row), "is_editor": True}
+
+    if row["status"] != "published":
+        raise HTTPException(403, detail="この教材は受講対象ではありません")
+    if project_role is None:
+        is_individual_target = await pool.fetchval(
+            """SELECT EXISTS(
+                 SELECT 1 FROM assignments
+                  WHERE material_id = $1 AND scope_type = 'individual' AND scope_id = $2)""",
+            id, user.id,
+        )
+        if not is_individual_target:
+            raise HTTPException(403, detail="この教材の受講対象ではありません")
+    return {**dict(row), "is_editor": False}
 
 
 @detail_router.get("")
@@ -150,10 +194,13 @@ async def search_materials(
     return {"items": items, "total": total, "available_tags": [t["tag"] for t in tag_rows]}
 
 
-async def _fetch_tree(executor, material_id: int) -> list[dict]:
+async def _fetch_tree(executor, material_id: int, *, strip_answers: bool = False) -> list[dict]:
     """material_nodesをネスト済みの目次ツリー（章→小見出し→ページ）に組み立てる。
     各ページ（kind='page'）にはbody・content_kind・format・quiz_mode・pool_draw_count・questionsが乗る
-    （chapter/sectionではNULL/空配列のまま実害は無い）。"""
+    （chapter/sectionではNULL/空配列のまま実害は無い）。strip_answers=Trueの場合、各設問の
+    correct_answer・scoring_criteriaをNULLにして返す（受講対象者〔編集権限を持たない受講者〕への
+    正解・採点基準の事前漏洩防止。A-15が受講対象者からも呼べるようになったS-04着手時に対応。
+    4.3節A-15の実装ノート参照）。"""
     rows = await executor.fetch(
         """SELECT id, parent_node_id, title, kind, sort_order,
                   content_kind, format, body, quiz_mode, pool_draw_count
@@ -174,6 +221,9 @@ async def _fetch_tree(executor, material_id: int) -> list[dict]:
         d["options"] = json.loads(d["options"]) if d["options"] is not None else None
         d["correct_answer"] = json.loads(d["correct_answer"]) if d["correct_answer"] is not None else None
         d["pool_group"] = d.pop("pool_group_id")
+        if strip_answers:
+            d["correct_answer"] = None
+            d["scoring_criteria"] = None
         questions_by_node.setdefault(d["node_id"], []).append(d)
 
     by_id = {
@@ -356,10 +406,21 @@ async def create_material(body: MaterialCreate, user: CurrentUser = Depends(requ
     return _material_dict(row)
 
 
+def _count_pages(nodes: list[dict]) -> int:
+    total = 0
+    for n in nodes:
+        if n["kind"] == "page":
+            total += 1
+        total += _count_pages(n.get("children", []))
+    return total
+
+
 @detail_router.get("/{id}")
-async def get_material(id: int, user: CurrentUser = Depends(require_material_role(min_role="editor"))):
-    """A-15: 教材メタ＋目次ツリー。現状は編集権限保持者のみ（受講対象者向けの公開閲覧はS-04着手時に追加）。"""
+async def get_material(id: int, user: CurrentUser = Depends(require_auth)):
+    """A-15: 教材メタ＋目次ツリー。編集権限保持者（下書き含む）と受講対象者（公開済みのみ）の
+    両方がアクセスできる（S-04着手時に受講対象者向けアクセスを追加。_require_view_access参照）。"""
     pool = get_pool()
+    perm_row = await _require_view_access(pool, id, user)
     row = await pool.fetchrow(
         """SELECT id, project_id, title, description, tags, status, sort_order,
                   attempt_scope, retake_scope, default_feedback_style, ai_context,
@@ -367,10 +428,45 @@ async def get_material(id: int, user: CurrentUser = Depends(require_material_rol
            FROM materials WHERE id = $1""",
         id,
     )
-    if row is None:
-        raise HTTPException(404, detail="教材が見つかりません")
-    tree = await _fetch_tree(pool, id)
-    return {**_material_dict(row), "toc": tree}
+    tree = await _fetch_tree(pool, id, strip_answers=not perm_row["is_editor"])
+
+    # S-04向け: 必修/任意・期限（自分に適用される配信設定のうち、必修優先・期限が近い順で1件に要約）
+    assignment = await pool.fetchrow(
+        """SELECT required, due_at FROM assignments
+            WHERE material_id = $1
+              AND ((scope_type = 'project' AND scope_id = $2)
+                   OR (scope_type = 'individual' AND scope_id = $3))
+            ORDER BY required DESC, due_at ASC NULLS LAST
+            LIMIT 1""",
+        id, perm_row["project_id"], user.id,
+    )
+    required = bool(assignment["required"]) if assignment else False
+    due_at = assignment["due_at"] if assignment else None
+
+    # S-04向け: 自分の受講進捗（enrollment_progress未作成の間は未受講扱い）
+    progress_row = await pool.fetchrow(
+        """SELECT status, current_node_id, completed_node_ids
+           FROM enrollment_progress WHERE user_id = $1 AND material_id = $2""",
+        user.id, id,
+    )
+    progress = (
+        {
+            "status": progress_row["status"],
+            "current_node_id": progress_row["current_node_id"],
+            "completed_node_ids": json.loads(progress_row["completed_node_ids"]),
+        }
+        if progress_row
+        else {"status": "not_started", "current_node_id": None, "completed_node_ids": []}
+    )
+
+    return {
+        **_material_dict(row),
+        "toc": tree,
+        "required": required,
+        "due_at": due_at,
+        "progress": progress,
+        "page_count": _count_pages(tree),
+    }
 
 
 async def _require_owner_or_project_admin(pool, id: int, user: CurrentUser) -> dict:
@@ -816,9 +912,11 @@ async def create_attachment(
 async def get_attachment_download_url(
     id: int,
     attachment_id: int,
-    user: CurrentUser = Depends(require_material_role(min_role="editor")),
+    user: CurrentUser = Depends(require_auth),
 ):
-    """A-30: 署名付きダウンロードURLを発行する。"""
+    """A-30: 署名付きダウンロードURLを発行する。編集権限者（下書き含む）と受講対象者（公開済みのみ）の
+    両方がアクセスできる（_require_view_access参照。S-04着手時に受講対象者向けアクセスを追加）。"""
+    await _require_view_access(get_pool(), id, user)
     row = await get_pool().fetchrow(
         "SELECT kind, storage_key, external_url FROM material_attachments WHERE id = $1 AND material_id = $2",
         attachment_id, id,
@@ -875,11 +973,14 @@ async def list_material_revisions(
 async def list_material_attachments(
     id: int,
     node_id: int | None = None,
-    user: CurrentUser = Depends(require_material_role(min_role="editor")),
+    user: CurrentUser = Depends(require_auth),
 ):
-    """A-28: 教材の添付ファイル・リンク一覧（S-05ファイル・リンクタブ）。node_id省略時は教材全体
-    （各ページの添付を含む全件）を返す。S-05のこのタブは追加を行わない参照専用の一覧のため、
-    4.3節の「省略時はnode_id IS NULLのみ」から変更した。ページ単位に絞り込みたい場合のみnode_idを指定する。"""
+    """A-28: 教材の添付ファイル・リンク一覧（S-05ファイル・リンクタブは全件、S-04目次タブは
+    node_id省略でnode_id IS NULLの教材全体の資料のみ表示）。S-05のこのタブは追加を行わない参照専用の
+    一覧のため、4.3節の「省略時はnode_id IS NULLのみ」から変更した。ページ単位に絞り込みたい場合のみ
+    node_idを指定する。編集権限者（下書き含む）と受講対象者（公開済みのみ）の両方がアクセスできる
+    （_require_view_access参照、S-04着手時に受講対象者向けアクセスを追加）。"""
+    await _require_view_access(get_pool(), id, user)
     where = "material_id = $1" + (" AND node_id = $2" if node_id is not None else "")
     params = [id] + ([node_id] if node_id is not None else [])
     rows = await get_pool().fetch(

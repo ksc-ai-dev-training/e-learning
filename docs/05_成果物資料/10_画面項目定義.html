@@ -55,18 +55,22 @@
 
   <h3>10.4 S-04 教材受講：目次（<code>/materials/:materialId</code>）</h3>
   <p>タブ構成: 「目次」「反復演習」「誤答のみ抽出」。</p>
+  <div class="callout">
+    <strong>現状の実装範囲:</strong> 「目次」タブのみ<strong>実装済み</strong>（2026-08-31）。ヘッダー（必修/任意バッジ・期限・章数/ページ数）、教材全体の進捗バー、教材全体の資料、目次ツリー（完了/未完了マーク・種別バッジ・小見出し行の「小見出し」バッジ）を実装した。「反復演習」「誤答のみ抽出」タブはタブ自体は表示するが中身は「準備中です」の案内のみで、A-40〜A-44・S-16（受講ページ）実装後に着手する。目次ツリーの各ページ行はS-16が未実装のためクリック不可（ツールチップで案内）。前回の受験結果パネル・受験後アンケート・「一時中断する」「続きから受講」ボタンも同じ理由で未実装。<br>
+    実装にあたり、A-15（教材メタ＋目次ツリー）を編集権限保持者専用から、<strong>受講対象者（公開済みのみ）にも公開</strong>するよう拡張した（<code>_require_view_access</code>ヘルパーを新設し、A-28・A-30も同様に拡張）。受講対象判定は詳細設計書5.3節の2条件（プロジェクトの現役メンバー／個人指定の配信）に従う。A-15のレスポンスに<code>required</code>・<code>due_at</code>（自分に適用される配信設定を必修優先・期限が近い順で1件に要約。S-06未実装のため現状は常に<code>false</code>/<code>null</code>）・<code>progress</code>（<code>enrollment_progress</code>。行が無い場合は<code>not_started</code>扱い）・<code>page_count</code>を追加した。
+  </div>
   <table>
     <thead><tr><th>項目名</th><th>型</th><th>仕様</th><th>対応API</th></tr></thead>
     <tbody>
-      <tr><td>ヘッダー</td><td>表示</td><td>必修/任意バッジ・期限・章数/ページ数</td><td>A-15</td></tr>
-      <tr><td>前回の受験結果パネル</td><td>表示</td><td>attempt_scopeで定まる受験単位ごとに独立表示。不合格時は再受験可否・残り回数・ドボン問題の場合は<code>fail_reason</code>を表示</td><td>A-43</td></tr>
-      <tr><td>教材全体の進捗バー</td><td>表示</td><td>完了ページ数/全ページ数</td><td>A-15, T-12</td></tr>
-      <tr><td>教材全体の資料</td><td>一覧表示</td><td>node_id未設定の添付ファイル・リンク</td><td>A-28（node_id省略）</td></tr>
-      <tr><td>目次ツリー</td><td>表示</td><td>章・小見出し・ページ。各ページに完了/未完了マーク・種別バッジ（説明／問題×N／説明＋問題×N／スコア記録）。行選択でS-16へ</td><td>A-15</td></tr>
-      <tr><td>受験後アンケート</td><td>モーダル</td><td>対象受験単位を完了した直後に表示（repeat_mode='once'なら2回目以降は非表示）。回答は任意でスキップ可</td><td>A-72</td></tr>
-      <tr><td>「一時中断する」「続きから受講」ボタン</td><td>ボタン</td><td>—</td><td>A-40</td></tr>
-      <tr><td>反復演習タブ: 実施履歴・「反復演習を開始」</td><td>表示＋ボタン</td><td>合否に影響しない旨を明示</td><td>A-40（mode='practice'）</td></tr>
-      <tr><td>誤答のみ抽出タブ: 出題範囲</td><td>ラジオボタン</td><td>「この教材内の誤答のみ」／「全教材の誤答から出題」</td><td>A-44</td></tr>
+      <tr><td>ヘッダー</td><td>表示</td><td>必修/任意バッジ・期限・章数/ページ数。<strong>実装済み</strong></td><td>A-15</td></tr>
+      <tr><td>前回の受験結果パネル</td><td>表示</td><td>attempt_scopeで定まる受験単位ごとに独立表示。不合格時は再受験可否・残り回数・ドボン問題の場合は<code>fail_reason</code>を表示。<strong>未実装</strong>（A-43未実装のため）</td><td>A-43</td></tr>
+      <tr><td>教材全体の進捗バー</td><td>表示</td><td>完了ページ数/全ページ数。<strong>実装済み</strong></td><td>A-15, T-12</td></tr>
+      <tr><td>教材全体の資料</td><td>一覧表示</td><td>node_id未設定の添付ファイル・リンク。<strong>実装済み</strong>（フロント側でnode_id IS NULLに絞り込み。ファイルはA-30でダウンロードURLを発行）</td><td>A-28（node_id省略）, A-30</td></tr>
+      <tr><td>目次ツリー</td><td>表示</td><td>章・小見出し・ページ。各ページに完了/未完了マーク・種別バッジ（説明／問題×N／説明＋問題×N）を表示。<strong>実装済み</strong>（スコア記録の専用バッジ表示は既存の<code>pageKindLabel</code>ヘルパーが未対応のため今回も対象外）。行選択でS-16へ：<strong>未実装</strong>（S-16自体が無いため行はクリック不可）</td><td>A-15</td></tr>
+      <tr><td>受験後アンケート</td><td>モーダル</td><td>対象受験単位を完了した直後に表示（repeat_mode='once'なら2回目以降は非表示）。回答は任意でスキップ可。<strong>未実装</strong></td><td>A-72</td></tr>
+      <tr><td>「一時中断する」「続きから受講」ボタン</td><td>ボタン</td><td>—。<strong>未実装</strong>（A-40未実装のため）</td><td>A-40</td></tr>
+      <tr><td>反復演習タブ: 実施履歴・「反復演習を開始」</td><td>表示＋ボタン</td><td>合否に影響しない旨を明示。<strong>未実装</strong>（タブ自体は表示、中身は準備中の案内のみ）</td><td>A-40（mode='practice'）</td></tr>
+      <tr><td>誤答のみ抽出タブ: 出題範囲</td><td>ラジオボタン</td><td>「この教材内の誤答のみ」／「全教材の誤答から出題」。<strong>未実装</strong>（タブ自体は表示、中身は準備中の案内のみ）</td><td>A-44</td></tr>
     </tbody>
   </table>
 
@@ -302,7 +306,7 @@
 
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）詳細設計書 v1.43</span>
+    <span>社内学習管理システム（Manabi）詳細設計書 v1.44</span>
     <span>コガソフトウェア株式会社 / 2026-08-24</span>
   </footer>
 
