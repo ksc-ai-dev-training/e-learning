@@ -18,7 +18,7 @@
   <p>ベースパスは <code>/api</code> とする。認証はセッションJWTとし、ブラウザからのリクエストはHttpOnly Cookie（3.2節）、Claude Code等のCLIクライアントからのリクエストは <code>Authorization: Bearer &lt;token&gt;</code> ヘッダーで送信する（トークンの発行方式は8.2節）。A-01・A-02・A-62（いずれもログイン開始系のエンドポイント）を除く全APIで認証を必須とする。レスポンス形式はJSONを基本とし、教材テキストの往復系API（A-19〜A-21）のみ <code>text/plain; charset=utf-8</code> を用いる（8.4節）。エラー形式はlcc_crm・Keirekiを踏襲し <code>{"detail": "メッセージ"}</code> とする。権限不足は403、対象なしは404、業務ルール違反（唯一の管理者の削除・降格等）は400、入力形式不正はFastAPI既定の422を返す。権限判定は全てサーバー側（<code>auth_helpers.py</code> の権限デコレーター・依存関数）で行い、下表の「権限」列は3.3節（システム全体ロール）・3.5節（プロジェクトのローカルロール）の判定ロジックに沿って表記する（凡例は7.3節）。</p>
 
   <h3>7.2 API一覧（ルーター構成別）</h3>
-  <p><code>routers/</code> 配下のファイル単位に、1〜6章で既出のAPI（A-01〜A-61）および本章・8章で新設するAPI（A-62〜A-64）、<span class="rev-new">共有承認フロー（F-26）で新設するAPI（A-65〜A-66）</span>、<span class="rev-new">採点保存API（A-74。v1.26でS-19からS-20へ呼び出し元を変更）・プロフィール自己編集API（A-75〜A-77、v1.22新設）</span>、<span class="rev-new">採点キュー取得API（A-83、S-20用。v1.26新設）</span>をまとめて示す（2.4節のファイル構成に対応）。A-05〜A-08・A-23〜A-26は要件定義書v1.5対応（3.4節・5.3節・5.7節）で廃止した機能に対応するAPIであり、欠番として扱う。</p>
+  <p><code>routers/</code> 配下のファイル単位に、1〜6章で既出のAPI（A-01〜A-61）および本章・8章で新設するAPI（A-62〜A-64）、<span class="rev-new">共有承認フロー（F-26）で新設するAPI（A-65〜A-66）</span>、<span class="rev-new">採点保存API（A-74。v1.26でS-19からS-20へ呼び出し元を変更）・プロフィール自己編集API（A-75〜A-77、v1.22新設）</span>、<span class="rev-new">採点キュー取得API（A-83、S-20用。v1.26新設）</span>、<span class="rev-new">プロジェクト一覧取得API（A-81、S-13教材編集：プロジェクト選択で新設）、S-11・S-12（プロジェクト作成・管理）実装にあたり新設したAPI（A-90〜A-93、v1.39〜v1.42）</span>をまとめて示す（2.4節のファイル構成に対応）。A-05〜A-08・A-23〜A-26は要件定義書v1.5対応（3.4節・5.3節・5.7節）で廃止した機能に対応するAPIであり、欠番として扱う。</p>
 
   <h4>7.2.1 auth.py（認証、A-01〜A-04, A-62〜A-63, <span class="rev-new">A-75〜A-77</span>）</h4>
   <table>
@@ -36,14 +36,19 @@
     </tbody>
   </table>
 
-  <h4>7.2.2 organization.py（プロジェクト・メンバー・教材共有、A-05〜A-13, A-59〜A-61, <span class="rev-new">A-65〜A-66</span>）</h4>
+  <h4>7.2.2 organization.py（プロジェクト・メンバー・教材共有、A-05〜A-13, A-59〜A-61, <span class="rev-new">A-65〜A-66</span>, <span class="rev-new">A-81, A-90〜A-93</span>）</h4>
   <table>
     <thead><tr><th>API ID</th><th>メソッド</th><th>パス</th><th>権限</th><th>概要</th></tr></thead>
     <tbody>
       <tr><td>A-05〜A-08</td><td>―</td><td>―</td><td>―</td><td>廃止（欠番）。旧組織マスタ管理（部署の登録・一覧等）API。要件定義書v1.5対応で部署の概念を廃止したため欠番とする（3.3節・5.3節参照）</td></tr>
+      <tr class="rev-new"><td>A-81</td><td><span class="badge badge-get">GET</span></td><td><code>/api/projects</code></td><td>認証済</td><td>自分が<code>min_role</code>以上（既定'editor'）のプロジェクト一覧（教材件数・メンバー数つき、<code>status='active'</code>のプロジェクトのみ）。全社Wikiを先頭固定、以降は名称昇順（S-13教材編集：プロジェクト選択、S-03教材一覧・検索、S-12の一覧判定等で使用）</td></tr>
       <tr><td>A-09</td><td><span class="badge badge-post">POST</span></td><td><code>/api/projects</code></td><td><span class="badge badge-member">member</span> <span class="badge badge-admin">admin</span></td><td>プロジェクト作成。作成者を <code>project_memberships.role='admin'</code> で自動登録（3.5節・5.25節）</td></tr>
+      <tr class="rev-new"><td>A-91</td><td><span class="badge badge-get">GET</span></td><td><code>/api/projects/{id}</code></td><td><span class="badge badge-projrole">対象プロジェクトの管理者</span> <span class="badge badge-admin">admin</span></td><td>プロジェクト詳細取得（名称・説明・状態・作成者・作成日時<span class="rev-new">、<code>can_delete</code>・<code>cannot_delete_reason</code>（A-93が実行可能かの事前判定。v1.42）</span>）。A-81（一覧）は要約のみ、A-10（更新）は取得を持たないため、S-12プロジェクト情報タブの初期表示用に新設した（S-12実装時）</td></tr>
       <tr><td>A-10</td><td><span class="badge badge-put">PUT</span></td><td><code>/api/projects/{id}</code></td><td><span class="badge badge-projrole">対象プロジェクトの管理者</span> <span class="badge badge-admin">admin</span></td><td>プロジェクト情報（名称・説明・状態）更新</td></tr>
-      <tr><td>A-11</td><td><span class="badge badge-get">GET</span></td><td><code>/api/project-memberships</code></td><td>本人（<code>user_id</code>指定時）、<span class="badge badge-projrole">対象プロジェクトの管理者</span> <span class="badge badge-admin">admin</span>（<code>project_id</code>指定時）</td><td>メンバー一覧取得（<code>status</code>を含む）。<code>project_id</code>指定でそのプロジェクトの全メンバー、<code>user_id</code>指定で対象ユーザーの参加プロジェクト一覧（役割・statusつき）を返す（いずれか必須）。S-11「自分が参加しているプロジェクト」一覧は <code>user_id=自分</code> で取得する。<span class="rev-new">S-15「招待されているプロジェクト」一覧は <code>user_id=自分, status=invited</code> で取得する</span></td></tr>
+      <tr class="rev-new"><td>A-92</td><td><span class="badge badge-put">PUT</span></td><td><code>/api/projects/{id}/status</code></td><td><span class="badge badge-projrole">対象プロジェクトの管理者</span> <span class="badge badge-admin">admin</span></td><td>プロジェクトの状態のみを変更する軽量API。A-10は名称・説明も必須のフル更新のため、S-11・S-12の「自分の全プロジェクト一覧」からのワンクリック状態切り替え・停止済みプロジェクトの再開には冗長と判断し分離した（v1.40）</td></tr>
+      <tr class="rev-new"><td>A-93</td><td><span class="badge badge-delete">DELETE</span></td><td><code>/api/projects/{id}</code></td><td><span class="badge badge-projrole">対象プロジェクトの管理者</span> <span class="badge badge-admin">admin</span></td><td>プロジェクトの完全削除。全社Wiki、下書き以外の教材（一度でも公開・アーカイブされた教材）が1件でもある、自分以外の現役メンバーがいる、のいずれかに該当する場合は400で拒否する（受講記録が残っている可能性を否定できないため。F-30と同じ考え方）。対象の教材は下書きのみと保証されるため、教材削除はCASCADEで目次・設問・添付・改訂履歴も一括で消える（v1.42、5.32節）</td></tr>
+      <tr><td>A-11</td><td><span class="badge badge-get">GET</span></td><td><code>/api/project-memberships</code></td><td>本人（<code>user_id</code>指定時）、<span class="badge badge-projrole">対象プロジェクトの管理者</span> <span class="badge badge-admin">admin</span>（<code>project_id</code>指定時）</td><td>メンバー一覧取得（<code>status</code>を含む）。<code>project_id</code>指定でそのプロジェクトの全メンバー、<code>user_id</code>指定で対象ユーザーの参加プロジェクト一覧（役割・statusつき）を返す（いずれか必須）。S-11「自分が参加しているプロジェクト」一覧は <code>user_id=自分</code> で取得する。<span class="rev-new">S-15「招待されているプロジェクト」一覧は <code>user_id=自分, status=invited</code> で取得する</span><span class="rev-new">。レスポンスに<code>project_status</code>（プロジェクト自体の状態）を追加した（v1.40。この一覧の状態表示・状態変更UIに使用）</span></td></tr>
+      <tr class="rev-new"><td>A-90</td><td><span class="badge badge-get">GET</span></td><td><code>/api/projects/{id}/member-candidates</code></td><td><span class="badge badge-projrole">対象プロジェクトの管理者</span> <span class="badge badge-admin">admin</span></td><td>メンバー招待先の社員検索（氏名・メールアドレスの部分一致、現役メンバー・招待中のユーザーは除外）。既存のA-53（<code>GET /api/users</code>）はシステムadmin専用のユーザー管理（S-10）用のため権限が合わず、プロジェクトのローカル管理者が使える軽量な検索APIとして新設した（S-12実装時）</td></tr>
       <tr><td>A-12</td><td><span class="badge badge-post">POST</span></td><td><code>/api/projects/{id}/members</code></td><td><span class="badge badge-projrole">対象プロジェクトの管理者</span> <span class="badge badge-admin">admin</span></td><td>メンバーを<span class="rev-new">招待</span>（初期ロールを指定。<code>status='invited'</code>で作成、<span class="rev-new">3.5節</span>）</td></tr>
       <tr><td>A-13</td><td><span class="badge badge-put">PUT</span></td><td><code>/api/projects/{id}/members/{user_id}</code></td><td><span class="badge badge-projrole">対象プロジェクトの管理者</span> <span class="badge badge-admin">admin</span></td><td>ロール変更、またはプロジェクトからの削除（<code>left_at</code>を設定する論理削除。5.25節）。招待中（<code>status='invited'</code>）のまま削除も可。唯一の管理者の削除・降格は400</td></tr>
       <tr class="rev-row"><td>A-67</td><td><span class="badge badge-put">PUT</span></td><td><code>/api/project-memberships/{id}/respond</code></td><td>招待された本人</td><td>招待への応答。<code>{status: 'active'|'declined'}</code>。承諾時は<code>joined_at</code>を設定（3.5節）</td></tr>
@@ -192,7 +197,7 @@
   <!-- ============ 8. 教材連携設計（Claude Code連携） ============ -->
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）基本設計書 v1.37</span>
+    <span>社内学習管理システム（Manabi）基本設計書 v1.44</span>
     <span>コガソフトウェア株式会社 / 2026-08-24</span>
   </footer>
 
