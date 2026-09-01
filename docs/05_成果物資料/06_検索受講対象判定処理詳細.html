@@ -17,12 +17,12 @@
   <h3>6.1 A-14 教材一覧・検索</h3>
   <p>実装は<code>routers/materials.py</code>。指定された条件のみをANDで結合する。<code>status='published'</code>かつ<code>is_archived=false</code>の教材のみを対象とし、下書きはS-14（教材編集：教材一覧）側の別クエリで扱う。<strong>実装済み</strong>（2026-08-28、S-03）。<code>is_archived=false</code>条件は当初漏れており、アーカイブ（F-30、statusを変更せずis_archivedのみを立てる仕様）済みの教材が一覧に表示され続ける不具合があったため追加した（2026-08-28）。</p>
   <div class="callout">
-    <strong>実装時の簡略化（F-26未実装のため）:</strong> F-26教材のプロジェクト間共有（T-22 <code>material_project_shares</code>）は本書の時点でも未実装のため、以下の下線部の共有経由の判定は今回対象外とした。<code>project_id</code>は<code>materials.project_id</code>の一致のみ、<code>my_assignments_only</code>は5.3節の2条件（プロジェクトの現役メンバー・個人指定の配信。2026-08-28にF-26複製モデル採用に伴い3条件から簡素化済み）で判定する。<strong>F-26は複製モデルのため、共有先の教材は複製後に独自の<code>project_id</code>を持つ通常の教材として扱われ、本節の共有経由判定（下記SQLのコメント付き行）は実装対象外となった。</strong>下記の共有経由判定は初期の参照共有モデル検討時の名残であり、F-26着手時に本節ごと見直すこと。
+    <strong>F-26（複製モデル）確定に伴う簡素化:</strong> F-26 教材のプロジェクト間共有は「参照共有モデル」ではなく「複製モデル」（承認時点の内容で共有先プロジェクトへ独立した教材の複製を新規作成する。5.27節）として実装済み（2026-09-01）。複製後の教材は共有先プロジェクト自身の<code>project_id</code>を持つ通常の教材になるため、<code>project_id</code>は<code>materials.project_id</code>の一致のみで判定すればよく、共有経由かどうかを判定する特別なJOINは不要（そもそも共有元・共有先で同一の教材行が存在するわけではない）。<code>my_assignments_only</code>も同じ理由で5.3節の2条件（プロジェクトの現役メンバー・個人指定の配信）のみで判定する。
   </div>
   <ul>
     <li><strong>キーワードq:</strong> タイトル（<code>materials.title</code>）／概要（<code>description</code>）／目次の見出し（<code>material_nodes.title</code>）に対する<code>ILIKE '%q%'</code>の部分一致（OR結合）</li>
     <li><strong>tags（複数可・OR条件）:</strong> <code>materials.tags</code>（JSONB配列）が指定タグの<strong>いずれか</strong>を含むかを<code>tags ?| $1::text[]</code>（JSONB「いずれかを含む」演算子）で判定する（当初はAND条件〔すべて含む〕で設計していたが、実装後にユーザーからOR条件の方が使いやすいとの指摘を受けて変更した。2026-08-28）</li>
-    <li><strong>project_id:</strong> 指定時はそのプロジェクトの教材のみ（本来はそのプロジェクトへ<code>status='accepted'</code>で共有された教材も含める仕様だが、F-26未実装のため現状は対象外）</li>
+    <li><strong>project_id:</strong> 指定時はそのプロジェクトの教材のみ（<code>materials.project_id</code>の一致のみ。F-26複製モデルのため、共有された教材は複製後にそのプロジェクト自身の教材として存在し、特別な判定は不要）</li>
     <li><strong>required:</strong> 指定時、当該教材のassignments行に<code>required</code>が一致する行が1件以上あるかで判定</li>
     <li><strong>incomplete_only:</strong> リクエストユーザーのenrollment_progress（T-12）が<code>status != 'completed'</code>または存在しない教材のみに絞る</li>
     <li><strong>my_assignments_only:</strong> 5.3節の<code>require_material_access</code>の2条件（プロジェクトの現役メンバー・個人指定の配信）のいずれかを満たす教材のみに絞る</li>
@@ -41,10 +41,7 @@ WHERE m.status = 'published'
        EXISTS (SELECT 1 FROM material_nodes n
                 WHERE n.material_id = m.id AND n.title ILIKE '%' || $1 || '%'))
   AND ($2::text[] IS NULL OR m.tags ?| $2)                 -- tags（OR条件）
-  AND ($3::bigint IS NULL OR m.project_id = $3
-       OR EXISTS (SELECT 1 FROM material_project_shares s
-                   WHERE s.material_id = m.id AND s.shared_to_project_id = $3
-                     AND s.status = 'accepted'))            -- project_id（共有先も含む）
+  AND ($3::bigint IS NULL OR m.project_id = $3)             -- project_id（F-26複製モデルのため一致のみでよい）
 ORDER BY m.updated_at DESC
 LIMIT $4 OFFSET $5;</code></pre>
 
@@ -106,7 +103,7 @@ SELECT ta.material_id,
 
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）詳細設計書 v1.64</span>
+    <span>社内学習管理システム（Manabi）詳細設計書 v1.66</span>
     <span>コガソフトウェア株式会社 / 2026-08-24</span>
   </footer>
 

@@ -71,7 +71,7 @@
       <tr><td>A-59</td><td>GET <code>/api/materials/{id}/shares</code></td><td>元プロジェクトの管理者, admin</td><td>—</td><td>200 <code>{"items": [{"id", "shared_to_project_id", "shared_to_project_name", "status", "shared_at", "responded_at"}]}</code></td></tr>
       <tr><td>A-60</td><td>POST <code>/api/materials/{id}/shares</code></td><td>元プロジェクトの管理者, admin</td><td><code>{"shared_to_project_id": int}</code></td><td>201（<code>status='pending'</code>）。下書き教材は400。既存rejected行への再申請は<code>status='pending'</code>へ更新（3.5節）</td></tr>
       <tr><td>A-61</td><td>DELETE <code>/api/materials/{id}/shares/{share_id}</code></td><td>元/共有先プロジェクトいずれかの管理者, admin</td><td>—</td><td>204。<strong>承認前（<code>status='pending'</code>）の申請取り下げのみ対応</strong>。<code>status='accepted'</code>後は複製が独立した教材になっているため400で拒否（複製モデル、基本設計書5.27節）</td></tr>
-      <tr><td>A-65</td><td>PUT <code>/api/materials/{id}/shares/{share_id}/respond</code></td><td>共有先プロジェクトの管理者, admin</td><td><code>{"status": "accepted"|"rejected"}</code></td><td>200。<code>responded_by</code>・<code>responded_at</code>を記録。<strong><code>status='accepted'</code>の場合、その時点の教材内容（目次・全ページ・問題・添付ファイル）で複製を共有先プロジェクトへ新規作成する</strong>（内部的にA-19取得→A-16新規作成→A-20書き戻しと同じ処理。作成後は共有先プロジェクトの独立した教材となり、元教材とは連動しない）</td></tr>
+      <tr><td>A-65</td><td>PUT <code>/api/materials/{id}/shares/{share_id}/respond</code></td><td>共有先プロジェクトの管理者, admin</td><td><code>{"status": "accepted"|"rejected"}</code></td><td>200。<code>responded_by</code>・<code>responded_at</code>を記録。<strong><code>status='accepted'</code>の場合、その時点の教材内容（目次・全ページ・問題・添付ファイル）で複製を共有先プロジェクトへ新規作成する</strong>。実装時、添付ファイルの実体まで複製する必要があるため（A-19取得→A-16新規作成→A-20書き戻しというMarkdown往復を経由する既存の複製ボタン相当の処理では添付ファイルが複製されない）、目次・設問・添付ファイルを直接SQLで複製する専用関数<code>_duplicate_material_into_project</code>（<code>materials.py</code>）として実装した（設問の<code>pool_group_id</code>は複製後の新しいID体系へ付け替える）。複製先の教材は常に下書きとして作成する。作成後は共有先プロジェクトの独立した教材となり、元教材とは連動しない</td></tr>
       <tr><td>A-66</td><td>GET <code>/api/projects/{project_id}/incoming-shares</code></td><td>対象プロジェクトの管理者, admin</td><td>クエリ <code>status</code>（任意、既定<code>pending</code>）</td><td>200 <code>{"items": [{"id", "material_id", "material_title", "shared_by_project_id", "shared_by_project_name", "shared_at", "status"}]}</code></td></tr>
     </tbody>
   </table>
@@ -234,7 +234,7 @@
 
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）詳細設計書 v1.64</span>
+    <span>社内学習管理システム（Manabi）詳細設計書 v1.66</span>
     <span>コガソフトウェア株式会社 / 2026-08-24</span>
   </footer>
 
