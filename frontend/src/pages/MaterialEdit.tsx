@@ -495,6 +495,14 @@ export default function MaterialEdit() {
       <Button variant="primary" onClick={saveDraft} disabled={saving}>
         下書き保存
       </Button>
+      {savedId !== null && (
+        <Link
+          to={`/projects/${projectId}/materials/${savedId}/preview`}
+          className="flex h-9 items-center rounded-md border border-slate-300 bg-white px-3.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+        >
+          プレビュー
+        </Link>
+      )}
       {savedId !== null && material?.status === 'draft' && (
         <Button
           variant="secondary"

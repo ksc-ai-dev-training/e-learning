@@ -80,7 +80,7 @@ const NAV_ITEMS = [
     href: '/assignments',
     label: '配信設定',
     icon: Send,
-    implemented: false,
+    implemented: true,
     match: (p: string) => p === '/assignments',
   },
 ]

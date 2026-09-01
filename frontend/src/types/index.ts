@@ -358,6 +358,33 @@ export interface QuestionSummaryItem {
   pending_count: number
 }
 
+// A-36〜A-38 配信設定（S-06）。1教材につきscope_type='project'の行1件（任意）＋
+// scope_type='individual'の行N件を持ち、行間はOR結合（基本設計書5.9節）
+export interface Assignment {
+  id: number
+  material_id: number
+  scope_type: 'project' | 'individual'
+  scope_id: number
+  required: boolean
+  due_at: string | null
+  // scope_type='project'ならプロジェクト名、'individual'なら氏名（バックエンドで結合済み）
+  scope_label: string
+  // scope_type='project'のときのみ、対象プロジェクトの現役メンバー数
+  member_count: number | null
+}
+
+// A-36 GET /api/assignments のitems
+export interface AssignmentListItem {
+  id: number
+  title: string
+  status: MaterialStatus
+  project_id: number
+  project_name: string
+  is_company_wide: boolean
+  updated_at: string
+  assignments: Assignment[]
+}
+
 export type SurveyQuestionType = 'rating_5' | 'single_choice' | 'free_text'
 
 // T-27 survey_questions。T-10 questionsと異なりcorrect_answerを持たない

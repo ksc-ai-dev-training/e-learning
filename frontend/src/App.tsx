@@ -8,9 +8,11 @@ import MaterialsSearch from './pages/MaterialsSearch'
 import MaterialView from './pages/MaterialView'
 import MaterialPageView from './pages/MaterialPageView'
 import MaterialEdit from './pages/MaterialEdit'
+import MaterialPreview from './pages/MaterialPreview'
 import MaterialPageEdit from './pages/MaterialPageEdit'
 import ProjectCreate from './pages/ProjectCreate'
 import ProjectManagement from './pages/ProjectManagement'
+import AssignmentSettings from './pages/AssignmentSettings'
 import AppShell from './components/layout/AppShell'
 
 // ルーティング定義・認証ガード。
@@ -41,6 +43,7 @@ export default function App() {
         <Route path="/materials/:materialId/pages/:nodeId" element={<MaterialPageView />} />
         <Route path="/projects/:projectId/materials/edit" element={<MaterialsList />} />
         <Route path="/projects/:projectId/materials/:materialId/edit" element={<MaterialEdit />} />
+        <Route path="/projects/:projectId/materials/:materialId/preview" element={<MaterialPreview />} />
         <Route
           path="/projects/:projectId/materials/:materialId/pages/:nodeId/edit"
           element={<MaterialPageEdit />}
@@ -48,6 +51,7 @@ export default function App() {
         <Route path="/projects/new" element={<ProjectCreate />} />
         <Route path="/projects/manage" element={<ProjectManagement />} />
         <Route path="/projects/:projectId/manage" element={<ProjectManagement />} />
+        <Route path="/assignments" element={<AssignmentSettings />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AppShell>
