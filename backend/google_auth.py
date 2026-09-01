@@ -71,7 +71,11 @@ async def _get_jwks() -> dict:
 
 async def verify_id_token(id_token: str) -> dict:
     """A-02処理フロー2。GoogleのJWKSで署名・発行者・audience・有効期限を検証し、claims
-    （email, email_verified, name, picture等）を返す。検証失敗はjwt.PyJWTError系を送出する。"""
+    （email, email_verified, name, picture等）を返す。検証失敗はjwt.PyJWTError系を送出する。
+
+    leewayは、このマシンのシステム時計とGoogleサーバーの時刻とのわずかなズレを許容するため
+    （PyJWTのiat/exp検証はデフォルトで秒単位まで厳密なため、数秒の時計ズレだけで
+    ImmatureSignatureError等になっていた不具合を発見・修正。2026-08-31）。"""
     jwks = await _get_jwks()
     header = jwt.get_unverified_header(id_token)
     key_data = next(k for k in jwks["keys"] if k["kid"] == header["kid"])
@@ -82,6 +86,7 @@ async def verify_id_token(id_token: str) -> dict:
         algorithms=["RS256"],
         audience=GOOGLE_CLIENT_ID,
         options={"require": ["exp", "iat", "aud", "iss"]},
+        leeway=30,
     )
     if claims.get("iss") not in ALLOWED_ISSUERS:
         raise jwt.InvalidIssuerError(f"unexpected issuer: {claims.get('iss')}")
