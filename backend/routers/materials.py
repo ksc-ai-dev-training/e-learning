@@ -1,4 +1,4 @@
-# 教材API（A-15〜A-22, A-27, A-29〜A-32/A-33, A-64, A-82）。AI機能のうちA-34/A-35（F-21）は未着手。
+# 教材API（A-15〜A-22, A-27, A-29〜A-32/A-33, A-64, A-82, A-94）。AI機能のうちA-34/A-35（F-21）は未着手。
 import json
 import os
 import random
@@ -490,6 +490,25 @@ async def get_material(id: int, user: CurrentUser = Depends(require_auth)):
         "is_company_wide": perm_row["is_company_wide"],
         "registered": registered,
     }
+
+
+@detail_router.get("/{id}/preview-tree")
+async def get_material_preview_tree(
+    id: int, user: CurrentUser = Depends(require_material_role(min_role="editor"))
+):
+    """A-94（新規）: S-05「プレビュー」ボタン専用。教材全体（全章・全ページ・正解込みの全設問）を
+    一度に返す。A-15は受講対象者にも公開する設計のため正解をstripする分岐を持つが、この教材全体
+    プレビューは「受講せずに教材を通しで閲覧できてしまう」抜け道を作らないよう、対象教材が紐づく
+    プロジェクトの編集者以上（またはadmin）に限定する（ユーザーとの検討により決定。2026-09-01）。
+    S-05のページ単位プレビュー〔A-64〕とは別物で、目次全体を一括で確認する用途。"""
+    pool = get_pool()
+    row = await pool.fetchrow(
+        "SELECT id, title, description FROM materials WHERE id = $1", id
+    )
+    if row is None:
+        raise HTTPException(404, detail="教材が見つかりません")
+    tree = await _fetch_tree(pool, id)
+    return {**dict(row), "toc": tree}
 
 
 async def _require_owner_or_project_admin(pool, id: int, user: CurrentUser) -> dict:
