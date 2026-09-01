@@ -9,6 +9,8 @@ import MaterialView from './pages/MaterialView'
 import MaterialPageView from './pages/MaterialPageView'
 import MaterialEdit from './pages/MaterialEdit'
 import MaterialPageEdit from './pages/MaterialPageEdit'
+import ProjectCreate from './pages/ProjectCreate'
+import ProjectManagement from './pages/ProjectManagement'
 import AppShell from './components/layout/AppShell'
 
 // ルーティング定義・認証ガード。
@@ -43,6 +45,9 @@ export default function App() {
           path="/projects/:projectId/materials/:materialId/pages/:nodeId/edit"
           element={<MaterialPageEdit />}
         />
+        <Route path="/projects/new" element={<ProjectCreate />} />
+        <Route path="/projects/manage" element={<ProjectManagement />} />
+        <Route path="/projects/:projectId/manage" element={<ProjectManagement />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AppShell>

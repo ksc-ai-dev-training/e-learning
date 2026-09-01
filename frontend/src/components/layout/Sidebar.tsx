@@ -66,14 +66,14 @@ const NAV_ITEMS = [
     href: '/projects/new',
     label: 'プロジェクト作成',
     icon: Plus,
-    implemented: false,
+    implemented: true,
     match: (p: string) => p === '/projects/new',
   },
   {
     href: '/projects/manage',
     label: 'プロジェクト管理',
     icon: LayoutGrid,
-    implemented: false,
+    implemented: true,
     match: (p: string) => p === '/projects/manage' || /^\/projects\/[^/]+\/manage(\/|$)/.test(p),
   },
   {

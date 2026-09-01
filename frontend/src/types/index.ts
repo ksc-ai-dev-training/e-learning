@@ -265,7 +265,7 @@ export interface Project {
   member_count: number
 }
 
-// A-11 GET /api/project-memberships のitems（S-05プロジェクトメンバータブで使用）
+// A-11 GET /api/project-memberships のitems（S-05プロジェクトメンバータブ、S-12メンバー管理タブで使用）
 export interface ProjectMembership {
   id: number
   user_id: number
@@ -273,10 +273,36 @@ export interface ProjectMembership {
   global_role: Role
   project_id: number
   project_name: string
+  // プロジェクト自体の状態（進行中/停止）。S-11・S-12の「自分の全プロジェクト一覧」で使用
+  project_status: 'active' | 'completed'
   role: ProjectRole
-  status: 'invited' | 'active'
-  joined_at: string
+  status: 'invited' | 'active' | 'declined'
+  joined_at: string | null
   left_at: string | null
+}
+
+// A-91 GET /api/projects/{id} のレスポンス（S-12プロジェクト情報タブ）
+export interface ProjectDetail {
+  id: number
+  name: string
+  description: string | null
+  status: 'active' | 'completed'
+  is_company_wide: boolean
+  created_by: number
+  created_by_name: string
+  created_at: string
+  updated_at: string
+  // A-93（プロジェクト削除）が実行可能か。falseの場合、cannot_delete_reasonに理由が入る
+  can_delete: boolean
+  cannot_delete_reason: string | null
+}
+
+// A-90 GET /api/projects/{id}/member-candidates のitems（S-12メンバー管理タブの招待先検索）
+export interface MemberCandidate {
+  id: number
+  name: string
+  email: string
+  role: Role
 }
 
 // A-22 GET /api/materials/{id}/revisions のitems（S-05改訂履歴タブ）

@@ -2,10 +2,10 @@ import useSWR from 'swr'
 import { apiFetch } from '../lib/api'
 import type { ProjectMembership } from '../types'
 
-// A-11: 対象プロジェクトのメンバー一覧（S-05プロジェクトメンバータブ、S-12メンバー管理タブ）
-export function useProjectMemberships(projectId: number | null) {
+// A-11: 自分の参加プロジェクト一覧（user_id=自分。S-11「自分が参加しているプロジェクト」表示用）
+export function useMyMemberships(userId: number | null) {
   const { data, error, isLoading, mutate } = useSWR<{ items: ProjectMembership[] }>(
-    projectId !== null ? `/api/project-memberships?project_id=${projectId}` : null,
+    userId !== null ? `/api/project-memberships?user_id=${userId}` : null,
     apiFetch,
   )
   return { memberships: data?.items ?? [], error, isLoading, mutate }
