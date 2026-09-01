@@ -305,6 +305,27 @@ export interface MemberCandidate {
   role: Role
 }
 
+// A-59 GET /api/materials/{id}/shares のitems（S-12教材の共有タブ、申請側一覧。F-26）
+export interface MaterialShare {
+  id: number
+  shared_to_project_id: number
+  shared_to_project_name: string
+  status: 'pending' | 'accepted' | 'rejected'
+  shared_at: string
+  responded_at: string | null
+}
+
+// A-66 GET /api/projects/{id}/incoming-shares のitems（S-12教材の共有タブ、承認側一覧。F-26）
+export interface IncomingMaterialShare {
+  id: number
+  material_id: number
+  material_title: string
+  shared_by_project_id: number
+  shared_by_project_name: string
+  shared_at: string
+  status: 'pending' | 'accepted' | 'rejected'
+}
+
 // A-22 GET /api/materials/{id}/revisions のitems（S-05改訂履歴タブ）
 export interface MaterialRevision {
   id: number

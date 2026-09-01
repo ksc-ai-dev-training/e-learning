@@ -391,6 +391,24 @@ CREATE TABLE IF NOT EXISTS cli_token_revocations (
     revoked_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ALTER TABLE cli_token_revocations ENABLE ROW LEVEL SECURITY;
+
+-- T-22 material_project_shares（F-26 教材のプロジェクト間共有。複製モデル、基本設計書5.27節）。
+-- statusが'accepted'になった時点で共有先プロジェクトへ教材の複製が新規作成される（この行自体は
+-- 複製先教材への参照を持たない。複製後は独立した教材のため、以後この行は履歴として残るのみ）。
+CREATE TABLE IF NOT EXISTS material_project_shares (
+    id                    BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    material_id           BIGINT NOT NULL REFERENCES materials(id) ON DELETE CASCADE,
+    shared_to_project_id  BIGINT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    shared_by             BIGINT NOT NULL REFERENCES users(id),
+    shared_at             TIMESTAMPTZ NOT NULL DEFAULT now(),
+    status                TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'rejected')),
+    responded_by          BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    responded_at          TIMESTAMPTZ,
+    UNIQUE (material_id, shared_to_project_id)
+);
+CREATE INDEX IF NOT EXISTS idx_material_project_shares_shared_to
+    ON material_project_shares (shared_to_project_id);
+ALTER TABLE material_project_shares ENABLE ROW LEVEL SECURITY;
 """
 
 

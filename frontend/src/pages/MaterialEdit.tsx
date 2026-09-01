@@ -201,13 +201,16 @@ export default function MaterialEdit() {
   }
 
   // 章・小見出し・ページ・設問のidをすべてnullにし、書き戻し時にA-20が新規ノードとして
-  // 採番するようにする（複製先の教材に元教材のノードIDをそのまま送ると「存在しません」で422になる）
+  // 採番するようにする（複製先の教材に元教材のノードIDをそのまま送ると「存在しません」で422になる）。
+  // pool_groupも同時にnullへ戻す。元のid値をそのまま残すと、複製先では別の設問（元教材の
+  // 別の設問、最悪他教材の無関係な設問）を指してしまう自己参照FKのため（2026-09-01、F-26の
+  // 複製実装〔backend/routers/materials.py `_duplicate_material_into_project`〕と合わせて発見・修正）。
   const stripIds = (nodes: EditableNode[]): EditableNode[] =>
     nodes.map((n) => ({
       ...n,
       id: null,
       children: stripIds(n.children),
-      questions: n.questions?.map((q) => ({ ...q, id: null })),
+      questions: n.questions?.map((q) => ({ ...q, id: null, pool_group: null })),
     }))
 
   // 「複製」: 教材1冊分（目次・全ページ・問題）を丸ごとコピーして新規下書きを作成する

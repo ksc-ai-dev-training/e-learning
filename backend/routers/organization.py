@@ -407,3 +407,22 @@ async def list_project_memberships(
         *params,
     )
     return {"items": [dict(r) for r in rows]}
+
+
+@router.get("/{id}/incoming-shares")
+async def list_incoming_shares(id: int, status: str = "pending", user: CurrentUser = Depends(require_auth)):
+    """A-66: 自プロジェクト宛ての教材共有申請一覧（F-26、基本設計書5.27節）。対象プロジェクトの
+    管理者・システムadminのみ閲覧できる。statusは既定でpending（承認待ち）のみを返す。"""
+    await check_project_role(user, id, min_role="admin")
+    rows = await get_pool().fetch(
+        """SELECT s.id, s.material_id, m.title AS material_title,
+                  m.project_id AS shared_by_project_id, p.name AS shared_by_project_name,
+                  s.shared_at, s.status
+           FROM material_project_shares s
+           JOIN materials m ON m.id = s.material_id
+           JOIN projects p ON p.id = m.project_id
+           WHERE s.shared_to_project_id = $1 AND s.status = $2
+           ORDER BY s.shared_at DESC""",
+        id, status,
+    )
+    return {"items": [dict(r) for r in rows]}

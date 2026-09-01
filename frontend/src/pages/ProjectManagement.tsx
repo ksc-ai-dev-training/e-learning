@@ -7,15 +7,20 @@ import Button from '../components/ui/Button'
 import Select from '../components/ui/Select'
 import TextArea from '../components/ui/TextArea'
 import TextInput from '../components/ui/TextInput'
+import { useIncomingShares } from '../hooks/useIncomingShares'
+import { useMaterials } from '../hooks/useMaterials'
+import { useMaterialShares } from '../hooks/useMaterialShares'
 import { useMe } from '../hooks/useMe'
 import { useMemberCandidates } from '../hooks/useMemberCandidates'
 import { useMyMemberships } from '../hooks/useMyMemberships'
 import { useProjectDetail } from '../hooks/useProjectDetail'
 import { useProjectMemberships } from '../hooks/useProjectMemberships'
+import { useProjects } from '../hooks/useProjects'
 import { ApiError } from '../lib/api'
 import { formatDateJst } from '../lib/datetime'
 import { changeMemberRole, deleteProject, inviteMember, removeMember, updateProject } from '../lib/projectActions'
-import type { ProjectRole } from '../types'
+import { createMaterialShare, deleteMaterialShare, respondMaterialShare } from '../lib/shareActions'
+import type { MaterialSource, ProjectRole } from '../types'
 
 // 全社Wikiの管理者はシステム管理者のみとし、招待・ロール変更（A-12/A-13）では新たに
 // 付与できない（基本設計書5.26節）。バックエンドが400で拒否するため、選択肢自体を出さない。
@@ -34,8 +39,8 @@ const TABS = [
 ] as const
 type TabKey = (typeof TABS)[number]['key']
 
-// S-12 プロジェクト管理（詳細設計書10.12節相当）。プロジェクト情報・メンバー管理タブを実装し、
-// 教材の共有タブ（F-26）はT-22等が未実装のため準備中の案内のみとする。
+// S-12 プロジェクト管理（詳細設計書10.12節相当）。プロジェクト情報・メンバー管理・教材の共有
+// （F-26、複製モデル）の3タブを実装済み。
 //
 // 「複数プロジェクトを管理していると常に全社Wikiがデフォルトで開いてしまう」「停止したプロジェクトが
 // 管理画面に出てこず復活させられない」「管理画面にもプロジェクト一覧・状態変更がほしい」という
@@ -305,11 +310,7 @@ function ProjectManagementBody({
           />
         )}
 
-        {activeTab === 'sharing' && (
-          <p className="text-sm text-slate-400">
-            教材の共有（プロジェクト間での教材複製）は準備中です。次回以降のバージョンで対応予定です。
-          </p>
-        )}
+        {activeTab === 'sharing' && <SharingTab projectId={projectId} />}
       </div>
     </div>
   )
@@ -498,6 +499,238 @@ function MembersTab({
       <p className="mt-2 text-[11px] text-slate-400">
         招待した時点ではまだ権限は発生しません。招待された本人が承諾して初めて、実際にメンバーとして教材の受講・編集ができるようになります。
       </p>
+    </div>
+  )
+}
+
+// S-12 教材の共有タブ（F-26、複製モデル。基本設計書5.27節）。「このプロジェクトから申請した共有」
+// （申請側、A-59/A-60/A-61）と「他プロジェクトからの共有リクエスト」（承認側、A-66/A-65）の
+// 2セクションで構成する（画面モックアップと同じ構成）。
+function SharingTab({ projectId }: { projectId: number }) {
+  return (
+    <div className="flex flex-col gap-8">
+      <OutgoingSharesSection projectId={projectId} />
+      <IncomingSharesSection projectId={projectId} />
+    </div>
+  )
+}
+
+function OutgoingSharesSection({ projectId }: { projectId: number }) {
+  const { materials, isLoading } = useMaterials(projectId)
+
+  return (
+    <div>
+      <h3 className="mb-2 text-sm font-semibold text-slate-700">このプロジェクトから申請した共有</h3>
+      <p className="mb-3 text-xs text-slate-500">
+        申請しただけでは何も起きません。共有先プロジェクトの管理者が承認すると、その時点の教材内容（目次・全ページ・問題・添付ファイル）で複製が共有先プロジェクトに新規作成されます。複製後は共有先プロジェクトの独立した教材として、内容編集・配信設定・公開状態はすべて共有先プロジェクトの管理者・編集者が管理します（元教材を更新しても複製には反映されません）。下書きの教材は共有申請できません。
+      </p>
+      {isLoading ? (
+        <p className="text-sm text-slate-400">読み込み中...</p>
+      ) : materials.length === 0 ? (
+        <p className="text-sm text-slate-400">教材がありません。</p>
+      ) : (
+        <div className="overflow-x-auto rounded-md border border-slate-200">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-100 bg-slate-50 text-left text-xs text-slate-500">
+                <th className="px-3 py-2 font-normal">教材名</th>
+                <th className="px-3 py-2 font-normal">状態</th>
+                <th className="px-3 py-2 font-normal">共有先プロジェクト</th>
+                <th className="px-3 py-2 font-normal">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {materials.map((m) => (
+                <OutgoingShareRow key={m.id} projectId={projectId} material={m} />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function OutgoingShareRow({ projectId, material }: { projectId: number; material: MaterialSource }) {
+  const { shares, mutate } = useMaterialShares(material.id)
+  const { projects } = useProjects('learner')
+  const [adding, setAdding] = useState(false)
+  const [targetProjectId, setTargetProjectId] = useState<number | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  // 却下(rejected)は再申請可能なため候補から除外しない。承認待ち・承認済みの共有先のみ除外する
+  const activeShares = shares.filter((s) => s.status !== 'rejected')
+  const candidateProjects = projects.filter(
+    (p) => p.id !== projectId && !activeShares.some((s) => s.shared_to_project_id === p.id),
+  )
+
+  const handleAdd = async () => {
+    if (targetProjectId === null) return
+    setError(null)
+    try {
+      await createMaterialShare(material.id, targetProjectId)
+      await mutate()
+      setTargetProjectId(null)
+      setAdding(false)
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : '申請に失敗しました')
+    }
+  }
+
+  const handleWithdraw = async (shareId: number) => {
+    setError(null)
+    try {
+      await deleteMaterialShare(material.id, shareId)
+      await mutate()
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : '取り下げに失敗しました')
+    }
+  }
+
+  return (
+    <tr className="border-b border-slate-50 align-top last:border-0">
+      <td className="px-3 py-2 text-slate-800">{material.title}</td>
+      <td className="px-3 py-2">
+        <Badge variant={material.status === 'published' ? 'published' : material.status === 'draft' ? 'draft' : 'archived'} />
+      </td>
+      <td className="px-3 py-2">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {activeShares.length === 0 && <span className="text-xs text-slate-300">—</span>}
+          {activeShares.map((s) => (
+            <span
+              key={s.id}
+              className="inline-flex items-center gap-1 rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-xs text-slate-600"
+            >
+              {s.shared_to_project_name}
+              <Badge variant={s.status === 'pending' ? 'share-pending' : 'share-accepted'} />
+              {s.status === 'pending' && (
+                <button
+                  type="button"
+                  onClick={() => handleWithdraw(s.id)}
+                  className="text-slate-400 hover:text-red-600"
+                  title="申請を取り下げる"
+                >
+                  ×
+                </button>
+              )}
+            </span>
+          ))}
+        </div>
+      </td>
+      <td className="px-3 py-2">
+        {material.status === 'draft' ? (
+          <span className="text-xs text-slate-300" title="下書きのため共有申請できません">
+            共有を申請
+          </span>
+        ) : adding ? (
+          <div className="flex flex-col gap-1.5">
+            <Select
+              value={targetProjectId !== null ? String(targetProjectId) : ''}
+              onChange={(v) => setTargetProjectId(v ? Number(v) : null)}
+              options={[
+                { value: '', label: '共有先プロジェクトを選択...' },
+                ...candidateProjects.map((p) => ({ value: String(p.id), label: p.name })),
+              ]}
+            />
+            <div className="flex gap-2">
+              <Button variant="secondary" onClick={handleAdd} disabled={targetProjectId === null}>
+                申請を送る
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setAdding(false)
+                  setTargetProjectId(null)
+                  setError(null)
+                }}
+              >
+                キャンセル
+              </Button>
+            </div>
+            {error && <span className="text-xs text-red-600">{error}</span>}
+          </div>
+        ) : (
+          <button type="button" onClick={() => setAdding(true)} className="text-xs font-semibold text-blue-700 hover:underline">
+            共有を申請
+          </button>
+        )}
+      </td>
+    </tr>
+  )
+}
+
+function IncomingSharesSection({ projectId }: { projectId: number }) {
+  const { incomingShares, isLoading, mutate } = useIncomingShares(projectId)
+  const [rowError, setRowError] = useState<string | null>(null)
+  const [respondingId, setRespondingId] = useState<number | null>(null)
+
+  const handleRespond = async (materialId: number, shareId: number, status: 'accepted' | 'rejected') => {
+    setRowError(null)
+    setRespondingId(shareId)
+    try {
+      await respondMaterialShare(materialId, shareId, status)
+      await mutate()
+    } catch (e) {
+      setRowError(e instanceof ApiError ? e.message : '処理に失敗しました')
+    } finally {
+      setRespondingId(null)
+    }
+  }
+
+  return (
+    <div>
+      <h3 className="mb-2 text-sm font-semibold text-slate-700">他プロジェクトからの共有リクエスト（このプロジェクト宛て）</h3>
+      <p className="mb-3 text-xs text-slate-500">
+        承認すると、その時点の教材内容（目次・全ページ・問題・添付ファイル）でこのプロジェクトに複製が新規作成されます。却下すると何も作成されません。承認後は複製が独立した教材になるため専用の「共有解除」操作はなく、不要になった場合は複製先の教材を通常どおりアーカイブ・削除してください。
+      </p>
+      {rowError && <p className="mb-3 text-sm text-red-600">{rowError}</p>}
+      {isLoading ? (
+        <p className="text-sm text-slate-400">読み込み中...</p>
+      ) : incomingShares.length === 0 ? (
+        <p className="text-sm text-slate-400">承認待ちの共有リクエストはありません。</p>
+      ) : (
+        <div className="overflow-x-auto rounded-md border border-slate-200">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-100 bg-slate-50 text-left text-xs text-slate-500">
+                <th className="px-3 py-2 font-normal">教材名</th>
+                <th className="px-3 py-2 font-normal">共有元プロジェクト</th>
+                <th className="px-3 py-2 font-normal">申請日</th>
+                <th className="px-3 py-2 font-normal">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {incomingShares.map((s) => (
+                <tr key={s.id} className="border-b border-slate-50 last:border-0">
+                  <td className="px-3 py-2 text-slate-800">{s.material_title}</td>
+                  <td className="px-3 py-2 text-slate-500">{s.shared_by_project_name}</td>
+                  <td className="px-3 py-2 text-slate-500">{formatDateJst(s.shared_at)}</td>
+                  <td className="px-3 py-2">
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        disabled={respondingId === s.id}
+                        onClick={() => handleRespond(s.material_id, s.id, 'accepted')}
+                        className="rounded bg-blue-700 px-2 py-1 text-xs font-semibold text-white hover:bg-blue-800 disabled:opacity-50"
+                      >
+                        承認
+                      </button>
+                      <button
+                        type="button"
+                        disabled={respondingId === s.id}
+                        onClick={() => handleRespond(s.material_id, s.id, 'rejected')}
+                        className="rounded border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100 disabled:opacity-50"
+                      >
+                        却下
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   )
 }

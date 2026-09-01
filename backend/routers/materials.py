@@ -93,13 +93,15 @@ async def search_materials(
     アーカイブ済み教材がS-03の一覧に表示され続ける不具合があった。2026-08-28）。6.1節のSQLを
     実装レベルへ落とし込む。
 
-    project_idはmaterials.project_idの一致のみで判定する（F-26のプロジェクト間共有〔T-22
-    material_project_shares〕は本書の時点で未実装のため、共有先への表示は対象外。実装時に追加する）。
+    project_idはmaterials.project_idの一致のみで判定する。F-26（教材のプロジェクト間共有）は
+    承認時に共有先プロジェクトへ独立した教材の複製を新規作成する「複製モデル」（5.27節）のため、
+    共有された教材はproject_idが共有先プロジェクト自身になる通常の教材として一覧に現れる。
+    共有元・共有先を横断する特別な判定は不要（F-26実装時に判明。CLAUDE.md参照）。
 
     レスポンスの`registered`（T-30 my_learning_registrations、F-31）は、全社Wiki所属の任意教材の
     行にのみ「マイ学習に追加」/「マイ学習から外す」ボタンを出し分けるためにS-02実装時に追加した。
-    my_assignments_onlyは5.3節の3条件のうち、プロジェクトの現役メンバーである・個人指定の配信
-    （assignments, scope_type='individual'）があるの2条件のみ判定する（3条件目の共有経由は同じ理由で対象外）。
+    my_assignments_onlyは5.3節の2条件（プロジェクトの現役メンバーである・個人指定の配信
+    〔assignments, scope_type='individual'〕がある）を判定する。
     """
     if per_page not in (20, 50, 100):
         raise HTTPException(422, detail="per_pageは20/50/100のいずれかを指定してください")
@@ -1211,3 +1213,227 @@ async def delete_survey(
     if row is None:
         raise HTTPException(404, detail="アンケートが見つかりません")
     await get_pool().execute("DELETE FROM surveys WHERE id = $1", survey_id)
+
+
+# ==== F-26 教材のプロジェクト間共有（A-59/A-60/A-61/A-65。基本設計書5.27節、T-22） ====
+# 「参照共有モデル」ではなく「複製モデル」: 申請してもstatus='pending'の行が増えるだけで何も
+# 起きず、共有先プロジェクトの管理者が承認した時点で、その時点の教材内容（目次・全ページ・問題・
+# 添付ファイル）で複製を共有先プロジェクトへ新規作成する。以後は独立教材として扱われ、元教材との
+# 連動は無い。A-66（自プロジェクト宛ての一覧）はorganization.pyに実装する（プロジェクトIDのみで
+# 完結するため）。
+
+
+async def _has_project_role(pool, project_id: int, user_id: int, min_role: str) -> bool:
+    """check_project_roleの真偽値版。共有元・共有先2つのプロジェクトのどちらかを満たせばよい、
+    というOR条件の判定（A-61）にはHTTPExceptionを投げるcheck_project_roleが使えないため用意した。
+    システムadminの判定は呼び出し側で別途行う。"""
+    row = await pool.fetchrow(
+        """SELECT role FROM project_memberships
+           WHERE project_id = $1 AND user_id = $2 AND status = 'active' AND left_at IS NULL""",
+        project_id, user_id,
+    )
+    return row is not None and ROLE_RANK[row["role"]] >= ROLE_RANK[min_role]
+
+
+async def _duplicate_material_into_project(conn, material_id: int, target_project_id: int, created_by: int) -> int:
+    """F-26承認時の複製本体。既存の「複製」ボタン（S-05, MaterialEdit.tsx）と考え方は同じ
+    （A-19取得相当→A-16新規作成相当→A-20書き戻し相当）だが、以下の点で異なるためHTTPを経由せず
+    直接SQLで組み立てる: (1) 添付ファイルの実体も複製する（既存の複製ボタンは対象外。5.27節は
+    「添付ファイルも複製する」と明記している）。(2) 承認操作というAPI呼び出し1回の中で完結させる
+    必要があり、Claude Code連携用のMarkdown往復（material_parser）を経由する理由が無い。
+    新規教材は常にdraftとして作成し、公開判断は複製後の共有先プロジェクトの管理者・編集者に委ねる
+    （5.27節「内容編集・配信設定・公開状態はすべて共有先プロジェクトの管理者・編集者が行う」）。
+    作成者(created_by)は承認操作を行った共有先プロジェクトの管理者とする。"""
+    material_row = await conn.fetchrow("SELECT * FROM materials WHERE id = $1", material_id)
+    new_material_id = await conn.fetchval(
+        """INSERT INTO materials (project_id, title, description, tags, created_by, status,
+               attempt_scope, retake_scope, default_feedback_style, ai_context, grading_mode)
+           VALUES ($1, $2, $3, $4, $5, 'draft', $6, $7, $8, $9, $10)
+           RETURNING id""",
+        target_project_id, material_row["title"], material_row["description"], material_row["tags"],
+        created_by, material_row["attempt_scope"], material_row["retake_scope"],
+        material_row["default_feedback_style"], material_row["ai_context"], material_row["grading_mode"],
+    )
+
+    tree = await _fetch_tree(conn, material_id)  # strip_answers=False既定。正解込みで複製する
+
+    node_id_map: dict[int, int] = {}
+    question_id_map: dict[int, int] = {}
+    pending_pool_group: list[tuple[int, int]] = []
+
+    async def copy_nodes(nodes: list[dict], parent_new_id: int | None) -> None:
+        for node in nodes:
+            new_node_id = await conn.fetchval(
+                """INSERT INTO material_nodes
+                       (material_id, parent_node_id, title, kind, sort_order,
+                        content_kind, format, body, quiz_mode, pool_draw_count)
+                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id""",
+                new_material_id, parent_new_id, node["title"], node["kind"], node["sort_order"],
+                node["content_kind"], node["format"], node["body"], node["quiz_mode"], node["pool_draw_count"],
+            )
+            node_id_map[node["id"]] = new_node_id
+            for q in node.get("questions", []):
+                options_json = json.dumps(q["options"]) if q["options"] is not None else None
+                answer_json = json.dumps(q["correct_answer"]) if q["correct_answer"] is not None else None
+                new_q_id = await conn.fetchval(
+                    """INSERT INTO questions (material_id, node_id, type, prompt, options,
+                           correct_answer, sort_order, required, is_critical, feedback_style,
+                           scoring_criteria, code_language, score_unit, grading_mode)
+                       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING id""",
+                    new_material_id, new_node_id, q["type"], q["prompt"], options_json, answer_json,
+                    q["sort_order"], q["required"], q["is_critical"], q["feedback_style"],
+                    q["scoring_criteria"], q["code_language"], q["score_unit"], q["grading_mode"],
+                )
+                question_id_map[q["id"]] = new_q_id
+                if q["pool_group"] is not None:
+                    pending_pool_group.append((new_q_id, q["pool_group"]))
+            await copy_nodes(node.get("children", []), new_node_id)
+
+    await copy_nodes(tree, None)
+
+    # pool_group_idは同一教材内の他設問idを指す自己参照FKのため、複製後は新IDへ付け替える
+    # （元のidをそのまま複製先へコピーすると、元教材側の無関係な設問を指してしまう）
+    for new_q_id, old_pool_group in pending_pool_group:
+        new_pool_group = question_id_map.get(old_pool_group)
+        if new_pool_group is not None:
+            await conn.execute(
+                "UPDATE questions SET pool_group_id = $1 WHERE id = $2", new_pool_group, new_q_id,
+            )
+
+    attachments = await conn.fetch(
+        "SELECT * FROM material_attachments WHERE material_id = $1", material_id
+    )
+    for att in attachments:
+        new_node_id = node_id_map.get(att["node_id"]) if att["node_id"] is not None else None
+        if att["kind"] == "file":
+            new_storage_key = await storage.copy_object(
+                att["storage_key"], f"materials/{new_material_id}", att["filename"]
+            )
+            await conn.execute(
+                """INSERT INTO material_attachments
+                       (material_id, node_id, kind, storage_key, filename, mime_type, size_bytes)
+                   VALUES ($1, $2, 'file', $3, $4, $5, $6)""",
+                new_material_id, new_node_id, new_storage_key,
+                att["filename"], att["mime_type"], att["size_bytes"],
+            )
+        else:
+            await conn.execute(
+                """INSERT INTO material_attachments (material_id, node_id, kind, external_url, filename)
+                   VALUES ($1, $2, 'link', $3, $4)""",
+                new_material_id, new_node_id, att["external_url"], att["filename"],
+            )
+
+    return new_material_id
+
+
+@detail_router.get("/{id}/shares")
+async def list_material_shares(id: int, user: CurrentUser = Depends(require_material_role(min_role="admin"))):
+    """A-59: 教材のプロジェクト間共有一覧取得。元プロジェクトの管理者のみ（5.27節）。"""
+    rows = await get_pool().fetch(
+        """SELECT s.id, s.shared_to_project_id, p.name AS shared_to_project_name,
+                  s.status, s.shared_at, s.responded_at
+           FROM material_project_shares s JOIN projects p ON p.id = s.shared_to_project_id
+           WHERE s.material_id = $1 ORDER BY s.shared_at DESC""",
+        id,
+    )
+    return {"items": [dict(r) for r in rows]}
+
+
+class MaterialShareCreate(BaseModel):
+    shared_to_project_id: int
+
+
+@detail_router.post("/{id}/shares", status_code=201)
+async def create_material_share(
+    id: int, body: MaterialShareCreate, user: CurrentUser = Depends(require_material_role(min_role="admin"))
+):
+    """A-60: 共有を申請する（status='pending'で作成。5.27節）。下書きの教材は共有申請できない。
+    却下済み(rejected)への再申請は同じ行をpendingへ戻す。承認済み(accepted)は複製がすでに
+    作成済みのため再申請を拒否する（同じ内容の複製を重ねて作ってしまうことを避ける）。"""
+    pool = get_pool()
+    material_row = await pool.fetchrow("SELECT project_id, status FROM materials WHERE id = $1", id)
+    if material_row is None:
+        raise HTTPException(404, detail="教材が見つかりません")
+    if material_row["status"] == "draft":
+        raise HTTPException(400, detail="下書きの教材は共有申請できません")
+    if body.shared_to_project_id == material_row["project_id"]:
+        raise HTTPException(400, detail="この教材が既に所属するプロジェクトへは共有できません")
+    target_project = await pool.fetchrow("SELECT id FROM projects WHERE id = $1", body.shared_to_project_id)
+    if target_project is None:
+        raise HTTPException(404, detail="共有先プロジェクトが見つかりません")
+    existing = await pool.fetchrow(
+        "SELECT status FROM material_project_shares WHERE material_id = $1 AND shared_to_project_id = $2",
+        id, body.shared_to_project_id,
+    )
+    if existing is not None and existing["status"] == "accepted":
+        raise HTTPException(400, detail="このプロジェクトへはすでに共有済みです")
+    row = await pool.fetchrow(
+        """INSERT INTO material_project_shares (material_id, shared_to_project_id, shared_by, status)
+           VALUES ($1, $2, $3, 'pending')
+           ON CONFLICT (material_id, shared_to_project_id)
+           DO UPDATE SET status = 'pending', shared_by = EXCLUDED.shared_by, shared_at = now(),
+                         responded_by = NULL, responded_at = NULL
+           RETURNING id, shared_to_project_id, status, shared_at, responded_at""",
+        id, body.shared_to_project_id, user.id,
+    )
+    return dict(row)
+
+
+@detail_router.delete("/{id}/shares/{share_id}", status_code=204)
+async def delete_material_share(id: int, share_id: int, user: CurrentUser = Depends(require_auth)):
+    """A-61: 承認前(status='pending')の申請取り下げのみ対応。元・共有先いずれかのプロジェクト管理者、
+    またはシステムadminが行える（5.27節）。承認後は複製が独立教材になっているため400で拒否する。"""
+    pool = get_pool()
+    share = await pool.fetchrow(
+        """SELECT s.id, s.status, m.project_id AS source_project_id, s.shared_to_project_id
+           FROM material_project_shares s JOIN materials m ON m.id = s.material_id
+           WHERE s.id = $1 AND s.material_id = $2""",
+        share_id, id,
+    )
+    if share is None:
+        raise HTTPException(404, detail="共有申請が見つかりません")
+    if share["status"] != "pending":
+        raise HTTPException(400, detail="承認済み・却下済みの申請は取り下げられません")
+    if user.role != "admin":
+        is_source_admin = await _has_project_role(pool, share["source_project_id"], user.id, "admin")
+        is_target_admin = await _has_project_role(pool, share["shared_to_project_id"], user.id, "admin")
+        if not (is_source_admin or is_target_admin):
+            raise HTTPException(403, detail="この操作を行う権限がありません")
+    await pool.execute("DELETE FROM material_project_shares WHERE id = $1", share_id)
+
+
+class MaterialShareRespond(BaseModel):
+    status: Literal["accepted", "rejected"]
+
+
+@detail_router.put("/{id}/shares/{share_id}/respond")
+async def respond_material_share(
+    id: int, share_id: int, body: MaterialShareRespond, user: CurrentUser = Depends(require_auth)
+):
+    """A-65: 共有先プロジェクトの管理者が承認・却下する（5.27節）。承認時はその場で複製を作成する
+    （複製モデル）。却下時は何も作成しない。"""
+    pool = get_pool()
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            share = await conn.fetchrow(
+                """SELECT id, status, shared_to_project_id
+                   FROM material_project_shares WHERE id = $1 AND material_id = $2""",
+                share_id, id,
+            )
+            if share is None:
+                raise HTTPException(404, detail="共有申請が見つかりません")
+            if share["status"] != "pending":
+                raise HTTPException(400, detail="この申請はすでに処理済みです")
+            await check_project_role(user, share["shared_to_project_id"], min_role="admin")
+            new_material_id = None
+            if body.status == "accepted":
+                new_material_id = await _duplicate_material_into_project(
+                    conn, id, share["shared_to_project_id"], user.id
+                )
+            await conn.execute(
+                """UPDATE material_project_shares
+                       SET status = $1, responded_by = $2, responded_at = now()
+                   WHERE id = $3""",
+                body.status, user.id, share_id,
+            )
+    return {"status": body.status, "new_material_id": new_material_id}

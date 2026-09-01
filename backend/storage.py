@@ -51,6 +51,18 @@ async def create_download_url(storage_key: str) -> tuple[str, str | None]:
     return f"/api/uploads/{storage_key}", None
 
 
+async def copy_object(src_storage_key: str, dest_prefix: str, filename: str) -> str:
+    """既存の添付ファイル実体を新しいstorage_keyへ複製する（F-26、教材のプロジェクト間共有の
+    複製時に使う。7.6節）。戻り値: 新しいstorage_key。"""
+    dest_storage_key = _make_storage_key(dest_prefix, filename)
+    if IS_SUPABASE_CONFIGURED:
+        await _supabase_copy_object(src_storage_key, dest_storage_key)
+    else:
+        data = read_local_file(src_storage_key)
+        save_local_file(dest_storage_key, data)
+    return dest_storage_key
+
+
 async def delete_object(storage_key: str) -> None:
     """実体ファイルを削除する（A-82）。存在しなくてもエラーにしない。"""
     if IS_SUPABASE_CONFIGURED:
@@ -102,6 +114,20 @@ async def _supabase_create_signed_download_url(storage_key: str) -> tuple[str, s
             datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(seconds=600)
         ).isoformat()
         return f"{SUPABASE_URL}/storage/v1{signed_path}", expires_at
+
+
+async def _supabase_copy_object(src_storage_key: str, dest_storage_key: str) -> None:
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(
+            f"{SUPABASE_URL}/storage/v1/object/copy",
+            headers={"Authorization": f"Bearer {SUPABASE_SERVICE_KEY}"},
+            json={
+                "bucketId": SUPABASE_STORAGE_BUCKET,
+                "sourceKey": src_storage_key,
+                "destinationKey": dest_storage_key,
+            },
+        )
+        resp.raise_for_status()
 
 
 async def _supabase_delete_object(storage_key: str) -> None:

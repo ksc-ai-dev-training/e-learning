@@ -5,7 +5,8 @@ import type { ReactNode } from 'react'
 // 'required' / 'optional'（教材の区分表示、S-03）、'ai-warning' / 'ai-info'（AIレビュー結果の重要度、S-05）、
 // 'complete' / 'overdue'（受講完了・期限接近の強調表示、S-02。日付を含む動的な文言のためchildrenで上書きする）、
 // 'member-active' / 'member-invited' / 'member-declined'（プロジェクトメンバーの参加状態、S-12）、
-// 'project-active' / 'project-stopped'（プロジェクト自体の状態、S-11・S-12の「自分の全プロジェクト一覧」）
+// 'project-active' / 'project-stopped'（プロジェクト自体の状態、S-11・S-12の「自分の全プロジェクト一覧」）、
+// 'share-pending' / 'share-accepted'（教材のプロジェクト間共有の状態、S-12教材の共有タブ。F-26）
 const VARIANT_CLASSES: Record<string, string> = {
   published: 'bg-green-50 text-green-700 border-green-200',
   draft: 'bg-slate-100 text-slate-400 border-slate-300',
@@ -24,6 +25,8 @@ const VARIANT_CLASSES: Record<string, string> = {
   'member-declined': 'bg-slate-100 text-slate-500 border-slate-300',
   'project-active': 'bg-green-50 text-green-700 border-green-200',
   'project-stopped': 'bg-slate-100 text-slate-500 border-slate-300',
+  'share-pending': 'bg-amber-50 text-amber-700 border-amber-200',
+  'share-accepted': 'bg-green-50 text-green-700 border-green-200',
 }
 
 const VARIANT_LABELS: Record<string, string> = {
@@ -42,6 +45,8 @@ const VARIANT_LABELS: Record<string, string> = {
   'member-declined': '辞退',
   'project-active': '進行中',
   'project-stopped': '停止',
+  'share-pending': '承認待ち',
+  'share-accepted': '複製済み',
 }
 
 export default function Badge({
