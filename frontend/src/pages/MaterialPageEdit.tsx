@@ -22,6 +22,20 @@ type PendingAttachment =
   | { key: string; kind: 'file'; file: File }
   | { key: string; kind: 'link'; url: string }
 
+// poolMembershipでチェックされた設問のうち、保存済み（id !== null）のものだけを対象に
+// pool_group（DB上はpool_group_id、自己参照FK）を実IDへ解決する。2問未満しか対象が
+// 無い場合はプールを組めないためすべてnullに戻す。未保存の設問は次回保存後に選択できる。
+function resolvePoolGroups(questions: Question[], poolMembership: boolean[], poolMode: boolean): Question[] {
+  if (!poolMode) return questions.map((q) => (q.pool_group === null ? q : { ...q, pool_group: null }))
+  const memberIds = questions
+    .map((q, i) => (poolMembership[i] && q.id !== null ? q.id : null))
+    .filter((id): id is number => id !== null)
+  if (memberIds.length < 2) return questions.map((q) => (q.pool_group === null ? q : { ...q, pool_group: null }))
+  const representativeId = Math.min(...memberIds)
+  const memberIdSet = new Set(memberIds)
+  return questions.map((q) => ({ ...q, pool_group: q.id !== null && memberIdSet.has(q.id) ? representativeId : null }))
+}
+
 // S-17 教材編集：ページ編集（詳細設計書10.16節）。説明文編集・添付ファイル・設問編集
 // （単一選択・複数選択・並び替え・記述式・コード記述式・スコア記録の6種）まで実装済み。保存はS-05と同じくA-20（PUT /source）の
 // 全置換で、他ページの内容（body/questions）はtocから素通りさせて一緒に送る。
@@ -51,6 +65,10 @@ export default function MaterialPageEdit() {
   const [questions, setQuestions] = useState<Question[]>([])
   const [quizMode, setQuizMode] = useState<'all' | 'pool'>('all')
   const [poolDrawCount, setPoolDrawCount] = useState<number | null>(null)
+  // 出題プールに含めるかどうかの編集中フラグ（questionsと同じ添字で対応）。
+  // pool_group_idは「保存済みの設問の実IDを指す自己参照FK」のため、保存前の画面上では
+  // 実IDを直接編集させず、この真偽値だけを管理し、保存直前（save内）に実IDへ解決する。
+  const [poolMembership, setPoolMembership] = useState<boolean[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [initialized, setInitialized] = useState(false)
@@ -73,6 +91,7 @@ export default function MaterialPageEdit() {
         setQuestions(node.questions ?? [])
         setQuizMode(node.quizMode ?? 'all')
         setPoolDrawCount(node.poolDrawCount ?? null)
+        setPoolMembership((node.questions ?? []).map((q) => q.pool_group !== null))
       }
     }
     setInitialized(true)
@@ -80,9 +99,17 @@ export default function MaterialPageEdit() {
 
   const backToStructure = () => navigate(`/projects/${projectId}/materials/${materialId}/edit`)
 
-  const addQuestion = () => setQuestions([...questions, emptyQuestionForType('single')])
+  const addQuestion = () => {
+    setQuestions([...questions, emptyQuestionForType('single')])
+    setPoolMembership([...poolMembership, false])
+  }
   const updateQuestion = (i: number, q: Question) => setQuestions(questions.map((old, idx) => (idx === i ? q : old)))
-  const deleteQuestion = (i: number) => setQuestions(questions.filter((_, idx) => idx !== i))
+  const deleteQuestion = (i: number) => {
+    setQuestions(questions.filter((_, idx) => idx !== i))
+    setPoolMembership(poolMembership.filter((_, idx) => idx !== i))
+  }
+  const togglePoolMembership = (i: number) =>
+    setPoolMembership(poolMembership.map((v, idx) => (idx === i ? !v : v)))
 
   const validateQuestions = (qs: Question[]): string | null => {
     for (let i = 0; i < qs.length; i++) {
@@ -154,6 +181,7 @@ export default function MaterialPageEdit() {
     if (!material) return
     setSaving(true)
     try {
+      const resolvedQuestions = resolvePoolGroups(questions, poolMembership, includeQuiz && quizMode === 'pool')
       const page: EditableNode = {
         id: isNew ? null : Number(nodeId),
         title,
@@ -163,7 +191,7 @@ export default function MaterialPageEdit() {
         format,
         quizMode: includeQuiz ? quizMode : 'all',
         poolDrawCount: includeQuiz && quizMode === 'pool' ? poolDrawCount : null,
-        questions: includeQuiz ? questions : [],
+        questions: includeQuiz ? resolvedQuestions : [],
       }
       const tree = toEditableChapters(material.toc ?? [])
       const updatedTree = isNew
@@ -457,6 +485,36 @@ export default function MaterialPageEdit() {
                 <span className="text-xs text-slate-400">
                   「プールからランダムに抽出」を選ぶと、この設問一覧から毎回指定した数だけランダムに出題します。
                 </span>
+
+                {quizMode === 'pool' && (
+                  <div className="mt-2 flex flex-col gap-1.5 rounded-md border border-slate-200 bg-slate-50 p-3">
+                    <span className="text-xs font-semibold text-slate-500">プールに含める設問</span>
+                    {questions.length === 0 ? (
+                      <span className="text-xs text-slate-400">設問を追加してください。</span>
+                    ) : (
+                      questions.map((q, i) => (
+                        <label
+                          key={i}
+                          className={`flex items-center gap-2 text-xs ${
+                            q.id === null ? 'text-slate-300' : 'text-slate-600'
+                          }`}
+                          title={q.id === null ? '保存後にプール対象へ選択できます' : undefined}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={!!poolMembership[i]}
+                            disabled={q.id === null}
+                            onChange={() => togglePoolMembership(i)}
+                          />
+                          設問{i + 1}: {q.prompt.trim() || '（設問文未入力）'}
+                        </label>
+                      ))
+                    )}
+                    <span className="text-xs text-slate-400">
+                      チェックしなかった設問は毎回固定で出題されます（プールの抽選対象外）。2問以上チェックしないとプールは組めません。新規追加した設問は保存後に選択できます。
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           </section>
