@@ -103,7 +103,7 @@
       <tr><td>AI講評スタイルの既定</td><td>セレクト</td><td>○</td><td>正解提示/コードレビュー型/ヒント型</td><td>materials.default_feedback_style（実装済み。同パネル。画面モックアップにある「grading_mode='manual'時はグレーアウト」は今回実装していない〔常に選択可能〕）</td></tr>
       <tr><td>AI採点・AIアシストへの指示</td><td>テキストエリア</td><td>—</td><td>2000文字以内</td><td>materials.ai_context（実装済み。同パネル）</td></tr>
       <tr><td>受験後アンケートの設置</td><td>ボタン＋モーダル</td><td>—</td><td>教材全体・章ごとに任意で設置・編集・解除。モーダルで設問（5段階評価/単一選択/自由記述）を追加・削除・タイトル・「設置する」ON/OFF・表示回数（初回のみ/毎回）を編集する。画面モックアップは章カード内蔵のトグル＋インライン表示だが、実装では専用ボタン（未設置時「アンケートを設置」／設置済み「アンケート編集」）からモーダルを開く方式にした（設問編集の入力量が多く、目次編集タブの本流であるツリー編集の視認性を保つため）</td><td>A-78（取得）／A-79（node_id指定で1件のみupsert）／A-79解除（DELETE、設置解除）。<strong>実装済み</strong>（T-26〜T-29新設、<code>SurveyEditModal.tsx</code>）</td></tr>
-      <tr><td>「プレビュー」ボタン</td><td>ボタン</td><td>—</td><td>—</td><td>A-64。<strong>未実装</strong>（S-17の説明文エディタ内プレビューは実装済みだが、教材全体を通しで確認するプレビューは対象外。表示内容の仕様が未確定のため見送った）</td></tr>
+      <tr><td>「プレビュー」ボタン</td><td>ボタン</td><td>—</td><td>教材全体（全章・全ページ）を通し読みできる専用画面（<code>/projects/:projectId/materials/:materialId/preview</code>）へ遷移する。設問は正解・採点基準まで含めて表示する（QA目的のため）。<strong>編集者限定</strong>（対象教材のプロジェクトの編集者以上、admin）。ユーザーとの検討により、受講対象者向けの同等機能は設けない方針とした（受講せずに教材を読めてしまう抜け道になるため。学習者向けの閲覧は引き続きS-04/S-16のみ）。<strong>実装済み</strong>（2026-09-01。S-17の説明文エディタ内プレビュー〔A-64、ページ単位〕とは別物）</td><td>A-94</td></tr>
       <tr><td>「下書き保存」ボタン</td><td>ボタン</td><td>—</td><td>新規作成時はA-16、既存教材はA-17（status='draft'）を呼ぶ。タイトル未入力ならエラー表示して送信しない。保存に成功すると「保存しました」という緑色の完了メッセージを3秒間表示する（保存してもフィードバックが無く分かりにくいとのフィードバックを受けて追加）</td><td>A-16／A-17（実装済み）</td></tr>
       <tr><td>「公開する」ボタン</td><td>ボタン</td><td>—</td><td><code>materials.status</code>を<code>draft</code>から<code>published</code>に変更するのみ（<code>status='draft'</code>のときのみ表示。未保存の変更（dirty）がある間は無効化）。公開前の内容検証は行わない</td><td>A-17（<code>status: 'published'</code>）。<strong>実装済み</strong>（2026-08-28）</td></tr>
       <tr><td>「複製」ボタン</td><td>ボタン</td><td>—</td><td>教材1冊分（目次・全ページ・問題）を丸ごとコピーして新規下書きを作成し、複製先の編集画面へ遷移する。タイトルは「（元のタイトル）のコピー」、状態は下書き。合否判定・AI採点設定も複製元から引き継ぐ。目次編集タブに未保存の変更（dirty）がある間は無効化する</td><td>A-16新規作成→A-20書き戻し（章・小見出し・ページ・問題のidをすべてnullにして送信し、新規ノードとして採番させる）の内部合成。<strong>実装済み</strong></td></tr>
@@ -119,20 +119,20 @@
 
   <h3>10.6 S-06 配信設定（<code>/assignments</code>）</h3>
   <div class="callout">
-    <strong>現状の実装範囲:</strong> 未実装（次回実装対象。T-11 <code>assignments</code>テーブルは先行して作成済みだが、A-36〜A-38・画面本体はまだ無い）。2026-08-28の設計検討で以下の方針を確定した（画面モックアップ<code>S-06_assignment-settings.html</code>に反映済み）。
+    <strong>現状の実装範囲:</strong> <strong>実装済み</strong>（2026-09-01）。新規<strong>A-36</strong>（<code>GET /api/assignments</code>、一覧）・<strong>A-37</strong>（<code>GET /api/materials/{id}/assignments</code>、特定教材の配信設定取得）・<strong>A-38</strong>（<code>PUT /api/materials/{id}/assignments</code>、全置換更新）を新設した。実装にあたり、本節が当初挙げていた「合格基準」「再受験可否・回数上限」の2項目（<code>pass_score_pct</code>・<code>retake_allowed</code>・<code>retake_limit</code>）について、基本設計書5.9節の「S-05から入力しA-17が複製する」という記述がS-05・A-17のどちらにも実装されていない一方、<code>learning.py</code>の<code>_resolve_assignment_settings</code>（S-16実装時に新設）は<code>assignments</code>各行から直接読み取る設計で既に動作していたという不整合を発見した。画面モックアップ<code>S-06_assignment-settings.html</code>の編集パネルにもこの2項目のUIが元々無いことから、<strong>この2項目はS-06のスコープから外し（A-38のリクエストボディに含めない）、常にNULL＝システム既定値〔<code>DEFAULT_PASS_SCORE_PCT</code>=70%等〕にフォールバックする現状の実装のまま確定した</strong>（基本設計書5.9節を修正）。あわせて、画面モックアップには明示されていなかった「プロジェクト全体に配信する」チェック（既定オフ。一覧の「未設定」状態を作成・復帰するためのUI）と、個人指定の各メンバーがプロジェクト全体設定とは独立に自分専用の必修・任意/期限を持てる仕組みを追加した。プロジェクト・並び順の絞り込みはクライアント側で行う（S-13等と同様の簡略化）。
   </div>
   <table>
     <thead><tr><th>項目名</th><th>型</th><th>必須</th><th>バリデーション</th><th>対応API/カラム</th></tr></thead>
     <tbody>
-      <tr><td>サイドバーの表示範囲</td><td>ナビ項目</td><td>—</td><td>「配信設定」は他画面と同じ通常のメニューに常設し、admin・プロジェクト管理者に限らず全社員に表示する（プロジェクト・教材を1つも持たない一般社員にも表示）。管理できる教材が1件も無い場合は、一覧を0件にして「配信設定できる教材がありません」を画面側で表示する（ナビ項目自体は隠さない）</td><td>—</td></tr>
-      <tr><td>一覧テーブル</td><td>表示</td><td>—</td><td>教材／プロジェクト／配信対象要約／区分／期限／状態／操作。adminは全教材、プロジェクト管理者は自分が管理者を務めるプロジェクトに属する教材（下書き含む）のみ表示</td><td>A-36</td></tr>
-      <tr><td>配信対象（プロジェクト全体）</td><td>表示（読み取り専用）</td><td>—</td><td><strong>教材自身が所属するプロジェクトに固定表示（選択不可）</strong>。他プロジェクトを配信対象として選ぶUIは無い（自分が管理者でもない他プロジェクトへ一方的に必修を割り当てられる不具合を避けるため。他プロジェクトへ配信したい場合はF-26共有〔複製モデル、7章参照〕を使う）</td><td>assignments.scope_type='project', scope_id（常にmaterials.project_idと同値）</td></tr>
-      <tr><td>必修・任意の切替（プロジェクト全体向け）</td><td>トグル</td><td>○</td><td>任意選択時は期限入力を無効化。<strong>教材が全社Wiki（<code>is_company_wide=true</code>）に属する場合、役割・adminを問わず「必修」を選択不可</strong>（グレーアウト＋ツールチップ「全社Wikiの教材は必修にできません」。全社Wikiのプロジェクト管理者が実質的な全社必修を作れてしまう抜け道を防ぐ設計判断）</td><td>assignments.required</td></tr>
-      <tr><td>受講期限（プロジェクト全体向け）</td><td>DateTimePicker</td><td>必修時○</td><td>現在時刻以降</td><td>assignments.due_at</td></tr>
-      <tr><td>個人を追加指定（任意）</td><td>検索セレクト</td><td>—</td><td>プロジェクト全体の設定とは別に、特定メンバーだけ必修・期限を上書きしたい場合に使う。<strong>候補は教材自身が所属するプロジェクトの現役メンバーのみ</strong>（他プロジェクトの社員は選べない）</td><td>assignments.scope_type='individual', scope_id</td></tr>
-      <tr><td>合格基準</td><td>NumberInput</td><td>—</td><td>0〜100（%）。教材単位で1つに定め、複数スコープ行に同一値を複製（S-05「合否判定・再受験設定」から入力。5.9節）</td><td>assignments.pass_score_pct</td></tr>
-      <tr><td>再受験可否・回数上限</td><td>トグル＋数値</td><td>—</td><td>0以上の整数。空欄は無制限</td><td>assignments.retake_allowed, retake_limit</td></tr>
-      <tr><td>対象者プレビュー人数</td><td>表示</td><td>—</td><td>設定内容から対象人数を概算表示</td><td>—</td></tr>
+      <tr><td>サイドバーの表示範囲</td><td>ナビ項目</td><td>—</td><td>「配信設定」は他画面と同じ通常のメニューに常設し、admin・プロジェクト管理者に限らず全社員に表示する（プロジェクト・教材を1つも持たない一般社員にも表示）。管理できる教材が1件も無い場合は、一覧を0件にして「配信設定できる教材がありません」を画面側で表示する（ナビ項目自体は隠さない）。<strong>実装済み</strong></td><td>—</td></tr>
+      <tr><td>一覧テーブル</td><td>表示</td><td>—</td><td>教材／プロジェクト／配信対象要約／区分／期限／状態／操作。adminは全教材、プロジェクト管理者は自分が管理者を務めるプロジェクトに属する教材（下書き含む）のみ表示。検索（教材名）・状態・プロジェクト・並び順（必修優先/更新日/教材名）で絞り込み。編集中の行は左端の青いアクセント線・薄い青背景・太字の教材名・「編集中」の塗りつぶしバッジで他の行と明確に区別し、直下の編集パネルにも同系色のアクセント枠を付けて対応関係を視覚的に示す（ユーザーフィードバックにより追加）。<strong>実装済み</strong></td><td>A-36</td></tr>
+      <tr><td>「プロジェクト全体に配信する」チェック</td><td>チェックボックス</td><td>—</td><td>既定オフ。オフのまま保存すると一覧では「未設定」表示になる（<code>scope_type='project'</code>の行を作らない）。オンにすると配信対象・必修/任意・期限の入力が現れる。<strong>実装済み</strong></td><td>—</td></tr>
+      <tr><td>配信対象（プロジェクト全体）</td><td>表示（読み取り専用）</td><td>—</td><td><strong>教材自身が所属するプロジェクトに固定表示（選択不可）</strong>。他プロジェクトを配信対象として選ぶUIは無い（自分が管理者でもない他プロジェクトへ一方的に必修を割り当てられる不具合を避けるため。他プロジェクトへ配信したい場合はF-26共有〔複製モデル、7章参照〕を使う）。<strong>実装済み</strong></td><td>assignments.scope_type='project', scope_id（常にmaterials.project_idと同値）</td></tr>
+      <tr><td>必修・任意の切替（プロジェクト全体向け）</td><td>トグル</td><td>○</td><td>任意選択時は期限入力を無効化。<strong>教材が全社Wiki（<code>is_company_wide=true</code>）に属する場合、役割・adminを問わず「必修」を選択不可</strong>（グレーアウト＋理由表示。全社Wikiのプロジェクト管理者が実質的な全社必修を作れてしまう抜け道を防ぐ設計判断）。<strong>実装済み</strong></td><td>assignments.required</td></tr>
+      <tr><td>受講期限（プロジェクト全体向け）</td><td>DatePicker</td><td>必修時○</td><td>必修選択時のみ入力可。<strong>実装済み</strong></td><td>assignments.due_at</td></tr>
+      <tr><td>個人を追加指定（任意）</td><td>セレクト</td><td>—</td><td>プロジェクト全体の設定とは別に、特定メンバーだけ必修・期限を上書きしたい場合に使う。<strong>候補は教材自身が所属するプロジェクトの現役メンバーのみ</strong>（他プロジェクトの社員は選べない、既に追加済みのメンバーも候補から除外）。追加した各メンバーは、プロジェクト全体設定とは独立に自分専用の必修/任意・期限を持ち、行ごとに変更・削除できる。<strong>実装済み</strong></td><td>assignments.scope_type='individual', scope_id</td></tr>
+      <tr><td>合格基準・再受験可否・回数上限</td><td>—</td><td>—</td><td><strong>この画面では扱わない</strong>（未設定時はシステム既定値にフォールバックする現状の実装のまま確定。上記callout参照）</td><td>assignments.pass_score_pct, retake_allowed, retake_limit（このAPIでは更新しない）</td></tr>
+      <tr><td>対象者プレビュー人数</td><td>表示</td><td>—</td><td>設定内容から対象人数を表示（プロジェクト全体配信時はプロジェクトの現役メンバー数、個人指定のみの場合は指定人数）。<strong>実装済み</strong></td><td>—</td></tr>
     </tbody>
   </table>
 
@@ -330,7 +330,7 @@
 
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）詳細設計書 v1.61</span>
+    <span>社内学習管理システム（Manabi）詳細設計書 v1.64</span>
     <span>コガソフトウェア株式会社 / 2026-08-24</span>
   </footer>
 
