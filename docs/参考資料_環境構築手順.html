@@ -16,7 +16,7 @@
     <p class="subtitle">社内学習管理システム（Manabi）— 開発環境のセットアップと起動方法</p>
     <div class="meta">
       <span>作成日: 2026-08-25</span>
-      <span>版数: 1.2</span>
+      <span>版数: 1.3</span>
       <span>作成: コガソフトウェア株式会社</span>
     </div>
     <p class="note">
@@ -33,6 +33,7 @@
       <tr><td>1.0</td><td>2026-08-25</td><td>初版。S-01ログイン画面の実装にあたり、PostgreSQL（Docker）・backend・frontendのローカル環境構築手順を整理した。keireki（<code>参考資料_環境構築手順.html</code>）の形式を踏襲。この時点ではDockerでのDB構築のみ実施・検証済みで、ローカルインストール版PostgreSQLの手順は未検証（4.2節参照）。<code>start.bat</code>による一括起動はまだ無く、3プロセスを手動で個別起動する。</td></tr>
       <tr><td>1.1</td><td>2026-08-26</td><td>6.2節「ログイン（開発用ログイン）」の冒頭にアクセスURL（<code>http://localhost:5180/login</code>）を明記した。これまでは6.1節の疎通確認表にしか記載が無く、開発用ログイン画面を開く手順として見つけにくかったため追記した。</td></tr>
       <tr><td>1.2</td><td>2026-08-31</td><td>Googleログイン（A-01/A-02）・Claude Code CLI連携（A-62/A-63, F-05）を実装したことに伴い改訂。Google Cloud Consoleの登録済みリダイレクトURI（<code>http://localhost:5177/api/auth/callback</code>）に合わせ<code>BACKEND_PORT</code>の既定値を<code>8020</code>から<code>5177</code>に変更した（本書内の全ポート表記を追随）。5章にGoogle OAuth関連の環境変数（<code>GOOGLE_CLIENT_ID</code>/<code>GOOGLE_CLIENT_SECRET</code>/<code>GOOGLE_REDIRECT_URI</code>/<code>ALLOWED_DOMAINS</code>/<code>FRONTEND_URL</code>）を追加した。6.3節としてClaude Code CLI連携（<code>cli/manabi_login.py</code>等）の使い方を新設し、8章の制約事項表からGoogleログインの行を「実装済み」に更新した。</td></tr>
+      <tr><td>1.3</td><td>2026-09-01</td><td>「Claude CodeからManabiのAPIを使って教材を作成するにはどうすればよいか」という質問を受け、6.3節を手順1〜4の順序立てた説明に書き直した。あわせてスキル（<code>SKILL.md</code>）にA-16（教材の新規作成）の呼び方を追記し、Claude Codeへの自然な依頼だけで新規教材の作成も完結するようにした（従来はA-19/A-20〔既存教材の取得・保存〕のみ記載されていた）。</td></tr>
     </tbody>
   </table>
 
@@ -191,16 +192,42 @@ npm run dev                       # http://localhost:5180</code></pre>
 
   <h3 id="cli">6.3 Claude Code CLI連携（F-05）</h3>
   <p>
-    Google OAuthが設定済みであれば、Claude Codeから教材ソース（A-19/A-20）を直接読み書きできる
-    （`.claude/skills/manabi-material/SKILL.md`）。初回のみ次のコマンドでログインする。
+    Claude Codeに自然な言葉で頼むだけで、Manabiの教材を新規作成・編集できる
+    （<code>.claude/skills/manabi-material/SKILL.md</code>。教材の新規作成〔A-16〕・ソース取得
+    〔A-19〕・全置換保存〔A-20〕に対応）。手順は次のとおり。
+
   </p>
+  <h4>手順1: 前提を確認する</h4>
+  <ul>
+    <li>バックエンドが起動していること（6章冒頭の手順で<code>http://localhost:5177</code>が動いている状態）。</li>
+    <li><code>GOOGLE_CLIENT_ID</code>/<code>GOOGLE_CLIENT_SECRET</code>が設定済みであること（CLIログインは開発用ログインでは代替できず、実際のGoogle OAuthを使う。5章参照）。</li>
+  </ul>
+  <h4>手順2: CLIログイン（初回、およびトークン失効時に再実行）</h4>
   <pre><code>python cli/manabi_login.py</code></pre>
   <p>
-    ブラウザが開きGoogle認証を求められる。成功すると<code>~/.config/Manabi/credentials</code>に
-    CLIトークン（有効期限90日）が保存され、以後Claude Codeが自動的に使用する。
-    ログアウト（トークンの失効）は次のコマンド。
+    ブラウザが自動で開き、Googleアカウント（<code>kogasoftware.com</code>）でのログインを求められる。
+    成功すると「ログインしました」と表示され、<code>~/.config/Manabi/credentials</code>に
+    CLIトークン（有効期限90日）が保存される。以後、Claude Codeがこのファイルを自動的に使う。
+    <strong>90日を過ぎる、または手順4でログアウトすると失効する</strong>ため「一度やれば恒久的に使える」
+    わけではなく、失効したら本手順を再実行する（何かの操作のたびに毎回必要になるわけではない、という意味での「初回のみ」）。
   </p>
+  <h4>手順3: Claude Codeに頼む</h4>
+  <p>ログイン後は、Manabiの画面を開かずにこのような依頼をするだけでよい。</p>
+  <ul>
+    <li>「Manabiに新しい教材を作って。プロジェクトは○○、タイトルは△△」（新規作成、A-16）</li>
+    <li>「教材ID 12を開いて、第3章に新しいページを追加して」（既存教材の編集、A-19取得→A-20保存）</li>
+    <li>「教材○○の設問を見直して、記述式に変えて」</li>
+  </ul>
+  <h4>手順4: 失効・ログアウト（必要なとき）</h4>
   <pre><code>python cli/manabi_logout.py</code></pre>
+  <p>
+    トークンが失効した場合（401エラー）や、別の端末・アカウントに切り替えたい場合は上記でログアウトし、
+    手順2をやり直す。
+  </p>
+  <div class="callout">
+    別環境（本番デプロイ後など）で使う場合は、<code>MANABI_URL</code>環境変数でバックエンドのURLを
+    指定してから手順2を実行する（既定は<code>http://localhost:5177</code>）。
+  </div>
 
   <h2 id="trouble">7. トラブルシューティング</h2>
 
@@ -249,7 +276,7 @@ npm run dev                       # http://localhost:5180</code></pre>
 
   <footer class="doc-footer">
     <span>社内学習管理システム（Manabi）</span>
-    <span>Ver 1.2 / 2026-08-31</span>
+    <span>Ver 1.3 / 2026-09-01</span>
   </footer>
 
 </div>
