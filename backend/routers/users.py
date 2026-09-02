@@ -68,27 +68,39 @@ async def update_user(id: int, body: UserUpdate, user: CurrentUser = Depends(req
     設計書には明記が無いが、システムadminが実質1人しかいない状態でその最後の1人を降格・無効化
     できてしまうと、以後システム全体でadminが不在になり管理機能自体が使えなくなるため、プロジェクトの
     「唯一の管理者は降格・削除不可」（organization.py）と同じ考え方でこのガードも追加した
-    （ユーザー確認済み、2026-09-02）。"""
+    （ユーザー確認済み、2026-09-02）。
+
+    ユーザー依頼による再監査で、この「最後の1人」ガードに競合状態があることが判明した:
+    自分自身の降格・無効化は拒否するが、Aさんの権限でBさんを降格しつつ、同時にBさんの権限で
+    Aさんを降格するというように、2人以上のadminが互いを同時に降格・無効化するリクエストを送ると、
+    どちらのリクエストも相手の書き込みがまだコミットされる前の「まだ2人以上いる」という古い
+    件数を読んでしまい、両方とも許可されてadminが0人になってしまう（F-26のA-65で見つけた
+    二重承認の競合と同じ種類の不具合）。行ロック（SELECT ... FOR UPDATE）で対象行と
+    現役admin行を先に確定させることで解消した。"""
     demoting_or_deactivating = (body.role is not None and body.role != "admin") or body.is_active is False
     if id == user.id and demoting_or_deactivating:
         raise HTTPException(400, detail="自分自身の権限は変更できません")
 
     pool = get_pool()
-    existing = await pool.fetchrow("SELECT role, is_active FROM users WHERE id = $1", id)
-    if existing is None:
-        raise HTTPException(404, detail="ユーザーが見つかりません")
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            existing = await conn.fetchrow("SELECT role, is_active FROM users WHERE id = $1 FOR UPDATE", id)
+            if existing is None:
+                raise HTTPException(404, detail="ユーザーが見つかりません")
 
-    if existing["role"] == "admin" and existing["is_active"] and demoting_or_deactivating:
-        admin_count = await pool.fetchval(
-            "SELECT COUNT(*) FROM users WHERE role = 'admin' AND is_active = true"
-        )
-        if admin_count <= 1:
-            raise HTTPException(400, detail="システム管理者が不在になるため、この操作はできません")
+            if existing["role"] == "admin" and existing["is_active"] and demoting_or_deactivating:
+                # COUNT(*)にFOR UPDATEを直接付けられない（集約にロック句は使えない）ため、
+                # 対象行を取得してロックしたうえでPython側で件数を数える。
+                admin_rows = await conn.fetch(
+                    "SELECT id FROM users WHERE role = 'admin' AND is_active = true FOR UPDATE"
+                )
+                if len(admin_rows) <= 1:
+                    raise HTTPException(400, detail="システム管理者が不在になるため、この操作はできません")
 
-    row = await pool.fetchrow(
-        """UPDATE users SET role = COALESCE($1, role), is_active = COALESCE($2, is_active), updated_at = now()
-           WHERE id = $3
-           RETURNING id, name, email, role, is_active, created_at""",
-        body.role, body.is_active, id,
-    )
+            row = await conn.fetchrow(
+                """UPDATE users SET role = COALESCE($1, role), is_active = COALESCE($2, is_active), updated_at = now()
+                   WHERE id = $3
+                   RETURNING id, name, email, role, is_active, created_at""",
+                body.role, body.is_active, id,
+            )
     return dict(row)
