@@ -13,6 +13,7 @@ import MaterialPageEdit from './pages/MaterialPageEdit'
 import ProjectCreate from './pages/ProjectCreate'
 import ProjectManagement from './pages/ProjectManagement'
 import AssignmentSettings from './pages/AssignmentSettings'
+import AdminSettings from './pages/AdminSettings'
 import AppShell from './components/layout/AppShell'
 
 // ルーティング定義・認証ガード。
@@ -52,6 +53,7 @@ export default function App() {
         <Route path="/projects/manage" element={<ProjectManagement />} />
         <Route path="/projects/:projectId/manage" element={<ProjectManagement />} />
         <Route path="/assignments" element={<AssignmentSettings />} />
+        <Route path="/admin/settings" element={<AdminSettings />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AppShell>

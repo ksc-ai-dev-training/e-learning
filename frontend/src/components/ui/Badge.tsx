@@ -6,7 +6,8 @@ import type { ReactNode } from 'react'
 // 'complete' / 'overdue'（受講完了・期限接近の強調表示、S-02。日付を含む動的な文言のためchildrenで上書きする）、
 // 'member-active' / 'member-invited' / 'member-declined'（プロジェクトメンバーの参加状態、S-12）、
 // 'project-active' / 'project-stopped'（プロジェクト自体の状態、S-11・S-12の「自分の全プロジェクト一覧」）、
-// 'share-pending' / 'share-accepted'（教材のプロジェクト間共有の状態、S-12教材の共有タブ。F-26）
+// 'share-pending' / 'share-accepted'（教材のプロジェクト間共有の状態、S-12教材の共有タブ。F-26）、
+// 'user-active' / 'user-inactive'（システムアカウントの有効/無効、S-10ユーザー管理タブ）
 const VARIANT_CLASSES: Record<string, string> = {
   published: 'bg-green-50 text-green-700 border-green-200',
   draft: 'bg-slate-100 text-slate-400 border-slate-300',
@@ -27,6 +28,8 @@ const VARIANT_CLASSES: Record<string, string> = {
   'project-stopped': 'bg-slate-100 text-slate-500 border-slate-300',
   'share-pending': 'bg-amber-50 text-amber-700 border-amber-200',
   'share-accepted': 'bg-green-50 text-green-700 border-green-200',
+  'user-active': 'bg-green-50 text-green-700 border-green-200',
+  'user-inactive': 'bg-slate-100 text-slate-500 border-slate-300',
 }
 
 const VARIANT_LABELS: Record<string, string> = {
@@ -47,6 +50,8 @@ const VARIANT_LABELS: Record<string, string> = {
   'project-stopped': '停止',
   'share-pending': '承認待ち',
   'share-accepted': '複製済み',
+  'user-active': '有効',
+  'user-inactive': '無効',
 }
 
 export default function Badge({

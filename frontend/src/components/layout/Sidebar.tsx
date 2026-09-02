@@ -13,6 +13,7 @@ import {
   ChevronRight,
   UserPen,
   LogOut,
+  Settings,
 } from 'lucide-react'
 import { apiFetch } from '../../lib/api'
 import { useMe } from '../../hooks/useMe'
@@ -83,6 +84,18 @@ const NAV_ITEMS = [
     implemented: true,
     match: (p: string) => p === '/assignments',
   },
+  {
+    href: '/admin/settings',
+    // 画面名自体はS-10「管理」（基本設計書4.12節）のままだが、サイドバー上は他の項目と並んだ
+    // ときに「何を管理する画面か」が伝わりにくいというフィードバックを受け、表示ラベルのみ
+    // 「システム管理」とした（2026-09-02）。
+    label: 'システム管理',
+    icon: Settings,
+    implemented: true,
+    // S-10はシステムadmin専用（基本設計書4.12節）。他の項目と異なりロールで表示自体を絞る
+    adminOnly: true,
+    match: (p: string) => p === '/admin/settings',
+  },
 ]
 
 export default function Sidebar({ me }: { me: Me }) {
@@ -140,7 +153,7 @@ export default function Sidebar({ me }: { me: Me }) {
             メニュー
           </div>
         )}
-        {NAV_ITEMS.map((item) => {
+        {NAV_ITEMS.filter((item) => !item.adminOnly || me.role === 'admin').map((item) => {
           const body = (
             <>
               <item.icon className="h-4 w-4 flex-shrink-0" />

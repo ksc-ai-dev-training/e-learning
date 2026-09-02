@@ -9,6 +9,16 @@ export interface Me {
   picture_url: string | null
 }
 
+// A-53 GET /api/users のitems（S-10 管理：ユーザー管理タブ）
+export interface AdminUser {
+  id: number
+  name: string
+  email: string
+  role: Role
+  is_active: boolean
+  created_at: string
+}
+
 // GET /api/auth/dev-users のitems（開発用ログインのアカウント選択に使用）
 export interface DevUser {
   email: string

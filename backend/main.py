@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 
 import database
 import job_sweep
-from routers import assignments, auth, learning, materials, organization, uploads
+from routers import assignments, auth, learning, materials, organization, uploads, users
 
 
 @asynccontextmanager
@@ -29,6 +29,7 @@ app.include_router(materials.detail_router)
 app.include_router(learning.router)
 app.include_router(uploads.router)
 app.include_router(assignments.router)
+app.include_router(users.router)
 
 
 @app.get("/healthz", include_in_schema=False)
