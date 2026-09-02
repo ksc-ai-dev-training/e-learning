@@ -136,7 +136,7 @@ async def require_project_role(project_id: int, min_role: str):
     <li>「教材編集」メニュー: 常時表示（全社員が「全社Wiki」プロジェクトの編集者を自動的に持つため、実質的に誰でもS-13へ進める。基本設計書4.2節）</li>
     <li>「プロジェクト管理」メニュー（S-12への導線）: 自分が管理者であるプロジェクトが1件以上ある場合のみ表示</li>
     <li>「受講状況ダッシュボード」（S-08）・「配信設定」（S-06）メニュー: adminは常時表示。member はプロジェクト管理者であるプロジェクトが1件以上ある場合のみ表示（自プロジェクト範囲）</li>
-    <li>「管理」メニュー（S-10）: adminのみ表示</li>
+    <li>「システム管理」メニュー（S-10。表示ラベルのみ「システム管理」、画面自体の名称はS-10「管理」のまま）: adminのみ表示（実装済み、2026-09-02。<code>NAV_ITEMS</code>で初めて<code>adminOnly</code>によるロール限定表示を導入した）</li>
     <li>S-19（設問別の回答・結果一覧）へのリンク: S-05・S-17の設問カードで、当該教材のプロジェクトの管理者/編集者、またはadminにのみ表示</li>
   </ul>
   <div class="callout warn">
@@ -159,7 +159,7 @@ async def require_project_role(project_id: int, min_role: str):
   <p class="rev-row"><strong>処理概要:</strong> 本番（<code>SUPABASE_URL</code>設定時）はA-27/A-30がSupabase Storageの署名付きURL（対象<code>storage_key</code>限定・600秒で失効）を返すが、ローカル開発専用の代替経路（<code>backend/routers/uploads.py</code>）は<code>require_auth</code>のみで、<code>storage_key</code>さえ知っていれば認証済みの任意のユーザーが無期限に閲覧・上書きできてしまっていた。本番と同等の保護をローカルでも持たせるため、<code>storage.py</code>に<code>make_local_signed_query</code>/<code>verify_local_signed_query</code>（HMAC-SHA256、<code>JWT_SECRET</code>を鍵として<code>storage_key:expires</code>に署名、600秒で失効）を新設し、A-27（<code>create_upload_target</code>）・A-30（<code>create_download_url</code>）が返すローカルURLに<code>?expires=...&amp;sig=...</code>クエリを付与、<code>uploads.py</code>のGET/PUTでこれを検証するようにした。署名が無い・期限切れ・別の<code>storage_key</code>向けの署名を流用した場合はいずれも403で拒否する。本番環境（Supabase Storage使用時）はこの経路自体を通らないため影響しない。</p>
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）詳細設計書 v1.69</span>
+    <span>社内学習管理システム（Manabi）詳細設計書 v1.70</span>
     <span>コガソフトウェア株式会社 / 2026-08-24</span>
   </footer>
 

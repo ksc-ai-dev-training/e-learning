@@ -215,8 +215,8 @@
   <table>
     <thead><tr><th>API</th><th>メソッド／パス</th><th>権限</th><th>リクエスト</th><th>レスポンス</th></tr></thead>
     <tbody>
-      <tr><td>A-53</td><td>GET <code>/api/users</code></td><td>admin</td><td>クエリ <code>q</code>, <code>role</code>, <code>is_active</code>, <code>page</code>, <code>per_page</code></td><td>200 <code>{"items": [...], "total"}</code></td></tr>
-      <tr><td>A-54</td><td>PUT <code>/api/users/{id}</code></td><td>admin</td><td><code>{"role": "member"|"admin", "is_active": bool}</code></td><td>200。自分自身のadmin降格・無効化は400 <code>{"detail": "自分自身の権限は変更できません"}</code></td></tr>
+      <tr><td>A-53</td><td>GET <code>/api/users</code></td><td>admin</td><td>クエリ <code>q</code>, <code>role</code>, <code>is_active</code>, <code>page</code>, <code>per_page</code></td><td>200 <code>{"items": [...], "total"}</code>。<strong>実装済み（2026-09-02、S-10）</strong></td></tr>
+      <tr><td>A-54</td><td>PUT <code>/api/users/{id}</code></td><td>admin</td><td><code>{"role": "member"|"admin", "is_active": bool}</code></td><td>200。自分自身のadmin降格・無効化は400 <code>{"detail": "自分自身の権限は変更できません"}</code>。<strong>実装済み（2026-09-02、S-10）。設計書に無い追加ガードとして、システムadminが1人になる降格・無効化も400 <code>{"detail": "システム管理者が不在になるため、この操作はできません"}</code>で拒否する（プロジェクトの「唯一の管理者」保護と同じ考え方。ユーザー確認済み）</strong></td></tr>
     </tbody>
   </table>
 
@@ -234,7 +234,7 @@
 
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）詳細設計書 v1.69</span>
+    <span>社内学習管理システム（Manabi）詳細設計書 v1.70</span>
     <span>コガソフトウェア株式会社 / 2026-08-24</span>
   </footer>
 

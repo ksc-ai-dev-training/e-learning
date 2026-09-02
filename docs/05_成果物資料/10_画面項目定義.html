@@ -161,13 +161,18 @@
   </table>
 
   <h3>10.9 S-10 管理（<code>/admin/settings</code>）</h3>
-  <p>タブ構成: 「ユーザー管理」「システム設定」。</p>
+  <p>タブ構成: 「ユーザー管理」「システム設定」。<strong>「ユーザー管理」タブを実装した</strong>（2026-09-02）。「システム設定」タブ（AI利用状況・Slack通知・猶予期間、A-55〜A-58）は準備中の案内のみで次回以降に対応する。</p>
+  <div class="callout">
+    <strong>実装内容:</strong> A-53（<code>GET /api/users</code>、氏名・メールでの検索対応）・A-54（<code>PUT /api/users/{id}</code>、ロール変更・有効/無効切替）を新規<code>backend/routers/users.py</code>に実装した。<code>require_roles("admin")</code>でシステムadmin以外を403にする。<strong>自分自身のadmin降格・無効化は400で拒否</strong>（画面設計書4.12節どおり）。<strong>設計書には明記が無いが、システムadminが実質1人しかいない状態でその最後の1人を降格・無効化できてしまうと管理機能自体が使えなくなるため、プロジェクトの「唯一の管理者は降格・削除不可」（organization.py）と同じ考え方でこのガードも追加した</strong>（ユーザー確認済み）。フロントエンドは新規<code>AdminSettings.tsx</code>（2タブ構成、「ユーザー管理」のみ実装）・<code>useUsers</code>フック・<code>userActions.ts</code>を実装し、Sidebarに「システム管理」ナビ項目を追加した（<code>adminOnly</code>フラグでrole='admin'以外には表示しない、初のロール限定ナビ項目）。<br>
+    <strong>サイドバーの表示ラベルについて:</strong> 当初は画面設計書どおり「管理」としていたが、他のナビ項目（「教材編集」「プロジェクト管理」等）と並んだときに「何を管理する画面か」が伝わりにくいというフィードバックを受け、サイドバー上の表示ラベルのみ「システム管理」に変更した（画面自体の名称・設計書上の呼称はS-10「管理」のまま。2026-09-02、画面モックアップ<code>S-10_admin.html</code>のサイドバー表記も合わせて修正した）。<br>
+    ヘッドレスEdgeで、検索・ロール変更・有効/無効切替・自分自身の行が操作不可であることを実機確認した（一時的に作成した検証用ユーザーで、管理者が複数人存在する状態での昇格・無効化の成功パターンも確認し、確認後削除した）。
+  </div>
   <table>
     <thead><tr><th>項目名</th><th>型</th><th>必須</th><th>バリデーション</th><th>対応API</th></tr></thead>
     <tbody>
-      <tr><td>ユーザー一覧</td><td>表示</td><td>—</td><td>氏名・メール・ロールバッジ・有効/無効・登録日</td><td>A-53</td></tr>
-      <tr><td>ロール</td><td>セレクト</td><td>○</td><td>member/adminの2択。自分自身の行は変更不可</td><td>A-54 role</td></tr>
-      <tr><td>有効/無効</td><td>Switch</td><td>○</td><td>自分自身の行は操作不可。無効化時は確認ダイアログ</td><td>A-54 is_active</td></tr>
+      <tr><td>ユーザー一覧</td><td>表示</td><td>—</td><td>氏名・メール・ロール・有効/無効バッジ・登録日。氏名・メールで検索可。<strong>実装済み</strong></td><td>A-53</td></tr>
+      <tr><td>ロール</td><td>セレクト</td><td>○</td><td>member/adminの2択。自分自身の行は変更不可。システムadminが1人になる変更は拒否。<strong>実装済み</strong></td><td>A-54 role</td></tr>
+      <tr><td>有効/無効</td><td>ボタン（有効化/無効化）</td><td>○</td><td>自分自身の行は操作不可。システムadminが1人になる変更は拒否。<strong>実装済み</strong>（確認ダイアログは今回未実装、次回検討）</td><td>A-54 is_active</td></tr>
       <tr><td>使用するAIモデル</td><td>セレクト</td><td>○</td><td>Claude Sonnet 5 / Claude Opus 5 / Claude Haiku 4.5。選択と同時に保存</td><td>A-56 ai_model</td></tr>
       <tr><td>今月のAI利用状況（機能別内訳）</td><td>表示</td><td>—</td><td>F-08/F-20/F-21/F-22/F-23別の呼び出し件数・トークン数・概算コスト</td><td>A-58</td></tr>
       <tr><td>Slack Webhook URL・通知先チャンネル</td><td>テキスト</td><td>—</td><td>URL形式検証</td><td>A-56 slack_webhook_url, slack_channel</td></tr>
@@ -337,7 +342,7 @@
 
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）詳細設計書 v1.69</span>
+    <span>社内学習管理システム（Manabi）詳細設計書 v1.70</span>
     <span>コガソフトウェア株式会社 / 2026-08-24</span>
   </footer>
 
