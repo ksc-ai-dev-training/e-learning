@@ -143,9 +143,23 @@ async def require_project_role(project_id: int, min_role: str):
     <strong>重要:</strong> フロントエンドのメニュー出し分けはあくまで表示制御（UX目的）であり、権限の正はサーバー側検証（5.1〜5.5節）である。URL直打ちやAPI直接呼び出しが行われても、全APIがauth_helpers.pyの依存関数で検証するため越権操作はできない。
   </div>
 
+  <h3 class="rev-row">5.7 子リソースの所属検証（2026-09-02、網羅的コードレビューで発見・修正）</h3>
+  <p class="rev-row"><strong>処理概要:</strong> 5.1〜5.6節の「プロジェクト・教材への権限」に加え、書き込み系APIには「リクエストボディで指定した子リソースID（設問ID・ノードID・アンケート設問IDなど）が、実際に権限確認済みの親リソースに属するか」という別種の検証が必要になる。権限自体は正しく確認していても、この所属検証が漏れていると、権限のある操作（例: 自分が受講中の教材への回答保存）を経由して権限の無いリソース（例: 非公開の別教材の設問）を不正に参照・汚染できてしまう。網羅的コードレビューで、以下3件がこの所属検証を欠いていたことが判明し修正した。</p>
+  <table>
+    <thead><tr><th>API</th><th>欠けていた検証</th><th>影響</th></tr></thead>
+    <tbody>
+      <tr><td>A-41 <code>PUT /api/attempts/{attempt_id}/answers</code></td><td><code>question_id</code>が当該<code>attempt</code>の<code>material_id</code>に属するか</td><td>非公開の別教材の設問IDを指定すると、AIがそのまま採点・講評を返し、正解の内容を実質的に探り当てられた。修正: <code>SELECT ... FROM questions WHERE id = $1 AND material_id = $2</code>（<code>attempt.material_id</code>で絞り込み）</td></tr>
+      <tr><td>A-29 <code>POST /api/materials/{id}/attachments</code></td><td><code>node_id</code>が対象教材<code>id</code>のノードか</td><td>別教材のノードIDを指定した添付行が作成され、material_id/node_idの不整合なレコードが残る。修正: 事前に<code>material_nodes</code>への所属を確認し、一致しなければ422</td></tr>
+      <tr><td>A-72 <code>POST /api/surveys/{survey_id}/responses</code></td><td><code>survey_question_id</code>が対象<code>survey_id</code>の設問か</td><td>別アンケートの設問IDを指定すると、そのアンケートの集計にデータが混入する。修正: 保存前に<code>survey_questions</code>への所属を一括確認し、一致しなければ422</td></tr>
+    </tbody>
+  </table>
+  <p>類似のAPI（<code>replace_questions</code>・<code>upsert_survey</code>）は元々この種の所属検証を行っており、上記3件だけが漏れていた。今後、子リソースIDを受け取る新規APIを追加する際は、この所属検証を必ずセットで実装すること。</p>
+
+  <h3 class="rev-row">5.8 ローカル開発用ファイル配信の署名付きURL（2026-09-02、網羅的コードレビューで発見・修正）</h3>
+  <p class="rev-row"><strong>処理概要:</strong> 本番（<code>SUPABASE_URL</code>設定時）はA-27/A-30がSupabase Storageの署名付きURL（対象<code>storage_key</code>限定・600秒で失効）を返すが、ローカル開発専用の代替経路（<code>backend/routers/uploads.py</code>）は<code>require_auth</code>のみで、<code>storage_key</code>さえ知っていれば認証済みの任意のユーザーが無期限に閲覧・上書きできてしまっていた。本番と同等の保護をローカルでも持たせるため、<code>storage.py</code>に<code>make_local_signed_query</code>/<code>verify_local_signed_query</code>（HMAC-SHA256、<code>JWT_SECRET</code>を鍵として<code>storage_key:expires</code>に署名、600秒で失効）を新設し、A-27（<code>create_upload_target</code>）・A-30（<code>create_download_url</code>）が返すローカルURLに<code>?expires=...&amp;sig=...</code>クエリを付与、<code>uploads.py</code>のGET/PUTでこれを検証するようにした。署名が無い・期限切れ・別の<code>storage_key</code>向けの署名を流用した場合はいずれも403で拒否する。本番環境（Supabase Storage使用時）はこの経路自体を通らないため影響しない。</p>
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）詳細設計書 v1.66</span>
+    <span>社内学習管理システム（Manabi）詳細設計書 v1.69</span>
     <span>コガソフトウェア株式会社 / 2026-08-24</span>
   </footer>
 

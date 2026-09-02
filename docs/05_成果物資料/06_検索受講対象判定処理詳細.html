@@ -100,10 +100,16 @@ SELECT ta.material_id,
 
   <h3>6.6 提出時の進捗更新（T-12 enrollment_progress）</h3>
   <p>A-41（回答保存）の都度、<code>mode='graded'</code>の試行に対する回答である場合のみ、当該ページの<code>node_id</code>を<code>current_node_id</code>に設定し、<code>status</code>が<code>'not_started'</code>であれば<code>'in_progress'</code>に更新して<code>started_at</code>を設定する（<strong>2026-08-31修正:</strong> 当初はmodeを問わず常に更新していたため、反復演習・誤答のみ抽出（mode='practice'）で回答すると本来のgraded進行の「続きから受講」再開位置を意図せず書き換えてしまう不具合があった）。A-42（提出）で<code>mode='graded'</code>かつ<code>materials.attempt_scope='material'</code>の場合、提出済みページのnode_idを<code>completed_node_ids</code>へ追加し、全ページが含まれたら<code>status='completed', completed_at=now()</code>とする。<code>attempt_scope</code>が'material'以外の場合は、当該<code>scope_node_id</code>配下のページのみを<code>completed_node_ids</code>に追加し、教材全体の<code>status</code>は「全ての受験単位が合格しているか」を都度再計算して決定する。<code>mode='practice'</code>の提出（A-42）はこの更新自体を行わない（`submit_attempt`が<code>if attempt["mode"] == "graded":</code>のときのみ<code>_update_enrollment_progress</code>を呼ぶ、既存実装のまま）。</p>
+  <div class="callout warn">
+    <strong>2026-09-02修正（網羅的コードレビューで発見）:</strong> 「全ての受験単位が合格しているか」の判定（<code>_update_enrollment_progress</code>の<code>attempt_scope != 'material'</code>分岐）が、<code>_collect_nodes_of_kind(tree, attempt_scope)</code>で実際にその種別（'section'等）のノードだけを列挙していたため、<code>attempt_scope='section'</code>の教材で小見出しを介さず章直下にページを置いた章（6.4節の<code>_scope_groups</code>が想定する「章フォールバック群」）の合否が判定対象から漏れていた。判定対象のノードが1件も無いと判定ループが空振りし<code>is_complete=True</code>のまま確定してしまうため、その章を一度も受験していなくても（あるいは不合格でも）教材全体が<code>completed</code>扱いになりうる不具合だった。A-86の集計で既に使っている<code>_scope_groups</code>（章フォールバックを含む正しいグループ列挙）に差し替えて解消した。この修正により<code>_collect_nodes_of_kind</code>の呼び出し元が無くなったため関数自体を削除した。
+  </div>
+
+  <h3 class="rev-row">6.7 A-71 再受験の対象試行検証（2026-09-02、網羅的コードレビューで発見・修正）</h3>
+  <p class="rev-row"><strong>処理概要:</strong> 再受験（<code>retake_attempt</code>）は元の試行が提出済み（<code>submitted_at IS NOT NULL</code>）であることは検証していたが、<code>mode='graded'</code>であることは検証していなかった。反復演習・誤答のみ抽出（<code>mode='practice'</code>）の試行は<code>attempt_scope</code>の設定に関わらず常に<code>scope_node_id=NULL</code>で作られるため、章・小見出し・ページ単位でスコープされた教材でpracticeの試行から再受験を呼ぶと、<code>scope_node_id=NULL</code>の新規graded試行が作られてしまい、どの受験単位の完了判定にも紐づかない孤立した記録になっていた。<code>prev["mode"] != "graded"</code>のとき400で拒否するよう修正した。</p>
 
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）詳細設計書 v1.66</span>
+    <span>社内学習管理システム（Manabi）詳細設計書 v1.69</span>
     <span>コガソフトウェア株式会社 / 2026-08-24</span>
   </footer>
 
