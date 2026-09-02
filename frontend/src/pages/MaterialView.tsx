@@ -77,12 +77,24 @@ export default function MaterialView() {
   const chapters = toEditableChapters(material.toc ?? [])
   const totalPages = material.page_count ?? 0
   const completedIds = new Set(material.progress?.completed_node_ids ?? [])
-  const completedCount = chapters.reduce((sum, chapter) => sum + countCompletedPages(chapter.children, completedIds), 0)
-  const progressPct = totalPages > 0 ? Math.round((completedCount / totalPages) * 100) : 0
+  const flatPages = flattenPages(material.toc ?? [])
+  const currentNodeId = material.progress?.current_node_id ?? null
+
+  // 上部の「ページX/Y」・進捗バーは、提出済み（completedIds）だけでなく現在の再開位置
+  // （current_node_id）までの到達済みページも含めた「到達数」で表示する。目次ツリー各行の
+  // ✓マーク・章ごとの「N/M 完了」は引き続きcompletedIds（実際に提出済み）のみで判定し、
+  // 読んだだけでまだ提出していないページに誤って「完了」マークが付かないようにする
+  // （2026-09-02、「続きから」は動くのに目次のページ数が0/5のままというフィードバックを受け追加）。
+  const reachedIds = new Set(completedIds)
+  if (currentNodeId !== null) {
+    const currentIndex = flatPages.findIndex((p) => p.node.id === currentNodeId)
+    for (let i = 0; i <= currentIndex; i++) reachedIds.add(flatPages[i].node.id)
+  }
+  const reachedCount = chapters.reduce((sum, chapter) => sum + countCompletedPages(chapter.children, reachedIds), 0)
+  const progressPct = totalPages > 0 ? Math.round((reachedCount / totalPages) * 100) : 0
   const wholeMaterialAttachments = attachments.filter((a) => a.node_id === null)
 
-  const flatPages = flattenPages(material.toc ?? [])
-  const resumeTargetNodeId = material.progress?.current_node_id ?? flatPages[0]?.node.id ?? null
+  const resumeTargetNodeId = currentNodeId ?? flatPages[0]?.node.id ?? null
   const resumeLabel = !material.progress || material.progress.status === 'not_started' ? '受講を開始' : '続きから受講'
 
   const download = async (attachmentId: number) => {
@@ -218,7 +230,7 @@ export default function MaterialView() {
             {totalPages > 0 && (
               <div className="mb-5 flex items-center gap-3">
                 <span className="text-xs text-slate-500">
-                  ページ {completedCount}/{totalPages}
+                  ページ {reachedCount}/{totalPages}
                 </span>
                 <div className="h-2 w-full max-w-xs overflow-hidden rounded-full bg-slate-100">
                   <div className="h-full bg-blue-700" style={{ width: `${progressPct}%` }} />

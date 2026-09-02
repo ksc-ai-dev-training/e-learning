@@ -54,6 +54,16 @@ export default function MaterialPageView() {
   const [advancing, setAdvancing] = useState(false)
   const [submittedResult, setSubmittedResult] = useState<QuizAttempt | null>(null)
   const [surveyToShow, setSurveyToShow] = useState<Survey | null>(null)
+  // 章をまたぐページ遷移時の区切りモーダル（次の章へ進む前に一拍置く）。
+  // 「第1章から第2章へ」のように無音で遷移していたところにアクションを挟んでほしいという
+  // フィードバックを受け追加した（2026-09-02）。
+  const [chapterTransition, setChapterTransition] = useState<{
+    nextNodeId: number
+    completedChapterNumber: number
+    completedChapterTitle: string
+    nextChapterNumber: number
+    nextChapterTitle: string
+  } | null>(null)
 
   const allPages = material ? flattenPages(material.toc ?? []) : []
   const allPageIndex = findPageIndex(allPages, pageNodeId)
@@ -100,7 +110,7 @@ export default function MaterialPageView() {
           const res = await startAttempt(id, { mode: 'practice' })
           applyResult(res)
         } else {
-          const res = await startAttempt(id, { mode: 'graded', scope_node_id: scopeNodeId })
+          const res = await startAttempt(id, { mode: 'graded', scope_node_id: scopeNodeId, viewing_node_id: pageNodeId })
           applyResult(res)
         }
       } catch (e) {
@@ -200,6 +210,17 @@ export default function MaterialPageView() {
         : !nextFlat
 
     if (!isLastOfScope) {
+      if (nextFlat!.chapterId !== flatPage.chapterId) {
+        const chapters = material.toc?.filter((n) => n.kind === 'chapter') ?? []
+        setChapterTransition({
+          nextNodeId: nextFlat!.node.id,
+          completedChapterNumber: chapterNumber + 1,
+          completedChapterTitle: flatPage.chapterTitle,
+          nextChapterNumber: chapters.findIndex((c) => c.id === nextFlat!.chapterId) + 1,
+          nextChapterTitle: nextFlat!.chapterTitle,
+        })
+        return
+      }
       goToPage(nextFlat!.node.id)
       return
     }
@@ -367,6 +388,34 @@ export default function MaterialPageView() {
           onClose={() => setSurveyToShow(null)}
           onSubmitted={() => setSurveyToShow(null)}
         />
+      )}
+
+      {chapterTransition && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-md bg-white p-5 shadow-lg">
+            <p className="mb-1 text-sm font-semibold text-green-700">
+              第{chapterTransition.completedChapterNumber}章「{chapterTransition.completedChapterTitle}」を完了しました
+            </p>
+            <p className="mb-4 text-sm text-slate-600">
+              次は第{chapterTransition.nextChapterNumber}章「{chapterTransition.nextChapterTitle}」です。
+            </p>
+            <div className="flex justify-end gap-2">
+              <Button variant="secondary" onClick={() => setChapterTransition(null)}>
+                このページに戻る
+              </Button>
+              <Button
+                variant="primary"
+                onClick={() => {
+                  const nextNodeId = chapterTransition.nextNodeId
+                  setChapterTransition(null)
+                  goToPage(nextNodeId)
+                }}
+              >
+                次の章へ進む
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

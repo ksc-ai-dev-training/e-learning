@@ -516,7 +516,10 @@ function SharingTab({ projectId }: { projectId: number }) {
 }
 
 function OutgoingSharesSection({ projectId }: { projectId: number }) {
-  const { materials, isLoading } = useMaterials(projectId)
+  // includeArchived=trueで取得する。バックエンド（A-60）はアーカイブ済み教材の共有申請を拒否しない
+  // にもかかわらず、既定のuseMaterials(projectId)はアーカイブ済みを除外するため、この一覧に
+  // 一切出てこず実質共有できないという不一致があった（2026-09-02、再監査で発見・修正）。
+  const { materials, isLoading } = useMaterials(projectId, true)
 
   return (
     <div>
@@ -591,7 +594,10 @@ function OutgoingShareRow({ projectId, material }: { projectId: number; material
     <tr className="border-b border-slate-50 align-top last:border-0">
       <td className="px-3 py-2 text-slate-800">{material.title}</td>
       <td className="px-3 py-2">
-        <Badge variant={material.status === 'published' ? 'published' : material.status === 'draft' ? 'draft' : 'archived'} />
+        {/* is_archivedはstatusとは独立したフラグ（statusは'draft'/'published'の2値のみ）のため、
+            アーカイブ済みかどうかはis_archivedで判定する（archivedを含める前はstatusのみで
+            分岐しており、アーカイブ済み教材も常に「公開中」表示になっていた不具合を含んでいた） */}
+        <Badge variant={material.is_archived ? 'archived' : material.status === 'published' ? 'published' : 'draft'} />
       </td>
       <td className="px-3 py-2">
         <div className="flex flex-wrap items-center gap-1.5">

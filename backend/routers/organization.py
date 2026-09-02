@@ -86,16 +86,36 @@ async def list_projects(min_role: str = "editor", user: CurrentUser = Depends(re
 
 async def _delete_blocked_reason(pool, project_id: int, is_company_wide: bool, requester_user_id: int) -> str | None:
     """プロジェクトの完全削除（A-93）を拒否すべき理由を1つ返す（無ければNone）。全社Wikiは常に
-    不可。教材は下書き（一度も公開したことがない）か0件のみ許可する（一度でも公開・アーカイブされた
-    教材は受講記録が残っている可能性を否定できないため、F-30と同じ理由で対象外とする）。自分以外の
-    現役メンバーがいる場合も不可（先にメンバーを外してもらう運用を想定）。A-91のcan_delete算出と
-    A-93本体の両方から呼ぶ共通ロジック（判定基準を1箇所にまとめるため）。"""
+    不可。自分以外の現役メンバーがいる場合も不可（先にメンバーを外してもらう運用を想定）。A-91の
+    can_delete算出とA-93本体の両方から呼ぶ共通ロジック（判定基準を1箇所にまとめるため）。
+
+    教材の受講記録判定は、実際にquiz_attempts・enrollment_progress・survey_responsesの行が
+    存在するかを直接確認する（2026-09-02、実データ判定に変更）。当初は「公開済み・アーカイブ済みの
+    教材が1件でもあれば、実データの有無を見ずに一律で拒否する」という`materials.status != 'draft'`
+    のみの粗い判定だった（F-30と同じ理由づけを流用したもの）。これはF-32設計当時、S-16（受講画面）が
+    未実装で実データを作る手段自体が無かったための簡略化だったが、S-16実装後は「一度も受講されて
+    いない公開済み教材を含むだけのプロジェクト」でも削除できてしまう誤検知が起きるようになった
+    （ユーザー報告により発見。公開済みだが受験記録0件のテスト用プロジェクトが「受講記録が残っている」
+    という誤った理由で削除できなかった）。実データの存在を直接見ることで、より正確に判定する。"""
     if is_company_wide:
         return "全社Wikiは全社員が利用するプロジェクトのため削除できません。停止のみ可能です。"
-    has_non_draft_materials = await pool.fetchval(
-        "SELECT EXISTS(SELECT 1 FROM materials WHERE project_id = $1 AND status != 'draft')", project_id
+    has_learning_records = await pool.fetchval(
+        """SELECT EXISTS(
+               SELECT 1 FROM materials m
+               WHERE m.project_id = $1
+                 AND (
+                   EXISTS(SELECT 1 FROM quiz_attempts qa WHERE qa.material_id = m.id)
+                   OR EXISTS(SELECT 1 FROM enrollment_progress ep WHERE ep.material_id = m.id)
+                   OR EXISTS(
+                       SELECT 1 FROM survey_responses sr
+                       JOIN surveys s ON s.id = sr.survey_id
+                       WHERE s.material_id = m.id
+                   )
+                 )
+           )""",
+        project_id,
     )
-    if has_non_draft_materials:
+    if has_learning_records:
         return "このプロジェクトの教材には受講記録が残っているため削除できません。停止のみ可能です。"
     has_other_members = await pool.fetchval(
         """SELECT EXISTS(
@@ -137,9 +157,10 @@ async def get_project(id: int, user: CurrentUser = Depends(require_auth)):
 @router.delete("/{id}", status_code=204)
 async def delete_project(id: int, user: CurrentUser = Depends(require_auth)):
     """A-93（新規）: プロジェクトの完全削除。判定基準は_delete_blocked_reason参照（全社Wiki不可・
-    下書き以外の教材が無いこと・自分以外の現役メンバーがいないこと）。対象の教材は下書きのみである
-    ことが保証されているため、A-18と同じくDELETE FROM materialsだけで目次・設問・添付・改訂履歴
-    がCASCADEで消える（受験記録・アンケート回答は下書きには発生し得ないため対象外）。"""
+    実際の受講記録〔quiz_attempts・enrollment_progress・survey_responses〕が無いこと・自分以外の
+    現役メンバーがいないこと）。判定を通過した時点で対象教材に実データが存在しないことは保証されて
+    いるため、DELETE FROM materialsだけで目次・設問・添付・改訂履歴・（空の）受験記録・受講進捗・
+    アンケート回答までCASCADEで消える（各テーブルのmaterial_id系FKがすべてON DELETE CASCADE済み）。"""
     pool = get_pool()
     await check_project_role(user, id, min_role="admin")
     row = await pool.fetchrow("SELECT is_company_wide FROM projects WHERE id = $1", id)

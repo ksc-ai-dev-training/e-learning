@@ -988,7 +988,15 @@ async def create_attachment(
     user: CurrentUser = Depends(require_material_role(min_role="editor")),
 ):
     """A-29: 添付登録（アップロード済みファイルのメタ登録、またはkind='link'の外部リンク登録）。"""
-    row = await get_pool().fetchrow(
+    pool = get_pool()
+    if body.node_id is not None:
+        node_belongs = await pool.fetchval(
+            "SELECT EXISTS(SELECT 1 FROM material_nodes WHERE id = $1 AND material_id = $2)",
+            body.node_id, id,
+        )
+        if not node_belongs:
+            raise HTTPException(422, detail="node_idがこの教材のノードではありません")
+    row = await pool.fetchrow(
         """INSERT INTO material_attachments
                (material_id, node_id, kind, storage_key, external_url, filename, mime_type, size_bytes)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -1323,6 +1331,29 @@ async def _duplicate_material_into_project(conn, material_id: int, target_projec
                 new_material_id, new_node_id, att["external_url"], att["filename"],
             )
 
+    # 受験後アンケート（surveys/survey_questions）も複製する（2026-09-02、再監査で追加。
+    # 5.27節は「目次・全ページ・問題・添付ファイル」とだけ書きアンケートに触れていなかったが、
+    # 「内容を丸ごと複製する」という趣旨に合わせ、添付ファイルと同様に複製対象とした）。
+    # 回答履歴（survey_responses/survey_answers）は複製先の新規受講者の回答であるべきため
+    # 複製しない。
+    surveys = await conn.fetch("SELECT * FROM surveys WHERE material_id = $1", material_id)
+    for survey in surveys:
+        new_survey_node_id = node_id_map.get(survey["node_id"]) if survey["node_id"] is not None else None
+        new_survey_id = await conn.fetchval(
+            """INSERT INTO surveys (material_id, node_id, title, is_active, repeat_mode)
+               VALUES ($1, $2, $3, $4, $5) RETURNING id""",
+            new_material_id, new_survey_node_id, survey["title"], survey["is_active"], survey["repeat_mode"],
+        )
+        questions = await conn.fetch(
+            "SELECT * FROM survey_questions WHERE survey_id = $1 ORDER BY sort_order", survey["id"]
+        )
+        for q in questions:
+            await conn.execute(
+                """INSERT INTO survey_questions (survey_id, type, prompt, options, sort_order)
+                   VALUES ($1, $2, $3, $4, $5)""",
+                new_survey_id, q["type"], q["prompt"], q["options"], q["sort_order"],
+            )
+
     return new_material_id
 
 
@@ -1382,7 +1413,10 @@ async def create_material_share(
 @detail_router.delete("/{id}/shares/{share_id}", status_code=204)
 async def delete_material_share(id: int, share_id: int, user: CurrentUser = Depends(require_auth)):
     """A-61: 承認前(status='pending')の申請取り下げのみ対応。元・共有先いずれかのプロジェクト管理者、
-    またはシステムadminが行える（5.27節）。承認後は複製が独立教材になっているため400で拒否する。"""
+    またはシステムadminが行える（5.27節）。承認後は複製が独立教材になっているため400で拒否する。
+    取り下げ(DELETE)とA-65の承認処理が同時に実行された場合に備え、DELETE自体もstatus='pending'
+    条件付きで行い、承認が先に確定していれば（承認済み行を消してしまわず）400を返す
+    （2026-09-02、再監査で発見・修正）。"""
     pool = get_pool()
     share = await pool.fetchrow(
         """SELECT s.id, s.status, m.project_id AS source_project_id, s.shared_to_project_id
@@ -1399,7 +1433,11 @@ async def delete_material_share(id: int, share_id: int, user: CurrentUser = Depe
         is_target_admin = await _has_project_role(pool, share["shared_to_project_id"], user.id, "admin")
         if not (is_source_admin or is_target_admin):
             raise HTTPException(403, detail="この操作を行う権限がありません")
-    await pool.execute("DELETE FROM material_project_shares WHERE id = $1", share_id)
+    deleted = await pool.fetchval(
+        "DELETE FROM material_project_shares WHERE id = $1 AND status = 'pending' RETURNING id", share_id
+    )
+    if deleted is None:
+        raise HTTPException(400, detail="承認済み・却下済みの申請は取り下げられません")
 
 
 class MaterialShareRespond(BaseModel):
@@ -1411,13 +1449,16 @@ async def respond_material_share(
     id: int, share_id: int, body: MaterialShareRespond, user: CurrentUser = Depends(require_auth)
 ):
     """A-65: 共有先プロジェクトの管理者が承認・却下する（5.27節）。承認時はその場で複製を作成する
-    （複製モデル）。却下時は何も作成しない。"""
+    （複製モデル）。却下時は何も作成しない。SELECT ... FOR UPDATEで行ロックを取り、同一申請への
+    同時承認（二重クリック・複数管理者の同時操作）で複製が二重に作られる競合を防ぐ
+    （2026-09-02、再監査で発見・修正）。"""
     pool = get_pool()
     async with pool.acquire() as conn:
         async with conn.transaction():
             share = await conn.fetchrow(
                 """SELECT id, status, shared_to_project_id
-                   FROM material_project_shares WHERE id = $1 AND material_id = $2""",
+                   FROM material_project_shares WHERE id = $1 AND material_id = $2
+                   FOR UPDATE""",
                 share_id, id,
             )
             if share is None:

@@ -9,12 +9,26 @@ from auth_helpers import CurrentUser, require_auth
 router = APIRouter(prefix="/api/uploads", tags=["uploads"])
 
 
+def _check_signature(storage_key: str, expires: int | None, sig: str | None) -> None:
+    """expires/sigクエリを検証する。本番のSupabase署名付きURL（対象storage_key限定・
+    600秒で失効）と同等の保護をローカル開発でも持たせる（2026-09-02、コードレビューで
+    発見・修正。以前はrequire_authのみで、storage_keyさえ知っていれば無期限に閲覧・
+    上書きできてしまっていた）。"""
+    if expires is None or sig is None or not storage.verify_local_signed_query(storage_key, expires, sig):
+        raise HTTPException(403, detail="URLの有効期限が切れているか、署名が不正です")
+
+
 @router.put("/{storage_key:path}")
 async def put_upload(
-    storage_key: str, request: Request, user: CurrentUser = Depends(require_auth)
+    storage_key: str,
+    request: Request,
+    expires: int | None = None,
+    sig: str | None = None,
+    user: CurrentUser = Depends(require_auth),
 ):
     if storage.IS_SUPABASE_CONFIGURED:
         raise HTTPException(404)
+    _check_signature(storage_key, expires, sig)
     data = await request.body()
     try:
         storage.save_local_file(storage_key, data)
@@ -24,9 +38,15 @@ async def put_upload(
 
 
 @router.get("/{storage_key:path}")
-async def get_upload(storage_key: str, user: CurrentUser = Depends(require_auth)):
+async def get_upload(
+    storage_key: str,
+    expires: int | None = None,
+    sig: str | None = None,
+    user: CurrentUser = Depends(require_auth),
+):
     if storage.IS_SUPABASE_CONFIGURED:
         raise HTTPException(404)
+    _check_signature(storage_key, expires, sig)
     try:
         data = storage.read_local_file(storage_key)
     except ValueError:

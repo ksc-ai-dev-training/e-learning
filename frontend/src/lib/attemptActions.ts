@@ -4,7 +4,7 @@ import type { Answer, MaterialNode, QuizAttempt } from '../types'
 // A-40: 受験開始（未提出の試行があれば再開）。S-16のページ遷移のたびに呼び、続きから受講を実現する
 export function startAttempt(
   materialId: number,
-  body: { mode: 'graded' | 'practice'; scope_node_id?: number | null },
+  body: { mode: 'graded' | 'practice'; scope_node_id?: number | null; viewing_node_id?: number | null },
 ): Promise<{ attempt: QuizAttempt; toc: MaterialNode[]; answers: Answer[] }> {
   return apiFetch(`/api/materials/${materialId}/attempts`, {
     method: 'POST',

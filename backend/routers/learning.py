@@ -140,6 +140,13 @@ async def _resolve_assignment_settings(pool, material_id: int, project_id: int, 
 class StartAttemptIn(BaseModel):
     mode: Literal["graded", "practice"] = "graded"
     scope_node_id: int | None = None
+    # 「続きから受講」の再開位置（enrollment_progress.current_node_id）に使う、実際に開いている
+    # ページのnode_id。scope_node_idは受験スコープ（教材/章）で、開いているページ自体とは限らない
+    # ため別で受け取る。これまでcurrent_node_idはA-41（設問への回答保存）でしか更新されず、
+    # 設問の無いページ・まだ何も回答していないページを読んでいる間に離脱すると進捗が一切
+    # 記録されない不具合があったため、ページを開くたびに呼ばれるA-40（本APIは毎ページ遷移で
+    # 呼ばれる）でも更新できるようにした（2026-09-02）。
+    viewing_node_id: int | None = None
 
 
 @router.post("/materials/{id}/attempts", status_code=201)
@@ -212,6 +219,29 @@ async def start_attempt(id: int, body: StartAttemptIn, user: CurrentUser = Depen
             user.id, id,
         )
 
+    # ページを開いた時点で再開位置を更新する。ただし、既に完了済み（completed_node_idsに
+    # 含まれる）ページを後から読み返した場合（S-02「復習する」等）はcurrent_node_idを
+    # 巻き戻さないようにする。検証時に判明した点として、attempt_scope='material'の教材を
+    # 提出済み後に再度A-40を呼ぶと（ON CONFLICTのWHERE submitted_at IS NULLに一致しないため）
+    # 新しいattempt_no・submitted_at=NULLの行が作られてしまい、単純にsubmitted_atだけで
+    # 判定すると「提出済み教材の以前のページを読み返す」操作でも真になり巻き戻ってしまう不具合が
+    # あったため、completed_node_idsによる判定に変更した（2026-09-02）。
+    if body.mode == "graded" and body.viewing_node_id is not None and attempt["submitted_at"] is None:
+        progress_row = await pool.fetchrow(
+            "SELECT completed_node_ids FROM enrollment_progress WHERE user_id = $1 AND material_id = $2",
+            user.id, id,
+        )
+        completed_ids = (
+            set(json.loads(progress_row["completed_node_ids"]))
+            if progress_row and progress_row["completed_node_ids"] else set()
+        )
+        if body.viewing_node_id not in completed_ids:
+            await pool.execute(
+                """UPDATE enrollment_progress SET current_node_id = $1, updated_at = now()
+                    WHERE user_id = $2 AND material_id = $3""",
+                body.viewing_node_id, user.id, id,
+            )
+
     return {"attempt": attempt, "toc": tree, "answers": answers_out}
 
 
@@ -245,7 +275,8 @@ async def save_answer(attempt_id: int, body: SaveAnswerIn, user: CurrentUser = D
         raise HTTPException(400, detail="この受験記録は提出済みのため回答を保存できません")
 
     question = await pool.fetchrow(
-        "SELECT id, node_id, type, correct_answer FROM questions WHERE id = $1", body.question_id
+        "SELECT id, node_id, type, correct_answer FROM questions WHERE id = $1 AND material_id = $2",
+        body.question_id, attempt["material_id"],
     )
     if question is None:
         raise HTTPException(404, detail="設問が見つかりません")
@@ -272,15 +303,6 @@ async def save_answer(attempt_id: int, body: SaveAnswerIn, user: CurrentUser = D
         )
     result = dict(row)
     result["response"] = json.loads(result["response"]) if result["response"] else None
-    return result
-
-
-def _collect_nodes_of_kind(nodes: list[dict], kind: str) -> list[dict]:
-    result = []
-    for n in nodes:
-        if n["kind"] == kind:
-            result.append(n)
-        result.extend(_collect_nodes_of_kind(n.get("children", []), kind))
     return result
 
 
@@ -384,7 +406,11 @@ async def _update_enrollment_progress(
         all_page_ids = {p["id"] for p in _collect_pages(tree)}
         is_complete = all_page_ids.issubset(existing)
     else:
-        group_nodes = _collect_nodes_of_kind(tree, attempt_scope)
+        # _scope_groups は attempt_scope='section' のとき、実際のsectionノードに加えて
+        # 小見出しの無い章直下ページ用の章フォールバック群も返す（A-86と同じロジックを再利用）。
+        # 以前はここだけ_collect_nodes_of_kindで実際のsectionノードしか見ておらず、小見出しの無い
+        # 章の合否が完了判定から漏れていた（2026-09-02、コードレビューで発見・修正）。
+        group_nodes = _scope_groups(tree, attempt_scope)
         is_complete = True
         for g in group_nodes:
             latest = await pool.fetchrow(
@@ -392,7 +418,7 @@ async def _update_enrollment_progress(
                     WHERE user_id = $1 AND material_id = $2 AND scope_node_id = $3
                       AND mode = 'graded' AND submitted_at IS NOT NULL
                     ORDER BY attempt_no DESC LIMIT 1""",
-                user_id, material_id, g["id"],
+                user_id, material_id, g["scope_node_id"],
             )
             if latest is None or not latest["passed"]:
                 is_complete = False
@@ -498,6 +524,8 @@ async def retake_attempt(attempt_id: int, user: CurrentUser = Depends(require_au
         raise HTTPException(403, detail="この受験記録を操作する権限がありません")
     if prev["submitted_at"] is None:
         raise HTTPException(400, detail="未提出の受験記録は再受験できません")
+    if prev["mode"] != "graded":
+        raise HTTPException(400, detail="本受験（graded）の記録のみ再受験できます")
 
     material = await pool.fetchrow("SELECT * FROM materials WHERE id = $1", prev["material_id"])
     settings = await _resolve_assignment_settings(pool, prev["material_id"], material["project_id"], user.id)
@@ -898,6 +926,13 @@ async def submit_survey_response(survey_id: int, body: SurveyResponseIn, user: C
     if survey is None:
         raise HTTPException(404, detail="アンケートが見つかりません")
     await _require_view_access(pool, survey["material_id"], user)
+
+    valid_question_ids = {
+        r["id"] for r in await pool.fetch("SELECT id FROM survey_questions WHERE survey_id = $1", survey_id)
+    }
+    for a in body.answers:
+        if a["survey_question_id"] not in valid_question_ids:
+            raise HTTPException(422, detail="survey_question_idがこのアンケートの設問ではありません")
 
     async with pool.acquire() as conn:
         async with conn.transaction():

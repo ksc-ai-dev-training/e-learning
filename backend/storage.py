@@ -3,11 +3,15 @@
 # ファイルシステム保存、設定済み（本番）ならSupabase Storageへ自動的に切り替える。
 from __future__ import annotations
 
+import hashlib
+import hmac
+import time
 import uuid
 from pathlib import Path
 
 import httpx
 
+from auth_helpers import JWT_SECRET
 from database import ROOT_ENV
 import os
 
@@ -34,13 +38,41 @@ def _local_path(storage_key: str) -> Path:
     return UPLOADS_DIR.joinpath(*parts)
 
 
+LOCAL_URL_TTL_SECONDS = 600
+
+
+def _sign_local_url(storage_key: str, expires: int) -> str:
+    msg = f"{storage_key}:{expires}".encode()
+    return hmac.new(JWT_SECRET.encode(), msg, hashlib.sha256).hexdigest()
+
+
+def make_local_signed_query(storage_key: str) -> tuple[str, int]:
+    """ローカル開発用アップロード・ダウンロードURLに付与する署名クエリを発行する。
+    本番のSupabase Storage署名付きURL（有効期限600秒、対象storage_key限定）と同等の
+    保護をローカルでも持たせるため追加した（2026-09-02、コードレビューで発見・修正。
+    以前はrequire_authのみで、storage_keyさえ知っていれば無期限に閲覧・上書きできた）。
+    戻り値: (クエリ文字列, expiresのUnix時刻)。"""
+    expires = int(time.time()) + LOCAL_URL_TTL_SECONDS
+    sig = _sign_local_url(storage_key, expires)
+    return f"?expires={expires}&sig={sig}", expires
+
+
+def verify_local_signed_query(storage_key: str, expires: int, sig: str) -> bool:
+    """`make_local_signed_query`が発行した署名を検証する（`uploads.py`のGET/PUTから呼ぶ）。"""
+    if time.time() > expires:
+        return False
+    expected = _sign_local_url(storage_key, expires)
+    return hmac.compare_digest(expected, sig)
+
+
 async def create_upload_target(prefix: str, filename: str, mime_type: str) -> tuple[str, str]:
     """アップロード先を発行する（A-27）。戻り値: (storage_key, upload_url)。"""
     storage_key = _make_storage_key(prefix, filename)
     if IS_SUPABASE_CONFIGURED:
         upload_url = await _supabase_create_signed_upload_url(storage_key)
     else:
-        upload_url = f"/api/uploads/{storage_key}"
+        query, _ = make_local_signed_query(storage_key)
+        upload_url = f"/api/uploads/{storage_key}{query}"
     return storage_key, upload_url
 
 
@@ -48,7 +80,11 @@ async def create_download_url(storage_key: str) -> tuple[str, str | None]:
     """ダウンロードURLを発行する（A-30）。戻り値: (download_url, expires_at ISO8601 or None)。"""
     if IS_SUPABASE_CONFIGURED:
         return await _supabase_create_signed_download_url(storage_key)
-    return f"/api/uploads/{storage_key}", None
+    import datetime
+
+    query, expires = make_local_signed_query(storage_key)
+    expires_at = datetime.datetime.fromtimestamp(expires, tz=datetime.timezone.utc).isoformat()
+    return f"/api/uploads/{storage_key}{query}", expires_at
 
 
 async def copy_object(src_storage_key: str, dest_prefix: str, filename: str) -> str:
