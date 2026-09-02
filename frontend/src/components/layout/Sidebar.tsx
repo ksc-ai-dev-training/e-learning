@@ -60,7 +60,7 @@ const NAV_ITEMS = [
     href: '/reports/me',
     label: '個人学習レポート',
     icon: BarChart3,
-    implemented: false,
+    implemented: true,
     match: (p: string) => p.startsWith('/reports/'),
   },
   {

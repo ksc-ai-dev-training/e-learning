@@ -10,9 +10,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 import ai_client
-from auth_helpers import CurrentUser, require_auth
+from auth_helpers import CurrentUser, has_active_project_role, require_auth
 from database import get_pool
 from routers.materials import _count_pages, _fetch_tree, _material_dict, _require_view_access
+from settings_store import DEFAULT_GRACE_PERIOD_DAYS, get_setting_int
 
 router = APIRouter(prefix="/api", tags=["learning"])
 
@@ -487,12 +488,7 @@ async def get_attempt(attempt_id: int, user: CurrentUser = Depends(require_auth)
         raise HTTPException(404, detail="受験記録が見つかりません")
     if attempt["user_id"] != user.id and user.role != "admin":
         material = await pool.fetchrow("SELECT project_id FROM materials WHERE id = $1", attempt["material_id"])
-        project_role = await pool.fetchval(
-            """SELECT role FROM project_memberships
-                WHERE project_id = $1 AND user_id = $2 AND status = 'active' AND left_at IS NULL""",
-            material["project_id"], user.id,
-        )
-        if project_role not in ("editor", "admin"):
+        if not await has_active_project_role(material["project_id"], user.id, "editor"):
             raise HTTPException(403, detail="この受験記録を閲覧する権限がありません")
 
     answers = await pool.fetch(
@@ -793,6 +789,7 @@ async def get_my_learning(history: bool = False, user: CurrentUser = Depends(req
         items = [_my_learning_item(r) for r in rows]
         return {"items": items}
 
+    grace_days = await get_setting_int("project_leave_grace_period_days", DEFAULT_GRACE_PERIOD_DAYS)
     rows = await pool.fetch(
         """SELECT m.id, m.title, m.tags, m.project_id, p.name AS project_name, p.is_company_wide,
                   COALESCE(nc.page_count, 0) AS page_count,
@@ -816,11 +813,12 @@ async def get_my_learning(history: bool = False, user: CurrentUser = Depends(req
            WHERE m.status = 'published' AND m.is_archived = false
              AND (
                EXISTS (SELECT 1 FROM project_memberships pm WHERE pm.project_id = m.project_id
-                       AND pm.user_id = $1 AND pm.status = 'active' AND pm.left_at IS NULL)
+                       AND pm.user_id = $1 AND pm.status = 'active'
+                       AND (pm.left_at IS NULL OR pm.left_at + ($2 * interval '1 day') >= now()))
                OR EXISTS (SELECT 1 FROM assignments ia WHERE ia.material_id = m.id
                           AND ia.scope_type = 'individual' AND ia.scope_id = $1)
              )""",
-        user.id,
+        user.id, grace_days,
     )
     registered_ids = {
         r["material_id"] for r in await pool.fetch(

@@ -8,6 +8,7 @@ import type { ReactNode } from 'react'
 // 'project-active' / 'project-stopped'（プロジェクト自体の状態、S-11・S-12の「自分の全プロジェクト一覧」）、
 // 'share-pending' / 'share-accepted'（教材のプロジェクト間共有の状態、S-12教材の共有タブ。F-26）、
 // 'user-active' / 'user-inactive'（システムアカウントの有効/無効、S-10ユーザー管理タブ）
+// 'passed' / 'failed' / 'in-progress'（S-09個人学習レポートの学習履歴テーブル、教材ごとの直近試行結果）
 const VARIANT_CLASSES: Record<string, string> = {
   published: 'bg-green-50 text-green-700 border-green-200',
   draft: 'bg-slate-100 text-slate-400 border-slate-300',
@@ -30,6 +31,9 @@ const VARIANT_CLASSES: Record<string, string> = {
   'share-accepted': 'bg-green-50 text-green-700 border-green-200',
   'user-active': 'bg-green-50 text-green-700 border-green-200',
   'user-inactive': 'bg-slate-100 text-slate-500 border-slate-300',
+  passed: 'bg-green-50 text-green-700 border-green-200',
+  failed: 'bg-red-50 text-red-700 border-red-200',
+  'in-progress': 'bg-slate-100 text-slate-500 border-slate-300',
 }
 
 const VARIANT_LABELS: Record<string, string> = {
@@ -52,6 +56,9 @@ const VARIANT_LABELS: Record<string, string> = {
   'share-accepted': '複製済み',
   'user-active': '有効',
   'user-inactive': '無効',
+  passed: '合格',
+  failed: '不合格',
+  'in-progress': '受講中',
 }
 
 export default function Badge({

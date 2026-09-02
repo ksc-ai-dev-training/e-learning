@@ -3,11 +3,13 @@ import os
 import time
 import uuid
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 
 import jwt
 from fastapi import Depends, HTTPException, Request
 
 from database import APP_ENV, get_pool
+from settings_store import DEFAULT_GRACE_PERIOD_DAYS, get_setting_int
 
 _DEV_SECRET = "dev-secret-change-me"
 JWT_SECRET = os.environ.get("JWT_SECRET", _DEV_SECRET)
@@ -98,6 +100,31 @@ def require_roles(*roles: str):
 ROLE_RANK = {"learner": 1, "editor": 2, "admin": 3}
 
 
+async def has_active_project_role(project_id: int, user_id: int, min_role: str) -> bool:
+    """プロジェクトのローカルロールを判定する（詳細設計書5.2節・5.5節「プロジェクト離任後の
+    猶予期間判定」）。プロジェクト閲覧・権限判定の全呼び出し元がこれを経由し、猶予期間の挙動が
+    一貫するようにする。システムadminの判定は呼び出し側で別途行う（このヘルパーはT-04
+    project_membershipsの行の有無のみを見る）。
+
+    退任（left_at設定）済みでも猶予期間内はlearner相当（閲覧・学習継続）のみ許可する。
+    役職の降格自体は対象外で、admin/editorへのアクセスは退任と同時に即座に失われる
+    （left_atが立った時点のroleがどうであれ、min_role != "learner"なら常に不可）。
+    """
+    row = await get_pool().fetchrow(
+        """SELECT role, left_at FROM project_memberships
+           WHERE project_id = $1 AND user_id = $2 AND status = 'active'""",
+        project_id, user_id,
+    )
+    if row is None:
+        return False
+    if row["left_at"] is None:
+        return ROLE_RANK[row["role"]] >= ROLE_RANK[min_role]
+    if min_role != "learner":
+        return False
+    grace_days = await get_setting_int("project_leave_grace_period_days", DEFAULT_GRACE_PERIOD_DAYS)
+    return row["left_at"] + timedelta(days=grace_days) >= datetime.now(timezone.utc)
+
+
 async def check_project_role(user: CurrentUser, project_id: int, min_role: str) -> None:
     """プロジェクトのローカルロールを判定する（詳細設計書5.2節）。システムadminは常に許可。
 
@@ -106,14 +133,24 @@ async def check_project_role(user: CurrentUser, project_id: int, min_role: str) 
     """
     if user.role == "admin":
         return
-    row = await get_pool().fetchrow(
-        """SELECT role FROM project_memberships
-           WHERE project_id = $1 AND user_id = $2
-             AND status = 'active' AND left_at IS NULL""",
-        project_id, user.id,
-    )
-    if row is None or ROLE_RANK[row["role"]] < ROLE_RANK[min_role]:
+    if not await has_active_project_role(project_id, user.id, min_role):
         raise HTTPException(403, detail="この操作を行う権限がありません")
+
+
+async def is_manager_of_target_user(target_user_id: int, requester: CurrentUser) -> bool:
+    """「対象者が所属するプロジェクトの管理者」判定（詳細設計書5.4節）。S-09個人学習レポート・
+    A-50〜A-52で、本人以外に対象者の上長として閲覧できる相手を判定するのに使う。"""
+    if requester.role == "admin":
+        return True
+    target_project_ids = await get_pool().fetch(
+        """SELECT project_id FROM project_memberships
+           WHERE user_id = $1 AND status = 'active' AND left_at IS NULL""",
+        target_user_id,
+    )
+    for row in target_project_ids:
+        if await has_active_project_role(row["project_id"], requester.id, min_role="admin"):
+            return True
+    return False
 
 
 def require_project_role(min_role: str):

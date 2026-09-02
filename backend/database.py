@@ -409,6 +409,30 @@ CREATE TABLE IF NOT EXISTS material_project_shares (
 CREATE INDEX IF NOT EXISTS idx_material_project_shares_shared_to
     ON material_project_shares (shared_to_project_id);
 ALTER TABLE material_project_shares ENABLE ROW LEVEL SECURITY;
+
+-- T-21 app_settings（システム設定。S-10「システム設定」タブ、A-55〜A-57・A-80）。他の
+-- テーブルと異なりidのIDENTITY列を持たず、設定キーそのものを主キーとする。行が無いキーは
+-- API側で環境変数・固定値へフォールバックする（03_テーブル定義.html「キー一覧」参照）。
+CREATE TABLE IF NOT EXISTS app_settings (
+    key         TEXT PRIMARY KEY,
+    value_text  TEXT,
+    updated_by  BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE app_settings ENABLE ROW LEVEL SECURITY;
+
+-- T-17 ai_personal_feedback（F-22 AI個人フィードバック。S-09個人学習レポート、A-51/A-52）。
+-- 非同期ジョブ方式（8.2節）: requested_atのみのプレースホルダ行をまず同期的に作成し、contentは
+-- ジョブ完了時に設定する。content未設定＝処理中／404、設定済み＝完了／200の判定に使う。
+CREATE TABLE IF NOT EXISTS ai_personal_feedback (
+    id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    user_id       BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    requested_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    content       TEXT,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_ai_personal_feedback_user_id ON ai_personal_feedback (user_id, created_at DESC);
+ALTER TABLE ai_personal_feedback ENABLE ROW LEVEL SECURITY;
 """
 
 

@@ -7,22 +7,22 @@ import os
 import anthropic
 
 from database import get_pool
+from settings_store import get_ai_model
 
 logger = logging.getLogger("manabi.ai_client")
 
-# モデル解決: 環境変数ANTHROPIC_MODEL → 既定claude-sonnet-5。
-# 本来はS-10「システム設定」（app_settings.value_text WHERE key='ai_model'）が環境変数より優先されるが、
-# T-21 app_settings・S-10はまだ未実装のため、今回は環境変数のみで解決する（S-10実装時に追加する）。
+# モデル解決: S-10システム設定（app_settings.value_text WHERE key='ai_model'） → 環境変数
+# ANTHROPIC_MODEL → 既定claude-sonnet-5（settings_store.get_ai_model参照）。
 DEFAULT_MODEL = "claude-sonnet-5"
 ALLOWED_MODELS = {"claude-sonnet-5", "claude-opus-5", "claude-haiku-4-5"}
 
 
-def resolve_model() -> str:
-    model = os.environ.get("ANTHROPIC_MODEL", "").strip()
+async def resolve_model() -> str:
+    model = (await get_ai_model()).strip()
     if model and model in ALLOWED_MODELS:
         return model
     if model:
-        logger.warning("未知のANTHROPIC_MODEL=%sを無視し既定値を使用します", model)
+        logger.warning("未知のAIモデル=%sを無視し既定値を使用します", model)
     return DEFAULT_MODEL
 
 
@@ -135,7 +135,7 @@ _REVIEW_SYSTEM_PROMPT = (
 async def review_material(*, material_text: str, user_id: int | None) -> list[dict]:
     """教材本文・問題定義をAIレビューする（F-08）。3回までリトライし（1s/2s/4s）、全て失敗した場合は
     例外を送出する（同期呼び出しのため、呼び出し元のA-32はこれを502として利用者に返す）。"""
-    model = resolve_model()
+    model = await resolve_model()
 
     last_error: Exception | None = None
     for attempt in range(3):
@@ -176,7 +176,7 @@ async def grade_answer(
 ) -> dict:
     """記述式・コード記述式の回答をAIで採点する（F-20）。3回までリトライ（1s/2s/4s）し、
     全て失敗した場合は例外を送出する（呼び出し元でDBをNULLのまま残しログを記録する）。"""
-    model = resolve_model()
+    model = await resolve_model()
     system_prompt = _build_system_prompt(scoring_criteria, feedback_style, ai_context, is_code, code_language)
     user_message = f"設問: {prompt}\n\n回答:\n{response_text}"
 
@@ -199,6 +199,83 @@ async def grade_answer(
         except Exception as exc:  # noqa: BLE001 — AI呼び出しの失敗要因は多岐にわたるため一括で捕捉しリトライする
             last_error = exc
             logger.exception("AI採点呼び出しに失敗しました（%d回目）", attempt + 1)
+            if attempt < 2:
+                await asyncio.sleep(2 ** attempt)
+    raise last_error  # type: ignore[misc]
+
+
+PERSONAL_FEEDBACK_TOOL = {
+    "name": "submit_personal_feedback",
+    "description": "受講者本人へのAI個人フィードバックを提出する",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "comment": {"type": "string", "description": "学習状況全体への講評コメント（人事評価目的ではない旨を前提とした励まし・アドバイス）"},
+            "weak_areas": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "正答率が低い・要復習と考えられる分野タグ（教材タグから）",
+            },
+            "recommended_material_ids": {
+                "type": "array",
+                "items": {"type": "integer"},
+                "description": "候補一覧（candidate_materials。未受講の教材に加え、過去に不合格だった反復推奨の教材も含まれる）"
+                "のIDから、弱点分野の克服に役立つものを最大3件まで選ぶ（無ければ空配列。無理に選ぶ必要はない）",
+            },
+        },
+        "required": ["comment", "weak_areas", "recommended_material_ids"],
+    },
+}
+
+_PERSONAL_FEEDBACK_SYSTEM_PROMPT = (
+    "あなたは社内学習管理システムの個人学習アドバイザーAIです。受講者本人の学習状況の集計データを基に、"
+    "本人が次に何をするとよいかを前向きに伝えるフィードバックを作成してください。この内容は人事評価には"
+    "使われません。個人を特定できる情報（氏名・メールアドレス等）は与えられていないため、それらに触れる"
+    "必要はありません。submit_personal_feedbackツールで結果を提出してください。weak_areasは分野別正答率が"
+    "低いものを優先し、目立った弱点が無ければ空配列にしてください。recommended_material_idsは"
+    "candidate_materials（未受講、または過去に不合格だった反復推奨の候補教材一覧）の中からのみ選び、"
+    "弱点に合うものが無ければ無理に選ばず空配列にしてください。"
+)
+
+
+async def generate_personal_feedback(
+    *,
+    summary_stats: dict,
+    tag_stats: list[dict],
+    candidate_materials: list[dict],
+    user_id: int,
+) -> dict:
+    """受講傾向データを基にAI個人フィードバックを生成する（F-22）。3回までリトライ（1s/2s/4s）し、
+    全て失敗した場合は例外を送出する（呼び出し元の非同期ジョブがcontentをNULLのまま残す）。"""
+    model = await resolve_model()
+    user_message = (
+        "summary_stats:\n" + str(summary_stats) + "\n\n"
+        "tag_stats（分野タグ別の正答率集計）:\n" + str(tag_stats) + "\n\n"
+        "candidate_materials（未受講、または過去に不合格だった反復推奨の候補教材。id/title/tagsのみ）:\n"
+        + str(candidate_materials)
+    )
+
+    last_error: Exception | None = None
+    for attempt in range(3):
+        try:
+            client = _get_client()
+            message = await client.messages.create(
+                model=model,
+                max_tokens=1024,
+                system=_PERSONAL_FEEDBACK_SYSTEM_PROMPT,
+                messages=[{"role": "user", "content": user_message}],
+                tools=[PERSONAL_FEEDBACK_TOOL],
+                tool_choice={"type": "tool", "name": "submit_personal_feedback"},
+            )
+            tool_use = next(block for block in message.content if block.type == "tool_use")
+            result = dict(tool_use.input)
+            await log_usage(
+                user_id, "personal_feedback", model, message.usage.input_tokens, message.usage.output_tokens
+            )
+            return result
+        except Exception as exc:  # noqa: BLE001 — AI呼び出しの失敗要因は多岐にわたるため一括で捕捉しリトライする
+            last_error = exc
+            logger.exception("AI個人フィードバック呼び出しに失敗しました（%d回目）", attempt + 1)
             if attempt < 2:
                 await asyncio.sleep(2 ** attempt)
     raise last_error  # type: ignore[misc]

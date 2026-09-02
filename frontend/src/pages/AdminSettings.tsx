@@ -1,15 +1,33 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import PageHeader from '../components/layout/PageHeader'
 import Badge from '../components/ui/Badge'
+import Button from '../components/ui/Button'
 import Select from '../components/ui/Select'
 import TextInput from '../components/ui/TextInput'
 import { useAiUsage } from '../hooks/useAiUsage'
 import { useMe } from '../hooks/useMe'
+import { useSettings } from '../hooks/useSettings'
 import { useUsers } from '../hooks/useUsers'
 import { formatDateJst } from '../lib/datetime'
 import { ApiError } from '../lib/api'
+import { resetSettings, sendSlackTest, updateSettings } from '../lib/settingsActions'
 import { updateUser } from '../lib/userActions'
-import type { AiUsageByFeature, Role } from '../types'
+import type { AiModel, AiUsageByFeature, Role } from '../types'
+
+const AI_MODEL_OPTIONS: { value: AiModel; label: string }[] = [
+  { value: 'claude-sonnet-5', label: 'Claude Sonnet 5（既定）' },
+  { value: 'claude-opus-5', label: 'Claude Opus 5（高精度・低速）' },
+  { value: 'claude-haiku-4-5', label: 'Claude Haiku 4.5（高速・低コスト）' },
+]
+
+function isValidHttpUrl(value: string): boolean {
+  try {
+    const url = new URL(value)
+    return url.protocol === 'http:' || url.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
 
 const AI_FEATURE_LABELS: Record<AiUsageByFeature['feature'], string> = {
   material_review: '教材AIレビュー（F-08）',
@@ -202,9 +220,110 @@ function UsersTab({ myUserId }: { myUserId: number }) {
 function SystemSettingsTab() {
   const [month, setMonth] = useState(currentYearMonth())
   const { usage, isLoading, error } = useAiUsage(month)
+  const { settings, isLoading: settingsLoading, mutate: mutateSettings } = useSettings()
+
+  const [form, setForm] = useState({ slack_webhook_url: '', slack_channel: '', project_leave_grace_period_days: 30 })
+  useEffect(() => {
+    if (settings) {
+      setForm({
+        slack_webhook_url: settings.slack_webhook_url,
+        slack_channel: settings.slack_channel,
+        project_leave_grace_period_days: settings.project_leave_grace_period_days,
+      })
+    }
+  }, [settings])
+
+  const [modelSaving, setModelSaving] = useState(false)
+  const [modelError, setModelError] = useState<string | null>(null)
+  const handleModelChange = async (value: string) => {
+    setModelError(null)
+    setModelSaving(true)
+    try {
+      await updateSettings({ ai_model: value as AiModel })
+      await mutateSettings()
+    } catch (e) {
+      setModelError(e instanceof ApiError ? e.message : 'AIモデルの保存に失敗しました')
+    } finally {
+      setModelSaving(false)
+    }
+  }
+
+  const [urlError, setUrlError] = useState<string | null>(null)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [saveMessage, setSaveMessage] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+  const handleSave = async () => {
+    setSaveError(null)
+    setSaveMessage(null)
+    setUrlError(null)
+    if (form.slack_webhook_url && !isValidHttpUrl(form.slack_webhook_url)) {
+      setUrlError('Webhook URLの形式が正しくありません')
+      return
+    }
+    setSaving(true)
+    try {
+      await updateSettings(form)
+      await mutateSettings()
+      setSaveMessage('設定を保存しました')
+    } catch (e) {
+      setSaveError(e instanceof ApiError ? e.message : '設定の保存に失敗しました')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const [testSending, setTestSending] = useState(false)
+  const [testMessage, setTestMessage] = useState<string | null>(null)
+  const [testError, setTestError] = useState<string | null>(null)
+  const handleSlackTest = async () => {
+    setTestMessage(null)
+    setTestError(null)
+    setTestSending(true)
+    try {
+      const res = await sendSlackTest()
+      setTestMessage(res.detail)
+    } catch (e) {
+      setTestError(e instanceof ApiError ? e.message : 'テスト送信に失敗しました')
+    } finally {
+      setTestSending(false)
+    }
+  }
+
+  const [resetting, setResetting] = useState(false)
+  const handleReset = async () => {
+    if (!window.confirm('システム設定を初期状態に戻します。よろしいですか？')) return
+    setSaveError(null)
+    setSaveMessage(null)
+    setResetting(true)
+    try {
+      await resetSettings()
+      await mutateSettings()
+      setSaveMessage('初期状態に戻しました')
+    } catch (e) {
+      setSaveError(e instanceof ApiError ? e.message : '初期化に失敗しました')
+    } finally {
+      setResetting(false)
+    }
+  }
 
   return (
     <div>
+      <h3 className="mb-2 text-sm font-semibold text-slate-700">AI利用設定</h3>
+      <div className="mb-6 max-w-2xl rounded-md border border-slate-200 p-4">
+        <label className="mb-1 block text-xs font-semibold text-slate-600">利用するAIモデル（既定）</label>
+        <Select
+          value={settings?.ai_model ?? 'claude-sonnet-5'}
+          onChange={handleModelChange}
+          disabled={settingsLoading || modelSaving}
+          options={AI_MODEL_OPTIONS}
+          className="max-w-xs"
+        />
+        <p className="mt-2 text-xs text-slate-500">
+          F-08・F-20〜F-23の全AI機能で共通の設定です（機能ごとに個別のモデルを割り当てる機能はありません）。選択すると即座に保存されます。
+        </p>
+        {modelError && <p className="mt-2 text-sm text-red-600">{modelError}</p>}
+      </div>
+
       <h3 className="mb-2 text-sm font-semibold text-slate-700">今月のAI利用状況</h3>
       <p className="mb-4 text-xs text-slate-500">
         機能別（F-08教材AIレビュー・F-20 AI記述式採点・F-21〜F-23）の呼び出し件数・トークン数・概算コストの内訳です。教材の作成・修正（F-05、Claude Code CLI連携）は利用者本人の契約で課金されるため、この集計には含まれません。
@@ -270,9 +389,75 @@ function SystemSettingsTab() {
         </>
       ) : null}
 
-      <p className="mt-6 text-sm text-slate-400">
-        AIモデル選択・Slack通知設定・プロジェクト所属の猶予期間は準備中です。次回以降のバージョンで対応予定です。
-      </p>
+      <h3 className="mb-2 mt-6 text-sm font-semibold text-slate-700">Slack通知設定</h3>
+      <div className="mb-6 max-w-2xl rounded-md border border-slate-200 p-4">
+        <div className="mb-3">
+          <label className="mb-1 block text-xs font-semibold text-slate-600">Webhook URL</label>
+          <TextInput
+            type="url"
+            className="w-full max-w-md"
+            placeholder="https://hooks.slack.com/services/..."
+            value={form.slack_webhook_url}
+            onChange={(e) => setForm((f) => ({ ...f, slack_webhook_url: e.target.value }))}
+          />
+          {urlError && <p className="mt-1 text-sm text-red-600">{urlError}</p>}
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-semibold text-slate-600">通知先チャンネル</label>
+          <TextInput
+            type="text"
+            className="max-w-[220px]"
+            placeholder="#elearning-通知"
+            value={form.slack_channel}
+            onChange={(e) => setForm((f) => ({ ...f, slack_channel: e.target.value }))}
+          />
+          <div className="mt-3">
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={testSending || !form.slack_webhook_url}
+              onClick={handleSlackTest}
+            >
+              {testSending ? '送信中...' : 'テスト送信'}
+            </Button>
+            {testMessage && <span className="ml-3 text-sm text-green-700">{testMessage}</span>}
+            {testError && <span className="ml-3 text-sm text-red-600">{testError}</span>}
+          </div>
+        </div>
+      </div>
+
+      <h3 className="mb-2 text-sm font-semibold text-slate-700">プロジェクト所属の猶予期間</h3>
+      <div className="mb-6 max-w-2xl rounded-md border border-slate-200 p-4">
+        <label className="mb-1 block text-xs font-semibold text-slate-600">離任後の閲覧アクセス継続日数</label>
+        <div className="flex items-center gap-2">
+          <TextInput
+            type="number"
+            min={0}
+            max={365}
+            step={1}
+            className="w-24"
+            value={form.project_leave_grace_period_days}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, project_leave_grace_period_days: Number(e.target.value) }))
+            }
+          />
+          <span className="text-xs text-slate-500">日</span>
+        </div>
+        <p className="mt-2 text-xs text-slate-500">
+          プロジェクト管理者がメンバーを削除した場合も、この日数の間は旧プロジェクトの教材を閲覧できます。
+        </p>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <Button type="button" variant="primary" disabled={saving} onClick={handleSave}>
+          {saving ? '保存中...' : '設定を保存'}
+        </Button>
+        <Button type="button" variant="secondary" disabled={resetting} onClick={handleReset}>
+          {resetting ? '初期化中...' : '初期状態に戻す'}
+        </Button>
+        {saveMessage && <span className="text-sm text-green-700">{saveMessage}</span>}
+        {saveError && <span className="text-sm text-red-600">{saveError}</span>}
+      </div>
     </div>
   )
 }

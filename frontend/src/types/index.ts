@@ -9,6 +9,33 @@ export interface Me {
   picture_url: string | null
 }
 
+// A-50 GET /api/reports/personal/{user_id} のレスポンス（S-09 個人学習レポート）
+export interface PersonalReportHistoryItem {
+  material_id: number
+  material_title: string
+  completed_at: string | null
+  score_pct: number | null
+  passed: boolean | null
+}
+export interface PersonalReport {
+  target_user: { id: number; name: string; email: string; project_names: string[] }
+  summary: {
+    completed_material_count: number
+    incomplete_required_count: number
+    required_completion_pct: number
+    last_activity_at: string | null
+  }
+  history: PersonalReportHistoryItem[]
+}
+
+// A-52 GET /api/reports/personal/{user_id}/ai-feedback のレスポンス（完了時のみ200）
+export interface PersonalAiFeedback {
+  comment: string
+  weak_areas: string[]
+  recommended_materials: { id: number; title: string }[]
+  generated_at: string
+}
+
 // A-58 GET /api/settings/ai-usage のレスポンス（S-10 管理：システム設定タブ）
 export interface AiUsageByFeature {
   feature: 'material_review' | 'grading' | 'insight_analysis' | 'personal_feedback' | 'org_report'
@@ -21,6 +48,15 @@ export interface AiUsageSummary {
   month: string
   total: { count: number; input_tokens: number; output_tokens: number; cost_jpy: number }
   by_feature: AiUsageByFeature[]
+}
+
+// A-55 GET /api/settings のレスポンス（S-10 管理：システム設定タブ）
+export type AiModel = 'claude-sonnet-5' | 'claude-opus-5' | 'claude-haiku-4-5'
+export interface SystemSettings {
+  ai_model: AiModel
+  slack_webhook_url: string
+  slack_channel: string
+  project_leave_grace_period_days: number
 }
 
 // A-53 GET /api/users のitems（S-10 管理：ユーザー管理タブ）

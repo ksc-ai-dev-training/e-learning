@@ -12,9 +12,9 @@ from pydantic import BaseModel, Field, model_validator
 import ai_client
 import storage
 from auth_helpers import (
-    ROLE_RANK,
     CurrentUser,
     check_project_role,
+    has_active_project_role,
     is_company_wide_draft_restricted,
     require_auth,
     require_material_role,
@@ -23,6 +23,7 @@ from auth_helpers import (
 from database import get_pool
 from markdown_render import render_material_body
 from material_parser import MaterialParseError, parse_source, serialize_source
+from settings_store import DEFAULT_GRACE_PERIOD_DAYS, get_setting_int
 
 router = APIRouter(prefix="/api/projects/{project_id}/materials", tags=["materials"])
 detail_router = APIRouter(prefix="/api/materials", tags=["materials"])
@@ -36,7 +37,8 @@ async def _require_view_access(pool, id: int, user: CurrentUser) -> dict:
     """A-15/A-28共通の閲覧権限判定。編集権限者（下書き含む、全社Wiki下書きは作成者・
     プロジェクト管理者・システムadmin限定）と、受講対象者（公開済みのみ。require_material_access
     の2条件＝プロジェクトの現役メンバー・個人指定の配信、詳細設計書5.3節）の両方を許可する。
-    S-04（教材受講：目次）着手時に受講対象者向けアクセスを追加した。"""
+    S-04（教材受講：目次）着手時に受講対象者向けアクセスを追加した。プロジェクト離任後の猶予期間
+    （5.5節）はhas_active_project_role経由で、受講対象者側（learner相当）のみに適用される。"""
     row = await pool.fetchrow(
         """SELECT m.project_id, m.status, m.created_by, p.is_company_wide
            FROM materials m JOIN projects p ON p.id = m.project_id
@@ -46,14 +48,7 @@ async def _require_view_access(pool, id: int, user: CurrentUser) -> dict:
     if row is None:
         raise HTTPException(404, detail="教材が見つかりません")
 
-    project_role = None
-    if user.role != "admin":
-        project_role = await pool.fetchval(
-            """SELECT role FROM project_memberships
-               WHERE project_id = $1 AND user_id = $2 AND status = 'active' AND left_at IS NULL""",
-            row["project_id"], user.id,
-        )
-    is_editor = user.role == "admin" or (project_role is not None and ROLE_RANK[project_role] >= ROLE_RANK["editor"])
+    is_editor = user.role == "admin" or await has_active_project_role(row["project_id"], user.id, "editor")
 
     if is_editor:
         if row["status"] == "draft" and row["created_by"] != user.id:
@@ -63,7 +58,7 @@ async def _require_view_access(pool, id: int, user: CurrentUser) -> dict:
 
     if row["status"] != "published":
         raise HTTPException(403, detail="この教材は受講対象ではありません")
-    if project_role is None:
+    if not await has_active_project_role(row["project_id"], user.id, "learner"):
         is_individual_target = await pool.fetchval(
             """SELECT EXISTS(
                  SELECT 1 FROM assignments
@@ -142,9 +137,11 @@ async def search_materials(
         )
     if my_assignments_only:
         ph = add_param(user.id)
+        grace_ph = add_param(await get_setting_int("project_leave_grace_period_days", DEFAULT_GRACE_PERIOD_DAYS))
         conditions.append(f"""(
             EXISTS (SELECT 1 FROM project_memberships pm WHERE pm.project_id = m.project_id
-                    AND pm.user_id = {ph} AND pm.status = 'active' AND pm.left_at IS NULL)
+                    AND pm.user_id = {ph} AND pm.status = 'active'
+                    AND (pm.left_at IS NULL OR pm.left_at + ({grace_ph} * interval '1 day') >= now()))
             OR EXISTS (SELECT 1 FROM assignments ia WHERE ia.material_id = m.id
                        AND ia.scope_type = 'individual' AND ia.scope_id = {ph})
         )""")
@@ -1231,18 +1228,6 @@ async def delete_survey(
 # 完結するため）。
 
 
-async def _has_project_role(pool, project_id: int, user_id: int, min_role: str) -> bool:
-    """check_project_roleの真偽値版。共有元・共有先2つのプロジェクトのどちらかを満たせばよい、
-    というOR条件の判定（A-61）にはHTTPExceptionを投げるcheck_project_roleが使えないため用意した。
-    システムadminの判定は呼び出し側で別途行う。"""
-    row = await pool.fetchrow(
-        """SELECT role FROM project_memberships
-           WHERE project_id = $1 AND user_id = $2 AND status = 'active' AND left_at IS NULL""",
-        project_id, user_id,
-    )
-    return row is not None and ROLE_RANK[row["role"]] >= ROLE_RANK[min_role]
-
-
 async def _duplicate_material_into_project(conn, material_id: int, target_project_id: int, created_by: int) -> int:
     """F-26承認時の複製本体。既存の「複製」ボタン（S-05, MaterialEdit.tsx）と考え方は同じ
     （A-19取得相当→A-16新規作成相当→A-20書き戻し相当）だが、以下の点で異なるためHTTPを経由せず
@@ -1429,8 +1414,8 @@ async def delete_material_share(id: int, share_id: int, user: CurrentUser = Depe
     if share["status"] != "pending":
         raise HTTPException(400, detail="承認済み・却下済みの申請は取り下げられません")
     if user.role != "admin":
-        is_source_admin = await _has_project_role(pool, share["source_project_id"], user.id, "admin")
-        is_target_admin = await _has_project_role(pool, share["shared_to_project_id"], user.id, "admin")
+        is_source_admin = await has_active_project_role(share["source_project_id"], user.id, "admin")
+        is_target_admin = await has_active_project_role(share["shared_to_project_id"], user.id, "admin")
         if not (is_source_admin or is_target_admin):
             raise HTTPException(403, detail="この操作を行う権限がありません")
     deleted = await pool.fetchval(

@@ -394,6 +394,7 @@ export default function MaterialView() {
                               title={page.title}
                               kindLabel={pageKindLabel(page)}
                               done={page.id !== null && completedIds.has(page.id)}
+                              isCurrent={page.id !== null && page.id === currentNodeId}
                               query={returnQuery}
                             />
                           ))}
@@ -407,6 +408,7 @@ export default function MaterialView() {
                         title={child.title}
                         kindLabel={pageKindLabel(child)}
                         done={child.id !== null && completedIds.has(child.id)}
+                        isCurrent={child.id !== null && child.id === currentNodeId}
                         query={returnQuery}
                       />
                     ),
@@ -553,6 +555,7 @@ function TocPageRow({
   title,
   kindLabel,
   done,
+  isCurrent = false,
   query = '',
 }: {
   materialId: number
@@ -560,6 +563,7 @@ function TocPageRow({
   title: string
   kindLabel: string
   done: boolean
+  isCurrent?: boolean
   query?: string
 }) {
   if (nodeId === null) {
@@ -571,13 +575,21 @@ function TocPageRow({
       </div>
     )
   }
+  const circleClass = done
+    ? 'bg-green-100 text-green-700'
+    : isCurrent
+      ? 'bg-blue-600 text-white'
+      : 'border border-slate-300 text-transparent'
   return (
     <Link
       to={`/materials/${materialId}/pages/${nodeId}${query}`}
       className="ml-2 flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm text-slate-500 hover:bg-blue-50"
     >
-      <span className={`flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full text-[10px] ${done ? 'bg-green-100 text-green-700' : 'border border-slate-300 text-transparent'}`}>
-        {done ? '✓' : '·'}
+      <span
+        className={`flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full text-[10px] ${circleClass}`}
+        title={isCurrent ? '続きはここから' : undefined}
+      >
+        {done ? '✓' : isCurrent ? '●' : '·'}
       </span>
       <span className="flex-1 text-slate-700">{title}</span>
       <span className="flex-shrink-0 text-[10.5px] text-slate-400">{kindLabel}</span>
