@@ -17,7 +17,7 @@
     <p class="subtitle">社内学習管理システム（Manabi）</p>
     <div class="meta">
       <span>作成日: 2026-08-18</span>
-      <span>版数: 1.50</span>
+      <span>版数: 1.52</span>
       <span>作成: コガソフトウェア株式会社</span>
     </div>
     <p class="note">本ドキュメントは新人社員向けAI開発研修のサンプル成果物です</p>
@@ -79,6 +79,8 @@
       <tr class="rev-row"><td>1.48</td><td>2026-09-02</td><td>ユーザーからの指摘を受け2件の設計を改訂した。<strong>(1) 5.32節（F-32 プロジェクトの完全削除）:</strong> 当初は「教材が0件またはすべて下書き（公開状態のみで判定）」という保守的な条件だったが、S-16（受講画面）実装後、一度も受講されていない公開済み教材を含むだけのプロジェクトが「受講記録が残っている」という誤った理由で削除できない不具合が実運用で見つかった。判定基準を、実際にquiz_attempts・enrollment_progress・survey_responsesの行が存在するかを直接確認する方式に改めた（教材の公開状態と削除可否は無関係になった）。<strong>(2) 5.27節（F-26 教材のプロジェクト間共有）</strong>: 複製内容に受験後アンケート（surveys/survey_questions）を追加した。当初の記述は「目次・全ページ・問題・添付ファイル」のみでアンケートに触れておらず、実装時に複製対象から漏れていたことが再監査で判明した（回答履歴 survey_responses/survey_answers は複製先が新規の受講者集団であるため引き続き複製しない）。4.4・5.27・5.32節を更新した。</td></tr>
       <tr class="rev-row"><td>1.49</td><td>2026-09-02</td><td><strong>S-10「管理」のユーザー管理タブ（A-53/A-54）を実装した</strong>。ロール変更・有効/無効切替、自分自身の降格・無効化拒否は4.12節どおり実装したうえで、設計書には無い追加ガードとして「システムadminが1人になる降格・無効化も拒否する」を加えた（プロジェクトの「唯一の管理者は降格・削除不可」と同じ考え方、ユーザー確認済み）。あわせて、サイドバー上の表示ラベルが他のナビ項目と並んだときに「何を管理する画面か」伝わりにくいというフィードバックを受け、サイドバー表示ラベルのみ「システム管理」に変更した（画面自体の名称・本書の呼称はS-10「管理」のまま）。画面モックアップ<code>S-10_admin.html</code>のサイドバー表記もあわせて修正した。また、画面モックアップの横断監査でS-12（プロジェクト管理）の状態セレクトに旧ラベル「完了」が残っていた（実装は「停止」に統一済み）ことを発見し修正した。4.12節・5.6節（詳細設計書）を更新した。</td></tr>
       <tr class="rev-row"><td>1.50</td><td>2026-09-02</td><td><strong>S-10「システム設定」タブのAI利用状況表示（A-58）を実装した</strong>。既存のT-19 <code>ai_usage_logs</code>を機能別（<code>feature</code>）にgroup byするのみで、新規テーブル・カラムは不要（元々v1.21の時点でこの方針だった）。<strong>あわせて、ユーザーからの依頼でユーザー管理タブ（A-53/A-54、v1.49で実装）を再監査し、「最後の1人」ガードにTOCTOU競合状態があることを発見・修正した</strong>: 2人以上のシステムadminが互いを同時に降格・無効化するリクエストを送ると、どちらのリクエストも相手のコミット前の古い件数（まだ2人以上いる）を読んでしまい、両方とも許可されてadminが不在になりうる不具合だった（F-26 A-65の二重承認競合〔v1.48〕と同種）。対象行・現役admin行に<code>SELECT ... FOR UPDATE</code>で行ロックを掛け、トランザクション内で判定・更新するよう修正した。2つの検証用管理者アカウントで実際に互いを同時に降格するリクエストを送り、エラー・データ不整合なく完了することを確認した（本番の実アカウントは一切変更していない）。4.12節を更新した。</td></tr>
+      <tr class="rev-row"><td>1.51</td><td>2026-09-02</td><td><strong>S-10「システム設定」タブの残り一式（AIモデル選択・Slack通知設定・プロジェクト所属の猶予期間、A-55〜A-57・A-80）をまとめて実装した</strong>。T-21 <code>app_settings</code>を新設し、<code>backend/settings_store.py</code>（設定値の読み取りヘルパー）・<code>backend/slack_client.py</code>（Incoming Webhook送信）を新設した。<code>ai_client.py</code>の<code>resolve_model()</code>を非同期化しT-21を優先参照するようにした。<strong>あわせて5.25節の猶予期間ロジックを実装した</strong>。<code>auth_helpers.py</code>に<code>has_active_project_role</code>を新設し、退任済みメンバーでも猶予日数以内はlearner相当のアクセスのみ継続するようにした。実装にあたり、同等の「現役プロジェクトメンバーか」判定が4箇所（<code>check_project_role</code>・<code>routers/materials.py</code>の2関数・<code>routers/learning.py</code>の<code>get_attempt</code>）に重複していたことが判明し、猶予期間の挙動が箇所ごとに食い違わないよう新設の共通関数へ統合した（一覧・検索系のA-14/A-39はSQLの直接組み立てのため関数呼び出しではなく同一条件のSQLへ置き換えて挙動を一致させた）。curlでの実機検証（設定のCRUD・バリデーション・Slack送信の成否両パターン）と、一時的なプロジェクト・ユーザー・メンバーシップ行を用いた猶予期間判定5パターンの検証、ヘッドレスEdgeでの画面確認、<code>tsc --noEmit</code>を実施した（検証用データは確認後削除、本番データは変更していない）。4.12・5.25節、詳細設計書4・5・6・10章を更新した。</td></tr>
+      <tr class="rev-row"><td>1.52</td><td>2026-09-02</td><td><strong>S-09 個人学習レポート（A-50〜A-52、F-22 AI個人フィードバック）を実装した</strong>。T-17 <code>ai_personal_feedback</code>を新設し、新規<code>backend/routers/reports.py</code>にA-50（対象者情報・サマリー・学習履歴）・A-51（AI個人フィードバック生成リクエスト、非同期）・A-52（取得）を実装した。「対象者が所属するプロジェクトの管理者」判定（詳細設計書5.4節）を<code>auth_helpers.py</code>の<code>is_manager_of_target_user</code>として実装し、本人・対象者所属プロジェクトの管理者・システムadminのみに閲覧を限定した。<strong>AI個人フィードバックの生成トリガーを設計から変更した（9.1節）</strong>: 元の仕様「S-09を開いたとき自動リクエスト」は、開くたびに課金が発生する（複数人のレポートを見て回る管理者は特に影響が大きい）ため、S-09に新設した「生成する」ボタンによる手動トリガーに変更した（ユーザー判断）。<code>ai_client.py</code>に<code>generate_personal_feedback</code>を追加し、<code>job_sweep.py</code>にT-17の滞留ジョブ再実行を追加した。フロントエンドは新規<code>usePersonalReport</code>・<code>usePersonalAiFeedback</code>フック・<code>reportActions.ts</code>・<code>PersonalReport.tsx</code>を実装し、Sidebarの「個人学習レポート」ナビ項目を有効化した。curlでA-50の集計値・権限境界（本人／管理者／無関係な第三者の403）を実機検証した（検証用データ・ユーザーは確認後削除）。<strong>AI呼び出しを伴うA-51は、開発段階での従量課金を避けるためユーザーの指示により実際のClaude API呼び出しを伴う実機検証を行っていない</strong>（コードレビュー・型チェック・AI非依存のSQL集計部分の単体確認のみ）。ヘッドレスEdgeで画面表示（未生成状態）を確認し、画面モックアップ<code>S-09_my-report.html</code>に手動トリガーの注記を追加した。基本設計書4.12・9.1節、詳細設計書4.7・5.4・8.1・10.8節を更新した（基本設計書v1.52、詳細設計書v1.73）。</td></tr>
     </tbody>
   </table>
 
@@ -289,7 +291,7 @@
   </table>
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）基本設計書 v1.50</span>
+    <span>社内学習管理システム（Manabi）基本設計書 v1.52</span>
     <span>コガソフトウェア株式会社 / 2026-08-24</span>
   </footer>
 

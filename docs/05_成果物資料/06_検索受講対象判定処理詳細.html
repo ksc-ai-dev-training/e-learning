@@ -59,7 +59,7 @@ LIMIT $4 OFFSET $5;</code></pre>
   <p><strong>next_actionの判定について:</strong> 「必修は"復習する"、任意は"反復演習する"」というボタン文言の出し分け（S-02画面モックアップ）は、バックエンドの<code>next_action</code>には反映せず、フロントエンド側で<code>next_action==='review'</code>と<code>required</code>の組み合わせから決定する（バックエンドは受講状況の抽象的な区分のみを返し、表示文言はフロントエンドの責務とする方針）。</p>
 
   <h3>6.3 プロジェクト離任後の猶予期間（実装の参照）</h3>
-  <p>5.5節の<code>has_active_project_role</code>を参照。6.1節・6.2節の対象者判定はいずれもこの関数を経由するため、猶予期間の考慮は自動的に反映される。</p>
+  <p>5.5節の<code>has_active_project_role</code>を参照。<strong>実装済み（2026-09-02）。</strong>6.1節（<code>my_assignments_only</code>）・6.2節（マイ学習一覧）はいずれも一覧・検索用のSQLをその場で組み立てる実装のため、関数呼び出しではなく5.5節と同一の猶予期間条件（<code>left_at IS NULL OR left_at + 猶予日数 &gt;= now()</code>、猶予日数は<code>get_setting_int</code>で同じT-21設定値を都度取得）をEXISTS句に直接組み込む形で反映した（挙動は5.5節の関数と一致する）。</p>
 
   <h3>6.4 A-45/A-46 受講状況ダッシュボードの集計</h3>
   <p>実装は<code>routers/dashboard.py</code>。<code>scope</code>パラメータが<code>"company"</code>なら全社員・全教材、<code>"project:{id}"</code>なら当該プロジェクトの現役メンバー（<code>status='active' AND left_at IS NULL</code>）かつ当該プロジェクトの配信設定を対象に集計する。</p>
@@ -109,7 +109,7 @@ SELECT ta.material_id,
 
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）詳細設計書 v1.71</span>
+    <span>社内学習管理システム（Manabi）詳細設計書 v1.77</span>
     <span>コガソフトウェア株式会社 / 2026-08-24</span>
   </footer>
 

@@ -205,9 +205,9 @@
   <table>
     <thead><tr><th>API</th><th>メソッド／パス</th><th>権限</th><th>リクエスト</th><th>レスポンス</th></tr></thead>
     <tbody>
-      <tr><td>A-50</td><td>GET <code>/api/reports/personal/{user_id}</code></td><td>本人、対象者が所属するプロジェクトの管理者, admin</td><td>—</td><td>200 <code>{"summary": {...}, "history": [{"material_id", "material_title", "completed_at", "score_pct", "passed"}]}</code></td></tr>
-      <tr><td>A-51</td><td>POST <code>/api/reports/personal/{user_id}/ai-feedback</code></td><td>同上</td><td>ボディなし</td><td>202。非同期（8.2節）</td></tr>
-      <tr><td>A-52</td><td>GET <code>/api/reports/personal/{user_id}/ai-feedback</code></td><td>同上</td><td>—</td><td>200（完了）／404（処理中）</td></tr>
+      <tr><td>A-50</td><td>GET <code>/api/reports/personal/{user_id}</code></td><td>本人、対象者が所属するプロジェクトの管理者, admin</td><td>—</td><td>200 <code>{"target_user": {"id","name","email","project_names"}, "summary": {"completed_material_count","incomplete_required_count","required_completion_pct","last_activity_at"}, "history": [{"material_id", "material_title", "completed_at", "score_pct", "passed"}]}</code>。<strong>実装済み（2026-09-02）。</strong>画面項目定義10.8節「対象者情報」に対応するためtarget_userを追加した。<strong>当初は<code>avg_score_pct</code>（全quiz_attemptsの平均正答率）だったが、ユーザーレビューを受け<code>required_completion_pct</code>（A-39と同じ必修受講完了率）に置き換えた</strong>（10.8節参照）。<code>history</code>の<code>score_pct</code>／<code>passed</code>は、設問0件の試行（<code>_recompute_attempt_result</code>の仕様でscore_pct=100扱いになる）を除外して算出する</td></tr>
+      <tr><td>A-51</td><td>POST <code>/api/reports/personal/{user_id}/ai-feedback</code></td><td>同上</td><td>ボディなし</td><td>202。非同期（8.2節）。<strong>実装済み（2026-09-02）。</strong>本来の基本設計書9.1節の仕様は「S-09を開いたとき自動リクエスト」だが、開くたびに課金が発生する（複数人のレポートを見て回る管理者は特に）ため、S-09の「生成する」ボタンによる手動トリガーに変更した（ユーザー判断）</td></tr>
+      <tr><td>A-52</td><td>GET <code>/api/reports/personal/{user_id}/ai-feedback</code></td><td>同上</td><td>—</td><td>200 <code>{"comment","weak_areas","recommended_materials": [{"id","title"}],"generated_at"}</code>（完了）／404（未生成・処理中）。<strong>実装済み（2026-09-02）。</strong>recommended_material_idsは教材タイトルを解決した{id,title}の配列として返す（生成時点でなく取得時点のタイトルを都度解決）</td></tr>
     </tbody>
   </table>
 
@@ -224,17 +224,17 @@
   <table>
     <thead><tr><th>API</th><th>メソッド／パス</th><th>権限</th><th>リクエスト</th><th>レスポンス</th></tr></thead>
     <tbody>
-      <tr><td>A-55</td><td>GET <code>/api/settings</code></td><td>admin</td><td>—</td><td>200 <code>{"ai_model", "slack_webhook_url", "slack_channel", "project_leave_grace_period_days"}</code>（T-21の全キーをまとめて返す）</td></tr>
-      <tr><td>A-56</td><td>PUT <code>/api/settings</code></td><td>admin</td><td>上記の部分集合（変更したいキーのみ）</td><td>200。キーごとに<code>ON CONFLICT (key) DO UPDATE</code>でupsert</td></tr>
-      <tr><td>A-57</td><td>POST <code>/api/settings/slack-test</code></td><td>admin</td><td>ボディなし</td><td>200 <code>{"detail": "テスト送信しました"}</code>／502（Webhook URL未設定または送信失敗）</td></tr>
+      <tr><td>A-55</td><td>GET <code>/api/settings</code></td><td>admin</td><td>—</td><td>200 <code>{"ai_model", "slack_webhook_url", "slack_channel", "project_leave_grace_period_days"}</code>（T-21の全キーをまとめて返す、行が無いキーは既定値へフォールバック）。<strong>実装済み（2026-09-02）</strong></td></tr>
+      <tr><td>A-56</td><td>PUT <code>/api/settings</code></td><td>admin</td><td>上記の部分集合（変更したいキーのみ）</td><td>200。キーごとに<code>ON CONFLICT (key) DO UPDATE</code>でupsert。<code>ai_model</code>は許可された3値以外・<code>project_leave_grace_period_days</code>は0〜365以外は422。<strong>実装済み（2026-09-02）</strong></td></tr>
+      <tr><td>A-57</td><td>POST <code>/api/settings/slack-test</code></td><td>admin</td><td>ボディなし</td><td>200 <code>{"detail": "テスト送信しました"}</code>／502（Webhook URL未設定または送信失敗）。<strong>実装済み（2026-09-02、新規<code>backend/slack_client.py</code>）</strong></td></tr>
       <tr><td>A-58</td><td>GET <code>/api/settings/ai-usage</code></td><td>admin</td><td>クエリ <code>month</code>（YYYY-MM、既定は当月）</td><td>200 <code>{"month", "total": {"count","input_tokens","output_tokens","cost_jpy"}, "by_feature": [{"feature","count","input_tokens","output_tokens","cost_jpy"}]}</code>。<code>by_feature</code>はT-19を<code>feature</code>でgroup by（基本設計書v1.21・7.2.9節）。<strong>実装済み（2026-09-02、S-10、新規<code>backend/routers/settings.py</code>）。</strong><code>month</code>不正形式（YYYY-MM以外）は422</td></tr>
-      <tr><td>A-80</td><td>DELETE <code>/api/settings</code></td><td>admin</td><td>ボディなし</td><td>204。T-21の対象4キー（<code>ai_model</code>, <code>slack_webhook_url</code>, <code>slack_channel</code>, <code>project_leave_grace_period_days</code>）を<code>DELETE FROM app_settings WHERE key IN (...)</code>で一括削除する。S-10「初期状態に戻す」ボタンに対応（基本設計書v1.25・7.2.9節）</td></tr>
+      <tr><td>A-80</td><td>DELETE <code>/api/settings</code></td><td>admin</td><td>ボディなし</td><td>204。T-21の対象4キー（<code>ai_model</code>, <code>slack_webhook_url</code>, <code>slack_channel</code>, <code>project_leave_grace_period_days</code>）を<code>DELETE FROM app_settings WHERE key IN (...)</code>で一括削除する。S-10「初期状態に戻す」ボタンに対応（基本設計書v1.25・7.2.9節）。<strong>実装済み（2026-09-02）</strong></td></tr>
     </tbody>
   </table>
 
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）詳細設計書 v1.71</span>
+    <span>社内学習管理システム（Manabi）詳細設計書 v1.77</span>
     <span>コガソフトウェア株式会社 / 2026-08-24</span>
   </footer>
 

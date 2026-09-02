@@ -75,7 +75,7 @@
       <tr><td>AI採点結果パネル</td><td>表示</td><td>記述式・コード記述式の回答をスコープ横断で一覧表示。AI採点済みは点数・講評、未完了は「採点中」。<strong>実装済み</strong>（2026-08-31）</td><td>A-86</td></tr>
       <tr><td>教材全体の進捗バー</td><td>表示</td><td><strong>到達ページ数/全ページ数</strong>（2026-09-02改訂。当初は<code>completed_node_ids</code>〔提出済みページ〕のみを分子にしていたため、既定の<code>attempt_scope='material'</code>教材では最後まで提出するまで常に0/Nのままになり、「続きから受講」で再開位置は正しく戻るのに進捗表示だけ0のままというユーザー報告を受けた。<code>current_node_id</code>までのページも「到達済み」として分子に加える方式に変更した。目次ツリー各行の✓マーク・章ごとの「N/M 完了」は誤って「未提出なのに完了」と表示しないよう、引き続き<code>completed_node_ids</code>のみで判定する）。<strong>実装済み</strong></td><td>A-15, T-12</td></tr>
       <tr><td>教材全体の資料</td><td>一覧表示</td><td>node_id未設定の添付ファイル・リンク。<strong>実装済み</strong>（フロント側でnode_id IS NULLに絞り込み。ファイルはA-30でダウンロードURLを発行）</td><td>A-28（node_id省略）, A-30</td></tr>
-      <tr><td>目次ツリー</td><td>表示</td><td>章・小見出し・ページ。各ページに完了/未完了マーク・種別バッジ（説明／問題×N／説明＋問題×N）を表示。<strong>実装済み</strong>（スコア記録の専用バッジ表示は既存の<code>pageKindLabel</code>ヘルパーが未対応のため今回も対象外）。行選択でS-16へ：<strong>実装済み</strong>（2026-08-31）</td><td>A-15</td></tr>
+      <tr><td>目次ツリー</td><td>表示</td><td>章・小見出し・ページ。各ページに完了/未完了マーク・種別バッジ（説明／問題×N／説明＋問題×N）を表示。<strong>実装済み</strong>（スコア記録の専用バッジ表示は既存の<code>pageKindLabel</code>ヘルパーが未対応のため今回も対象外）。行選択でS-16へ：<strong>実装済み</strong>（2026-08-31）。<strong>途中まで受講した教材は、再開位置（<code>current_node_id</code>）のページ行の完了/未完了マーク（〇）に、塗りつぶし円のマークを表示する</strong>（2026-09-02、ユーザー指摘。「続きから受講」ボタンは動くが目次上でどこから再開するか分からないという指摘を受け追加。説明文のみのページはそのページ、設問未回答のページはそのページ、回答済みで次ページへ進んでいれば次ページが再開位置になる、というA-40の既存ロジックをそのまま可視化した。当初はバッジ＋行全体の背景ハイライトで表現していたが、完了マーク（✓）・未完了マーク（空円）と同じ「〇」の中で状態を表現する方が一貫していると指摘を受け、専用の塗りつぶし円マークに変更した）</td><td>A-15</td></tr>
       <tr><td>受験後アンケートcallout</td><td>callout＋モーダル</td><td>直近合格したスコープに設置されたアンケート（<code>is_active</code>かつ未回答、または<code>repeat_mode='every_time'</code>）を1件表示。「回答する」で<code>SurveyModal</code>を開きA-72で送信、「今回はスキップ」でその場では閉じる（次回訪問時にはまた表示される、永続的なスキップ記録は持たない）。<strong>実装済み</strong>（2026-08-31）</td><td>A-78, A-72</td></tr>
       <tr><td>「一時中断する」「続きから受講」ボタン</td><td>ボタン</td><td>「一時中断する」は教材一覧（S-03）へのリンク（進捗は都度A-41で自動保存されるため専用の中断APIは無い）。「続きから受講」/「受講を開始」は<code>progress.current_node_id</code>優先、無ければ目次先頭ページへ遷移。<strong>実装済み</strong>（2026-08-31）</td><td>A-40（遷移先のS-16内で呼ばれる）</td></tr>
       <tr><td>反復演習タブ: 実施履歴・「反復演習を開始」</td><td>表示＋ボタン</td><td>合否に影響しない旨を明示。実施履歴は実施日時・正答数・所要時間の一覧。「反復演習を開始」はattempt_scopeの設定によらず教材全体を対象にする。<strong>実装済み</strong>（2026-08-31）</td><td>A-87（履歴）, A-40（mode='practice'で開始）</td></tr>
@@ -149,25 +149,38 @@
   </table>
 
   <h3>10.8 S-09 個人学習レポート（<code>/reports/:userId</code>）</h3>
+  <div class="callout">
+    <strong>実装済み（2026-09-02）。</strong>新規<code>backend/routers/reports.py</code>にA-50〜A-52を実装し、T-17 <code>ai_personal_feedback</code>を新設した。「対象者が所属するプロジェクトの管理者」判定（5.4節<code>is_manager_of_target_user</code>）を<code>auth_helpers.py</code>に実装し、本人以外に管理者が閲覧できるアクセス制御を実現した。<br>
+    <strong>AI個人フィードバックの生成トリガーを設計と変えた:</strong> 基本設計書9.1節の元の仕様は「S-09を開いたとき自動でリクエスト」だったが、そのままだと画面を開くたびにAI呼び出しの課金が発生する（複数人のレポートを見て回る管理者は特に影響が大きい）ため、S-09に新設した「生成する」ボタンを押したときのみA-51をリクエストする方式に変更した（ユーザー判断、2026-09-02）。生成中はSWRの3秒間隔ポーリング（8.2節）でA-52を再検証し、結果が現れたら停止する。3分経っても現れない場合は「生成に時間がかかっています」の案内を表示する。<br>
+    フロントエンドは新規<code>usePersonalReport</code>・<code>usePersonalAiFeedback</code>フック、<code>reportActions.ts</code>、<code>PersonalReport.tsx</code>を実装し、Sidebarの「個人学習レポート」ナビ項目を有効化した。学習履歴の「結果」列表示用に<code>Badge</code>コンポーネントへ<code>passed</code>/<code>failed</code>/<code>in-progress</code>variantを追加した。<br>
+    curlで対象者情報・サマリー・学習履歴の集計値、および本人・管理者・無関係な第三者（403）の権限境界を実機検証した（検証用データ・ユーザーは確認後削除）。<strong>AI呼び出しを伴うA-51は、開発段階での従量課金を避けるためユーザーの指示により実機検証（実際のClaude API呼び出し）を行っていない</strong>（コードレビュー・型チェックのみで確認）。ヘッドレスEdgeで画面表示（未生成状態の「生成する」ボタン）を確認した。画面モックアップ<code>S-09_my-report.html</code>に手動トリガーである旨の注記を追加した。<br>
+    <strong>おすすめ教材の候補ロジックを修正した（同日追加対応）:</strong> ユーザーからのレビューを受け、「おすすめ教材」候補（<code>_aggregate_candidate_materials</code>）が未完了教材のみを対象としており、「一度完了しているが不合格だった教材」への反復推奨ができていなかったことが判明した。<code>attempt_scope='material'</code>の教材はページ閲覧のみで完了扱いになり、合否を問わないため、完了済みでも直近のgraded試行が不合格（<code>passed=false</code>）なら候補に含めるよう修正した（完了かつ合格済みは引き続き除外）。一時的な教材・受験記録で「完了だが不合格→候補に含まれる」「完了かつ合格→候補から除外される」の両方を検証した（検証用データは確認後削除）。あわせて、S-09の未生成時の案内文言が常に「コメントとおすすめ教材を作成します」と断定していたが、おすすめ教材が0件のこともあるため「該当する教材があればおすすめ教材も表示します」という表現に修正した。<br>
+    <strong>正答率の集計方法を見直した（同日追加対応、ユーザーレビュー）:</strong> 2点の指摘を受けた。(1) <code>_recompute_attempt_result</code>（learning.py）は設問0件の試行（説明文のみのページ・スコア記録のみの教材）を<code>score_pct=100</code>扱いにする仕様のため、これをそのまま平均・履歴に含めると実態より高い正答率になっていた。学習履歴・タグ別集計（AIプロンプト用）とも、gradable（<code>score_log</code>以外）の設問を1問以上含むgraded試行のみを対象にするよう修正した。(2) サマリーの「平均正答率」は、どの教材が何点かという粒度が失われる集計だったため、代わりにA-39（マイ学習）と同じ「必修受講完了率」（<code>required_completion_pct</code>）に置き換え、教材ごとの正答率は新設の「教材別正答率」（AIによる個人フィードバック欄の上部、AI生成前から常に表示。設問を含む受験記録がある教材のみ、正答率の低い順）で確認できるようにした。一時的な教材・受験記録（説明文のみ教材／実際の設問がある教材／必修未完了教材の組み合わせ）で、サマリーの必修受講完了率・学習履歴の各行・タグ別集計いずれも正しい値になることを検証した（検証用データは確認後削除）。ヘッドレスEdgeで、実データ上の「設問0件なのに合格100点と表示されていた教材」が「完了」表示（スコアなし）に修正されたことを確認した。
+  </div>
   <table>
     <thead><tr><th>項目名</th><th>型</th><th>仕様</th><th>対応API</th></tr></thead>
     <tbody>
-      <tr><td>対象者情報</td><td>表示</td><td>氏名・所属プロジェクト</td><td>A-50</td></tr>
-      <tr><td>サマリー</td><td>表示</td><td>受講済み教材数・未受講必修数・平均正答率・直近受講日</td><td>A-50</td></tr>
-      <tr><td>AI個人フィードバック</td><td>表示</td><td>コメント・理解不足分野タグ・おすすめ教材。生成中は「作成中」を表示</td><td>A-51, A-52</td></tr>
-      <tr><td>学習履歴テーブル</td><td>表示</td><td>教材・受講日・結果・スコア</td><td>A-50</td></tr>
-      <tr><td>注記</td><td>表示</td><td>「学習記録は人事評価には用いません」の固定文言</td><td>—</td></tr>
+      <tr><td>対象者情報</td><td>表示</td><td>氏名・所属プロジェクト。<strong>実装済み</strong></td><td>A-50</td></tr>
+      <tr><td>サマリー</td><td>表示</td><td>受講済み教材数・未受講必修数・必修受講完了率・直近受講日。<strong>実装済み</strong>（必修受講完了率はA-39と同じ集計方法。当初の「平均正答率」から変更した）</td><td>A-50</td></tr>
+      <tr><td>教材別正答率</td><td>表示</td><td>設問を含む受験記録がある教材の直近正答率を、正答率の低い順に一覧表示（AI個人フィードバック欄の上部、AI呼び出しを伴わないためAI生成前から常に表示）。<strong>実装済み</strong>（新設）</td><td>A-50</td></tr>
+      <tr><td>AI個人フィードバック</td><td>表示</td><td>コメント・理解不足分野タグ・おすすめ教材。「生成する」ボタンで手動トリガー（上記callout参照）、生成中は「作成中」を表示。<strong>実装済み</strong></td><td>A-51, A-52</td></tr>
+      <tr><td>学習履歴テーブル</td><td>表示</td><td>教材・受講日・結果・スコア。<strong>実装済み</strong></td><td>A-50</td></tr>
+      <tr><td>注記</td><td>表示</td><td>「学習記録は人事評価には用いません」の固定文言。<strong>実装済み</strong></td><td>—</td></tr>
     </tbody>
   </table>
 
   <h3>10.9 S-10 管理（<code>/admin/settings</code>）</h3>
-  <p>タブ構成: 「ユーザー管理」「システム設定」。<strong>「ユーザー管理」タブを実装した</strong>（2026-09-02）。<strong>「システム設定」タブはAI利用状況（A-58）のみ実装した</strong>（Slack通知・猶予期間・AIモデル選択、A-55〜A-57・A-80は準備中の案内のみで次回以降に対応する）。</p>
+  <p>タブ構成: 「ユーザー管理」「システム設定」。<strong>両タブとも実装済み</strong>（2026-09-02）。「システム設定」タブはAI利用状況（A-58）に加え、AIモデル選択・Slack通知設定・プロジェクト所属の猶予期間（A-55〜A-57・A-80）も実装した。</p>
   <div class="callout">
     <strong>実装内容（ユーザー管理）:</strong> A-53（<code>GET /api/users</code>、氏名・メールでの検索対応）・A-54（<code>PUT /api/users/{id}</code>、ロール変更・有効/無効切替）を新規<code>backend/routers/users.py</code>に実装した。<code>require_roles("admin")</code>でシステムadmin以外を403にする。<strong>自分自身のadmin降格・無効化は400で拒否</strong>（画面設計書4.12節どおり）。<strong>設計書には明記が無いが、システムadminが実質1人しかいない状態でその最後の1人を降格・無効化できてしまうと管理機能自体が使えなくなるため、プロジェクトの「唯一の管理者は降格・削除不可」（organization.py）と同じ考え方でこのガードも追加した</strong>（ユーザー確認済み）。フロントエンドは新規<code>AdminSettings.tsx</code>（2タブ構成）・<code>useUsers</code>フック・<code>userActions.ts</code>を実装し、Sidebarに「システム管理」ナビ項目を追加した（<code>adminOnly</code>フラグでrole='admin'以外には表示しない、初のロール限定ナビ項目）。<br>
     <strong>サイドバーの表示ラベルについて:</strong> 当初は画面設計書どおり「管理」としていたが、他のナビ項目（「教材編集」「プロジェクト管理」等）と並んだときに「何を管理する画面か」が伝わりにくいというフィードバックを受け、サイドバー上の表示ラベルのみ「システム管理」に変更した（画面自体の名称・設計書上の呼称はS-10「管理」のまま。2026-09-02、画面モックアップ<code>S-10_admin.html</code>のサイドバー表記も合わせて修正した）。<br>
     ヘッドレスEdgeで、検索・ロール変更・有効/無効切替・自分自身の行が操作不可であることを実機確認した（一時的に作成した検証用ユーザーで、管理者が複数人存在する状態での昇格・無効化の成功パターンも確認し、確認後削除した）。<br>
     <strong>ユーザーからの依頼で本機能の実装直後に再監査し、「最後の1人」ガードに競合状態（TOCTOU）があることを発見・修正した</strong>（2026-09-02）。2人以上のシステムadminが互いを同時に降格・無効化するリクエストを送ると、どちらのリクエストも相手の書き込みが確定する前の古い件数（まだ2人以上いる）を読んでしまい、両方とも許可されてadminが不在になりうる不具合だった（F-26のA-65で見つけた二重承認の競合と同じ種類）。対象行・現役admin行に<code>SELECT ... FOR UPDATE</code>で行ロックを掛け、トランザクション内で件数判定と更新を行うことで解消した。2つの検証用管理者アカウントを作成し、互いを同時に降格するリクエストを実際に送って一連の処理がエラー・データ不整合なく完了することを確認した（本番の実アカウントは判定に使う件数へ影響を与えないよう一切変更していない）。<br>
-    <strong>実装内容（システム設定・AI利用状況）:</strong> A-58（<code>GET /api/settings/ai-usage</code>、クエリ<code>month</code>省略時は当月）を新規<code>backend/routers/settings.py</code>に実装した。T-19 <code>ai_usage_logs</code>を<code>feature</code>別にgroup byするのみで新規テーブルは不要（<code>cost_estimate</code>列は<code>ai_client.py</code>側で既にJPY換算済みのため追加の通貨換算も不要）。フロントエンドは新規<code>useAiUsage</code>フックと、月選択（<code>&lt;input type="month"&gt;</code>）・合計サマリー4項目・機能別内訳テーブルを持つ<code>SystemSettingsTab</code>を実装した。ヘッドレスEdgeで、検証用ログ行を投入し当月・前月それぞれの集計値が正しく表示されることを確認した（検証用データは確認後削除）。
+    <strong>実装内容（システム設定・AI利用状況）:</strong> A-58（<code>GET /api/settings/ai-usage</code>、クエリ<code>month</code>省略時は当月）を新規<code>backend/routers/settings.py</code>に実装した。T-19 <code>ai_usage_logs</code>を<code>feature</code>別にgroup byするのみで新規テーブルは不要（<code>cost_estimate</code>列は<code>ai_client.py</code>側で既にJPY換算済みのため追加の通貨換算も不要）。フロントエンドは新規<code>useAiUsage</code>フックと、月選択（<code>&lt;input type="month"&gt;</code>）・合計サマリー4項目・機能別内訳テーブルを持つ<code>SystemSettingsTab</code>を実装した。ヘッドレスEdgeで、検証用ログ行を投入し当月・前月それぞれの集計値が正しく表示されることを確認した（検証用データは確認後削除）。<br>
+    <strong>実装内容（AIモデル選択・Slack通知設定・猶予期間、A-55〜A-57・A-80）:</strong> ユーザーの依頼で残り一式をまとめて実装した。T-21 <code>app_settings</code>（<code>key</code>を主キーとする設定値ストア）を新設し、<code>backend/settings_store.py</code>（<code>get_setting</code>・<code>get_setting_int</code>・<code>get_ai_model</code>・<code>get_slack_webhook_url</code>）を新設した（<code>routers/settings.py</code>と<code>auth_helpers.py</code>の双方から参照するため、循環importを避ける独立モジュールとした）。<code>routers/settings.py</code>にA-55（GET）・A-56（PUT、部分更新・<code>ai_model</code>不正値/<code>project_leave_grace_period_days</code>範囲外は422）・A-80（DELETE、初期化）を追加し、新規<code>backend/slack_client.py</code>（<code>httpx</code>によるIncoming Webhook送信）を使うA-57（テスト送信、Webhook未設定または送信失敗は502）を追加した。<code>backend/ai_client.py</code>の<code>resolve_model()</code>を<code>async</code>化し、T-21 > 環境変数<code>ANTHROPIC_MODEL</code> > 既定値の優先順で解決するようにした（5.9節参照）。<br>
+    <strong>猶予期間ロジックの実装（5.5節参照）:</strong> <code>auth_helpers.py</code>に<code>has_active_project_role</code>を新設し、退任済み（<code>left_at</code>設定済み）でも猶予日数以内はlearner相当のアクセスのみ継続するようにした。実装にあたり、同等の「現役プロジェクトメンバーか」判定が<code>check_project_role</code>・<code>routers/materials.py</code>（<code>_require_view_access</code>・<code>_has_project_role</code>）・<code>routers/learning.py</code>（<code>get_attempt</code>）の4箇所に重複していたことが判明し、猶予期間の挙動が箇所ごとに食い違わないよう全て新設の共通関数へ統合した（<code>_has_project_role</code>は削除）。A-39（マイ学習一覧）・A-14（<code>my_assignments_only</code>絞り込み）はSQLのEXISTS句を直接組み立てる実装のため関数呼び出しへは統合せず、同じ猶予日数設定を参照する同等のSQL条件に置き換えて挙動を一致させた。<br>
+    フロントエンドは新規<code>useSettings</code>フック・<code>settingsActions.ts</code>（<code>updateSettings</code>・<code>sendSlackTest</code>・<code>resetSettings</code>）を実装し、<code>SystemSettingsTab</code>にAIモデル選択（変更と同時にA-56へ送信）・Slack Webhook URL/通知先チャンネル入力・テスト送信ボタン・猶予期間日数入力・「設定を保存」「初期状態に戻す」ボタンを追加した。<br>
+    バックエンドはcurlでA-55/A-56（バリデーション含む）/A-57（未設定・送信失敗の両方）/A-80を実機検証し、猶予期間ロジックは一時的なプロジェクト・ユーザー・メンバーシップ行を作成し「10日前に退任→learner可・editor不可」「40日前に退任（既定猶予30日）→learner不可」「現役editor→editor可・admin不可」の5パターンを検証した（検証用データはいずれも確認後削除）。フロントエンドはヘッドレスEdgeでシステム設定タブの表示を実機確認した。<code>npx tsc --noEmit</code>で型チェックも確認した。
   </div>
   <table>
     <thead><tr><th>項目名</th><th>型</th><th>必須</th><th>バリデーション</th><th>対応API</th></tr></thead>
@@ -175,13 +188,13 @@
       <tr><td>ユーザー一覧</td><td>表示</td><td>—</td><td>氏名・メール・ロール・有効/無効バッジ・登録日。氏名・メールで検索可。<strong>実装済み</strong></td><td>A-53</td></tr>
       <tr><td>ロール</td><td>セレクト</td><td>○</td><td>member/adminの2択。自分自身の行は変更不可。システムadminが1人になる変更は拒否。<strong>実装済み</strong></td><td>A-54 role</td></tr>
       <tr><td>有効/無効</td><td>ボタン（有効化/無効化）</td><td>○</td><td>自分自身の行は操作不可。システムadminが1人になる変更は拒否。<strong>実装済み</strong>（確認ダイアログは今回未実装、次回検討）</td><td>A-54 is_active</td></tr>
-      <tr><td>使用するAIモデル</td><td>セレクト</td><td>○</td><td>Claude Sonnet 5 / Claude Opus 5 / Claude Haiku 4.5。選択と同時に保存</td><td>A-56 ai_model</td></tr>
+      <tr><td>使用するAIモデル</td><td>セレクト</td><td>○</td><td>Claude Sonnet 5 / Claude Opus 5 / Claude Haiku 4.5。選択と同時に保存。<strong>実装済み</strong></td><td>A-56 ai_model</td></tr>
       <tr><td>今月のAI利用状況（機能別内訳）</td><td>表示</td><td>—</td><td>F-08/F-20/F-21/F-22/F-23別の呼び出し件数・トークン数・概算コスト。月選択で過去月も表示可。<strong>実装済み</strong></td><td>A-58</td></tr>
-      <tr><td>Slack Webhook URL・通知先チャンネル</td><td>テキスト</td><td>—</td><td>URL形式検証</td><td>A-56 slack_webhook_url, slack_channel</td></tr>
-      <tr><td>テスト送信ボタン</td><td>ボタン</td><td>—</td><td>—</td><td>A-57</td></tr>
-      <tr><td>プロジェクト所属の猶予期間日数</td><td>NumberInput</td><td>○</td><td>0〜365の整数</td><td>A-56 project_leave_grace_period_days</td></tr>
-      <tr><td>設定を保存</td><td>ボタン</td><td>—</td><td>画面上の全項目をまとめてA-56へ送信</td><td>A-56</td></tr>
-      <tr><td>初期状態に戻す</td><td>ボタン</td><td>—</td><td>確認ダイアログ後、対象4キーをT-21から削除。画面は再取得（A-55）した既定値表示に戻る</td><td>A-80</td></tr>
+      <tr><td>Slack Webhook URL・通知先チャンネル</td><td>テキスト</td><td>—</td><td>URL形式検証（フロントエンドで<code>new URL()</code>による検証、保存時のみ）。<strong>実装済み</strong></td><td>A-56 slack_webhook_url, slack_channel</td></tr>
+      <tr><td>テスト送信ボタン</td><td>ボタン</td><td>—</td><td>Webhook URL未入力時は無効化。<strong>実装済み</strong></td><td>A-57</td></tr>
+      <tr><td>プロジェクト所属の猶予期間日数</td><td>NumberInput</td><td>○</td><td>0〜365の整数（バックエンドでも同範囲を検証、範囲外は422）。<strong>実装済み</strong></td><td>A-56 project_leave_grace_period_days</td></tr>
+      <tr><td>設定を保存</td><td>ボタン</td><td>—</td><td>画面上の全項目（Slack Webhook URL・通知先チャンネル・猶予期間日数）をまとめてA-56へ送信。<strong>実装済み</strong></td><td>A-56</td></tr>
+      <tr><td>初期状態に戻す</td><td>ボタン</td><td>—</td><td>確認ダイアログ後、対象4キーをT-21から削除。画面は再取得（A-55）した既定値表示に戻る。<strong>実装済み</strong></td><td>A-80</td></tr>
     </tbody>
   </table>
 
@@ -344,7 +357,7 @@
 
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）詳細設計書 v1.71</span>
+    <span>社内学習管理システム（Manabi）詳細設計書 v1.77</span>
     <span>コガソフトウェア株式会社 / 2026-08-24</span>
   </footer>
 

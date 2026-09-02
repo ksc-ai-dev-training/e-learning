@@ -23,6 +23,7 @@
       <tr><td>F-20 AI記述式採点・講評</td><td>非同期ジョブ</td><td>T-14 answers（<code>ai_score_pct</code>）</td><td>A-42, A-43</td></tr>
       <tr><td>F-21 AIつまずき分析</td><td>非同期ジョブ</td><td>T-16 ai_material_insights</td><td>A-34, A-35</td></tr>
       <tr><td>F-22 AI個人フィードバック</td><td>非同期ジョブ</td><td>T-17 ai_personal_feedback</td><td>A-51, A-52</td></tr>
+      <tr class="rev-row"><td colspan="4"><strong>F-22実装済み（2026-09-02）。</strong>S-09の「生成する」ボタン押下でA-51をリクエストする（9.1節の「開いたら自動」からユーザー判断で変更。開くたびの課金を避けるため）。<code>ai_client.generate_personal_feedback</code>がtool-use（<code>submit_personal_feedback</code>）で<code>comment</code>・<code>weak_areas</code>・<code>recommended_material_ids</code>を構造化取得し、<code>routers/reports.py</code>の<code>run_ai_personal_feedback_job</code>がJSON文字列としてT-17 <code>content</code>へ保存する（<code>WHERE content IS NULL</code>条件で先着1回のみ反映、8.2節の重複実行対策と同じ方針）。<code>job_sweep.py</code>のスイープにもT-17の滞留ジョブ再実行を追加した。</td></tr>
       <tr><td>F-23 AI組織レポート</td><td>非同期ジョブ</td><td>T-18 ai_org_reports</td><td>A-48, A-49</td></tr>
     </tbody>
   </table>
@@ -239,7 +240,7 @@ def estimate_cost_jpy(model: str, input_tokens: int, output_tokens: int) -&gt; f
 
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）詳細設計書 v1.71</span>
+    <span>社内学習管理システム（Manabi）詳細設計書 v1.77</span>
     <span>コガソフトウェア株式会社 / 2026-08-24</span>
   </footer>
 

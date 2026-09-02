@@ -107,6 +107,7 @@ async def require_project_role(project_id: int, min_role: str):
                 row["project_id"], requester.id, min_role="admin"):
             return True
     return False</code></pre>
+  <p><strong>実装済み（2026-09-02）。</strong><code>backend/auth_helpers.py</code>の<code>is_manager_of_target_user</code>として上記のとおり実装した。</p>
 
   <h3>5.5 プロジェクト離任後の猶予期間判定</h3>
   <p>基本設計書5.25節の猶予期間ロジックを、5.3節の<code>has_active_project_role</code>を拡張する形で実装する。「現役メンバー」または「削除から猶予日数以内」のいずれかを満たせば受講権限を継続する。</p>
@@ -127,7 +128,8 @@ async def require_project_role(project_id: int, min_role: str):
             return min_role == "learner"
     return False</code></pre>
   <div class="callout">
-    <strong>猶予期間中は受講権限のみ継続する:</strong> 基本設計書5.25節の設計判断のとおり、ロール降格そのものは猶予期間の対象外とし、プロジェクトから削除された場合のみ猶予期間が発生する。上記実装では<code>left_at</code>が設定された行に対しては<code>min_role == "learner"</code>のときのみtrueを返すことで、「猶予期間中でも教材の新規編集はできない（即時失効）が、既に配信された教材の閲覧・受講は継続できる」という非対称な扱いを表現している。</div>
+    <strong>猶予期間中は受講権限のみ継続する:</strong> 基本設計書5.25節の設計判断のとおり、ロール降格そのものは猶予期間の対象外とし、プロジェクトから削除された場合のみ猶予期間が発生する。上記実装では<code>left_at</code>が設定された行に対しては<code>min_role == "learner"</code>のときのみtrueを返すことで、「猶予期間中でも教材の新規編集はできない（即時失効）が、既に配信された教材の閲覧・受講は継続できる」という非対称な扱いを表現している。<br>
+    <strong>実装済み（2026-09-02）。</strong>実際には<code>backend/auth_helpers.py</code>の<code>has_active_project_role(project_id, user_id, min_role)</code>としてこの節のpseudocodeどおり実装し、猶予日数はA-56で設定するT-21 <code>project_leave_grace_period_days</code>（新設<code>backend/settings_store.py</code>の<code>get_setting_int</code>経由、既定30日）を参照する。実装にあたり、同じ「現役プロジェクトメンバーか」という判定がこの関数の新設以前に4箇所（<code>check_project_role</code>・<code>routers/materials.py</code>の<code>_require_view_access</code>と<code>_has_project_role</code>・<code>routers/learning.py</code>の<code>get_attempt</code>）に個別実装されており、このうち1箇所だけを猶予期間対応にすると挙動が箇所ごとに食い違う不整合が生じるため、全て本関数を経由するよう統合した（<code>_has_project_role</code>は削除）。A-39（マイ学習一覧）・A-14（<code>my_assignments_only</code>絞り込み）はSQLのEXISTS句で同等の条件を直接組み立てているため関数呼び出しには統合していないが、猶予日数を同じ<code>get_setting_int</code>で取得し同一のSQL条件（<code>left_at IS NULL OR left_at + 猶予日数 &gt;= now()</code>）を適用することで挙動を一致させた。</div>
 
   <h3>5.6 フロントエンド側のガード</h3>
   <p><code>frontend/src/App.tsx</code>でA-04（<code>/api/auth/me</code>）の結果とS-11「自分が参加しているプロジェクト」の集計に基づきルート・メニュー表示を制御する。権限の正はサーバー側検証（5.1〜5.5節）であり、以下はUX目的の表示制御に過ぎない。</p>
@@ -159,7 +161,7 @@ async def require_project_role(project_id: int, min_role: str):
   <p class="rev-row"><strong>処理概要:</strong> 本番（<code>SUPABASE_URL</code>設定時）はA-27/A-30がSupabase Storageの署名付きURL（対象<code>storage_key</code>限定・600秒で失効）を返すが、ローカル開発専用の代替経路（<code>backend/routers/uploads.py</code>）は<code>require_auth</code>のみで、<code>storage_key</code>さえ知っていれば認証済みの任意のユーザーが無期限に閲覧・上書きできてしまっていた。本番と同等の保護をローカルでも持たせるため、<code>storage.py</code>に<code>make_local_signed_query</code>/<code>verify_local_signed_query</code>（HMAC-SHA256、<code>JWT_SECRET</code>を鍵として<code>storage_key:expires</code>に署名、600秒で失効）を新設し、A-27（<code>create_upload_target</code>）・A-30（<code>create_download_url</code>）が返すローカルURLに<code>?expires=...&amp;sig=...</code>クエリを付与、<code>uploads.py</code>のGET/PUTでこれを検証するようにした。署名が無い・期限切れ・別の<code>storage_key</code>向けの署名を流用した場合はいずれも403で拒否する。本番環境（Supabase Storage使用時）はこの経路自体を通らないため影響しない。</p>
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）詳細設計書 v1.71</span>
+    <span>社内学習管理システム（Manabi）詳細設計書 v1.77</span>
     <span>コガソフトウェア株式会社 / 2026-08-24</span>
   </footer>
 
