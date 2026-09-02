@@ -161,11 +161,13 @@
   </table>
 
   <h3>10.9 S-10 管理（<code>/admin/settings</code>）</h3>
-  <p>タブ構成: 「ユーザー管理」「システム設定」。<strong>「ユーザー管理」タブを実装した</strong>（2026-09-02）。「システム設定」タブ（AI利用状況・Slack通知・猶予期間、A-55〜A-58）は準備中の案内のみで次回以降に対応する。</p>
+  <p>タブ構成: 「ユーザー管理」「システム設定」。<strong>「ユーザー管理」タブを実装した</strong>（2026-09-02）。<strong>「システム設定」タブはAI利用状況（A-58）のみ実装した</strong>（Slack通知・猶予期間・AIモデル選択、A-55〜A-57・A-80は準備中の案内のみで次回以降に対応する）。</p>
   <div class="callout">
-    <strong>実装内容:</strong> A-53（<code>GET /api/users</code>、氏名・メールでの検索対応）・A-54（<code>PUT /api/users/{id}</code>、ロール変更・有効/無効切替）を新規<code>backend/routers/users.py</code>に実装した。<code>require_roles("admin")</code>でシステムadmin以外を403にする。<strong>自分自身のadmin降格・無効化は400で拒否</strong>（画面設計書4.12節どおり）。<strong>設計書には明記が無いが、システムadminが実質1人しかいない状態でその最後の1人を降格・無効化できてしまうと管理機能自体が使えなくなるため、プロジェクトの「唯一の管理者は降格・削除不可」（organization.py）と同じ考え方でこのガードも追加した</strong>（ユーザー確認済み）。フロントエンドは新規<code>AdminSettings.tsx</code>（2タブ構成、「ユーザー管理」のみ実装）・<code>useUsers</code>フック・<code>userActions.ts</code>を実装し、Sidebarに「システム管理」ナビ項目を追加した（<code>adminOnly</code>フラグでrole='admin'以外には表示しない、初のロール限定ナビ項目）。<br>
+    <strong>実装内容（ユーザー管理）:</strong> A-53（<code>GET /api/users</code>、氏名・メールでの検索対応）・A-54（<code>PUT /api/users/{id}</code>、ロール変更・有効/無効切替）を新規<code>backend/routers/users.py</code>に実装した。<code>require_roles("admin")</code>でシステムadmin以外を403にする。<strong>自分自身のadmin降格・無効化は400で拒否</strong>（画面設計書4.12節どおり）。<strong>設計書には明記が無いが、システムadminが実質1人しかいない状態でその最後の1人を降格・無効化できてしまうと管理機能自体が使えなくなるため、プロジェクトの「唯一の管理者は降格・削除不可」（organization.py）と同じ考え方でこのガードも追加した</strong>（ユーザー確認済み）。フロントエンドは新規<code>AdminSettings.tsx</code>（2タブ構成）・<code>useUsers</code>フック・<code>userActions.ts</code>を実装し、Sidebarに「システム管理」ナビ項目を追加した（<code>adminOnly</code>フラグでrole='admin'以外には表示しない、初のロール限定ナビ項目）。<br>
     <strong>サイドバーの表示ラベルについて:</strong> 当初は画面設計書どおり「管理」としていたが、他のナビ項目（「教材編集」「プロジェクト管理」等）と並んだときに「何を管理する画面か」が伝わりにくいというフィードバックを受け、サイドバー上の表示ラベルのみ「システム管理」に変更した（画面自体の名称・設計書上の呼称はS-10「管理」のまま。2026-09-02、画面モックアップ<code>S-10_admin.html</code>のサイドバー表記も合わせて修正した）。<br>
-    ヘッドレスEdgeで、検索・ロール変更・有効/無効切替・自分自身の行が操作不可であることを実機確認した（一時的に作成した検証用ユーザーで、管理者が複数人存在する状態での昇格・無効化の成功パターンも確認し、確認後削除した）。
+    ヘッドレスEdgeで、検索・ロール変更・有効/無効切替・自分自身の行が操作不可であることを実機確認した（一時的に作成した検証用ユーザーで、管理者が複数人存在する状態での昇格・無効化の成功パターンも確認し、確認後削除した）。<br>
+    <strong>ユーザーからの依頼で本機能の実装直後に再監査し、「最後の1人」ガードに競合状態（TOCTOU）があることを発見・修正した</strong>（2026-09-02）。2人以上のシステムadminが互いを同時に降格・無効化するリクエストを送ると、どちらのリクエストも相手の書き込みが確定する前の古い件数（まだ2人以上いる）を読んでしまい、両方とも許可されてadminが不在になりうる不具合だった（F-26のA-65で見つけた二重承認の競合と同じ種類）。対象行・現役admin行に<code>SELECT ... FOR UPDATE</code>で行ロックを掛け、トランザクション内で件数判定と更新を行うことで解消した。2つの検証用管理者アカウントを作成し、互いを同時に降格するリクエストを実際に送って一連の処理がエラー・データ不整合なく完了することを確認した（本番の実アカウントは判定に使う件数へ影響を与えないよう一切変更していない）。<br>
+    <strong>実装内容（システム設定・AI利用状況）:</strong> A-58（<code>GET /api/settings/ai-usage</code>、クエリ<code>month</code>省略時は当月）を新規<code>backend/routers/settings.py</code>に実装した。T-19 <code>ai_usage_logs</code>を<code>feature</code>別にgroup byするのみで新規テーブルは不要（<code>cost_estimate</code>列は<code>ai_client.py</code>側で既にJPY換算済みのため追加の通貨換算も不要）。フロントエンドは新規<code>useAiUsage</code>フックと、月選択（<code>&lt;input type="month"&gt;</code>）・合計サマリー4項目・機能別内訳テーブルを持つ<code>SystemSettingsTab</code>を実装した。ヘッドレスEdgeで、検証用ログ行を投入し当月・前月それぞれの集計値が正しく表示されることを確認した（検証用データは確認後削除）。
   </div>
   <table>
     <thead><tr><th>項目名</th><th>型</th><th>必須</th><th>バリデーション</th><th>対応API</th></tr></thead>
@@ -174,7 +176,7 @@
       <tr><td>ロール</td><td>セレクト</td><td>○</td><td>member/adminの2択。自分自身の行は変更不可。システムadminが1人になる変更は拒否。<strong>実装済み</strong></td><td>A-54 role</td></tr>
       <tr><td>有効/無効</td><td>ボタン（有効化/無効化）</td><td>○</td><td>自分自身の行は操作不可。システムadminが1人になる変更は拒否。<strong>実装済み</strong>（確認ダイアログは今回未実装、次回検討）</td><td>A-54 is_active</td></tr>
       <tr><td>使用するAIモデル</td><td>セレクト</td><td>○</td><td>Claude Sonnet 5 / Claude Opus 5 / Claude Haiku 4.5。選択と同時に保存</td><td>A-56 ai_model</td></tr>
-      <tr><td>今月のAI利用状況（機能別内訳）</td><td>表示</td><td>—</td><td>F-08/F-20/F-21/F-22/F-23別の呼び出し件数・トークン数・概算コスト</td><td>A-58</td></tr>
+      <tr><td>今月のAI利用状況（機能別内訳）</td><td>表示</td><td>—</td><td>F-08/F-20/F-21/F-22/F-23別の呼び出し件数・トークン数・概算コスト。月選択で過去月も表示可。<strong>実装済み</strong></td><td>A-58</td></tr>
       <tr><td>Slack Webhook URL・通知先チャンネル</td><td>テキスト</td><td>—</td><td>URL形式検証</td><td>A-56 slack_webhook_url, slack_channel</td></tr>
       <tr><td>テスト送信ボタン</td><td>ボタン</td><td>—</td><td>—</td><td>A-57</td></tr>
       <tr><td>プロジェクト所属の猶予期間日数</td><td>NumberInput</td><td>○</td><td>0〜365の整数</td><td>A-56 project_leave_grace_period_days</td></tr>
@@ -342,7 +344,7 @@
 
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）詳細設計書 v1.70</span>
+    <span>社内学習管理システム（Manabi）詳細設計書 v1.71</span>
     <span>コガソフトウェア株式会社 / 2026-08-24</span>
   </footer>
 
