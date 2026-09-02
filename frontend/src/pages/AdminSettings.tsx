@@ -3,12 +3,26 @@ import PageHeader from '../components/layout/PageHeader'
 import Badge from '../components/ui/Badge'
 import Select from '../components/ui/Select'
 import TextInput from '../components/ui/TextInput'
+import { useAiUsage } from '../hooks/useAiUsage'
 import { useMe } from '../hooks/useMe'
 import { useUsers } from '../hooks/useUsers'
 import { formatDateJst } from '../lib/datetime'
 import { ApiError } from '../lib/api'
 import { updateUser } from '../lib/userActions'
-import type { Role } from '../types'
+import type { AiUsageByFeature, Role } from '../types'
+
+const AI_FEATURE_LABELS: Record<AiUsageByFeature['feature'], string> = {
+  material_review: '教材AIレビュー（F-08）',
+  grading: 'AI記述式採点（F-20）',
+  insight_analysis: 'AIつまずき分析（F-21）',
+  personal_feedback: 'AI個人フィードバック（F-22）',
+  org_report: 'AI組織レポート（F-23）',
+}
+
+function currentYearMonth(): string {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+}
 
 const TABS = [
   { key: 'users', label: 'ユーザー管理' },
@@ -64,11 +78,7 @@ export default function AdminSettings() {
         </div>
 
         {activeTab === 'users' && <UsersTab myUserId={me.id} />}
-        {activeTab === 'settings' && (
-          <p className="text-sm text-slate-400">
-            システム設定（AI利用状況・Slack通知・プロジェクト所属の猶予期間）は準備中です。次回以降のバージョンで対応予定です。
-          </p>
-        )}
+        {activeTab === 'settings' && <SystemSettingsTab />}
       </div>
     </div>
   )
@@ -185,6 +195,84 @@ function UsersTab({ myUserId }: { myUserId: number }) {
           </table>
         </div>
       )}
+    </div>
+  )
+}
+
+function SystemSettingsTab() {
+  const [month, setMonth] = useState(currentYearMonth())
+  const { usage, isLoading, error } = useAiUsage(month)
+
+  return (
+    <div>
+      <h3 className="mb-2 text-sm font-semibold text-slate-700">今月のAI利用状況</h3>
+      <p className="mb-4 text-xs text-slate-500">
+        機能別（F-08教材AIレビュー・F-20 AI記述式採点・F-21〜F-23）の呼び出し件数・トークン数・概算コストの内訳です。教材の作成・修正（F-05、Claude Code CLI連携）は利用者本人の契約で課金されるため、この集計には含まれません。
+      </p>
+
+      <div className="mb-4 max-w-[160px]">
+        <TextInput type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
+      </div>
+
+      {isLoading ? (
+        <p className="text-sm text-slate-400">読み込み中...</p>
+      ) : error ? (
+        <p className="text-sm text-red-600">取得に失敗しました。</p>
+      ) : usage ? (
+        <>
+          <div className="mb-4 grid max-w-2xl grid-cols-4 gap-3">
+            <div className="rounded-md border border-slate-200 p-3">
+              <div className="text-xs text-slate-500">呼び出し件数</div>
+              <div className="text-lg font-semibold text-slate-800">{usage.total.count.toLocaleString()}</div>
+            </div>
+            <div className="rounded-md border border-slate-200 p-3">
+              <div className="text-xs text-slate-500">入力トークン</div>
+              <div className="text-lg font-semibold text-slate-800">{usage.total.input_tokens.toLocaleString()}</div>
+            </div>
+            <div className="rounded-md border border-slate-200 p-3">
+              <div className="text-xs text-slate-500">出力トークン</div>
+              <div className="text-lg font-semibold text-slate-800">{usage.total.output_tokens.toLocaleString()}</div>
+            </div>
+            <div className="rounded-md border border-slate-200 p-3">
+              <div className="text-xs text-slate-500">概算コスト</div>
+              <div className="text-lg font-semibold text-slate-800">¥{Math.round(usage.total.cost_jpy).toLocaleString()}</div>
+            </div>
+          </div>
+
+          {usage.by_feature.length === 0 ? (
+            <p className="text-sm text-slate-400">この月のAI利用実績はありません。</p>
+          ) : (
+            <div className="max-w-2xl overflow-x-auto rounded-md border border-slate-200">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-100 bg-slate-50 text-left text-xs text-slate-500">
+                    <th className="px-3 py-2 font-normal">機能</th>
+                    <th className="px-3 py-2 font-normal text-right">呼び出し件数</th>
+                    <th className="px-3 py-2 font-normal text-right">入力トークン</th>
+                    <th className="px-3 py-2 font-normal text-right">出力トークン</th>
+                    <th className="px-3 py-2 font-normal text-right">概算コスト</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {usage.by_feature.map((f) => (
+                    <tr key={f.feature} className="border-b border-slate-50 last:border-0">
+                      <td className="px-3 py-2 text-slate-800">{AI_FEATURE_LABELS[f.feature] ?? f.feature}</td>
+                      <td className="px-3 py-2 text-right text-slate-600">{f.count.toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right text-slate-600">{f.input_tokens.toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right text-slate-600">{f.output_tokens.toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right text-slate-600">¥{Math.round(f.cost_jpy).toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      ) : null}
+
+      <p className="mt-6 text-sm text-slate-400">
+        AIモデル選択・Slack通知設定・プロジェクト所属の猶予期間は準備中です。次回以降のバージョンで対応予定です。
+      </p>
     </div>
   )
 }

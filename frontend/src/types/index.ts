@@ -9,6 +9,20 @@ export interface Me {
   picture_url: string | null
 }
 
+// A-58 GET /api/settings/ai-usage のレスポンス（S-10 管理：システム設定タブ）
+export interface AiUsageByFeature {
+  feature: 'material_review' | 'grading' | 'insight_analysis' | 'personal_feedback' | 'org_report'
+  count: number
+  input_tokens: number
+  output_tokens: number
+  cost_jpy: number
+}
+export interface AiUsageSummary {
+  month: string
+  total: { count: number; input_tokens: number; output_tokens: number; cost_jpy: number }
+  by_feature: AiUsageByFeature[]
+}
+
 // A-53 GET /api/users のitems（S-10 管理：ユーザー管理タブ）
 export interface AdminUser {
   id: number
