@@ -8,7 +8,7 @@ import Button from '../components/ui/Button'
 import MyLearningToggle from '../components/ui/MyLearningToggle'
 import { useMaterial } from '../hooks/useMaterial'
 import { useSurveys } from '../hooks/useSurveys'
-import { getAttempt, saveAnswer, startAttempt, submitAttempt } from '../lib/attemptActions'
+import { getAttempt, markPageVisited, saveAnswer, startAttempt, submitAttempt } from '../lib/attemptActions'
 import { ApiError } from '../lib/api'
 import { flattenPages, findPageIndex, resolveScopeNodeId, type FlatPage } from '../lib/pageNav'
 import { andFromQuery, backTarget, fromQuery } from '../lib/backLink'
@@ -90,9 +90,11 @@ export default function MaterialPageView() {
     setLoadError(null)
     setSubmittedResult(null)
 
-    const applyResult = (res: { attempt: QuizAttempt } | (QuizAttempt & { answers: Answer[] })) => {
+    const applyResult = (
+      res: ({ attempt: QuizAttempt } & { answers: Answer[] }) | (QuizAttempt & { answers: Answer[] }),
+    ) => {
       const nextAttempt: QuizAttempt = 'attempt' in res ? res.attempt : res
-      const nextAnswers: Answer[] = 'attempt' in res ? (res as { answers: Answer[] }).answers : res.answers
+      const nextAnswers: Answer[] = res.answers
       if (cancelled) return
       setAttempt(nextAttempt)
       const byId: Record<number, Answer> = {}
@@ -203,6 +205,17 @@ export default function MaterialPageView() {
   }
 
   const handleNext = async () => {
+    // 目次の✓マーク用「閲覧済み」記録。合否判定（completed_node_ids）とは別物で、このページを
+    // 読み終えて「次へ」を押した時点でのみ記録する（開いた時点では記録しない。2026-09-03、ユーザー要望）。
+    if (mode === 'graded') {
+      try {
+        await markPageVisited(id, pageNodeId)
+        await mutateMaterial()
+      } catch {
+        // 目次の見た目上のマークに過ぎないため、失敗してもページ送り自体は止めない
+      }
+    }
+
     const nextFlat = sequencePages[sequenceIndex + 1] ?? null
     const isLastOfScope =
       mode === 'graded'
@@ -222,6 +235,14 @@ export default function MaterialPageView() {
         return
       }
       goToPage(nextFlat!.node.id)
+      return
+    }
+
+    // 合格済みスコープを閲覧専用で開いている場合（A-40が既存の合格済み受験記録を返す。
+    // 2026-09-03）、この受験記録は既に提出済みのためsubmitAttemptを呼ばず、既知の結果を
+    // そのまま使う（呼ぶと「既に提出済みです」エラーになる）。
+    if (attempt.submitted_at !== null) {
+      setSubmittedResult(attempt)
       return
     }
 
@@ -304,7 +325,9 @@ export default function MaterialPageView() {
               <MyLearningToggle
                 materialId={id}
                 registered={material.registered ?? false}
-                onToggled={() => mutateMaterial()}
+                onToggled={() => {
+                  void mutateMaterial()
+                }}
               />
             )}
             <BackToTocLink materialId={id} from={from} />
@@ -346,7 +369,21 @@ export default function MaterialPageView() {
             </div>
           </>
         ) : alreadySubmitted ? (
-          <AttemptResultPanel attempt={attempt} mode={mode} />
+          <>
+            <AttemptResultPanel attempt={attempt} mode={mode} />
+            <div className="mt-4 flex items-center gap-3">
+              <Link
+                to={`/materials/${id}${fromQuery(from)}`}
+                className="rounded-md border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                目次へ戻る
+              </Link>
+              <Button onClick={handleNext} disabled={advancing}>
+                次のページへ
+              </Button>
+              <span className="text-xs text-slate-400">合格済みのため閲覧のみです（再提出はされません）</span>
+            </div>
+          </>
         ) : (
           <>
             {questions.map((q, i) => (

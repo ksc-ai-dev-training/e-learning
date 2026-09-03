@@ -44,51 +44,56 @@ export default function SurveyModal({
         <h2 className="mb-1 text-base font-bold text-slate-900">{survey.title}</h2>
         <p className="mb-4 text-xs text-slate-500">回答は任意です。スキップできます。</p>
         <div className="flex flex-col gap-4">
-          {survey.questions.map((q) => (
-            <div key={q.id}>
-              <p className="mb-2 text-sm text-slate-700">{q.prompt}</p>
-              {q.type === 'rating_5' && (
-                <div className="flex gap-2">
-                  {[1, 2, 3, 4, 5].map((n) => (
-                    <button
-                      key={n}
-                      type="button"
-                      onClick={() => setValue(q.id, n)}
-                      className={`h-9 w-9 rounded-md border text-sm font-semibold ${
-                        values[q.id] === n
-                          ? 'border-blue-800 bg-blue-900 text-white'
-                          : 'border-slate-300 text-slate-600 hover:bg-slate-50'
-                      }`}
-                    >
-                      {n}
-                    </button>
-                  ))}
-                </div>
-              )}
-              {q.type === 'single_choice' && (
-                <div className="flex flex-col gap-1.5">
-                  {(q.options ?? []).map((opt) => (
-                    <label key={opt} className="flex items-center gap-2 text-sm text-slate-700">
-                      <input
-                        type="radio"
-                        name={`survey-q-${q.id}`}
-                        checked={values[q.id] === opt}
-                        onChange={() => setValue(q.id, opt)}
-                      />
-                      {opt}
-                    </label>
-                  ))}
-                </div>
-              )}
-              {q.type === 'free_text' && (
-                <TextArea
-                  rows={2}
-                  value={(values[q.id] as string) ?? ''}
-                  onChange={(e) => setValue(q.id, e.target.value)}
-                />
-              )}
-            </div>
-          ))}
+          {survey.questions.map((q) => {
+            // GETで返る既存アンケートの設問は必ずDB採番済み（id != null）。id === nullは
+            // 保存前ドラフト（SurveyEditModal）でのみ生じる状態のため、ここでは非nullを保証できる。
+            const qid = q.id as number
+            return (
+              <div key={qid}>
+                <p className="mb-2 text-sm text-slate-700">{q.prompt}</p>
+                {q.type === 'rating_5' && (
+                  <div className="flex gap-2">
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <button
+                        key={n}
+                        type="button"
+                        onClick={() => setValue(qid, n)}
+                        className={`h-9 w-9 rounded-md border text-sm font-semibold ${
+                          values[qid] === n
+                            ? 'border-blue-800 bg-blue-900 text-white'
+                            : 'border-slate-300 text-slate-600 hover:bg-slate-50'
+                        }`}
+                      >
+                        {n}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {q.type === 'single_choice' && (
+                  <div className="flex flex-col gap-1.5">
+                    {(q.options ?? []).map((opt) => (
+                      <label key={opt} className="flex items-center gap-2 text-sm text-slate-700">
+                        <input
+                          type="radio"
+                          name={`survey-q-${qid}`}
+                          checked={values[qid] === opt}
+                          onChange={() => setValue(qid, opt)}
+                        />
+                        {opt}
+                      </label>
+                    ))}
+                  </div>
+                )}
+                {q.type === 'free_text' && (
+                  <TextArea
+                    rows={2}
+                    value={(values[qid] as string) ?? ''}
+                    onChange={(e) => setValue(qid, e.target.value)}
+                  />
+                )}
+              </div>
+            )
+          })}
         </div>
         {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
         <div className="mt-5 flex justify-end gap-2">

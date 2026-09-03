@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate, useSearchParams } from 'react-router'
 import PageHeader from '../components/layout/PageHeader'
 import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
@@ -46,19 +46,34 @@ function actionLabel(status: EnrollmentStatus, required: boolean): string {
   return required ? '復習する' : '反復演習'
 }
 
+// URLクエリからの絞り込み込みリンク（S-09「未受講の必修教材」等）向け。個々のキーが無ければ
+// 既定値のままにする（部分指定を許容する）。
+function filterFromSearchParams(params: URLSearchParams): FilterForm {
+  const required = params.get('required')
+  return {
+    ...EMPTY_FILTER,
+    required: required === 'required' || required === 'optional' ? required : EMPTY_FILTER.required,
+    incompleteOnly: params.get('incomplete_only') === 'true',
+    myAssignmentsOnly: params.get('my_assignments_only') === 'true',
+  }
+}
+
 // S-03 教材一覧・検索（詳細設計書10.3節）。公開教材のみを対象に、プロジェクト・キーワード・
 // タグ・区分・受講状況で絞り込む。
 export default function MaterialsSearch() {
   const navigate = useNavigate()
   const { projects } = useProjects('learner')
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null)
+  const [urlSearchParams] = useSearchParams()
 
   // 検索条件は入力中の値（form）と適用済みの値（filter）を分け、キーワードのみ「検索」押下で
   // 反映する。区分・タグ・チェックボックスは選んだ瞬間に反映する（キーワードと違い1文字ごとの連続
   // 入力が発生しないため、選択直後に反映しても過剰な再取得にならない。「セレクト等を選んだだけでは
   // 絞り込みが反映されない」という分かりにくさの指摘を受けて変更した。2026-08-28）
-  const [form, setForm] = useState<FilterForm>(EMPTY_FILTER)
-  const [filter, setFilter] = useState<FilterForm>(EMPTY_FILTER)
+  // 初期値はURLクエリ（S-09の「未受講の必修教材」等からの遷移）があればそれを使う（初回のみ、
+  // 以降のブラウザバック等でのURL変化は追わない。2026-09-03）。
+  const [form, setForm] = useState<FilterForm>(() => filterFromSearchParams(urlSearchParams))
+  const [filter, setFilter] = useState<FilterForm>(() => filterFromSearchParams(urlSearchParams))
   const [page, setPage] = useState(1)
   const [perPage, setPerPage] = useState<20 | 50 | 100>(20)
 
@@ -294,7 +309,13 @@ export default function MaterialsSearch() {
                           {actionLabel(m.progress_status, m.required)}
                         </Button>
                         {m.is_company_wide && !m.required && (
-                          <MyLearningToggle materialId={m.id} registered={m.registered} onToggled={mutate} />
+                          <MyLearningToggle
+                            materialId={m.id}
+                            registered={m.registered}
+                            onToggled={() => {
+                              void mutate()
+                            }}
+                          />
                         )}
                       </div>
                     </td>

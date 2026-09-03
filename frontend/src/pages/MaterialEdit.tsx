@@ -20,6 +20,7 @@ import { useSurveys } from '../hooks/useSurveys'
 import { ApiError, apiFetch, apiFetchText } from '../lib/api'
 import { formatDateJst, formatDateTimeJst, formatYearMonthJst } from '../lib/datetime'
 import { buildMaterialSource } from '../lib/materialSource'
+import type { EditableNode } from '../lib/materialSource'
 import { archiveMaterial, deleteMaterial, publishMaterial, restoreMaterial } from '../lib/materialActions'
 import { pageKindLabel, toEditableChapters } from '../lib/materialTree'
 import { questionTypeLabel } from '../lib/questionDefaults'
@@ -44,6 +45,11 @@ export default function MaterialEdit() {
   const { material, isLoading, error: materialError, mutate } = useMaterial(isNew ? null : Number(materialId))
   const { projects } = useProjects()
   const project = projects.find((p) => p.id === Number(projectId))
+
+  // 公開中の教材を編集している場合、保存操作は実際には「下書きに戻す」のではなく公開状態のまま
+  // 内容を更新するだけ（A-20は status を一切変更しない）。ラベルが「下書き保存」のままだと
+  // 誤解を招くため、公開中は文言を変える（2026-09-03、ユーザー指摘）
+  const saveButtonLabel = material?.status === 'published' ? '変更を保存・公開' : '下書き保存'
 
   const [savedId, setSavedId] = useState<number | null>(isNew ? null : Number(materialId))
   const [activeTab, setActiveTab] = useState<TabKey>('structure')
@@ -398,7 +404,7 @@ export default function MaterialEdit() {
   // そのため未保存の間は移動させず、先に「下書き保存」を促す。
   const goToNewPage = (parentNodeId: number) => {
     if (dirty) {
-      setError('保存していない変更があります。ページ編集に移動する前に「下書き保存」を押してください。')
+      setError(`保存していない変更があります。ページ編集に移動する前に「${saveButtonLabel}」を押してください。`)
       return
     }
     navigate(`/projects/${projectId}/materials/${savedId}/pages/new/edit?parentNodeId=${parentNodeId}`)
@@ -406,7 +412,7 @@ export default function MaterialEdit() {
 
   const goToEditPage = (nodeId: number) => {
     if (dirty) {
-      setError('保存していない変更があります。ページ編集に移動する前に「下書き保存」を押してください。')
+      setError(`保存していない変更があります。ページ編集に移動する前に「${saveButtonLabel}」を押してください。`)
       return
     }
     navigate(`/projects/${projectId}/materials/${savedId}/pages/${nodeId}/edit`)
@@ -496,7 +502,7 @@ export default function MaterialEdit() {
   const headerActions = (
     <>
       <Button variant="primary" onClick={saveDraft} disabled={saving}>
-        下書き保存
+        {saveButtonLabel}
       </Button>
       {savedId !== null && (
         <Link
@@ -511,7 +517,7 @@ export default function MaterialEdit() {
           variant="secondary"
           onClick={doPublish}
           disabled={publishing || dirty}
-          title={dirty ? '保存していない変更があります。先に「下書き保存」を押してください' : undefined}
+          title={dirty ? `保存していない変更があります。先に「${saveButtonLabel}」を押してください` : undefined}
         >
           {publishing ? '公開中...' : '公開する'}
         </Button>
@@ -521,7 +527,7 @@ export default function MaterialEdit() {
           variant="secondary"
           onClick={duplicateMaterial}
           disabled={duplicating || dirty}
-          title={dirty ? '保存していない変更があります。先に「下書き保存」を押してください' : undefined}
+          title={dirty ? `保存していない変更があります。先に「${saveButtonLabel}」を押してください` : undefined}
         >
           {duplicating ? '複製中...' : '複製'}
         </Button>
@@ -850,12 +856,12 @@ export default function MaterialEdit() {
           <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2.5">
             <span className="text-sm font-semibold text-slate-700">目次構造</span>
             <span className="text-xs text-slate-400">
-              {chapters.length}章（変更は上の「下書き保存」を押すまで確定しません）
+              {chapters.length}章（変更は上の「{saveButtonLabel}」を押すまで確定しません）
             </span>
           </div>
           {dirty && (
             <p className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-800">
-              保存していない変更があります。ページ編集画面に移動する前に「下書き保存」を押してください。
+              保存していない変更があります。ページ編集画面に移動する前に「{saveButtonLabel}」を押してください。
             </p>
           )}
           <div className="p-4">
@@ -899,7 +905,7 @@ export default function MaterialEdit() {
                           type="button"
                           onClick={() => setSurveyModal({ nodeId: chapter.id, targetLabel: chapter.title || `第${ci + 1}章` })}
                           disabled={dirty}
-                          title={dirty ? '保存していない変更があります。先に「下書き保存」を押してください' : undefined}
+                          title={dirty ? `保存していない変更があります。先に「${saveButtonLabel}」を押してください` : undefined}
                           className="flex-shrink-0 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white"
                         >
                           {surveyFor(chapter.id) ? 'アンケート編集' : 'アンケート設置'}
@@ -971,7 +977,7 @@ export default function MaterialEdit() {
                                 type="button"
                                 onClick={() => goToEditPage(child.id!)}
                                 disabled={dirty}
-                                title={dirty ? '保存していない変更があります。先に「下書き保存」を押してください' : undefined}
+                                title={dirty ? `保存していない変更があります。先に「${saveButtonLabel}」を押してください` : undefined}
                                 className="flex-shrink-0 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white"
                               >
                                 編集する
@@ -1099,7 +1105,7 @@ export default function MaterialEdit() {
                                       type="button"
                                       onClick={() => goToEditPage(page.id!)}
                                       disabled={dirty}
-                                      title={dirty ? '保存していない変更があります。先に「下書き保存」を押してください' : undefined}
+                                      title={dirty ? `保存していない変更があります。先に「${saveButtonLabel}」を押してください` : undefined}
                                       className="flex-shrink-0 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white"
                                     >
                                       編集する
@@ -1139,7 +1145,7 @@ export default function MaterialEdit() {
                                   type="button"
                                   onClick={() => goToNewPage(child.id!)}
                                   disabled={dirty}
-                                  title={dirty ? '保存していない変更があります。先に「下書き保存」を押してください' : undefined}
+                                  title={dirty ? `保存していない変更があります。先に「${saveButtonLabel}」を押してください` : undefined}
                                   className="ml-6 rounded-md border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white"
                                 >
                                   + ページを追加
@@ -1162,7 +1168,7 @@ export default function MaterialEdit() {
                             type="button"
                             onClick={() => goToNewPage(chapter.id!)}
                             disabled={dirty}
-                            title={dirty ? '保存していない変更があります。先に「下書き保存」を押してください' : undefined}
+                            title={dirty ? `保存していない変更があります。先に「${saveButtonLabel}」を押してください` : undefined}
                             className="rounded-md border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white"
                           >
                             + ページを追加
@@ -1302,7 +1308,7 @@ export default function MaterialEdit() {
                           <td className="px-3 py-2">{m.user_name}</td>
                           <td className="px-3 py-2 text-slate-500">{m.global_role}</td>
                           <td className="px-3 py-2 text-slate-500">{m.role}</td>
-                          <td className="px-3 py-2 text-slate-500">{formatDateJst(m.joined_at)}</td>
+                          <td className="px-3 py-2 text-slate-500">{m.joined_at ? formatDateJst(m.joined_at) : '—'}</td>
                         </tr>
                       ))}
                     </tbody>

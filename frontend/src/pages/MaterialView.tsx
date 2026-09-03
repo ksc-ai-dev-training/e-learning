@@ -77,25 +77,36 @@ export default function MaterialView() {
   const chapters = toEditableChapters(material.toc ?? [])
   const totalPages = material.page_count ?? 0
   const completedIds = new Set(material.progress?.completed_node_ids ?? [])
+  // 目次の✓マーク専用の「閲覧済み」（A-96）。合否判定・完了率の集計（countCompletedPagesの
+  // 各呼び出し）には使わず、行ごとの✓マーク（TocPageRowのdone）にだけ反映する
+  // （2026-09-03、ユーザー要望：受験単位の提出を待たずページを読み進めた時点で印を付けたい）。
+  const visitedIds = new Set(material.progress?.visited_node_ids ?? [])
   const flatPages = flattenPages(material.toc ?? [])
   const currentNodeId = material.progress?.current_node_id ?? null
 
-  // 上部の「ページX/Y」・進捗バーは、提出済み（completedIds）だけでなく現在の再開位置
-  // （current_node_id）までの到達済みページも含めた「到達数」で表示する。目次ツリー各行の
-  // ✓マーク・章ごとの「N/M 完了」は引き続きcompletedIds（実際に提出済み）のみで判定し、
-  // 読んだだけでまだ提出していないページに誤って「完了」マークが付かないようにする
-  // （2026-09-02、「続きから」は動くのに目次のページ数が0/5のままというフィードバックを受け追加）。
-  const reachedIds = new Set(completedIds)
-  if (currentNodeId !== null) {
-    const currentIndex = flatPages.findIndex((p) => p.node.id === currentNodeId)
-    for (let i = 0; i <= currentIndex; i++) reachedIds.add(flatPages[i].node.id)
-  }
+  // 上部の「ページX/Y」・進捗バーは、提出済み（completedIds）と閲覧済み（visitedIds）の
+  // 実際の集合で「到達数」を出す。以前はcurrent_node_idの位置までを一律カウントする方式
+  // だったが、これはマイ学習一覧の進捗率（_my_learning_item、completed∪visitedの実集合）と
+  // 計算方法が異なり、同じ教材なのに一覧と目次でパーセントが食い違う不具合になっていた
+  // （2026-09-03、ユーザー指摘）。visited_node_ids（A-96）が使えるようになったので、
+  // 位置ベースの推測はもう不要（2026-09-02のワークアラウンドを撤回）。
+  const reachedIds = new Set([...completedIds, ...visitedIds])
   const reachedCount = chapters.reduce((sum, chapter) => sum + countCompletedPages(chapter.children, reachedIds), 0)
   const progressPct = totalPages > 0 ? Math.round((reachedCount / totalPages) * 100) : 0
   const wholeMaterialAttachments = attachments.filter((a) => a.node_id === null)
 
-  const resumeTargetNodeId = currentNodeId ?? flatPages[0]?.node.id ?? null
-  const resumeLabel = !material.progress || material.progress.status === 'not_started' ? '受講を開始' : '続きから受講'
+  // 受講完了後は「続きから」再開すべき途中位置が無く、現在地（current_node_id）も
+  // 合格済みスコープの閲覧専用化により以後更新されないため、常に先頭ページから読み直す
+  // 「再度受講」に切り替える（2026-09-03、ユーザー要望）。
+  const isCompleted = material.progress?.status === 'completed'
+  const resumeTargetNodeId = isCompleted
+    ? (flatPages[0]?.node.id ?? null)
+    : (currentNodeId ?? flatPages[0]?.node.id ?? null)
+  const resumeLabel = !material.progress || material.progress.status === 'not_started'
+    ? '受講を開始'
+    : isCompleted
+      ? '再度受講'
+      : '続きから受講'
 
   const download = async (attachmentId: number) => {
     setDownloadError(null)
@@ -185,7 +196,9 @@ export default function MaterialView() {
               <MyLearningToggle
                 materialId={id}
                 registered={material.registered ?? false}
-                onToggled={() => mutateMaterial()}
+                onToggled={() => {
+                  void mutateMaterial()
+                }}
               />
             )}
             <Link
@@ -369,7 +382,8 @@ export default function MaterialView() {
               <div key={chapter.id} className="mb-4 rounded-md border border-slate-200">
                 <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-2.5">
                   <span className="text-sm font-semibold text-slate-700">
-                    第{chapterIndex + 1}章 {chapter.title}
+                    <span className="text-xs font-bold text-blue-800">第{chapterIndex + 1}章</span>{' '}
+                    {chapter.title}
                   </span>
                   <span className="text-xs text-slate-400">
                     {countCompletedPages(chapter.children, completedIds)}/{countPages(chapter.children)} 完了
@@ -393,8 +407,13 @@ export default function MaterialView() {
                               nodeId={page.id}
                               title={page.title}
                               kindLabel={pageKindLabel(page)}
-                              done={page.id !== null && completedIds.has(page.id)}
-                              isCurrent={page.id !== null && page.id === currentNodeId}
+                              done={page.id !== null && (completedIds.has(page.id) || visitedIds.has(page.id))}
+                              isCurrent={
+                                page.id !== null &&
+                                page.id === currentNodeId &&
+                                !completedIds.has(page.id) &&
+                                !visitedIds.has(page.id)
+                              }
                               query={returnQuery}
                             />
                           ))}
@@ -407,8 +426,13 @@ export default function MaterialView() {
                         nodeId={child.id}
                         title={child.title}
                         kindLabel={pageKindLabel(child)}
-                        done={child.id !== null && completedIds.has(child.id)}
-                        isCurrent={child.id !== null && child.id === currentNodeId}
+                        done={child.id !== null && (completedIds.has(child.id) || visitedIds.has(child.id))}
+                        isCurrent={
+                          child.id !== null &&
+                          child.id === currentNodeId &&
+                          !completedIds.has(child.id) &&
+                          !visitedIds.has(child.id)
+                        }
                         query={returnQuery}
                       />
                     ),
@@ -423,7 +447,7 @@ export default function MaterialView() {
                   to={back.to}
                   className="rounded-md border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
                 >
-                  一時中断する
+                  {isCompleted ? '学習を終了' : '一時中断する'}
                 </Link>
                 {resumeTargetNodeId !== null && (
                   <Link
@@ -434,7 +458,9 @@ export default function MaterialView() {
                   </Link>
                 )}
                 <span className="text-xs text-slate-400">
-                  中断しても回答内容は保存され、次回この続きから再開できます
+                  {isCompleted
+                    ? '学習記録は保存されています。読み返す場合は「再度受講」を押してください。'
+                    : '中断しても回答内容は保存され、次回この続きから再開できます'}
                 </span>
               </div>
             )}
@@ -576,9 +602,9 @@ function TocPageRow({
     )
   }
   const circleClass = done
-    ? 'bg-green-100 text-green-700'
+    ? 'bg-green-600 text-white'
     : isCurrent
-      ? 'bg-blue-600 text-white'
+      ? 'bg-blue-800 text-white'
       : 'border border-slate-300 text-transparent'
   return (
     <Link

@@ -9,10 +9,18 @@ export interface Me {
   picture_url: string | null
 }
 
+// 新設: S-15プロフィール編集のSlack連携状態（F-12、GET /api/slack/status）
+export interface SlackStatus {
+  connected: boolean
+  connected_at: string | null
+  configured: boolean
+}
+
 // A-50 GET /api/reports/personal/{user_id} のレスポンス（S-09 個人学習レポート）
 export interface PersonalReportHistoryItem {
   material_id: number
   material_title: string
+  status: EnrollmentStatus
   completed_at: string | null
   score_pct: number | null
   passed: boolean | null
@@ -23,6 +31,8 @@ export interface PersonalReport {
     completed_material_count: number
     incomplete_required_count: number
     required_completion_pct: number
+    completed_required_count: number
+    total_required_count: number
     last_activity_at: string | null
   }
   history: PersonalReportHistoryItem[]
@@ -54,8 +64,6 @@ export interface AiUsageSummary {
 export type AiModel = 'claude-sonnet-5' | 'claude-opus-5' | 'claude-haiku-4-5'
 export interface SystemSettings {
   ai_model: AiModel
-  slack_webhook_url: string
-  slack_channel: string
   project_leave_grace_period_days: number
 }
 
@@ -148,6 +156,8 @@ export interface MyLearningResponse {
   optional: MyLearningItem[]
   stats: {
     required_completion_pct: number
+    completed_required_count: number
+    total_required_count: number
     urgent_required_count: number
     optional_completed_count: number
     last_activity_at: string | null
@@ -199,6 +209,8 @@ export interface EnrollmentProgress {
   status: 'not_started' | 'in_progress' | 'completed'
   current_node_id: number | null
   completed_node_ids: number[]
+  // 目次の✓マーク専用の「閲覧済み」記録。合否判定・完了率の集計には使わない（A-96）
+  visited_node_ids: number[]
 }
 
 // A-40〜A-43（受講・受験、S-16）のレスポンス
@@ -265,24 +277,6 @@ export interface PracticeAttemptSummary {
   correct_count: number
 }
 
-// A-78 GET /materials/{id}/surveys のitems
-export interface SurveyQuestion {
-  id: number
-  type: 'rating_5' | 'single_choice' | 'free_text'
-  prompt: string
-  options: string[] | null
-}
-
-export interface Survey {
-  id: number
-  node_id: number | null
-  title: string
-  is_active: boolean
-  repeat_mode: 'once' | 'every_time'
-  answered_by_me: boolean
-  questions: SurveyQuestion[]
-}
-
 // A-15/A-16/A-17 のレスポンス（教材メタ。A-15のみtoc・required・due_at・progress・page_countを含む）
 export interface Material {
   id: number
@@ -339,6 +333,32 @@ export interface ProjectMembership {
   status: 'invited' | 'active' | 'declined'
   joined_at: string | null
   left_at: string | null
+}
+
+// 新設: S-12「メンバー管理」の未受講の必修教材パネル（F-11、REQ-F-08、
+// GET /api/projects/{id}/members/{id}/overdue-required）
+export interface OverdueRequiredItem {
+  material_id: number
+  material_title: string
+  due_at: string | null
+}
+export interface MemberOverdueRequired {
+  items: OverdueRequiredItem[]
+  slack_connected: boolean
+}
+
+// 新設: S-12「メンバー管理」の受験状況パネル（REQ-F-09、GET /api/projects/{id}/members/{id}/attempts）
+export interface MemberAttemptItem {
+  material_id: number
+  material_title: string
+  scope_node_id: number | null
+  scope_label: string
+  score_pct: number | null
+  passed: boolean | null
+  submitted_count: number
+  retake_allowed: boolean
+  retake_limit: number | null
+  last_reset_at: string | null
 }
 
 // A-91 GET /api/projects/{id} のレスポンス（S-12プロジェクト情報タブ）
@@ -484,5 +504,6 @@ export interface Survey {
   title: string
   is_active: boolean
   repeat_mode: 'once' | 'every_time'
+  answered_by_me: boolean
   questions: SurveyQuestion[]
 }
