@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>8. 教材連携設計（Claude Code連携） | 基本設計書 | 社内学習管理システム（Manabi）</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<script src="../_sidenav.js"></script>
+<div class="doc">
+
+<p class="chapter-nav" style="display:flex;justify-content:space-between;font-size:13px;margin:0 0 16px"><a href="07_API設計.html">← 7. API設計</a><a href="index.html">目次</a><a href="09_AI機能設計.html">9. AI機能設計 →</a></p>
+
+  <h2 id="sec8">8. 教材連携設計（Claude Code連携）</h2>
+
+  <h3>8.1 概要・位置づけ</h3>
+  <p>REQ-F-02（要件定義書が「本システムの最も重視する要求」と明記）に対応するF-05（5.5節）を実装レベルで定義する。要件定義書5章が定める4つの充足要件を、本章の設計で満たす。</p>
+  <table>
+    <thead><tr><th>#</th><th>満たすべき要件</th><th>対応する設計</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>教材・問題をテキスト形式（MarkdownまたはHTML）で記述できること</td><td>8.3節 フロントマタースキーマ</td></tr>
+      <tr><td>2</td><td>手元のファイルの登録・更新が、画面操作を介さず実行できること</td><td>8.2節 認証方式、A-19〜A-21（8.4節）</td></tr>
+      <tr><td>3</td><td>システム上の既存教材を取得して修正し、システムへ戻せること（往復できること）</td><td>A-19（GET）・A-20（PUT）、8.6節（原文は変更せず提供時のみサニタイズ）</td></tr>
+      <tr><td>4</td><td>教材の改訂履歴が残り、いつ誰が何を変更したかを追えること</td><td>T-08 material_revisions、8.5節</td></tr>
+    </tbody>
+  </table>
+
+  <div class="diagram">
+    <svg width="820" height="300" viewBox="0 0 820 300" font-family="'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif">
+      <defs>
+        <marker id="arw5" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+          <path d="M0,0 L9,4.5 L0,9 z" fill="#1e40af"/>
+        </marker>
+        <marker id="arw5p" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+          <path d="M0,0 L9,4.5 L0,9 z" fill="#6d28d9"/>
+        </marker>
+      </defs>
+
+      <rect x="20" y="100" width="150" height="70" rx="8" fill="#fdf4ff" stroke="#9333ea" stroke-width="1.5"/>
+      <text x="95" y="128" text-anchor="middle" font-size="12.5" font-weight="600" fill="#6d28d9">Claude Code</text>
+      <text x="95" y="147" text-anchor="middle" font-size="11" fill="#6d28d9">（CLIトークン）</text>
+      <text x="95" y="162" text-anchor="middle" font-size="10" fill="#8a8f98">8.2節</text>
+
+      <rect x="280" y="100" width="160" height="70" rx="8" fill="#eff6ff" stroke="#1e40af" stroke-width="1.5"/>
+      <text x="360" y="128" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1e3a8a">FastAPI</text>
+      <text x="360" y="147" text-anchor="middle" font-size="11" fill="#1a1d21">materials.py</text>
+      <text x="360" y="162" text-anchor="middle" font-size="10" fill="#8a8f98">A-19 / A-20</text>
+
+      <rect x="560" y="40" width="150" height="60" rx="8" fill="#f5f7f9" stroke="#60656d" stroke-width="1.5"/>
+      <text x="635" y="65" text-anchor="middle" font-size="12" font-weight="600" fill="#1a1d21">T-06 materials</text>
+      <text x="635" y="83" text-anchor="middle" font-size="10.5" fill="#60656d">body / status</text>
+
+      <rect x="560" y="130" width="150" height="60" rx="8" fill="#f5f7f9" stroke="#60656d" stroke-width="1.5"/>
+      <text x="635" y="155" text-anchor="middle" font-size="12" font-weight="600" fill="#1a1d21">T-08 revisions</text>
+      <text x="635" y="173" text-anchor="middle" font-size="10.5" fill="#60656d">changed_via='claude_code'</text>
+
+      <rect x="560" y="220" width="150" height="55" rx="8" fill="#f5f7f9" stroke="#60656d" stroke-width="1.5"/>
+      <text x="635" y="245" text-anchor="middle" font-size="12" font-weight="600" fill="#1a1d21">T-10 questions</text>
+      <text x="635" y="262" text-anchor="middle" font-size="10.5" fill="#60656d">問題ブロックをupsert</text>
+
+      <line x1="170" y1="125" x2="277" y2="125" stroke="#1e40af" stroke-width="1.5" marker-end="url(#arw5)"/>
+      <text x="223" y="117" text-anchor="middle" font-size="10" fill="#1e40af">① A-19 GET /source</text>
+
+      <line x1="277" y1="145" x2="170" y2="145" stroke="#1e40af" stroke-width="1.5" marker-end="url(#arw5)"/>
+      <text x="223" y="163" text-anchor="middle" font-size="10" fill="#1e40af">② フロントマター＋本文</text>
+
+      <text x="95" y="210" text-anchor="middle" font-size="10.5" fill="#8a8f98">③ ローカルで編集</text>
+      <path d="M60,190 A30,20 0 1 1 130,190" fill="none" stroke="#8a8f98" stroke-width="1.3" marker-end="url(#arw5)"/>
+
+      <line x1="170" y1="230" x2="277" y2="140" stroke="#6d28d9" stroke-width="1.5" marker-end="url(#arw5p)"/>
+      <text x="200" y="255" text-anchor="middle" font-size="10" fill="#6d28d9">④ A-20 PUT /source</text>
+
+      <line x1="440" y1="120" x2="557" y2="80" stroke="#60656d" stroke-width="1.3" marker-end="url(#arw5)"/>
+      <line x1="440" y1="140" x2="557" y2="160" stroke="#60656d" stroke-width="1.3" marker-end="url(#arw5)"/>
+      <line x1="440" y1="155" x2="557" y2="240" stroke="#60656d" stroke-width="1.3" marker-end="url(#arw5)"/>
+      <text x="480" y="200" text-anchor="middle" font-size="9.5" fill="#8a8f98">⑤ 本文更新 + 改訂履歴 + 問題upsert</text>
+
+      <text x="410" y="20" text-anchor="middle" font-size="13" font-weight="600" fill="#1e3a8a">教材の取得・書き戻しラウンドトリップ（F-05）</text>
+      <text x="410" y="290" text-anchor="middle" font-size="10" fill="#8a8f98">受講者への提供時（A-15/A-40）・編集中のプレビュー（A-64）は原文をそのまま表示せず、都度サニタイズ・レンダリングした結果を返す（8.6節）</text>
+    </svg>
+  </div>
+
+  <h3>8.2 認証方式（Claude Code/CLIからの認証）</h3>
+  <p>Claude Codeはブラウザではないため、3.2節が定めるHttpOnly Cookieによるセッション管理を利用できない。本システムでは、同一のJWTスキームを用いつつ、CLIクライアント向けに発行形態・搬送方法のみ異なる「CLIトークン」を追加する。</p>
+  <table>
+    <thead><tr><th>項目</th><th>ブラウザセッション（既存、3.2節）</th><th>CLIトークン（新設）</th></tr></thead>
+    <tbody>
+      <tr><td>発行経路</td><td>A-01/A-02（通常のGoogle OAuthフロー）</td><td>A-62。ブラウザでA-01と同じOAuthフローを開始し、認可完了後にlocalhostの一時的なコールバックサーバー（Claude Code / 詳細設計で定めるCLIヘルパーが起動）へトークンを渡す（<code>gh auth login</code>等と同様の方式）</td></tr>
+      <tr><td>搬送方法</td><td>HttpOnly Cookie</td><td><code>Authorization: Bearer &lt;token&gt;</code> ヘッダー。CLIツールがローカル（例: <code>~/.config/Manabi/credentials</code>）に保存し、以降のAPI呼び出しに自動付与する</td></tr>
+      <tr><td>JWTペイロード</td><td>ユーザー識別子・ロール・有効期限・<code>token_type='session'</code></td><td>同左＋<code>token_type='cli'</code>。有効期限はセッションJWTより長期（例: 90日）とし、A-63で失効可能</td></tr>
+      <tr><td>検証・権限判定</td><td colspan="2">同一の検証ミドルウェア・<code>auth_helpers.py</code>の依存関数（<code>require_project_role</code>等）で共通に処理する。JWTのユーザー識別子・ロールは発行経路によらず同じ意味を持つため、Claude Codeから呼び出しても本人の実際の権限（3.5節のプロジェクトのローカルロール）でしか操作できない</td></tr>
+    </tbody>
+  </table>
+  <div class="callout">
+    <strong>なぜ別トークン方式ではなく、同一JWTスキームの搬送バリエーションとしたか:</strong> APIキー方式（ユーザーに紐づかない固定シークレット）も検討したが、その場合は「誰が」教材を変更したか（T-08 <code>changed_by</code>）をAPIキー保有者の申告に頼ることになり、改訂履歴の信頼性が下がる。CLIトークンをユーザー本人のJWTの一種として発行することで、Claude Code経由の変更もWeb画面と同じ本人性・権限判定・改訂履歴の仕組みにそのまま乗る。8.5節の <code>changed_via</code> の判定も、この <code>token_type</code> クレームを利用して行う。
+  </div>
+
+  <h3>8.3 フロントマタースキーマ</h3>
+  <p>教材はMarkdownまたはHTML本文の先頭にYAML形式のフロントマター（<code>---</code>で囲む）を付与したテキストとして表現する。フロントマターはT-06 <code>materials</code>のカラムに対応し、T-06の作成者・IDのように機械側で設定するフィールドは含まない。<span class="rev-new">v1.11で教材構造案（章／小見出し／ページの入れ子構造。6.2節 T-23参照）を採用したのに伴い、<code>format</code>・<code>body</code>はT-06からT-23（ページ単位）へ移管した。フロントマターに続く本文全体は、教材1件分の<strong>目次＋全ページの内容</strong>を見出しレベルで表現する（詳細は本節末尾）。</span></p>
+  <table>
+    <thead><tr><th>フィールド</th><th>対応カラム</th><th>要否</th><th>内容</th></tr></thead>
+    <tbody>
+      <tr><td><code>id</code></td><td><code>materials.id</code></td><td>更新時のみ必須</td><td>既存教材の更新対象ID。新規作成時は省略する（省略時はA-16相当の新規作成として扱う）</td></tr>
+      <tr><td><code>project_id</code></td><td><code>materials.project_id</code></td><td>必須</td><td>所属プロジェクトのID（教材は必ずいずれかのプロジェクトに属する。F-25）。<span class="rev-old">既存教材の付け替えはA-20では行わずA-17を使う（8.4節）</span><span class="rev-new">既存教材の所属プロジェクトは変更できない（v1.30で付け替え機能自体を廃止。5.26節）。現在の値と異なる<code>project_id</code>を送ると400（8.4節）</span></td></tr>
+      <tr class="rev-row"><td><span class="rev-old"><code>course_id</code></span><span class="rev-new"><code>tags</code></span></td><td><span class="rev-old"><code>materials.course_id</code></span><span class="rev-new"><code>materials.tags</code></span></td><td>任意</td><td><span class="rev-old">所属コースのID。省略時はいずれのコースにも属さない</span><span class="rev-new">タグ文字列の配列（例: <code>["エンジニア基礎", "Git"]</code>）。「コース」という固定リストの事前登録は廃止し、教材ごとに自由な複数タグを付与する方式に変更した（v1.12。T-05 courses廃止）</span></td></tr>
+      <tr><td><code>title</code></td><td><code>materials.title</code></td><td>必須</td><td>教材タイトル</td></tr>
+      <tr><td><code>description</code></td><td><code>materials.description</code></td><td>任意</td><td>一覧表示用の概要文</td></tr>
+      <tr class="rev-row"><td><code>format</code></td><td><code>material_nodes.format</code>（ページ〔葉ノード〕ごと）</td><td>必須</td><td><code>markdown</code> または <code>html</code>。<span class="rev-old">本文全体でどちらか一方に統一する（ページごとの切替は不可。v1.11でmaterials.formatから移管）</span><span class="rev-new">v1.11でmaterials.formatからmaterial_nodesへ移管した当初は「本文全体で統一・ページごとの切替は不可」としていたが、実装（S-17ページ編集画面）は各ページが独立してMarkdown/HTMLを選べる形で先行していたため、v1.32でページごとの切替を正式な仕様として採用した。フロントマターの<code>format</code>は文書全体の構造見出し記法（章・小見出し・ページ区切りに<code>#</code>〜<code>###</code>と<code>&lt;h1&gt;</code>〜<code>&lt;h3&gt;</code>のどちらを使うか）を表す既定値で、各ページ見出し（<code>###</code>）の直後には<code>&lt;!-- format:markdown --&gt;</code>または<code>&lt;!-- format:html --&gt;</code>という専用のHTMLコメント注記を置き、そのページ固有の本文形式を明示する（注記省略時はフロントマターの既定値を使う）。</span></td></tr>
+      <tr><td><code>status</code></td><td><code>materials.status</code></td><td>必須</td><td><code>draft</code> または <code>published</code></td></tr>
+      <tr><td><code>sort_order</code></td><td><code>materials.sort_order</code></td><td>任意</td><td><span class="rev-old">コース内の並び順</span><span class="rev-new">一覧表示時の並び順（v1.12でコース廃止に伴い意味を変更）</span></td></tr>
+      <tr class="rev-row"><td><code>attempt_scope</code></td><td><code>materials.attempt_scope</code></td><td>任意（既定<code>material</code>）</td><td><code>material</code>/<code>chapter</code>/<code>section</code>/<code>page</code>。合否判定・再受験の単位（受験単位。5.14節）</td></tr>
+      <tr class="rev-row"><td><code>retake_scope</code></td><td><code>materials.retake_scope</code></td><td>任意（既定<code>all</code>）</td><td><code>all</code>/<code>wrong_only</code>。再受験時に全問解き直すか誤答のみか</td></tr>
+      <tr class="rev-row"><td><code>default_feedback_style</code></td><td><code>materials.default_feedback_style</code></td><td>任意（既定<code>show_answer</code>）</td><td>AI講評スタイルの教材既定（5.20節）</td></tr>
+      <tr class="rev-row"><td><code>ai_context</code></td><td><code>materials.ai_context</code></td><td>任意</td><td>F-20のAI呼び出しに追加する前提条件・制約の自由記述<span class="rev-old">（当初はF-27にも共通適用していたが、F-27はv1.20で廃止）</span></td></tr>
+      <tr class="rev-row"><td><code>grading_mode</code></td><td><code>materials.grading_mode</code></td><td>任意（既定<code>ai</code>）</td><td><code>ai</code>/<code>manual</code>。記述式・コード記述式の採点方式の教材既定。<code>manual</code>ではAIは正誤・点数を判定せず対象教材が紐づくプロジェクトの管理者・編集者がS-19で採点する（5.20節）</td></tr>
+    </tbody>
+  </table>
+  <div class="callout rev-new">
+    <strong>目次構造（T-23 material_nodes）の表現方法:</strong> フロントマター直後の本文は、見出しレベルで章・小見出し・ページの入れ子を表す。<code>#</code>（Markdown）／<code>&lt;h1&gt;</code>（HTML）は常に新しい「章」を開始する。章の直下に <code>##</code>／<code>&lt;h2&gt;</code> が続けば「小見出し」（任意）を開始し、それ以降の <code>###</code>／<code>&lt;h3&gt;</code> はその小見出しの下の「ページ」になる。章の直下に <code>##</code> を挟まず直接 <code>###</code> が続けば、その章に直接ぶら下がる「ページ」になる（小見出しを使わない構成。5.4節・S-05目次編集タブ参照）。各見出しの直後には <code>&lt;!-- node:123 --&gt;</code> というHTMLコメント形式のノードID注記を置く（新規ノードは省略可。書き戻し時にサーバーが新規IDを採番し、以後のGETで注記付きの見出しを返す。T-10の問題ブロック<code>id</code>と同じ「更新時のみ既存IDを明示する」考え方）。<span class="rev-new">ページ見出し（<code>###</code>）の場合はノードID注記に続けて <code>&lt;!-- format:markdown --&gt;</code> または <code>&lt;!-- format:html --&gt;</code> を置き、そのページの本文形式を明示する（省略時はフロントマターの<code>format</code>を既定値とする。v1.32）。</span><code>###</code>見出し直後、次の見出しまでのテキストがそのページの説明文（<code>material_nodes.body</code>）になる。<strong>ページ見出し1つにつき、説明文（任意）と問題ブロック（任意、複数可。どちらか一方は必須）の組み合わせが1件のページを構成する</strong>（content_kind: explanation/quiz/mixed はサーバー側で自動判定する）。この設計は5.4節旧版の「単元はテーブルを持たず本文中の見出しから動的に抽出する」という考え方を、3階層の見出しと明示的なノードID注記に拡張したものである（T-23はA-20書き戻し時に全置換で再構築する。A-31と同じ全置換セマンティクス）。
+  </div>
+  <div class="callout rev-new">
+    <strong>本文（<code>material_nodes.body</code>）中の見出し記号エスケープ:</strong> markdown形式の説明文が、それ自体<code>#</code>〜<code>###</code>で始まる行（ユーザーが本文中に普通のMarkdown見出しを書いた場合）を含むと、章・小見出し・ページの区切りと衝突してしまう。これを解消するため、本文をソーステキストへ書き出す際、<code>#</code>〜<code>###</code>で始まる行はバックスラッシュでエスケープ（<code>\#</code>）し、読み込み時に自動で元へ戻す（CommonMark標準のバックスラッシュエスケープと同じ考え方）。エスケープはソーステキストの往復表現のみに現れ、<code>material_nodes.body</code>・画面の編集欄には常に元のテキストがそのまま入る（ユーザーはエスケープの存在を意識しなくてよい）。Claude Code（F-05）がA-19で取得したテキストをそのまま編集してA-20へ書き戻す限り、この往復も保たれる。<span class="rev-old">HTML形式（<code>&lt;h1&gt;</code>〜<code>&lt;h3&gt;</code>）についても理論上同種の衝突があり得るが、現状のUIではMarkdown形式のみで実際に発生を確認したため、Markdown形式のみ対応済み（HTML形式は今後の検討課題）。</span><span class="rev-new">HTML形式のページ（本文が<code>&lt;h1&gt;</code>〜<code>&lt;h3&gt;</code>だけから成る行を含む場合）についても同種の衝突が起こり得るため、v1.32でMarkdown形式と同じ考え方（バックスラッシュエスケープ）をHTML形式にも拡張した。エスケープに使う見出しパターンは、当該ページの<code>format</code>注記（本節「目次構造の表現方法」参照）に従って切り替える。</span>
+  </div>
+  <p>問題（T-10 <code>questions</code>）はフロントマターの配列としては持たせず、<span class="rev-old">本文中の単元見出し（Markdownの<code>##</code>／HTMLの<code>&lt;h2&gt;</code>、5.4節）</span><span class="rev-new">本文中のページ見出し（Markdownの<code>###</code>／HTMLの<code>&lt;h3&gt;</code>）</span>の直後に、専用のフェンス付きコードブロック（Markdown時は<code>```question</code>、HTML時は<code>&lt;!-- question ... --&gt;</code>コメント）として埋め込む。1つの見出しセクション内に複数の問題ブロックを置くことができる。</p>
+  <table>
+    <thead><tr><th>フィールド（ブロック内YAML）</th><th>対応カラム</th><th>要否</th><th>内容</th></tr></thead>
+    <tbody>
+      <tr><td><code>id</code></td><td><code>questions.id</code></td><td>更新時のみ</td><td>既存問題の更新対象ID。新規追加時は省略またはnull</td></tr>
+      <tr><td><code>type</code></td><td><code>questions.type</code></td><td>必須</td><td><code>single</code> / <code>multi</code> / <code>free_text</code><span class="rev-new"> / <code>code</code></span><span class="rev-new"> / <code>reorder</code> / <code>score_log</code></span></td></tr>
+      <tr><td><code>prompt</code></td><td><code>questions.prompt</code></td><td>必須</td><td>設問文</td></tr>
+      <tr><td><code>options</code></td><td><code>questions.options</code></td><td><code>single</code>/<code>multi</code>で必須</td><td>選択肢の配列</td></tr>
+      <tr><td><code>correct_answer</code></td><td><code>questions.correct_answer</code></td><td><code>single</code>/<code>multi</code>/<code>reorder</code>で必須</td><td>正解（値または配列。<code>reorder</code>は正しい順序の項目配列）</td></tr>
+      <tr><td><code>scoring_criteria</code></td><td><code>questions.scoring_criteria</code></td><td><code>free_text</code>/<code>code</code>で必須</td><td>AI採点基準</td></tr>
+      <tr class="rev-row"><td><code>code_language</code></td><td><code>questions.code_language</code></td><td><code>code</code>で必須</td><td>言語ヒント（例: <code>python</code>）</td></tr>
+      <tr class="rev-row"><td><code>required</code></td><td><code>questions.required</code></td><td>任意（既定true）</td><td>回答必須か任意か</td></tr>
+      <tr class="rev-row"><td><code>is_critical</code></td><td><code>questions.is_critical</code></td><td>任意（既定false）</td><td>ドボン問題フラグ。<code>score_log</code>では指定不可</td></tr>
+      <tr class="rev-row"><td><code>feedback_style</code></td><td><code>questions.feedback_style</code></td><td>任意</td><td><code>show_answer</code>/<code>review_only</code>/<code>hint_only</code>。教材既定（<code>materials.ai_context</code>近くのフロントマター<code>default_feedback_style</code>）を上書きする場合のみ</td></tr>
+      <tr class="rev-row"><td><code>pool_group</code></td><td><code>questions.pool_group_id</code></td><td>任意</td><td>同じ値を持つ設問群が出題プールを構成する（ページ側の<code>quiz_mode: pool</code>と併用）</td></tr>
+      <tr class="rev-row"><td><code>score_unit</code></td><td><code>questions.score_unit</code></td><td><code>score_log</code>で必須</td><td>スコアの単位表記（例: <code>WPM</code>）。<code>score_log</code>では<code>correct_answer</code>・<code>scoring_criteria</code>は使わない</td></tr>
+      <tr class="rev-row"><td><code>grading_mode</code></td><td><code>questions.grading_mode</code></td><td>任意</td><td><code>ai</code>/<code>manual</code>。<code>free_text</code>/<code>code</code>のみ有効。教材既定（フロントマター<code>grading_mode</code>）を上書きする場合のみ</td></tr>
+    </tbody>
+  </table>
+  <p class="table-notes"><code>points</code>（配点）はv1.12で廃止した。設問間の重み付けは行わず、教材全体の正答率（正解した設問数／全設問数）のみで合否判定する（5.14節参照）。<span class="rev-new">v1.17で追加した<code>required</code>・<code>is_critical</code>・<code>feedback_style</code>・<code>pool_group</code>・<code>score_unit</code>、およびページ見出し直後に置く<code>quiz_mode: pool</code>・<code>pool_draw_count</code>（材料ノードのフロントマター相当）・教材メタデータの<code>attempt_scope</code>・<code>retake_scope</code>・<code>default_feedback_style</code>・<code>ai_context</code>は、いずれもテキスト表現の拡張のみで実現でき、F-05（CLI往復）で作成・編集できる<span class="rev-old">・F-27（S-18のブラウザ内対話）のどちらでも作成・編集できる（5.28節参照）</span>。</span><span class="rev-new">v1.18で追加した<code>grading_mode</code>（教材既定・設問側の上書きとも）も同様にテキスト表現のみで実現でき、F-05で作成・編集できる<span class="rev-old">・F-27のどちらでも作成・編集できる</span>。</span></p>
+  <p>フロントマター全体の例（Markdown、章・小見出し・ページの入れ子と、単一選択・記述式・コード記述式の3問を含む）:</p>
+  <pre><code>---
+id: 152
+project_id: 12
+tags: ["エンジニア基礎", "Python"]
+title: "Python基礎"
+description: "変数・制御構文・関数などPythonの基礎文法を学ぶ"
+format: markdown
+status: draft
+sort_order: 10
+---
+
+# 第1章: Pythonの基礎文法
+&lt;!-- node:801 --&gt;
+
+### 変数と型
+&lt;!-- node:810 --&gt;
+&lt;!-- format:markdown --&gt;
+
+Pythonの変数は型を宣言せずに使うことができる……
+
+```question
+type: single
+prompt: "次のうち、Pythonの変数名として正しいものはどれか"
+options:
+  - "1st_value"
+  - "my_value"
+  - "my-value"
+correct_answer: "my_value"
+```
+
+## 制御構文
+&lt;!-- node:820 --&gt;
+
+### for文とwhile文
+&lt;!-- node:821 --&gt;
+&lt;!-- format:markdown --&gt;
+
+for文とwhile文は、どちらも繰り返し処理を行う構文である……
+
+```question
+id: 4821
+type: free_text
+prompt: "for文とwhile文の使い分けについて、具体例を挙げて説明してください。"
+scoring_criteria: |
+  - for文・while文それぞれが適した場面に言及しているか
+  - 具体例が示されているか
+```
+
+# 第2章: 関数
+&lt;!-- node:830 --&gt;
+
+### 関数の定義と再利用
+&lt;!-- node:831 --&gt;
+&lt;!-- format:markdown --&gt;
+
+関数を使うと、同じ処理をまとめて再利用できる……
+
+```question
+type: code
+code_language: python
+prompt: "引数として渡された辞書 d の値をすべて合計して返す関数 sum_values(d) を書いてください。"
+scoring_criteria: |
+  - 辞書の値を正しく合計できているか（キーではなく値を対象にしているか）
+  - 空の辞書を渡した場合に0を返せているか
+  - 不要なループの重複など、簡略化できる冗長な処理がないか（改善提案として講評に含める）
+```
+</code></pre>
+  <p class="table-notes">上記は第1章に小見出し「制御構文」を1つだけ使う例（「変数と型」は小見出しを使わず章に直接ぶら下がるページ）。第2章は小見出しを使わず、ページを直接章にぶら下げている。<code>node</code>番号は例示用の値で、新規ページ作成時は省略してよい（サーバーが採番し、次回GET時に付与済みの注記付きで返す）。</p>
+  <div class="callout">
+    <strong>なぜ問題定義を本文中のフェンス付きブロックとして埋め込むか:</strong> <span class="rev-old">5.4節は「単元はテーブルを持たず、本文中の見出しから動的に抽出する」設計とした。問題を独立したフロントマター配列に持たせると、Claude Codeで見出しを並べ替えたときに配列側の<code>unit_index</code>が本文の見出し構造と食い違う恐れがある。問題ブロックを見出し直下の本文中に置くことで、書き戻し（A-20）時に「その問題ブロックの直前に何番目の見出しがあったか」を機械的に数えるだけで<code>unit_index</code>を導出でき、本文と問題の対応関係が常に一致する。この設計は5.4節の単元設計方針をそのまま問題定義にも拡張したものである。</span><span class="rev-new">問題を独立したフロントマター配列に持たせると、Claude Codeで見出しを並べ替えたときに配列側の参照先ページが本文の見出し構造と食い違う恐れがある。問題ブロックをページ見出し直下の本文中に置くことで、書き戻し（A-20）時に「その問題ブロックがどのページ見出し〔<code>&lt;!-- node:.. --&gt;</code>で識別〕の直下にあったか」を機械的にたどるだけで<code>node_id</code>を導出でき、本文と問題の対応関係が常に一致する。この設計は旧5.4節の単元設計方針を、章・小見出し・ページの3階層とノードID注記に拡張したものである（v1.11）。</span>
+  </div>
+
+  <h3>8.4 取得・書き戻しAPI仕様（A-19〜A-22）</h3>
+  <table>
+    <thead><tr><th>API</th><th>内容</th></tr></thead>
+    <tbody>
+      <tr><td>A-19 <code>GET /api/materials/{id}/source</code></td><td>権限判定は <code>require_project_role(materials.project_id, user, min_role='editor')</code>（対象教材が紐づくプロジェクトの管理者・編集者、admin）。学習者は呼び出せない（記述式の<code>scoring_criteria</code>や正解データを含むため）。レスポンスは <code>text/plain; charset=utf-8</code> で、8.3節のフロントマター＋本文＋問題ブロックをそのまま返す。<code>materials.body</code>に保存された原文（サニタイズ前）を返す（8.6節）</td></tr>
+      <tr><td>A-20 <code>PUT /api/materials/{id}/source</code></td><td>権限判定は同上。リクエストボディはA-19と同形式のテキスト。フロントマターの<code>project_id</code>が現在の<code>materials.project_id</code>と異なる場合は400を返す<span class="rev-old">。プロジェクトの付け替えはA-17を使うよう案内する（5.26節の「変更前後どちらの編集権限も要する」ルールをA-17に一本化するため）</span><span class="rev-new">（所属プロジェクトの変更手段自体がv1.30で廃止されたため、Claude Code側は取得時の<code>project_id</code>をそのまま書き戻す必要がある。5.26節）</span>。処理順は、①フロントマター解析、②本文中の問題ブロック抽出（<code>unit_index</code>を見出し出現順から算出）、③T-10へのupsert（送信されなかった既存問題は削除。A-31と同じ全置換セマンティクス）、④T-06 <code>body</code>・メタデータ更新、⑤T-08への改訂履歴行追加（8.5節）。<code>id</code>省略時はA-16相当の新規作成として扱う</td></tr>
+      <tr><td>A-21 <code>GET /api/projects/{project_id}/materials/source</code></td><td>権限判定は <code>require_project_role(project_id, user, min_role='editor')</code>。Claude Codeが「このプロジェクトにどの教材があるか」を把握する起点となるAPIで、各教材の<code>id・title・status・updated_at</code>の要約のみをJSONで返す（本文は含まない）。個々の本文はA-19で取得する</td></tr>
+      <tr><td>A-22 <code>GET /api/materials/{id}/revisions</code></td><td>権限判定はA-19と同じ。改訂履歴一覧（日時・変更者・<code>changed_via</code>・変更概要）を新しい順に返す。個々の版の本文全文（<code>body_snapshot</code>）や版間の差分取得は、利用頻度が低いことを踏まえ本設計の対象外とし、必要になった場合の拡張として詳細設計で扱う</td></tr>
+    </tbody>
+  </table>
+  <div class="callout">
+<span class="rev-old"><strong>なぜA-20はプロジェクトの付け替えを拒否するか:</strong> A-20は「本文・問題のテキスト往復」に責務を絞っている。プロジェクトの付け替え（5.26節）は、変更前・変更後どちらのプロジェクトについても編集権限を満たす者に限定するという、単純な<code>require_project_role</code>一発では表現できない特別な認可ルールを伴う。この特別ルールをA-20（本文往復という高頻度の操作）に混在させると実装・検証が複雑になるため、A-17（低頻度のメタデータ操作）側に一本化した。Claude Codeからプロジェクトを付け替えたい場合は、A-19で取得した教材のフロントマターの<code>project_id</code>は変更せずに提出し、別途A-17を呼び出す運用とする。</span>
+    <strong class="rev-new">なぜ所属プロジェクトの付け替え機能自体を廃止したか（v1.30）:</strong> <span class="rev-new">プロジェクト間で教材を使い回したいという要求は、F-26（教材のプロジェクト間共有、5.27節）で非破壊的に満たせる。共有は元のプロジェクトから教材が失われず、承認前であれば元・共有先いずれかの管理者が申請を取り下げられる（承認後は複製が独立した教材になるため、専用の「共有解除」操作は無い。5.27節）。一方、所属プロジェクトの付け替えは元のプロジェクトの一覧・権限から教材が完全に外れる不可逆に近い操作であり、共有という安全な代替手段がある以上、誤操作時のリスクに見合うだけの必要性が無いと判断した。作成時にプロジェクトを間違えた場合は、複製（A-19取得→A-16新規作成→A-20書き戻し、S-05「複製」ボタン）で正しいプロジェクトに複製したうえで元を削除する運用とする。この判断に伴い、A-20が<code>project_id</code>の変更を拒否する理由も「A-17に処理を一本化するため」から「そもそも変更手段が存在しないため」に変わった。</span>
+  </div>
+
+  <h3>8.5 改訂履歴（T-08 material_revisions）の記録方式</h3>
+  <p>本文または問題を変更するAPI（A-20、A-31）の呼び出しが成功するたびに、T-08へ1行追加する。メタデータのみを変更するA-17（タイトル・状態・所属変更等）はT-08の対象とせず、10.4節の構造化監査ログで別途記録する。</p>
+  <ul>
+    <li><strong><code>body_snapshot</code>・<code>format</code>:</strong> 変更後の<code>materials.body</code>・<code>materials.format</code>の全文スナップショット（差分ではなく毎回全文を保存する。差分計算はA-22の一覧表示側で行う）。</li>
+    <li><strong><code>changed_by</code>:</strong> リクエストのJWTから取得したユーザーID。</li>
+    <li><strong><code>changed_via</code>:</strong> JWTペイロードの<code>token_type</code>クレームで機械的に判定する。<code>token_type='session'</code>（ブラウザCookie経由）なら<code>'web'</code>、<code>token_type='cli'</code>（8.2節のCLIトークン経由）なら<code>'claude_code'</code>とする。S-05のMarkdown/HTMLエディタタブもA-19/A-20を呼び出すが、ブラウザ経由であれば<code>changed_via='web'</code>として記録され、Claude Code経由の変更と区別できる。</li>
+    <li><strong><code>change_summary</code>:</strong> A-20呼び出し時にフロントマターまたはリクエストヘッダーで明示的な要約（例: Gitのコミットメッセージに相当するもの）が渡されればそれを使用し、渡されなければ「本文を更新」「問題をN件追加/M件更新」のように変更内容から自動生成する。A-31（画面からの問題一括更新）は常に「問題を更新（画面操作）」とする。</li>
+  </ul>
+
+  <h3>8.6 HTMLサニタイズの実現方式</h3>
+  <p>要件定義書5.1節が定める「許可リスト方式でサニタイズする」方針を、以下のとおり実装レベルで具体化する。</p>
+  <ul>
+    <li><strong>ライブラリ:</strong> Python製の <code>nh3</code>（RustのAmmoniaライブラリのバインディング。許可リスト方式で高速・保守が活発）を採用する。旧来の<code>bleach</code>は開発が停滞しているため採用しない。</li>
+    <li><strong>サニタイズのタイミング（提供時のみ、原文は変更しない）:</strong> <span class="rev-old"><code>materials.body</code></span><span class="rev-new"><code>material_nodes.body</code>（v1.11でmaterials.bodyから移管）</span>・T-08の<code>body_snapshot</code>には、著者（Web画面またはClaude Code）が入力した原文をそのまま保存する。サニタイズは、教材を<strong>閲覧させる（レンダリングする）境界すべて</strong>で、都度実行する。具体的には (1) 受講者への提供時（A-15、A-40のレスポンス生成時、<span class="rev-old">S-04</span><span class="rev-new">S-16</span>でのレンダリング直前）、(2) <span class="rev-old">S-05本文編集タブのプレビュー表示時</span><span class="rev-new">S-17ページ編集の説明文プレビュー表示時</span>（A-64。保存前の未確定コンテンツであっても例外なくサニタイズを通す。他の編集者・管理者が同じ教材を開いたときの閲覧経路でもあるため、書き手自身の入力だからといって省略しない） の2箇所である。Markdown形式の教材は<code>markdown_render.py</code>でHTMLへレンダリングした結果を、HTML形式の教材は原文そのものを、共通の<code>html_sanitize.py</code>のサニタイズ関数に通してから返す。この際、本文中の問題ブロック（8.3節）はサニタイズ対象の本文から取り除き、対応するT-10のレコードに基づく問題カード（構造化UI）として別途表示する。<span class="rev-new">フロントエンドは<code>materials.body</code>や編集中の生テキストを<code>dangerouslySetInnerHTML</code>等で直接描画してはならず、必ずA-15/A-40/A-64のいずれかが返すサニタイズ済みHTMLのみを描画する。</span></li>
+    <li><strong>許可タグ:</strong> <code>p, br, strong, em, u, s, code, pre, blockquote, ul, ol, li, <span class="rev-old">h3, </span>h4, h5, h6, table, thead, tbody, tr, th, td, a, img, figure, figcaption</code>。<code>h1</code>・<code>h2</code><span class="rev-new">・<code>h3</code></span>は許可しない（<span class="rev-old"><code>h2</code>は5.4節で単元境界として予約済みであり、本文レンダリング後のHTMLでは単元見出し自体を別UIコンポーネントとして描画するため、本文内に残った生の<code>h2</code>は不要かつ構造を壊す</span><span class="rev-new"><code>h1</code>/<code>h2</code>/<code>h3</code>は8.3節で章・小見出し・ページの境界として予約済み。ページ本文（<code>material_nodes.body</code>）は該当ページ見出し直下のテキストだけを抽出して保存するため、本文内に生の見出しが残ることは想定しないが、防御的にレンダリング層でも除去する（v1.11）</span>）。</li>
+    <li><strong>許可属性:</strong> <code>a[href, rel, target]</code>（<code>href</code>は<code>http:</code>/<code>https:</code>スキームのみ許可し<code>javascript:</code>等は除去。<code>rel="noopener noreferrer"</code>を強制付与）、<code>img[src, alt, width, height]</code>（<code>src</code>はSupabase Storageの署名付きURLまたは<code>https:</code>のみ）、<code>table</code>系要素の<code>colspan/rowspan</code>。それ以外の属性（<code>style</code>、<code>class</code>、<code>on*</code>イベントハンドラ等）はすべて除去する。</li>
+    <li><strong>明示的に禁止:</strong> <code>script, style, iframe, object, embed, form, input, svg, foreignObject</code>タグ、およびあらゆるインラインイベントハンドラ属性。</li>
+  </ul>
+  <div class="callout warn">
+    <strong>なぜ書き込み時ではなく提供時にサニタイズするか:</strong> REQ-F-02は「取得して修正し、戻せること（往復できること）」を要求している。書き込み時にサニタイズ・変換した結果を保存してしまうと、Claude Codeが取得（A-19）した内容が著者の入力そのものではなくなり、意図しない改変が往復のたびに蓄積しうる（例: プログラミング教材のコードブロック内に説明用の<code>&lt;script&gt;</code>タグの例が含まれる場合、書き込み時にこれを除去してしまうと元の教材内容が失われる）。そのため本設計では、保存された原文には一切手を加えず、受講者に見せる直前（提供時）にのみ都度サニタイズを適用する。これにより原文の往復忠実性（REQ-F-02）とXSS対策（要件定義書5.1節）を両立させる。
+  </div>
+
+  <!-- ============ 9. AI機能設計 ============ -->
+
+  <footer class="doc-footer">
+    <span>社内学習管理システム（Manabi）基本設計書 v1.52</span>
+    <span>コガソフトウェア株式会社 / 2026-08-24</span>
+  </footer>
+
+</div>
+</body>
+</html>
+

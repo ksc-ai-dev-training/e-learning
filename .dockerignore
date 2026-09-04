@@ -1,0 +1,17 @@
+# Fly.ioデプロイ用ビルドコンテキストから除外する（検討資料/参照）。
+# .envは秘密情報のため絶対に含めない（本番はFly secretsで注入する）。
+.env
+.env.example
+.git
+.gitignore
+.claude
+docs
+検討資料
+cli
+
+backend/.venv
+backend/__pycache__
+backend/uploads
+
+frontend/node_modules
+frontend/dist

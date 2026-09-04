@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>【検討中】ER図（現段階の全体像） | Manabi</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  mermaid.initialize({ startOnLoad: true });
+
+  function setupErZoom() {
+    var wrap = document.querySelector('.mermaid-wrap');
+    var stage = document.getElementById('erZoomStage');
+    var label = document.getElementById('erZoomLabel');
+    var svg = stage ? stage.querySelector('svg') : null;
+    if (!wrap || !stage || !label || !svg) return;
+
+    svg.removeAttribute('style');
+    var naturalW = (svg.viewBox && svg.viewBox.baseVal && svg.viewBox.baseVal.width) || svg.getBBox().width;
+    var naturalH = (svg.viewBox && svg.viewBox.baseVal && svg.viewBox.baseVal.height) || svg.getBBox().height;
+    var fitScale = Math.max(0.1, (wrap.clientWidth - 32) / naturalW);
+    var multiplier = 1;
+
+    function apply() {
+      var scale = fitScale * multiplier;
+      svg.style.display = 'block';
+      svg.style.width = (naturalW * scale) + 'px';
+      svg.style.height = (naturalH * scale) + 'px';
+      label.textContent = Math.round(multiplier * 100) + '%';
+    }
+    function setMultiplier(m) {
+      multiplier = Math.min(4, Math.max(0.4, m));
+      apply();
+    }
+    apply();
+    document.getElementById('erZoomIn').addEventListener('click', function () { setMultiplier(multiplier + 0.25); });
+    document.getElementById('erZoomOut').addEventListener('click', function () { setMultiplier(multiplier - 0.25); });
+    document.getElementById('erZoomReset').addEventListener('click', function () { setMultiplier(1); });
+    wrap.addEventListener('wheel', function (e) {
+      if (!e.ctrlKey) return;
+      e.preventDefault();
+      setMultiplier(multiplier + (e.deltaY < 0 ? 0.2 : -0.2));
+    }, { passive: false });
+  }
+
+  window.addEventListener('load', function () {
+    setTimeout(setupErZoom, 300);
+  });
+</script>
+<style>
+  :root { --border-strong:#d0d5dd; --bg-subtle:#f6f7f9; --text:#1a1d21; --text-muted:#565e6c; --text-subtle:#8a8f98; --accent-600:#2563eb; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: -apple-system, "Segoe UI", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif; background:#f6f7f9; color:var(--text); font-size:13px; }
+  .status-bar { background:#fef3c7; border-bottom:1px solid #fbbf24; color:#78350f; font-size:12px; font-weight:600; text-align:center; padding:6px; }
+  .doc-wrap { max-width: 1180px; margin: 0 auto; padding: 28px 24px 80px; }
+  .doc-header h1 { font-size: 20px; margin: 0 0 6px; }
+  .doc-meta { font-size: 12px; color: var(--text-subtle); }
+  .doc-section { margin-top: 30px; }
+  .doc-section h2 { font-size: 15px; border-left: 4px solid var(--accent-600); padding-left: 10px; margin-bottom: 12px; }
+  .doc-section h3 { font-size: 13.5px; margin: 16px 0 8px; }
+  .doc-section p, .doc-section li { font-size: 13px; line-height: 1.8; }
+  .doc-section ol, .doc-section ul { padding-left: 22px; margin: 8px 0; }
+  .steps-grid { display:grid; grid-template-columns: repeat(5,1fr); gap:10px; margin:14px 0; }
+  .step-card { border:1px solid var(--border-strong); border-radius:8px; background:#fff; padding:10px 12px; font-size:12px; }
+  .step-card .step-no { display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; border-radius:50%; background:var(--accent-600); color:#fff; font-weight:700; font-size:11px; margin-bottom:6px; }
+  table.legend { border-collapse: collapse; margin: 12px 0; font-size: 12.5px; }
+  table.legend th, table.legend td { border: 1px solid var(--border-strong); padding: 6px 12px; text-align: left; }
+  table.legend th { background: var(--bg-subtle); }
+  .mermaid-wrap { background:#fff; border:1px solid var(--border-strong); border-radius:10px; overflow:auto; margin: 14px 0; max-height: 82vh; }
+  .er-toolbar { position: sticky; top:0; z-index:2; display:flex; align-items:center; gap:8px; padding:8px 12px; background:#fff; border-bottom:1px solid var(--border-strong); }
+  .er-toolbar button { width:26px; height:26px; border:1px solid var(--border-strong); border-radius:6px; background:#fff; cursor:pointer; font-size:14px; line-height:1; }
+  .er-toolbar button:hover { background: var(--bg-subtle); }
+  .er-toolbar .er-zoom-label { font-size:12px; color:var(--text-muted); min-width:42px; text-align:center; }
+  .er-toolbar .er-hint { font-size:11.5px; color:var(--text-subtle); margin-left:6px; }
+  #erZoomStage { padding:16px; }
+  .zoom-hint { font-size:11.5px; color:var(--text-subtle); margin: 6px 0 0; }
+  .callout { border:1px solid #bfdbfe; background:#eff6ff; border-radius:8px; padding:12px 14px; font-size:12.5px; line-height:1.8; }
+  .gap-note { border:1px solid var(--border-strong); background:var(--bg-subtle); border-radius:8px; padding:10px 14px; font-size:12px; color: var(--text-muted); }
+  code.inline { background: var(--bg-subtle); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+  .source-link { font-size:11.5px; color:var(--text-subtle); }
+</style>
+</head>
+<body>
+
+<div class="status-bar">【検討中】現段階（v1.7時点）のDB設計に基づくER図の全体像 ／ 正式版ではありません（docs/ には未反映）</div>
+
+<div class="doc-wrap">
+
+  <div class="doc-header">
+    <h1>ER図（現段階の全体像）</h1>
+    <div class="doc-meta">検討資料 ／ 2026-08-19 ／ 元データ: docs/04_基本設計書.html 6章 DB設計（T-01〜T-22、v1.7時点） ／ 参照記法: <span class="source-link">「若手プログラマー必読！５分で理解できるER図の書き方５ステップ」NTTドコモビジネス</span></div>
+  </div>
+
+  <div class="doc-section">
+    <h2>1. この資料について</h2>
+    <p>参照記事の「ER図の書き方５ステップ」（①エンティティの定義 → ②アトリビュートの洗い出し → ③アトリビュートの整理 → ④リレーションとカーディナリティの設計 → ⑤主キー・外部キーを整理してER図に落とし込む）に沿って、既存の基本設計書6章の内容を、IE記法（鳥の足記法）のER図として1枚に再構成したもの。基本設計書には元々2つに分かれたER図（教材まわり／学習記録まわり）が既にあるが、AI関連テーブル（T-15〜T-19）や運用テーブル（T-20・T-21）を含めた全体像は未整理だったため、現段階の設計をもれなく見渡せる形にまとめた。</p>
+
+    <div class="steps-grid">
+      <div class="step-card"><span class="step-no">1</span><div>エンティティの定義<br><span style="color:var(--text-subtle)">users, projects, materials 等 20個</span></div></div>
+      <div class="step-card"><span class="step-no">2</span><div>アトリビュートの洗出し<br><span style="color:var(--text-subtle)">6章テーブル一覧の列定義から抽出</span></div></div>
+      <div class="step-card"><span class="step-no">3</span><div>アトリビュートの整理<br><span style="color:var(--text-subtle)">一覧性重視で主要列に絞込み</span></div></div>
+      <div class="step-card"><span class="step-no">4</span><div>リレーション設計<br><span style="color:var(--text-subtle)">FK毎にカーディナリティを判定</span></div></div>
+      <div class="step-card"><span class="step-no">5</span><div>PK/FK整理・図に反映<br><span style="color:var(--text-subtle)">IE記法（鳥の足）で作図</span></div></div>
+    </div>
+
+    <h3>記法（IE記法／鳥の足記法）の凡例</h3>
+    <table class="legend">
+      <thead><tr><th>記号</th><th>意味</th><th>本図での例</th></tr></thead>
+      <tbody>
+        <tr><td><code class="inline">‖</code>（2本線）</td><td>必ず1（NOT NULL の外部キー）</td><td>materials.project_id → projects（必ずいずれかのプロジェクトに属する）</td></tr>
+        <tr><td><code class="inline">○|</code>（丸＋1本線）</td><td>0または1（nullable の外部キー）</td><td>projects.pm_user_id → users（PM未設定もありうる）</td></tr>
+        <tr><td><code class="inline">鳥の足</code>（3本線）</td><td>多（0件以上）</td><td>1プロジェクトに複数のmaterials</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="doc-section">
+    <h2>2. ER図（全体）</h2>
+    <div class="mermaid-wrap">
+      <div class="er-toolbar">
+        <button id="erZoomOut" type="button" aria-label="縮小">－</button>
+        <span id="erZoomLabel" class="er-zoom-label">100%</span>
+        <button id="erZoomIn" type="button" aria-label="拡大">＋</button>
+        <button id="erZoomReset" type="button" aria-label="全体表示に戻す">全体表示</button>
+        <span class="er-hint">Ctrl+ホイールでも拡大縮小できます</span>
+      </div>
+      <div id="erZoomStage">
+      <pre class="mermaid">
+erDiagram
+  users {
+    bigint id PK
+    string email UK
+    string name
+    string role
+    boolean is_active
+  }
+  projects {
+    bigint id PK
+    string name
+    string status
+    bigint pm_user_id FK
+    bigint created_by FK
+  }
+  project_memberships {
+    bigint id PK
+    bigint project_id FK
+    bigint user_id FK
+    string role
+    bigint assigned_by FK
+    timestamptz left_at
+  }
+  courses {
+    bigint id PK
+    string name
+    int sort_order
+  }
+  materials {
+    bigint id PK
+    bigint course_id FK
+    bigint project_id FK
+    string title
+    string format
+    bigint created_by FK
+    string status
+  }
+  material_revisions {
+    bigint id PK
+    bigint material_id FK
+    bigint changed_by FK
+    string changed_via
+  }
+  material_attachments {
+    bigint id PK
+    bigint material_id FK
+    string kind
+  }
+  questions {
+    bigint id PK
+    bigint material_id FK
+    int unit_index
+    string type
+    string code_language
+    int points
+  }
+  material_project_shares {
+    bigint id PK
+    bigint material_id FK
+    bigint shared_to_project_id FK
+    bigint shared_by FK
+  }
+  assignments {
+    bigint id PK
+    bigint material_id FK
+    string scope_type
+    boolean required
+    timestamptz due_at
+    bigint created_by FK
+  }
+  enrollment_progress {
+    bigint id PK
+    bigint user_id FK
+    bigint material_id FK
+    string status
+  }
+  quiz_attempts {
+    bigint id PK
+    bigint user_id FK
+    bigint material_id FK
+    string mode
+    numeric score_pct
+    boolean passed
+  }
+  answers {
+    bigint id PK
+    bigint attempt_id FK
+    bigint question_id FK
+    boolean is_correct
+    bigint reviewed_by FK
+  }
+  ai_material_reviews {
+    bigint id PK
+    bigint material_id FK
+    bigint requested_by FK
+  }
+  ai_material_insights {
+    bigint id PK
+    bigint material_id FK
+    bigint requested_by FK
+    timestamptz requested_at
+  }
+  ai_personal_feedback {
+    bigint id PK
+    bigint user_id FK
+    timestamptz requested_at
+  }
+  ai_org_reports {
+    bigint id PK
+    string scope_type
+    bigint requested_by FK
+    timestamptz requested_at
+  }
+  ai_usage_logs {
+    bigint id PK
+    bigint user_id FK
+    string feature
+    string model
+  }
+  slack_notification_logs {
+    bigint id PK
+    bigint user_id FK
+    bigint assignment_id FK
+    string status
+  }
+  app_settings {
+    string key PK
+    string value_text
+    bigint updated_by FK
+  }
+
+  users ||--o{ project_memberships : "user_id"
+  projects ||--o{ project_memberships : "project_id"
+  users |o--o{ projects : "pm_user_id(nullable)"
+  users ||--o{ projects : "created_by"
+  users |o--o{ project_memberships : "assigned_by(nullable)"
+
+  courses |o--o{ materials : "course_id(nullable)"
+  projects ||--o{ materials : "project_id(必須)"
+  users ||--o{ materials : "created_by"
+
+  materials ||--o{ material_revisions : "material_id"
+  users ||--o{ material_revisions : "changed_by"
+
+  materials ||--o{ material_attachments : "material_id"
+  materials ||--o{ questions : "material_id"
+
+  materials ||--o{ material_project_shares : "material_id"
+  projects ||--o{ material_project_shares : "shared_to_project_id"
+  users ||--o{ material_project_shares : "shared_by"
+
+  materials ||--o{ assignments : "material_id"
+  users ||--o{ assignments : "created_by"
+
+  users ||--o{ enrollment_progress : "user_id"
+  materials ||--o{ enrollment_progress : "material_id"
+
+  users ||--o{ quiz_attempts : "user_id"
+  materials ||--o{ quiz_attempts : "material_id"
+
+  quiz_attempts ||--o{ answers : "attempt_id"
+  questions ||--o{ answers : "question_id"
+  users |o--o{ answers : "reviewed_by(nullable)"
+
+  materials ||--o{ ai_material_reviews : "material_id"
+  users ||--o{ ai_material_reviews : "requested_by"
+
+  materials ||--o{ ai_material_insights : "material_id"
+  users ||--o{ ai_material_insights : "requested_by"
+
+  users ||--o{ ai_personal_feedback : "user_id"
+
+  users ||--o{ ai_org_reports : "requested_by"
+
+  users |o--o{ ai_usage_logs : "user_id(nullable)"
+
+  users ||--o{ slack_notification_logs : "user_id"
+  assignments ||--o{ slack_notification_logs : "assignment_id"
+
+  users |o--o{ app_settings : "updated_by(nullable)"
+      </pre>
+      </div>
+    </div>
+    <p class="zoom-hint">※ 初期表示は全体像が見えるように縮小表示しています。細部を見たいときは上部の「＋」ボタンかCtrl+マウスホイールで拡大してください(「全体表示」ボタンで100%に戻せます)。列は主要なもの（PK・FK・判定に使う列）に絞って表示。全列の定義は基本設計書6.2節「テーブル一覧」を参照。</p>
+  </div>
+
+  <div class="doc-section">
+    <h2>3. 図から見える設計上のポイント</h2>
+    <ul>
+      <li><strong>materials は必ず projects に属する（必須・‖）:</strong> v1.5で確立した「教材は必ずプロジェクトに所属する」制約がそのままER図に表れている。一方 <code class="inline">course_id</code> は nullable（○|）で、コースは任意の分類軸にすぎないことも図から読み取れる。現在検討中の「全社公開プロジェクト」案は、この materials—projects の関連自体は変えず、projects 側に「常設・削除不可の特別な1行」が増えるだけの変更になる見込み。</li>
+      <li><strong>users への参照が非常に多い:</strong> created_by／changed_by／requested_by／reviewed_by／assigned_by／pm_user_id／updated_by／shared_by と、ほぼ全テーブルが何らかの形でusersを参照している。役割（作成者・変更者・承認者等）ごとに別列で持ち、単一の「所有者」列に統合していない設計方針が一貫している。</li>
+      <li><strong>assignments が学習記録系のハブになっている:</strong> materials → assignments → slack_notification_logs という経路があり、配信設定（誰が対象か・必須か）が催促通知の起点にもなっている。</li>
+      <li><strong>AI関連（T-15〜T-19）は業務テーブルに対して基本的に「多対1でぶら下がるだけ」:</strong> 相互の関連を持たず、それぞれ独立して materials または users を参照するのみ。既存の基本設計書6.1節の記載（「図に含めなかったテーブル」）とも整合する。</li>
+    </ul>
+
+    <div class="gap-note">
+      <strong>図に含めなかったもの:</strong> T-02 departments・T-07 material_co_editors はv1.5で廃止済み（欠番）のため、この全体図には含めていない。assignments.scope_id は scope_type によって参照先が変わるポリモーフィック関連のため、通常のFK線としては表現していない（基本設計書5.9節を参照）。
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

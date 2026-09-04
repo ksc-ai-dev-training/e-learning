@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S-12 プロジェクト管理 | Manabi 画面モックアップ</title>
+<link rel="stylesheet" href="mock.css">
+</head>
+<body>
+
+<div class="app">
+
+  <!-- サイドバー（一般ユーザー: 山田 花子。プロジェクト「LCC CRM刷新」のローカルロールは管理者） -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-mark">M</div>
+      <div>
+        <div class="brand-name">Manabi</div>
+        <div class="brand-sub">社内学習管理システム</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-label">メニュー</div>
+      <a class="nav-item" href="S-02_my-learning.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h3.5v-6h5v6H18a1 1 0 0 0 1-1V9.5"/></svg></span>
+        マイ学習
+      </a>
+      <a class="nav-item" href="S-03_materials-list.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></span>
+        教材一覧・検索
+      </a>
+      <a class="nav-item" href="S-13_material-edit-project-select.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></span>
+        教材編集
+      </a>
+      <a class="nav-item" href="S-20_grading-queue.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></span>
+        採点
+      </a>
+      <a class="nav-item" href="S-09_my-report.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
+        個人学習レポート
+      </a>
+      <a class="nav-item" href="S-11_project-create.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></span>
+        プロジェクト作成
+      </a>
+      <a class="nav-item active" href="S-12_project-management.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg></span>
+        プロジェクト管理
+      </a>
+      <a class="nav-item" href="S-06_assignment-settings.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></span>
+        配信設定
+      </a>
+      <div class="nav-label">管理者メニュー</div>
+      <a class="nav-item" href="S-08_dashboard.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg></span>
+        受講状況ダッシュボード
+      </a>
+      <div class="nav-note">※ 「配信設定」は全社員のメニューに常に表示される（管理できる教材が無い場合も画面側で案内）。「受講状況ダッシュボード」はadminだけでなく、対象プロジェクトの管理者にも自プロジェクトのスコープで表示されます</div>
+    </nav>
+    <div class="sidebar-user">
+      <div class="sidebar-user-row">
+        <span class="avatar">山</span>
+        <div>
+          <div class="user-name">山田 花子 <span class="badge badge-role role-member">member</span></div>
+          <div class="user-mail">h.yamada@kogasoftware.com</div>
+        </div>
+      </div>
+      <a class="sidebar-logout" href="S-15_profile-edit.html">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        プロフィール編集
+      </a>
+      <a class="sidebar-logout" href="S-01_login.html">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        ログアウト
+      </a>
+    </div>
+  </aside>
+
+  <!-- メインエリア -->
+  <div class="main">
+    <header class="page-header">
+      <div>
+        <div class="page-title-group">
+          <h1>プロジェクト管理 — LCC CRM刷新</h1>
+          <span class="badge badge-projrole projrole-admin">あなたはこのプロジェクトの管理者</span>
+          <span class="screen-id">S-12</span>
+        </div>
+      </div>
+      <div class="header-actions">
+        <span class="filter-label">管理するプロジェクト</span>
+        <select style="width:190px">
+          <option selected>LCC CRM刷新（管理者）</option>
+        </select>
+      </div>
+    </header>
+
+    <div class="page-body">
+
+      <p class="tab-note">※ この画面はそのプロジェクトの管理者、または admin がアクセスできます（7.3参照）。あなたは member ロールですが、これはシステム全体のロールとは別の軸である、プロジェクト「LCC CRM刷新」内のローカルロール（管理者）に基づくアクセスです。メニュー自体は誰でも常時表示され（v1.9）、あなたが管理者であるプロジェクトが1件もない場合は「管理するプロジェクトがありません。プロジェクトを作成すると、作成者は自動的にそのプロジェクトの管理者になります」という案内とS-11（プロジェクト作成）への導線を表示します。</p>
+
+      <!-- タブ -->
+      <div class="tabs" role="tablist">
+        <button class="tab active" id="tab-info" type="button" onclick="switchTab('info')">プロジェクト情報</button>
+        <button class="tab" id="tab-members" type="button" onclick="switchTab('members')">メンバー管理</button>
+        <button class="tab" id="tab-sharing" type="button" onclick="switchTab('sharing')">教材の共有</button>
+      </div>
+
+      <!-- プロジェクト情報タブ -->
+      <div class="tab-panel active" id="panel-info">
+        <div class="panel" style="max-width:680px">
+          <div class="panel-header">
+            <div class="panel-title">基本情報</div>
+          </div>
+          <div class="panel-body">
+            <div class="field">
+              <label>プロジェクト名</label>
+              <input type="text" value="LCC CRM刷新">
+            </div>
+            <div class="field">
+              <label>説明</label>
+              <textarea rows="4">既存のLCC CRMをReact 19 + FastAPI構成へ刷新するプロジェクト。営業部・開発部混成チームで、新機能開発と並行して段階的に移行する。</textarea>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label>状態</label>
+                <select style="max-width:160px">
+                  <option selected>進行中</option>
+                  <option>停止</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>作成日</label>
+                <input type="text" value="2026-03-01" disabled>
+              </div>
+            </div>
+            <div class="field" style="margin-bottom:0">
+              <label>作成者</label>
+              <div style="display:flex;align-items:center;gap:8px;font-size:13px">
+                <span class="avatar" style="width:22px;height:22px;font-size:10.5px">山</span> 山田 花子
+                <span class="field-help" style="margin:0">（作成者は自動的に管理者になります）</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="form-actions" style="position:static;background:none;border-top:none;padding-top:0;max-width:680px">
+          <button class="btn btn-primary" type="button">保存する</button>
+        </div>
+      </div>
+
+      <!-- メンバー管理タブ -->
+      <div class="tab-panel" id="panel-members">
+        <p class="tab-note">メンバーの招待・削除、ロール（管理者/編集者/受講者）の設定は、このプロジェクトの管理者が行います。ただし追加は<strong>招待制</strong>です。招待した時点ではまだ権限は発生せず、招待された本人が承諾（S-15）して初めてメンバーとして有効になります。プロジェクトのローカルロールは、システム全体のロール（member/admin）とは別の軸です。</p>
+
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr><th>氏名</th><th style="width:130px">全社ロール</th><th style="width:170px">プロジェクトロール</th><th style="width:90px">状態</th><th style="width:110px">参加日</th><th style="width:110px">操作</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><div style="display:flex;align-items:center;gap:9px"><span class="avatar">山</span><span class="cell-main">山田 花子（あなた）</span></div></td>
+                <td><span class="badge badge-role role-member">member</span></td>
+                <td>
+                  <select disabled title="自分自身のロールはここでは変更できません">
+                    <option>受講者</option>
+                    <option>編集者</option>
+                    <option selected>管理者</option>
+                  </select>
+                </td>
+                <td><span class="badge badge-status-on">参加済み</span></td>
+                <td>2026-03-01</td>
+                <td><button class="btn btn-ghost btn-sm" type="button" disabled title="唯一の管理者は削除できません">-</button></td>
+              </tr>
+              <tr>
+                <td><div style="display:flex;align-items:center;gap:9px"><span class="avatar">鈴</span><span class="cell-main">鈴木 美咲</span></div></td>
+                <td><span class="badge badge-role role-member">member</span></td>
+                <td>
+                  <select>
+                    <option>受講者</option>
+                    <option selected>編集者</option>
+                    <option>管理者</option>
+                  </select>
+                </td>
+                <td><span class="badge badge-status-on">参加済み</span></td>
+                <td>2026-06-12</td>
+                <td><button class="btn btn-danger-ghost btn-sm" type="button">削除</button></td>
+              </tr>
+              <tr>
+                <td><div style="display:flex;align-items:center;gap:9px"><span class="avatar">高</span><span class="cell-main">高橋 大輔</span></div></td>
+                <td><span class="badge badge-role role-member">member</span></td>
+                <td>
+                  <select>
+                    <option>受講者</option>
+                    <option selected>編集者</option>
+                    <option>管理者</option>
+                  </select>
+                </td>
+                <td><span class="badge badge-status-on">参加済み</span></td>
+                <td>2026-06-12</td>
+                <td><button class="btn btn-danger-ghost btn-sm" type="button">削除</button></td>
+              </tr>
+              <tr>
+                <td><div style="display:flex;align-items:center;gap:9px"><span class="avatar">佐</span><span class="cell-main">佐藤 健一</span></div></td>
+                <td><span class="badge badge-role role-member">member</span></td>
+                <td>
+                  <select>
+                    <option selected>受講者</option>
+                    <option>編集者</option>
+                    <option>管理者</option>
+                  </select>
+                </td>
+                <td><span class="badge badge-status-on">参加済み</span></td>
+                <td>2026-07-20</td>
+                <td><button class="btn btn-danger-ghost btn-sm" type="button">削除</button></td>
+              </tr>
+              <tr>
+                <td><div style="display:flex;align-items:center;gap:9px"><span class="avatar">村</span><span class="cell-main">村田 亮</span></div></td>
+                <td><span class="badge badge-role role-member">member</span></td>
+                <td>
+                  <select>
+                    <option selected>受講者</option>
+                    <option>編集者</option>
+                    <option>管理者</option>
+                  </select>
+                </td>
+                <td><span class="badge badge-status-on">参加済み</span></td>
+                <td>2026-08-01</td>
+                <td><button class="btn btn-danger-ghost btn-sm" type="button">削除</button></td>
+              </tr>
+              <tr style="color:var(--text-subtle)">
+                <td><div style="display:flex;align-items:center;gap:9px"><span class="avatar">田</span><span class="cell-main">田中 悠斗</span></div></td>
+                <td><span class="badge badge-role role-member">member</span></td>
+                <td>
+                  <select disabled title="承諾されるまでロールは確定しません">
+                    <option>受講者</option>
+                    <option selected>編集者</option>
+                    <option>管理者</option>
+                  </select>
+                </td>
+                <td><span class="badge badge-due-soon">招待中</span></td>
+                <td>—</td>
+                <td><button class="btn btn-ghost btn-sm" type="button">招待を取消</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="search-actions" style="border-top:none;padding-top:0;margin-top:14px">
+          <select style="min-width:220px">
+            <option selected disabled>社員を選択して招待…</option>
+            <option>千田 太郎（admin）</option>
+            <option>鈴木 五郎（member）</option>
+          </select>
+          <select style="min-width:140px">
+            <option selected>受講者</option>
+            <option>編集者</option>
+            <option>管理者</option>
+          </select>
+          <button class="btn btn-secondary" type="button">招待する</button>
+        </div>
+        <p style="margin-top:8px;font-size:11.5px;color:var(--text-subtle)">※ 招待した時点ではまだ権限は発生しません。招待された本人が承諾（S-15プロフィール編集）して初めて、実際にメンバーとして教材の受講・編集ができるようになります。本人の同意なしに一方的にメンバーへ追加することはできません。</p>
+        <p style="margin-top:6px;font-size:11.5px;color:var(--text-subtle)">※ 参加済みのメンバーを削除、またはロールを「受講者」以外から変更した場合も、猶予期間中は旧プロジェクトの教材への閲覧アクセスを継続します（9.2参照）。</p>
+      </div>
+
+      <!-- 教材の共有タブ -->
+      <div class="tab-panel" id="panel-sharing">
+        <p class="tab-note">このプロジェクトに紐づく教材を、他のプロジェクトへ<strong>共有申請</strong>できます。相手プロジェクトの管理者が承認すると、<strong>その教材の複製が共有先プロジェクトに新規作成されます</strong>（既存の「複製」機能〔A-19取得→A-16新規作成→A-20書き戻し〕と同じ仕組みを、承認をトリガーに実行するイメージ）。複製後は共有先プロジェクトの独立した教材として扱われ、内容編集・配信設定・公開/アーカイブは共有先プロジェクトの管理者・編集者が行います（元の教材を後から更新しても複製には反映されません）。承認するまでは何も作成されないため、一方的に押し付けることはできません（F-26）。</p>
+
+        <h3 style="font-size:13px;margin:16px 0 8px">このプロジェクトから申請した共有</h3>
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr><th>教材名</th><th style="width:100px">状態</th><th>共有先プロジェクト</th><th style="width:130px">操作</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="cell-main"><a href="S-05_material-edit.html">新システム操作ガイド</a></td>
+                <td><span class="badge badge-status-on">公開中</span></td>
+                <td><span id="shares-新システム操作ガイド"><span class="chip" style="border-style:dashed">Manabi新規構築 <span style="color:#b45309;font-size:10.5px">承認待ち</span></span></span></td>
+                <td><button class="btn btn-secondary btn-sm" type="button" onclick="editShare('新システム操作ガイド', ['Manabi新規構築'])">共有を申請</button></td>
+              </tr>
+              <tr>
+                <td class="cell-main">セキュアコーディング入門</td>
+                <td><span class="badge badge-status-on">公開中</span></td>
+                <td><span id="shares-セキュアコーディング入門"><span class="chip">情報セキュリティ委員会 <span style="color:#15803d;font-size:10.5px">複製済み</span></span></span></td>
+                <td><button class="btn btn-secondary btn-sm" type="button" onclick="editShare('セキュアコーディング入門', ['情報セキュリティ委員会'])">共有を申請</button></td>
+              </tr>
+              <tr>
+                <td class="cell-main" style="color:var(--text-subtle)">DB移行手順（下書き）</td>
+                <td><span class="badge badge-status-off">下書き</span></td>
+                <td><span style="color:var(--text-subtle);font-size:12px">下書きのため共有申請不可</span></td>
+                <td><button class="btn btn-ghost btn-sm" type="button" disabled>-</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="panel" id="share-edit-panel" style="margin-top:16px;max-width:520px">
+          <div class="panel-header">
+            <div class="panel-title" id="share-edit-title">「セキュアコーディング入門」の共有先を編集</div>
+          </div>
+          <div class="panel-body">
+            <div id="share-edit-chips" class="badge-group" style="margin-bottom:10px">
+              <span class="chip" data-proj="情報セキュリティ委員会">情報セキュリティ委員会 <span onclick="removeShareChip(this)" style="cursor:pointer;font-weight:700">×</span></span>
+            </div>
+            <div class="field" style="margin-bottom:10px">
+              <label>共有先プロジェクトを検索して追加</label>
+              <select id="share-edit-select" onchange="addShareChip(this)">
+                <option selected disabled>プロジェクト名で検索...</option>
+                <option>全社Wiki</option>
+                <option>新人研修2026運営</option>
+                <option>情報セキュリティ委員会</option>
+                <option>Manabi新規構築</option>
+              </select>
+              <span class="field-help">一覧には、あなたが所属している、または直近やり取りのあるプロジェクトが候補として出ます。全プロジェクトを常に列挙するのではなく検索で絞り込みます（プロジェクトは誰でも作成できるため件数が増え続けるため）。ここで追加した相手には「共有申請」が送られるだけで、相手が承認するまで何も作成されません。承認されると、その時点の内容で教材の複製が共有先プロジェクトに作成されます。</span>
+            </div>
+            <button class="btn btn-primary btn-sm" type="button" onclick="saveShare()">申請を送る</button>
+          </div>
+        </div>
+        <p style="margin-top:12px;font-size:11.5px;color:var(--text-subtle)">※ 承認されると、共有先プロジェクトに教材の複製が新規作成されます。複製後は共有先プロジェクトの独立した教材として扱われ、内容編集・配信設定・公開/アーカイブ/削除は共有先プロジェクトの管理者・編集者が行います（元の教材をその後更新しても複製には反映されません。複製後に最新内容を反映したい場合は、共有先プロジェクトの管理者が改めて共有申請を承認するか、複製先で直接編集してください）。承認前の申請の取り下げは、共有元・共有先どちらの管理者からも行えます（未承認の間は複製が存在しないため、取り下げても失うものはありません）。</p>
+
+        <h3 style="font-size:13px;margin:24px 0 8px">他プロジェクトからの共有リクエスト（このプロジェクト宛て）</h3>
+        <div class="table-wrap" id="incoming-shares-wrap">
+          <table class="table">
+            <thead>
+              <tr><th>教材名</th><th style="width:150px">共有元プロジェクト</th><th style="width:110px">申請日</th><th style="width:190px">操作</th></tr>
+            </thead>
+            <tbody id="incoming-shares-body">
+              <tr id="incoming-share-1">
+                <td class="cell-main">TypeScript入門</td>
+                <td><span class="chip">Manabi新規構築</span></td>
+                <td>2026-08-18</td>
+                <td>
+                  <button class="btn btn-primary btn-sm" type="button" onclick="respondIncomingShare('incoming-share-1', 'accepted')">承認</button>
+                  <button class="btn btn-ghost btn-sm" type="button" onclick="respondIncomingShare('incoming-share-1', 'rejected')">却下</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p id="incoming-shares-empty" style="display:none;font-size:12px;color:var(--text-subtle);margin-top:8px">現在、このプロジェクト宛ての共有リクエストはありません。</p>
+        <p style="margin-top:8px;font-size:11.5px;color:var(--text-subtle)">※ 「承認」すると、この教材の複製がこのプロジェクトに新規作成され、以後はこのプロジェクトの教材として独立に管理できます（内容編集・配信設定・公開/アーカイブ/削除はこのプロジェクトの管理者・編集者が行う。元の教材とは以後連動しません）。「却下」した場合は何も作成されません。承認後に複製自体が不要になった場合は、複製先の教材を通常どおりアーカイブ・削除してください（共有の解除という専用操作はありません）。</p>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="mock-note">画面モックアップ（S-12）/ 研修サンプル</div>
+
+<script>
+// タブ切替（静的モック確認用の最小限のJS）
+function switchTab(name) {
+  var tabs = ['info', 'members', 'sharing'];
+  tabs.forEach(function (t) {
+    document.getElementById('tab-' + t).classList.toggle('active', t === name);
+    document.getElementById('panel-' + t).classList.toggle('active', t === name);
+  });
+}
+
+// 「共有先を追加」: 対象教材向けに編集パネルを切り替える（静的モック確認用の最小限のJS）
+// 共有先は全プロジェクトを列挙せず、検索して追加したものだけをチップとして積み上げる方式
+var currentShareMaterial = 'セキュアコーディング入門';
+var originalShareProjects = ['情報セキュリティ委員会']; // 編集開始時点で既に承認済みだったプロジェクト
+
+function renderShareChips(projects) {
+  var box = document.getElementById('share-edit-chips');
+  box.innerHTML = '';
+  projects.forEach(function (p) {
+    var chip = document.createElement('span');
+    chip.className = 'chip';
+    chip.setAttribute('data-proj', p);
+    chip.innerHTML = p + ' <span onclick="removeShareChip(this)" style="cursor:pointer;font-weight:700">×</span>';
+    box.appendChild(chip);
+  });
+}
+
+function editShare(materialName, checkedProjects) {
+  currentShareMaterial = materialName;
+  originalShareProjects = checkedProjects.slice();
+  document.getElementById('share-edit-title').textContent = '「' + materialName + '」の共有先を編集';
+  renderShareChips(checkedProjects);
+  document.getElementById('share-edit-select').selectedIndex = 0;
+  document.getElementById('share-edit-panel').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function addShareChip(selectEl) {
+  var value = selectEl.value;
+  var box = document.getElementById('share-edit-chips');
+  if (box.querySelector('[data-proj="' + value + '"]')) {
+    selectEl.selectedIndex = 0;
+    return;
+  }
+  var current = Array.prototype.map.call(box.querySelectorAll('[data-proj]'), function (c) { return c.getAttribute('data-proj'); });
+  current.push(value);
+  renderShareChips(current);
+  selectEl.selectedIndex = 0;
+}
+
+function removeShareChip(xEl) {
+  xEl.parentElement.remove();
+}
+
+function saveShare() {
+  var box = document.getElementById('share-edit-chips');
+  var checked = Array.prototype.map.call(box.querySelectorAll('[data-proj]'), function (c) { return c.getAttribute('data-proj'); });
+  var cell = document.getElementById('shares-' + currentShareMaterial);
+  if (!cell) return;
+  if (checked.length === 0) {
+    cell.innerHTML = '<span style="color:var(--text-subtle);font-size:12px">共有先なし</span>';
+  } else {
+    cell.innerHTML = checked.map(function (p) {
+      var isNew = originalShareProjects.indexOf(p) === -1;
+      if (isNew) {
+        return '<span class="chip" style="border-style:dashed">' + p + ' <span style="color:#b45309;font-size:10.5px">承認待ち</span></span>';
+      }
+      return '<span class="chip">' + p + ' <span style="color:#15803d;font-size:10.5px">承認済み</span></span>';
+    }).join(' ');
+  }
+}
+
+// 他プロジェクトからの共有リクエストへの応答（静的モック確認用）
+function respondIncomingShare(rowId, action) {
+  var row = document.getElementById(rowId);
+  if (!row) return;
+  row.remove();
+  var remaining = document.querySelectorAll('#incoming-shares-body tr').length;
+  if (remaining === 0) {
+    document.getElementById('incoming-shares-wrap').style.display = 'none';
+    document.getElementById('incoming-shares-empty').style.display = 'block';
+  }
+  var msg = action === 'accepted'
+    ? '承認しました。このプロジェクトのメンバーが受講対象として扱えるようになります。'
+    : '却下しました。この教材はこのプロジェクトの受講対象には反映されません。';
+  alert(msg);
+}
+</script>
+
+<script src="mock-sidebar.js"></script>
+</body>
+</html>

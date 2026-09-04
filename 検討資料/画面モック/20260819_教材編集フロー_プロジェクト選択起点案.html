@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>【検討中】教材編集フロー: プロジェクト選択起点案 | Manabi</title>
+<link rel="stylesheet" href="../../docs/03_画面モックアップ/mock.css">
+<style>
+  .stage-divider {
+    display: flex; align-items: center; gap: 12px; margin: 36px 0 18px;
+  }
+  .stage-divider .stage-no {
+    flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%;
+    background: var(--accent-600); color: #fff; font-size: 12.5px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .stage-divider .stage-label { font-size: 13.5px; font-weight: 700; }
+  .stage-divider .stage-line { flex: 1; height: 1px; background: var(--border-strong); }
+  .proj-select-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+  .proj-select-card {
+    border: 1px solid var(--border-strong); border-radius: 10px; background: #fff;
+    padding: 16px; display: flex; flex-direction: column; gap: 8px; cursor: pointer;
+  }
+  .proj-select-card:hover { border-color: var(--accent-600); }
+  .proj-select-card.pinned { border-color: #bfdbfe; background: #eff6ff; }
+  .proj-select-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .proj-select-card-title { font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+  .proj-select-card-meta { font-size: 11.5px; color: var(--text-subtle); }
+  .proj-select-card .pin-icon { width: 13px; height: 13px; color: var(--accent-600); flex-shrink: 0; }
+  .branch-actions { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; }
+  .breadcrumb-bar {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 14px;
+    font-size: 12.5px; color: var(--text-muted);
+  }
+  .breadcrumb-bar a { color: var(--accent-600); text-decoration: none; font-weight: 600; }
+  .breadcrumb-bar .sep { color: var(--text-subtle); }
+</style>
+</head>
+<body>
+
+<div style="background:#fef3c7;border-bottom:1px solid #fbbf24;color:#78350f;font-size:12px;font-weight:600;text-align:center;padding:6px;">
+  【検討中】教材編集フロー: プロジェクト選択起点案（1ページまとめ版） ／ 正式版ではありません ／
+  <a href="20260819_教材編集フロー_1_プロジェクト選択.html" style="color:#78350f">実際にクリックして遷移を確認できる版はこちら</a>
+</div>
+
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-mark">M</div>
+      <div>
+        <div class="brand-name">Manabi</div>
+        <div class="brand-sub">社内学習管理システム</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-label">メニュー</div>
+      <a class="nav-item" href="#">マイ学習</a>
+      <a class="nav-item" href="#">教材一覧・検索</a>
+      <a class="nav-item active" href="#">教材編集</a>
+      <a class="nav-item" href="#">個人学習レポート</a>
+      <a class="nav-item" href="#">プロジェクト作成</a>
+      <a class="nav-item" href="#">プロジェクト管理</a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="sidebar-user-row">
+        <span class="avatar">鈴</span>
+        <div>
+          <div class="user-name">鈴木 美咲 <span class="badge badge-role role-member">member</span></div>
+          <div class="user-mail">m.suzuki@kogasoftware.com</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="page-header">
+      <div class="page-title-group">
+        <h1>教材編集</h1>
+        <span class="screen-id">検討中</span>
+      </div>
+    </header>
+
+    <div class="page-body">
+
+      <div class="callout" style="margin-bottom:8px">
+        <strong>この案のポイント:</strong> 「教材編集」を開くと、まず<strong>プロジェクト選択</strong>から始まる（段階1）。プロジェクトを選ぶと、そのプロジェクト内の教材一覧と「＋新規教材を作成」ボタンが並ぶ画面に進み（段階2）、既存教材を選ぶ（段階3b、単元選択を経て本文編集）かその場で新規作成する（段階3a、新規作成フォーム）かに分岐する。新規作成フォームでは「所属コース」をその場で新規作成できるようにした。既存コースの名称変更・並び替え・削除は、乱立を防ぐため管理者限定の「コースの管理」（参考）として末尾に別途示す。
+      </div>
+
+      <!-- ============================================================ -->
+      <!-- 段階1: プロジェクト選択 -->
+      <!-- ============================================================ -->
+      <div class="stage-divider">
+        <span class="stage-no">1</span>
+        <span class="stage-label">プロジェクト選択（教材編集を開いた直後）</span>
+        <span class="stage-line"></span>
+      </div>
+
+      <p class="tab-note">自分が編集者以上の権限を持つプロジェクトがカードで並ぶ。「全社公開」は全社員が自動的にeditorのため、常に候補に含まれる。</p>
+
+      <div class="proj-select-cards">
+        <div class="proj-select-card">
+          <div class="proj-select-card-head">
+            <span class="proj-select-card-title">LCC CRM刷新</span>
+            <span class="badge badge-projrole projrole-editor">編集者</span>
+          </div>
+          <span class="proj-select-card-meta">教材2件（公開1・下書き1）／ メンバー4名</span>
+        </div>
+        <div class="proj-select-card pinned">
+          <div class="proj-select-card-head">
+            <span class="proj-select-card-title">
+              <svg class="pin-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a1 1 0 0 0 0-2H8a1 1 0 0 0 0 2h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/></svg>
+              全社公開
+            </span>
+            <span class="badge badge-projrole projrole-editor">編集者</span>
+          </div>
+          <span class="proj-select-card-meta">教材1件（公開1）／ 全社員が自動参加</span>
+        </div>
+      </div>
+
+      <!-- ============================================================ -->
+      <!-- 段階2: 教材一覧＋新規作成の分岐（LCC CRM刷新を選択した状態） -->
+      <!-- ============================================================ -->
+      <div class="stage-divider">
+        <span class="stage-no">2</span>
+        <span class="stage-label">教材一覧＋新規作成の分岐（「LCC CRM刷新」を選択した状態）</span>
+        <span class="stage-line"></span>
+      </div>
+
+      <div class="breadcrumb-bar">
+        <a href="#">← プロジェクト選択に戻る</a>
+        <span class="sep">／</span>
+        <span>LCC CRM刷新</span>
+      </div>
+
+      <div class="branch-actions">
+        <a class="btn btn-primary" href="#">＋ このプロジェクトに新規教材を作成</a>
+        <span style="font-size:12px;color:var(--text-subtle)">または、下の一覧から既存の教材を選んで編集</span>
+      </div>
+
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>教材</th>
+              <th style="width:90px">状態</th>
+              <th style="width:100px">単元数</th>
+              <th style="width:110px">更新日</th>
+              <th style="width:110px">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <div class="cell-main">新人向けGit入門</div>
+                <div class="cell-sub">記述式 全5問 ／ 作成: 鈴木 美咲（あなた）</div>
+              </td>
+              <td><span class="badge badge-status-on">公開中</span></td>
+              <td class="num">4単元</td>
+              <td>2026-08-14</td>
+              <td><a class="btn btn-secondary btn-sm" href="#">編集する</a></td>
+            </tr>
+            <tr>
+              <td>
+                <div class="cell-main">データベース設計入門 v2（改訂中）</div>
+                <div class="cell-sub">単一選択・記述式 全9問 ／ 作成: 鈴木 美咲（あなた）</div>
+              </td>
+              <td><span class="badge badge-status-off">下書き</span></td>
+              <td class="num">3単元</td>
+              <td>2026-08-18</td>
+              <td><a class="btn btn-secondary btn-sm" href="#">編集する</a></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ============================================================ -->
+      <!-- 段階3a: 新規教材作成フォーム（「＋ 新規教材を作成」を押した状態） -->
+      <!-- ============================================================ -->
+      <div class="stage-divider">
+        <span class="stage-no">3a</span>
+        <span class="stage-label">新規教材作成フォーム（「＋ このプロジェクトに新規教材を作成」を押した状態）</span>
+        <span class="stage-line"></span>
+      </div>
+
+      <div class="breadcrumb-bar">
+        <a href="#">← 教材一覧（LCC CRM刷新）に戻る</a>
+        <span class="sep">／</span>
+        <span>新規教材の作成</span>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label>所属プロジェクト</label>
+          <select>
+            <option selected>LCC CRM刷新</option>
+            <option>📌 全社公開</option>
+          </select>
+          <span class="field-help">段階2でこのプロジェクトの教材一覧から作成したため、既定でLCC CRM刷新が選ばれている。</span>
+        </div>
+        <div class="field">
+          <label>所属コース（任意）</label>
+          <select>
+            <option selected>-- 未選択 --</option>
+            <option>エンジニア基礎</option>
+            <option>新人研修2026</option>
+            <option>フロントエンド基礎</option>
+            <option style="font-weight:600;color:#2563eb">+ 新しいコースを作成...</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field" style="max-width:520px;padding:10px 12px;background:var(--bg-subtle);border-radius:8px;margin-top:-6px">
+        <label>新しいコース名（「+ 新しいコースを作成...」を選んだ場合に表示）</label>
+        <div style="display:flex;gap:8px">
+          <input type="text" placeholder="例: バックエンド基礎" style="flex:1">
+          <button class="btn btn-secondary btn-sm" type="button">作成して選択</button>
+        </div>
+        <span class="field-help">プロジェクトに関わらず、教材編集者なら誰でもその場で新しいコースを作成できる。名称の重複整理・並び替え・削除は下部「コースの管理」（admin限定）で行う。</span>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label>タイトル</label>
+          <input type="text" placeholder="教材のタイトルを入力">
+        </div>
+        <div class="field">
+          <label>概要（一覧表示用）</label>
+          <input type="text" placeholder="一覧画面に表示される簡単な説明">
+        </div>
+      </div>
+
+      <div class="field">
+        <label>記述形式</label>
+        <div class="segmented">
+          <button type="button" class="active">Markdown</button>
+          <button type="button">HTML</button>
+        </div>
+      </div>
+
+      <section class="panel">
+        <div class="panel-header">
+          <div class="panel-title">単元構成</div>
+          <span class="panel-count">0単元</span>
+        </div>
+        <div class="panel-body">
+          <div style="padding:18px;text-align:center;color:var(--text-subtle);font-size:12.5px">
+            まだ単元がありません。「+ 単元を追加」で最初の単元を作成すると、そのまま本文編集画面に進みます。
+          </div>
+          <button class="add-row-btn" type="button">+ 単元を追加</button>
+        </div>
+      </section>
+
+      <div class="form-actions">
+        <button class="btn btn-primary" type="button">下書き保存</button>
+        <span class="actions-note">単元を1つも作らずに保存すると、タイトルだけの空の下書きとして一覧に残る</span>
+      </div>
+
+      <!-- ============================================================ -->
+      <!-- 段階3b: 単元選択→本文編集（「新人向けGit入門」の「編集する」を押した状態） -->
+      <!-- ============================================================ -->
+      <div class="stage-divider">
+        <span class="stage-no">3b</span>
+        <span class="stage-label">単元を選ぶと本文編集に入る（既存教材「新人向けGit入門」の「編集する」を押した状態）</span>
+        <span class="stage-line"></span>
+      </div>
+
+      <div class="breadcrumb-bar">
+        <a href="#">← 教材一覧（LCC CRM刷新）に戻る</a>
+        <span class="sep">／</span>
+        <span>新人向けGit入門</span>
+      </div>
+
+      <div class="tabs" role="tablist">
+        <button class="tab active" type="button">構成（単元/コース）</button>
+        <button class="tab" type="button">問題編集</button>
+        <button class="tab" type="button">ファイル・リンク</button>
+        <button class="tab" type="button">プロジェクトメンバー</button>
+        <button class="tab" type="button">AIレビュー結果</button>
+        <button class="tab" type="button">改訂履歴</button>
+      </div>
+
+      <div class="tab-panel active">
+        <section class="panel">
+          <div class="panel-header">
+            <div class="panel-title">単元構成</div>
+            <span class="panel-count">4単元 ／ クリックして本文を編集</span>
+          </div>
+          <div class="panel-body">
+            <div class="qual-row">
+              <span style="flex:1;font-size:13px">単元1: Gitの基本概念とセットアップ</span>
+              <a class="btn btn-primary btn-sm" href="#">本文を編集</a>
+            </div>
+            <div class="qual-row">
+              <span style="flex:1;font-size:13px">単元2: ブランチとプルリクエストの基本</span>
+              <a class="btn btn-primary btn-sm" href="#">本文を編集</a>
+            </div>
+            <div class="qual-row">
+              <span style="flex:1;font-size:13px">単元3: コンフリクトの解消</span>
+              <a class="btn btn-primary btn-sm" href="#">本文を編集</a>
+            </div>
+            <div class="qual-row">
+              <span style="flex:1;font-size:13px">単元4: よく使うコマンドまとめ</span>
+              <a class="btn btn-primary btn-sm" href="#">本文を編集</a>
+            </div>
+            <button class="add-row-btn" type="button" style="margin-top:4px">+ 単元を追加</button>
+          </div>
+        </section>
+        <p class="tab-note">単元の「本文を編集」を押した後の画面（テキスト入力・プレビュー）は、既に作成済みの<a href="20260819_S-05改善案2_構成起点の逐次選択.html" target="_blank">S-05改善案2</a>と同じ構成のため、ここでは省略する。</p>
+      </div>
+
+      <!-- ============================================================ -->
+      <!-- 参考: コースの管理（admin限定・S-10管理画面へのタブ追加を想定） -->
+      <!-- ============================================================ -->
+      <div class="stage-divider">
+        <span class="stage-no">参考</span>
+        <span class="stage-label">コースの管理（S-10管理画面に新設。admin限定）</span>
+        <span class="stage-line"></span>
+      </div>
+
+      <div class="callout" style="margin-bottom:12px">
+        新規作成は誰でもその場でできる一方、名称変更・並び替え・削除は乱立を防ぐため管理者（admin）限定の操作とする。既存のS-10（管理画面）に「コース管理」タブを新設するイメージ。
+      </div>
+
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>コース名</th>
+              <th style="width:90px">教材数</th>
+              <th style="width:100px">並び順</th>
+              <th style="width:180px">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="cell-main">新人研修2026</span></td>
+              <td class="num">2件</td>
+              <td class="num">1</td>
+              <td>
+                <button class="icon-btn" type="button" title="上へ">↑</button>
+                <button class="icon-btn" type="button" title="下へ">↓</button>
+                <button class="btn btn-secondary btn-sm" type="button">名称変更</button>
+              </td>
+            </tr>
+            <tr>
+              <td><span class="cell-main">全社必修研修</span></td>
+              <td class="num">2件</td>
+              <td class="num">2</td>
+              <td>
+                <button class="icon-btn" type="button" title="上へ">↑</button>
+                <button class="icon-btn" type="button" title="下へ">↓</button>
+                <button class="btn btn-secondary btn-sm" type="button">名称変更</button>
+              </td>
+            </tr>
+            <tr>
+              <td><span class="cell-main">エンジニア基礎</span></td>
+              <td class="num">2件</td>
+              <td class="num">3</td>
+              <td>
+                <button class="icon-btn" type="button" title="上へ">↑</button>
+                <button class="icon-btn" type="button" title="下へ">↓</button>
+                <button class="btn btn-secondary btn-sm" type="button">名称変更</button>
+              </td>
+            </tr>
+            <tr>
+              <td><span class="cell-main">バックエンド基礎</span> <span class="badge badge-optional" style="margin-left:6px">新規（未整理）</span></td>
+              <td class="num">1件</td>
+              <td class="num">4</td>
+              <td>
+                <button class="icon-btn" type="button" title="上へ">↑</button>
+                <button class="icon-btn" type="button" title="下へ">↓</button>
+                <button class="btn btn-secondary btn-sm" type="button">名称変更</button>
+                <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="table-notes" style="margin-top:8px">※ 削除は、そのコースに属する教材が0件になったときのみ可能とする（教材が残っている状態でコースだけ消えると、教材側のcourse_idが不整合な参照を持ってしまうため）。教材が残っている間は「所属コースを個別に付け替えてから削除してください」という案内を表示する。</p>
+
+    </div>
+  </div>
+</div>
+
+<div class="mock-note">検討中の改善案（教材編集: プロジェクト選択起点の3段階フロー）</div>
+
+</body>
+</html>

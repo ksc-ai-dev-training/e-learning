@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>【検討中】教材編集フローの改善検討</title>
+<link rel="stylesheet" href="../../docs/03_画面モックアップ/mock.css">
+<style>
+  body { background: var(--bg-page, #f6f7f9); }
+  .doc-wrap { max-width: 980px; margin: 0 auto; padding: 32px 24px 80px; }
+  .doc-header { margin-bottom: 24px; }
+  .doc-header h1 { font-size: 20px; margin: 0 0 6px; }
+  .doc-meta { font-size: 12px; color: var(--text-subtle); }
+  .doc-section { margin-top: 32px; }
+  .doc-section h2 { font-size: 15px; border-left: 4px solid var(--accent-600); padding-left: 10px; margin-bottom: 12px; }
+  .doc-section h3 { font-size: 13.5px; margin: 18px 0 8px; }
+  .doc-section p, .doc-section li { font-size: 13px; line-height: 1.8; color: var(--text); }
+  .doc-section ul { padding-left: 22px; margin: 8px 0; }
+  .fix-list { display: grid; gap: 10px; margin: 14px 0; }
+  .fix-item {
+    border: 1px solid var(--border-strong); border-radius: 8px; background: #fff;
+    padding: 12px 14px; font-size: 12.5px; display: flex; gap: 12px;
+  }
+  .fix-item .fix-no {
+    flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%;
+    background: var(--accent-600); color: #fff; font-size: 11.5px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 16px 0; }
+  .card {
+    border: 1px solid var(--border-strong); border-radius: 10px; background: #fff;
+    padding: 16px; display: flex; flex-direction: column; gap: 8px;
+  }
+  .card h3 { margin: 0; font-size: 13.5px; }
+  .card .card-tag { font-size: 11px; color: var(--accent-600); font-weight: 600; }
+  .card ul { margin: 4px 0; padding-left: 18px; font-size: 12px; color: var(--text-muted); }
+  .card .card-cons { color: #b45309; }
+  .card a.btn { align-self: flex-start; margin-top: auto; }
+  table.compare { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 12.5px; }
+  table.compare th, table.compare td { border: 1px solid var(--border-strong); padding: 8px 10px; text-align: left; vertical-align: top; }
+  table.compare th { background: var(--bg-subtle); font-weight: 600; }
+  .verdict-box {
+    border: 1px solid #bfdbfe; background: #eff6ff; border-radius: 8px;
+    padding: 14px 16px; margin-top: 12px; font-size: 13px; line-height: 1.8;
+  }
+</style>
+</head>
+<body>
+<div class="doc-wrap">
+
+  <div class="doc-header">
+    <h1>教材編集フローの改善検討</h1>
+    <div class="doc-meta">検討資料 ／ 2026-08-19 ／ 対象画面: S-05（教材編集） ／ 関連: S-03（教材一覧・検索）, 画面共通サイドバー</div>
+  </div>
+
+  <div class="doc-section">
+    <h2>1. 指摘された3つの論点</h2>
+    <div class="fix-list">
+      <div class="fix-item">
+        <span class="fix-no">1</span>
+        <div><strong>「教材編集」ナビの条件付き表示が実態に合わない。</strong> 「対象教材が紐づくプロジェクトの管理者・編集者権限を持つ教材がある場合のみ表示」という条件は、全社員が自動的に「全社公開」の編集者になる（v1.9で新設）以上、常に真になる。S-11（プロジェクト作成）と同様に全員へ常時表示すべき。</div>
+      </div>
+      <div class="fix-item">
+        <span class="fix-no">2</span>
+        <div><strong>「＋ 新規教材を作成」ボタンがどこにも無い。</strong> 誰でも教材を作れる設計（F-04, F-25）なのに、その入口となるボタンが画面のどこにも存在しない。</div>
+      </div>
+      <div class="fix-item">
+        <span class="fix-no">3</span>
+        <div><strong>どの教材・どの単元を編集しているのかが分かりにくい。</strong> 現行のS-05は開いた瞬間から「本文編集」タブが特定の単元（単元2）の内容を表示するが、なぜその単元なのか、他の単元はどこで選ぶのかが画面から読み取れない。コース・単元を選んでから本文編集の画面に入る方が自然ではないか、という指摘。</div>
+      </div>
+    </div>
+    <p>1・2は方向性が明確なので、いずれの案でも共通で採用する。3は画面構造そのものに関わるため、3つのアプローチを作成して比較する。</p>
+  </div>
+
+  <div class="doc-section">
+    <h2>2. 共通で反映する変更（論点1・2）</h2>
+    <ul>
+      <li>サイドバーの「教材編集」ナビ項目を、S-11と同様に全員へ常時表示に変更する（条件付き表示の注記を削除）</li>
+      <li>S-05へ直接飛ぶのではなく、まず「教材編集の入口一覧」を経由する構成にする。この一覧は<strong>自分が編集できる教材だけ</strong>を、下書きも含めて表示する（S-03は逆に公開済みのみ・受講者向け）</li>
+      <li>この一覧のヘッダーに「＋ 新規教材を作成」ボタンを設置する</li>
+    </ul>
+    <p><a class="btn btn-secondary btn-sm" href="20260819_教材編集一覧.html" target="_blank">「教材編集の入口一覧」画面を見る →</a></p>
+  </div>
+
+  <div class="doc-section">
+    <h2>3. 単元選択のフロー（論点3・3案）</h2>
+
+    <div class="cards">
+      <div class="card">
+        <span class="card-tag">案1</span>
+        <h3>本文編集タブ内の単元切替</h3>
+        <p style="font-size:12px;color:var(--text-muted)">既存の7タブ構造を維持。「本文編集」タブの冒頭に単元ピルのセレクタを追加し、クリックで単元を切り替える。</p>
+        <ul>
+          <li>変更が最小限。既存の実装・要件記述への影響が小さい</li>
+          <li>同一タブ内で完結し、画面遷移が発生しない</li>
+        </ul>
+        <ul class="card-cons">
+          <li>「選んでから編集画面が出る」という逐次感は弱い</li>
+          <li>単元数が多いとピルが折り返す</li>
+        </ul>
+        <a class="btn btn-secondary btn-sm" href="20260819_S-05改善案1_単元タブ切替.html" target="_blank">画面を見る →</a>
+      </div>
+      <div class="card">
+        <span class="card-tag">案2</span>
+        <h3>構成タブ起点の逐次選択</h3>
+        <p style="font-size:12px;color:var(--text-muted)">S-05を開くと「構成」タブがデフォルト表示。単元一覧から「本文を編集」を押すと、その単元専用の編集画面に遷移する。</p>
+        <ul>
+          <li>指摘の「選んでから編集画面が出る」に最も忠実</li>
+          <li>教材全体の見取り図（単元一覧）を必ず経由するため迷いにくい</li>
+        </ul>
+        <ul class="card-cons">
+          <li>タブなのに「戻る」リンクが必要になり、ナビゲーション方式が混在する</li>
+          <li>問題編集タブは単元横断のまま残るため、案2でも別軸として独立</li>
+        </ul>
+        <a class="btn btn-secondary btn-sm" href="20260819_S-05改善案2_構成起点の逐次選択.html" target="_blank">画面を見る →</a>
+      </div>
+      <div class="card">
+        <span class="card-tag">案3</span>
+        <h3>教材編集ハブ</h3>
+        <p style="font-size:12px;color:var(--text-muted)">タブ構造をやめ、単元カード一覧の「ハブ」画面に着地。カードから単元専用のフォーカス編集画面（問題編集も統合）に入る。</p>
+        <ul>
+          <li>最も直感的。「どの単元を編集しているか」が常に明確</li>
+          <li>単元専用の問題編集をその場に統合でき、単元と設問の対応も分かりやすい</li>
+        </ul>
+        <ul class="card-cons">
+          <li>画面構造の変更が最も大きい（要件定義書・基本設計書の該当記述も作り直しが必要）</li>
+          <li>「教材全体の設定」（合否判定・ファイル・メンバー・AIレビュー・履歴）をハブ側の別セクションに切り出す必要がある</li>
+        </ul>
+        <a class="btn btn-secondary btn-sm" href="20260819_S-05改善案3_教材編集ハブ.html" target="_blank">画面を見る →</a>
+      </div>
+    </div>
+
+    <table class="compare">
+      <thead>
+        <tr><th>観点</th><th>案1 タブ内切替</th><th>案2 構成起点</th><th>案3 編集ハブ</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>「選んでから編集画面が出る」との合致度</td>
+          <td>△（同一画面内での切替）</td>
+          <td>◎</td>
+          <td>◎</td>
+        </tr>
+        <tr>
+          <td>実装・記述コスト</td>
+          <td>小</td>
+          <td>中</td>
+          <td>大</td>
+        </tr>
+        <tr>
+          <td>単元と設問の対応の分かりやすさ</td>
+          <td>○（問題編集タブは別）</td>
+          <td>○（問題編集タブは別）</td>
+          <td>◎（単元編集画面に統合）</td>
+        </tr>
+        <tr>
+          <td>教材全体の設定（メンバー・履歴等）へのアクセス</td>
+          <td>◎（タブのまま）</td>
+          <td>◎（タブのまま）</td>
+          <td>○（ハブの別セクションへ移動）</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="verdict-box">
+      <strong>所感:</strong> 指摘の意図に最も忠実なのは案2・案3。実装コストを抑えつつ「選んでから編集」を実現するなら<strong>案2</strong>が現実的な落としどころ。案3は理想形に近いが、問題編集の単元統合まで踏み込むと影響範囲（要件定義書F-04・F-13、基本設計書5.4節・8.3節の単元/問題モデル）が広がるため、まずは案2で様子を見て、将来的に問題編集も単元単位に寄せたくなったタイミングで案3の考え方を取り入れる、という段階的な進め方もありうる。
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>【検討中】教材のプロジェクト所属を受講者にわかりやすくする改善案</title>
+<link rel="stylesheet" href="../../docs/03_画面モックアップ/mock.css">
+<style>
+  body { background: var(--bg-page, #f6f7f9); }
+  .doc-wrap { max-width: 980px; margin: 0 auto; padding: 32px 24px 80px; }
+  .doc-header { margin-bottom: 24px; }
+  .doc-header h1 { font-size: 20px; margin: 0 0 6px; }
+  .doc-meta { font-size: 12px; color: var(--text-subtle); }
+  .doc-section { margin-top: 32px; }
+  .doc-section h2 { font-size: 15px; border-left: 4px solid var(--accent-600); padding-left: 10px; margin-bottom: 12px; }
+  .doc-section h3 { font-size: 13.5px; margin: 18px 0 8px; }
+  .doc-section p, .doc-section li { font-size: 13px; line-height: 1.8; color: var(--text); }
+  .doc-section ul { padding-left: 22px; margin: 8px 0; }
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 16px 0; }
+  .card {
+    border: 1px solid var(--border-strong); border-radius: 10px; background: #fff;
+    padding: 16px; display: flex; flex-direction: column; gap: 8px;
+  }
+  .card h3 { margin: 0; font-size: 13.5px; }
+  .card .card-tag { font-size: 11px; color: var(--accent-600); font-weight: 600; }
+  .card ul { margin: 4px 0; padding-left: 18px; font-size: 12px; color: var(--text-muted); }
+  .card .card-cons { color: #b45309; }
+  .card a.btn { align-self: flex-start; margin-top: auto; }
+  table.compare { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 12.5px; }
+  table.compare th, table.compare td { border: 1px solid var(--border-strong); padding: 8px 10px; text-align: left; vertical-align: top; }
+  table.compare th { background: var(--bg-subtle); font-weight: 600; }
+  .verdict-box {
+    border: 1px solid #bfdbfe; background: #eff6ff; border-radius: 8px;
+    padding: 14px 16px; margin-top: 12px; font-size: 13px; line-height: 1.8;
+  }
+  .mini-mock {
+    border: 1px solid var(--border-strong); border-radius: 8px; background: #fff;
+    padding: 14px; margin: 10px 0; font-size: 12.5px;
+  }
+  .mini-field { margin-bottom: 10px; }
+  .mini-field label { display: block; font-size: 11.5px; color: var(--text-muted); margin-bottom: 4px; }
+  .mini-select {
+    height: 30px; padding: 0 10px; border: 1px solid var(--border-strong); border-radius: 6px;
+    font-size: 12.5px; background: #fff; width: 260px;
+  }
+  .mini-hint { font-size: 11.5px; color: var(--accent-600); margin-top: 4px; }
+  code.inline { background: var(--bg-subtle); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="doc-wrap">
+
+  <div class="doc-header">
+    <h1>教材のプロジェクト所属を受講者にわかりやすくする改善案</h1>
+    <div class="doc-meta">
+      <span style="display:inline-block;background:#fef3c7;border:1px solid #fbbf24;color:#78350f;font-weight:700;padding:2px 8px;border-radius:5px;margin-right:8px;">検討中</span>
+      検討資料 ／ 2026-08-19 ／ 対象画面: S-03（教材一覧・検索） ／ 関連: S-05（教材編集）, S-11（プロジェクト作成）
+    </div>
+  </div>
+
+  <div class="doc-section">
+    <h2>1. 課題</h2>
+    <p>現行のS-03教材一覧では「コース」（学習順序のまとまり）だけが表示され、教材がどの<strong>プロジェクト</strong>（v1.5モデルにおける作成・編集権限の単位）に属しているかが受講者から一切わからない。また、教材は必ずいずれかのプロジェクトに属する仕様（materials.project_id NOT NULL）のため、個人が単発で教材を作る場合の置き場所が定まらず、バラバラな使い捨てプロジェクトが乱立しかねない。</p>
+    <ul>
+      <li>受講者が「誰が管理している教材か」「関連教材が他に無いか」を把握しづらい</li>
+      <li>個人作成の教材の所属先が不明確 → 全社公開したい教材でも受け皿がない</li>
+    </ul>
+  </div>
+
+  <div class="doc-section">
+    <h2>2. 「全社公開」プロジェクトの導入（データモデル面の対応）</h2>
+    <p>個人が単発で作成する教材の受け皿として、システム初期構築時に自動生成される特別プロジェクト <strong>「全社公開」</strong> を導入する。</p>
+    <ul>
+      <li>全社員が自動的に「受講者」ロールでアクセス可能（新規参画者にも自動付与）</li>
+      <li>削除不可・プロジェクト管理者は初期状態でadmin相当（運用ルールは別途検討）</li>
+      <li>REQ-F-04の自己主導での教材共有を阻害しないよう、<strong>誰でも「全社公開」の編集者になれる</strong>運用を想定（プロジェクト管理者による招待 or 参加リクエスト方式は基本設計側で詳細化）</li>
+      <li>教材新規作成時、プロジェクトを選ばなければ自動的に「全社公開」がデフォルト選択される</li>
+    </ul>
+    <h3>教材新規作成フォーム（S-05）でのイメージ</h3>
+    <div class="mini-mock">
+      <div class="mini-field">
+        <label>所属プロジェクト</label>
+        <select class="mini-select">
+          <option selected>全社公開（デフォルト）</option>
+          <option>新人研修2026運営</option>
+          <option>LCC CRM刷新</option>
+          <option>＋ 新しいプロジェクトを作成...</option>
+        </select>
+        <div class="mini-hint">※ 未選択の場合、教材は「全社公開」プロジェクトに作成されます</div>
+      </div>
+    </div>
+    <p>この対応は画面モックアップだけでなく、02_要件定義書・04_基本設計書側にも影響する（デフォルトプロジェクトの存在、初期データとしての自動作成、A-16教材作成APIのデフォルト値仕様など）。UI改善案について合意が取れたら、まとめて両ドキュメントへ反映する。</p>
+  </div>
+
+  <div class="doc-section">
+    <h2>3. S-03改善案（3案）</h2>
+    <p>ユーザー提案の2方向（プロジェクトで絞り込むタブ／プロジェクト単位のブロック分割）に加え、サイドバーからの絞り込みを含めた3案を作成した。</p>
+
+    <div class="cards">
+      <div class="card">
+        <span class="card-tag">案A</span>
+        <h3>プロジェクトタブ切替</h3>
+        <p style="font-size:12px;color:var(--text-muted)">一覧上部にプロジェクトのタブを横並びし、クリックで絞り込み。「プロジェクト」列も追加。</p>
+        <ul>
+          <li>既存レイアウトへの変更が最小</li>
+          <li>コース軸とプロジェクト軸を両方一覧できる</li>
+        </ul>
+        <ul class="card-cons">
+          <li>所属プロジェクト数が多いとタブが折り返す</li>
+        </ul>
+        <a class="btn btn-secondary btn-sm" href="20260819_S-03改善案A_プロジェクトタブ切替.html" target="_blank">画面を見る →</a>
+      </div>
+      <div class="card">
+        <span class="card-tag">案B</span>
+        <h3>プロジェクトブロック分割</h3>
+        <p style="font-size:12px;color:var(--text-muted)">プロジェクトごとの見出し付きブロックで一覧を縦に分割。全社公開は常に先頭固定。</p>
+        <ul>
+          <li>「どのプロジェクトが何を持っているか」が一目で分かる</li>
+          <li>プロジェクト詳細への導線を自然に置ける</li>
+        </ul>
+        <ul class="card-cons">
+          <li>教材数が多いと縦に長くなる</li>
+          <li>横断的な検索結果の一覧性はやや低下</li>
+        </ul>
+        <a class="btn btn-secondary btn-sm" href="20260819_S-03改善案B_プロジェクトブロック分割.html" target="_blank">画面を見る →</a>
+      </div>
+      <div class="card">
+        <span class="card-tag">案C</span>
+        <h3>サイドバーナビゲーション</h3>
+        <p style="font-size:12px;color:var(--text-muted)">「教材一覧・検索」メニュー直下に所属プロジェクトを常時展開し、クリックで遷移。</p>
+        <ul>
+          <li>プロジェクト切替が最も速い</li>
+          <li>「今どこを見ているか」が常に視界に入る</li>
+        </ul>
+        <ul class="card-cons">
+          <li>所属プロジェクトが多いユーザーはサイドバーが縦に伸びる（折りたたみ要検討）</li>
+        </ul>
+        <a class="btn btn-secondary btn-sm" href="20260819_S-03改善案C_サイドバーナビゲーション.html" target="_blank">画面を見る →</a>
+      </div>
+    </div>
+
+    <table class="compare">
+      <thead>
+        <tr><th>観点</th><th>案A タブ切替</th><th>案B ブロック分割</th><th>案C サイドバー</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>横断検索のしやすさ</td>
+          <td>◎（全件+絞り込み両立）</td>
+          <td>△（ブロックが増えて縦長）</td>
+          <td>○（「すべて」も残る）</td>
+        </tr>
+        <tr>
+          <td>プロジェクト単位の把握しやすさ</td>
+          <td>○</td>
+          <td>◎（見出し単位で明確）</td>
+          <td>○</td>
+        </tr>
+        <tr>
+          <td>実装コスト感</td>
+          <td>小（列追加+タブ）</td>
+          <td>中（一覧構造の変更）</td>
+          <td>中（サイドバーの動的化）</td>
+        </tr>
+        <tr>
+          <td>所属プロジェクト数が多い場合の耐性</td>
+          <td>△（タブ折り返し）</td>
+          <td>○（スクロールで対応）</td>
+          <td>△（サイドバーが伸びる）</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="verdict-box">
+      <strong>所感:</strong> 案Aと案Bは併用可能（プロジェクト列を残しつつ、将来的にブロック表示へ拡張する余地あり）。まずは実装コストが小さく既存レイアウトへの影響が少ない<strong>案A</strong>を軸に、必要であれば案Bの「全社公開を先頭固定」という考え方を取り入れるハイブリッドも検討候補。案Cはナビゲーションとして強力だが、他画面（マイ学習・教材編集）への展開まで含めた設計判断が必要なため、影響範囲が広い分、別途本格検討が望ましい。
+    </div>
+  </div>
+
+  <div class="doc-section">
+    <h2>4. 反映方針（合意後）</h2>
+    <ul>
+      <li>採用案を <code class="inline">docs/03_画面モックアップ/S-03_materials-list.html</code> に反映</li>
+      <li>「全社公開」プロジェクトの存在を <code class="inline">02_要件定義書.html</code>（機能要件・データ要件）に追記</li>
+      <li>「全社公開」プロジェクトの初期データ生成・教材作成時デフォルト選択ロジックを <code class="inline">04_基本設計書.html</code>（DB設計・API設計 A-16）に反映</li>
+      <li>採用案によっては S-11（プロジェクト作成）・S-05（教材編集）にも軽微な修正が波及</li>
+    </ul>
+  </div>
+
+</div>
+</body>
+</html>

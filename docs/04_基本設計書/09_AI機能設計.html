@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>9. AI機能設計 | 基本設計書 | 社内学習管理システム（Manabi）</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<script src="../_sidenav.js"></script>
+<div class="doc">
+
+<p class="chapter-nav" style="display:flex;justify-content:space-between;font-size:13px;margin:0 0 16px"><a href="08_教材連携設計.html">← 8. 教材連携設計（Claude Code連携）</a><a href="index.html">目次</a><a href="10_非機能設計.html">10. 非機能設計 →</a></p>
+
+  <h2 id="sec9">9. AI機能設計</h2>
+
+  <h3>9.1 AI機能ごとの処理方式（概要）</h3>
+  <p>要件定義書6章が定める<span class="rev-old">5つ</span><span class="rev-old">5つ（F-08, F-20〜F-23）に加え、5章のF-27（AI教材作成アシスト）を実質的に同種のAI連携機能として本章に含める。あわせて6つ</span><span class="rev-new">5つ（F-08, F-20〜F-23。F-27は本章の対象だったが、v1.20で廃止した）</span>のAI機能を、2章で選定したAnthropic Claude API（Messages API）を用いて実装する。</p>
+  <table>
+    <thead><tr><th>機能</th><th>呼び出しタイミング</th><th>処理方式</th><th>関連API</th></tr></thead>
+    <tbody>
+      <tr><td>F-08 教材AIレビュー</td><td>公開前、教材編集者・管理者が明示的に実行</td><td>同期呼び出し（S-05に結果を即時表示）</td><td>A-32, A-33</td></tr>
+      <tr><td>F-20 AI記述式採点・講評</td><td>記述式回答の提出時</td><td>非同期ジョブ（9.2節）。受講者は結果を待たずに次へ進める（REQ-N-05）</td><td>A-42, A-43</td></tr>
+      <tr><td>F-21 AIつまずき分析・教材改善提案</td><td>定期バッチ、または教材編集者・管理者・adminのオンデマンド実行</td><td>非同期ジョブ。結果はA-35でWeb・Claude Code双方から取得可（8章）</td><td>A-34, A-35</td></tr>
+      <tr><td>F-22 AI個人フィードバック</td><td><span class="rev-old">S-09を開いたとき、または受講完了時</span><span class="rev-new">S-09の「生成する」ボタンを押したとき（実装時に変更。v1.52、2026-09-02）</span></td><td>非同期ジョブ。生成中は「作成中」を表示<span class="rev-row">。「開いたら自動」だと画面を開くたびに、あるいは管理者が複数人のレポートを見て回るたびにAI呼び出しの課金が発生してしまうため、手動トリガーに変更した（ユーザー判断）</span></td><td>A-51, A-52</td></tr>
+      <tr><td>F-23 AI組織レポート生成</td><td>S-08でレポート生成を実行したとき</td><td>非同期ジョブ</td><td>A-48, A-49</td></tr>
+      <tr><td>F-27 AI教材作成アシスト</td><td colspan="3">廃止（v1.20）。5.28節参照</td></tr>
+    </tbody>
+  </table>
+
+  <h3>9.2 非同期ジョブの実現方式</h3>
+  <p>2章のシステム構成図が示すとおり、本システムはKoyeb上でUvicorn 1プロセスとして稼働し、AIジョブも同一プロセス内で実行する。この制約と、想定規模（社員200名程度）を踏まえ、Redis・Celery等の別プロセスのジョブキュー基盤は導入せず、FastAPIの非同期処理機構のみで非同期ジョブを実現する。</p>
+  <ul>
+    <li><strong>起動:</strong> A-42（提出）・A-34（つまずき分析）・A-48（組織レポート）・A-51（個人フィードバック）は、リクエストを受けたら<span class="rev-new">まず結果テーブル（T-16〜T-18）に<code>requested_at=now()</code>のプレースホルダ行を同期的に作成し（内容カラムはNULLのまま）、その後で</span>AI呼び出しを <code>asyncio.create_task</code>（FastAPIの<code>BackgroundTasks</code>相当）でスケジュールし、即座に202相当のレスポンス（受付済みを示すJSON）を返す。Uvicornのイベントループ上でAI呼び出し（ネットワークI/O待ち）が進む間も、他のリクエスト処理はブロックされない。</li>
+    <li><strong>ジョブ状態の表現（専用のジョブテーブルを持たない）:</strong> ジョブの進行状況は、対応する結果テーブル（T-14の<code>ai_score_pct</code>／T-16 <code>ai_material_insights</code>／T-17 <code>ai_personal_feedback</code>／T-18 <code>ai_org_reports</code>）自体の状態で表現する。<span class="rev-old">T-16〜T-18は該当機能の実行ごとに行が作成される設計のため、「対象の行が存在しない」＝処理中、「行が存在する」＝完了として扱う。</span><span class="rev-new">T-16〜T-18は上記のとおりリクエスト受付時に行を作成するため、「内容カラムがNULL」＝処理中、「内容カラムが設定済み」＝完了として扱う。</span>T-14（記述式採点）は既存行の<code>ai_score_pct</code>が<code>NULL</code>のままであれば「採点中」である（5.14節ですでに定義済み）。</li>
+    <li><strong>取得（ポーリング）:</strong> フロントエンドはA-35/A-43/A-49/A-52をSWRの再検証間隔付きで呼び出し、結果が存在するまで数秒間隔でポーリングする。WebSocket等のプッシュ通知は本フェーズでは導入しない（想定規模・実装コストに見合わないため）。</li>
+    <li><strong>失敗時のリトライ:</strong> Claude API呼び出しが失敗した場合、ジョブ内で指数バックオフにより最大3回リトライする（要件定義書6.2節）。全て失敗した場合も当該行は削除せず内容カラムをNULLのまま残し（学習記録自体は失われない、REQ-N-05）、構造化ログ（10.4節）にエラーを記録する。フロントエンドは一定時間（目安3分）応答がない場合に「時間がかかっています」の案内を表示し、再試行操作（同一APIの再呼び出し）を可能にする。</li>
+    <li class="rev-new"><strong>プロセス再起動・デプロイによるジョブ消失への対策:</strong> <code>asyncio.create_task</code>でスケジュールしたタスクはプロセスのメモリ上にのみ存在するため、Koyebのデプロイ（10.5節、mainマージ即時反映）やクラッシュでプロセスが再起動すると、実行中のタスクはリトライも記録も残らず消える。この場合でも上記のプレースホルダ行（<code>requested_at</code>あり・内容カラムNULL）は残るため、これを起点に検出・復旧する。具体的には、アプリ起動時（<code>lifespan</code>イベント）およびその後5分ごとに、<code>requested_at</code>が10分以上前かつ内容カラムがNULLの行（T-16〜T-18）と、<code>submitted_at</code>が10分以上前かつ<code>ai_score_pct</code>がNULLの回答（T-14）を検出し、AI呼び出しを再スケジュールする「スタックジョブ・スイープ」を実行する。これにより、途中で失われたジョブも次回のスイープで自動的に再試行され、受講者・教材編集者が結果を永久に待ち続ける状態を防ぐ。専用のジョブキュー基盤（Redis・Celery等）を導入しない9.2節の方針を維持したまま、想定規模（社員200名程度、デプロイ頻度は開発時のみ高い）に見合う最小限の復旧策とする。</li>
+  </ul>
+
+  <div class="diagram">
+    <svg width="820" height="260" viewBox="0 0 820 260" font-family="'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif">
+      <defs>
+        <marker id="arw6" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+          <path d="M0,0 L9,4.5 L0,9 z" fill="#1e40af"/>
+        </marker>
+        <marker id="arw6p" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+          <path d="M0,0 L9,4.5 L0,9 z" fill="#6d28d9"/>
+        </marker>
+      </defs>
+
+      <rect x="20" y="90" width="130" height="60" rx="8" fill="#eff6ff" stroke="#1e40af" stroke-width="1.5"/>
+      <text x="85" y="115" text-anchor="middle" font-size="12" font-weight="600" fill="#1e3a8a">ブラウザ</text>
+      <text x="85" y="133" text-anchor="middle" font-size="10.5" fill="#1a1d21">A-42 提出</text>
+
+      <rect x="230" y="90" width="150" height="60" rx="8" fill="#eff6ff" stroke="#1e40af" stroke-width="1.5"/>
+      <text x="305" y="112" text-anchor="middle" font-size="12" font-weight="600" fill="#1e3a8a">FastAPI</text>
+      <text x="305" y="130" text-anchor="middle" font-size="10.5" fill="#1a1d21">即時202応答</text>
+      <text x="305" y="145" text-anchor="middle" font-size="9.5" fill="#8a8f98">asyncio.create_task</text>
+
+      <rect x="460" y="20" width="150" height="60" rx="8" fill="#fdf4ff" stroke="#9333ea" stroke-width="1.5"/>
+      <text x="535" y="45" text-anchor="middle" font-size="12" font-weight="600" fill="#6d28d9">Claude API</text>
+      <text x="535" y="63" text-anchor="middle" font-size="10.5" fill="#6d28d9">採点・分析等</text>
+
+      <rect x="460" y="160" width="150" height="60" rx="8" fill="#f5f7f9" stroke="#60656d" stroke-width="1.5"/>
+      <text x="535" y="182" text-anchor="middle" font-size="12" font-weight="600" fill="#1a1d21">T-14 answers</text>
+      <text x="535" y="200" text-anchor="middle" font-size="10.5" fill="#60656d">ai_score_pct 更新</text>
+
+      <rect x="670" y="90" width="130" height="60" rx="8" fill="#eff6ff" stroke="#1e40af" stroke-width="1.5"/>
+      <text x="735" y="115" text-anchor="middle" font-size="12" font-weight="600" fill="#1e3a8a">ブラウザ</text>
+      <text x="735" y="133" text-anchor="middle" font-size="10.5" fill="#1a1d21">A-43 ポーリング</text>
+
+      <line x1="150" y1="120" x2="227" y2="120" stroke="#1e40af" stroke-width="1.5" marker-end="url(#arw6)"/>
+      <line x1="227" y1="140" x2="150" y2="140" stroke="#1e40af" stroke-width="1.5" marker-end="url(#arw6)"/>
+      <text x="188" y="160" text-anchor="middle" font-size="9.5" fill="#1e40af">①提出→②即応答</text>
+
+      <line x1="380" y1="105" x2="457" y2="60" stroke="#6d28d9" stroke-width="1.5" marker-end="url(#arw6p)"/>
+      <text x="420" y="75" text-anchor="middle" font-size="9.5" fill="#6d28d9">③非同期で呼び出し</text>
+
+      <line x1="535" y1="80" x2="535" y2="157" stroke="#6d28d9" stroke-width="1.5" marker-end="url(#arw6p)"/>
+      <text x="565" y="120" text-anchor="middle" font-size="9.5" fill="#6d28d9">④結果保存</text>
+
+      <line x1="670" y1="130" x2="612" y2="185" stroke="#1e40af" stroke-width="1.5" marker-end="url(#arw6)"/>
+      <line x1="670" y1="150" x2="670" y2="150" stroke="#1e40af" stroke-width="1.5"/>
+      <text x="640" y="240" text-anchor="middle" font-size="9.5" fill="#1e40af">⑤ 数秒間隔でGET、結果が現れるまで繰り返す</text>
+
+      <text x="410" y="235" text-anchor="middle" font-size="10" fill="#8a8f98">受講者は②の応答後、次の設問へ進める（REQ-N-05）</text>
+      <text x="410" y="16" text-anchor="middle" font-size="13" font-weight="600" fill="#1e3a8a">非同期ジョブのシーケンス（F-20の例）</text>
+    </svg>
+  </div>
+
+  <h3>9.3 AI利用ログ（T-19 ai_usage_logs）の記録方式</h3>
+  <p>Claude APIの呼び出しは、必ず共通クライアント（<code>ai_client.py</code>）を経由させる。<code>ai_client.py</code>は呼び出しの成否によらず、呼び出し完了時にT-19へ1行記録する。</p>
+  <ul>
+    <li><strong><code>feature</code>:</strong> 呼び出し元機能を識別する固定値（<code>material_review</code> / <code>grading</code> / <code>insight_analysis</code> / <code>personal_feedback</code> / <code>org_report</code><span class="rev-old"> / <code>draft_assist</code>（F-27、A-69。F-27はv1.20で廃止したため今後この値が記録されることはない）</span>）。</li>
+    <li><strong><code>model</code>:</strong> 実際に呼び出されたモデルID（9.4節の優先順位で解決された値）。</li>
+    <li><strong><code>input_tokens</code>・<code>output_tokens</code>:</strong> Messages APIのレスポンスに含まれるトークン数をそのまま記録する。</li>
+    <li><strong><code>cost_estimate</code>:</strong> <code>input_tokens × 単価_in + output_tokens × 単価_out</code>で概算する。モデルごとの単価は<code>ai_client.py</code>内の定数テーブルとして保持し、Anthropicの価格改定時にはこの定数を更新する（本書では具体的な単価は定めない）。通貨は画面モックアップ（S-10）に合わせ円（JPY）で表示する。</li>
+    <li><strong>内容そのものは記録しない:</strong> 要件定義書6.2節・Keirekiのai_usage_logsと同方針で、プロンプト・レスポンスの本文は保存しない。</li>
+  </ul>
+  <div class="callout">
+    <strong>AI利用費用の管理方法（要件定義書9.2節「別途整理する」の対応）:</strong> S-10のシステム設定タブは、当月のトークン数・概算コストの表示（既に画面モックアップで確定済み）のみを持つ。本設計ではこれに加え、環境変数<code>AI_MONTHLY_BUDGET_ALERT_JPY</code>（任意設定、既定は未設定＝アラートなし）を導入する。<code>ai_client.py</code>はAPI呼び出し完了時に当月の<code>cost_estimate</code>合計を集計し、閾値を超えた場合は10.4節の構造化ログに警告レベルで記録する。画面上の新たな設定項目を追加すると4章（画面設計）の確定済み内容に踏み込むため、本フェーズでは環境変数による運用者向けの目安機能に留め、S-10でのUI化（閾値入力欄・Slackアラート連携等）は将来の拡張として詳細設計以降で検討する。</div>
+
+  <h3>9.4 モデル選択の実現方式</h3>
+  <p>利用するモデルは、要件定義書6.2節・2.2節の方針どおり「画面設定 &gt; 環境変数 &gt; 既定値」の優先順位で解決する。</p>
+  <ol>
+    <li><strong>画面設定:</strong> T-21 <code>app_settings</code>（<code>key='ai_model'</code>）に値があればそれを使う（S-10「利用するAIモデル」プルダウン、A-56で更新）。</li>
+    <li><strong>環境変数:</strong> 画面設定が未設定の場合、環境変数<code>ANTHROPIC_MODEL</code>を使う（2.3節）。</li>
+    <li><strong>既定値:</strong> いずれも未設定の場合、<code>claude-sonnet-5</code>を使う（2.2節）。</li>
+  </ol>
+  <p>選択可能な値は<code>claude-sonnet-5</code> / <code>claude-opus-5</code> / <code>claude-haiku-4-5</code>の3種に限定し（S-10プルダウンの選択肢、2.2節）、<code>ai_client.py</code>はこれ以外の値が設定されていた場合は既定値にフォールバックしたうえで警告ログを出す。全AI機能（F-08, F-20〜F-23）で同一のモデル設定を共有し、機能ごとの個別設定は持たない（S-10の画面が単一のプルダウンであるため、5機能を横断する単一の設定として扱う）。</p>
+
+  <h3>9.5 送信データ範囲の実装方針</h3>
+  <p>要件定義書6.2節「送信データの範囲」を、機能ごとに具体化する。個人が特定される情報（氏名・メールアドレス等）は、AIの応答生成に必須でない限りプロンプトに含めない（REQ-N-03）。</p>
+  <table>
+    <thead><tr><th>機能</th><th>送信するデータ</th><th>送信しないデータ</th></tr></thead>
+    <tbody>
+      <tr><td>F-08 教材AIレビュー</td><td>教材本文・問題定義（T-06, T-10）</td><td>作成者・編集者の氏名等の個人情報、他教材の内容</td></tr>
+      <tr><td>F-20 AI記述式採点</td><td>回答内容（T-14 <code>response</code>。<span class="rev-new">コード記述式問題の場合は提出コード本文と言語ヒント<code>code_language</code>を含む</span>）、出題の模範解答・採点基準（T-10）</td><td>受講者の氏名・メールアドレス（プロンプトには<code>user_id</code>を含めず、採点結果の保存時にのみ紐づける）</td></tr>
+      <tr><td>F-21 AIつまずき分析</td><td>設問ごとの正答率・誤答傾向の集計値（複数受講者の回答を集計したもの）<span class="rev-new">。受験後アンケート設置時は評価点の平均・自由記述のテキスト群（T-28/T-29の集計）も含む（v1.17）</span></td><td>個々の受講者を特定できる回答・氏名<span class="rev-new">（アンケートも回答者を特定せず集計値・テキストのみを送信）</span></td></tr>
+      <tr><td>F-22 AI個人フィードバック</td><td>対象者本人の回答傾向データ（正誤・分野別集計、T-12〜T-14の集計）</td><td>氏名・メールアドレス（宛先としての氏名表示はフロントエンド側で付与する）</td></tr>
+      <tr><td>F-23 AI組織レポート</td><td>プロジェクト単位・全社単位の集計データ（受講率・合格率等）</td><td>個人が特定できる粒度のデータ（常に集計後の数値のみを送信する）</td></tr>
+      <tr><td>F-27 AI教材作成アシスト</td><td colspan="2">廃止（v1.20）。5.28節参照</td></tr>
+    </tbody>
+  </table>
+
+  <h3>9.6 Claude API共通呼び出し設計（ai_client.py）</h3>
+  <ul>
+    <li><strong>構造化出力:</strong> 教材レビュー（F-08）・つまずき分析（F-21）のように「指摘事項のリスト」「分析結果＋提案」を返す機能は、Claude APIのツール呼び出し（tool use）を用いて構造化されたJSONで応答を受け取り、パース失敗時のフォールバック処理を挟まない設計とする。</li>
+    <li><strong>タイムアウト・リトライ:</strong> 1回の呼び出しにつきタイムアウトを設定し（詳細設計で定める）、9.2節のリトライ方針（指数バックオフ最大3回）を共通実装する。</li>
+    <li><strong>モデル解決・ログ記録:</strong> 9.4節のモデル解決、9.3節のT-19記録は<code>ai_client.py</code>内で一元的に行い、各機能の呼び出し元（materials.py, learning.py, dashboard.py, reports.py）はモデル名やログ記録を意識しない。</li>
+  </ul>
+
+  <!-- ============ 10. 非機能設計 ============ -->
+
+  <footer class="doc-footer">
+    <span>社内学習管理システム（Manabi）基本設計書 v1.52</span>
+    <span>コガソフトウェア株式会社 / 2026-08-24</span>
+  </footer>
+
+</div>
+</body>
+</html>
+

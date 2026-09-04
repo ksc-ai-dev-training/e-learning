@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>【検討中】教材編集フロー 1/5: プロジェクト選択 | Manabi</title>
+<link rel="stylesheet" href="../../docs/03_画面モックアップ/mock.css">
+<style>
+  .proj-select-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+  .proj-select-card {
+    border: 1px solid var(--border-strong); border-radius: 10px; background: #fff;
+    padding: 16px; display: flex; flex-direction: column; gap: 8px; text-decoration: none; color: inherit;
+  }
+  .proj-select-card:hover { border-color: var(--accent-600); box-shadow: var(--shadow-sm); }
+  .proj-select-card.pinned { border-color: #bfdbfe; background: #eff6ff; }
+  .proj-select-card.disabled { cursor: default; opacity: 0.6; }
+  .proj-select-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .proj-select-card-title { font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+  .proj-select-card-meta { font-size: 11.5px; color: var(--text-subtle); }
+  .proj-select-card .pin-icon { width: 13px; height: 13px; color: var(--accent-600); flex-shrink: 0; }
+  .flow-nav { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+  .flow-nav .fn-step {
+    font-size: 11px; padding: 3px 9px; border-radius: 999px; background: var(--bg-muted); color: var(--text-subtle);
+  }
+  .flow-nav .fn-step.current { background: var(--accent-600); color: #fff; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div style="background:#fef3c7;border-bottom:1px solid #fbbf24;color:#78350f;font-size:12px;font-weight:600;text-align:center;padding:6px;">
+  【検討中】教材編集フロー（クリックして遷移を確認できます） ／ 正式版ではありません ／
+  <a href="20260819_教材編集フロー_プロジェクト選択起点案.html" style="color:#78350f">全体まとめ（1ページ版）はこちら</a>
+</div>
+
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-mark">M</div>
+      <div>
+        <div class="brand-name">Manabi</div>
+        <div class="brand-sub">社内学習管理システム</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-label">メニュー</div>
+      <a class="nav-item" href="#">マイ学習</a>
+      <a class="nav-item" href="#">教材一覧・検索</a>
+      <a class="nav-item active" href="20260819_教材編集フロー_1_プロジェクト選択.html">教材編集</a>
+      <a class="nav-item" href="#">個人学習レポート</a>
+      <a class="nav-item" href="#">プロジェクト作成</a>
+      <a class="nav-item" href="#">プロジェクト管理</a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="sidebar-user-row">
+        <span class="avatar">鈴</span>
+        <div>
+          <div class="user-name">鈴木 美咲 <span class="badge badge-role role-member">member</span></div>
+          <div class="user-mail">m.suzuki@kogasoftware.com</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="page-header">
+      <div class="page-title-group">
+        <h1>教材編集</h1>
+        <span class="screen-id">検討中 1/5</span>
+      </div>
+    </header>
+
+    <div class="page-body">
+
+      <div class="flow-nav">
+        <span class="fn-step current">1. プロジェクト選択</span>
+        <span class="fn-step">2. 教材一覧</span>
+        <span class="fn-step">3a. 新規作成 / 3b. 構成</span>
+        <span class="fn-step">4. 本文編集</span>
+      </div>
+
+      <p class="tab-note">「教材編集」ナビは、全社員が「全社公開」の編集者を自動的に持つため常時表示される（旧: 条件付き表示だった注記は撤廃）。編集者以上の権限を持つプロジェクトをカードで選ぶところから始まる。</p>
+
+      <div class="proj-select-cards">
+        <a class="proj-select-card" href="20260819_教材編集フロー_2_教材一覧.html">
+          <div class="proj-select-card-head">
+            <span class="proj-select-card-title">LCC CRM刷新</span>
+            <span class="badge badge-projrole projrole-editor">編集者</span>
+          </div>
+          <span class="proj-select-card-meta">教材2件（公開1・下書き1）／ メンバー4名</span>
+        </a>
+        <a class="proj-select-card pinned disabled" href="#" onclick="return false;">
+          <div class="proj-select-card-head">
+            <span class="proj-select-card-title">
+              <svg class="pin-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a1 1 0 0 0 0-2H8a1 1 0 0 0 0 2h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/></svg>
+              全社公開
+            </span>
+            <span class="badge badge-projrole projrole-editor">編集者</span>
+          </div>
+          <span class="proj-select-card-meta">教材1件 ／ 全社員が自動参加（同じ構成のためこの検討案では省略）</span>
+        </a>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="mock-note">検討中の改善案（教材編集フロー 1/5: プロジェクト選択）</div>
+
+</body>
+</html>

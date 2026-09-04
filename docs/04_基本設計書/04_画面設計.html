@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>4. 画面設計 | 基本設計書 | 社内学習管理システム（Manabi）</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<script src="../_sidenav.js"></script>
+<div class="doc">
+
+<p class="chapter-nav" style="display:flex;justify-content:space-between;font-size:13px;margin:0 0 16px"><a href="03_認証認可設計.html">← 3. 認証・認可設計</a><a href="index.html">目次</a><a href="05_機能設計.html">5. 機能設計 →</a></p>
+
+  <h2 id="sec4">4. 画面設計</h2>
+
+  <h3>4.1 画面一覧</h3>
+  <table>
+    <thead><tr><th>画面ID</th><th>画面名</th><th>パス</th><th>アクセス可能ロール</th><th>概要</th></tr></thead>
+    <tbody>
+      <tr><td>S-01</td><td>ログイン</td><td><code>/login</code></td><td>全員（未認証）</td><td>Googleでログインボタンのみのシンプルな画面</td></tr>
+      <tr><td>S-02</td><td>マイ学習</td><td><code>/</code>（ログイン後の初期画面）</td><td>全員</td><td>自分が受けるべき必修・任意教材の一覧と進捗状況。期限が近い必修教材を強調表示<span class="rev-new">。教材ごとに所属プロジェクトを表示し、プロジェクトタブ（「全社Wiki」を含む）で絞り込める</span><span class="rev-new">。全社Wikiの任意教材はS-03で「マイ学習に追加」登録したもののみ表示（F-31）。登録有無を問わない「学習履歴」の絞り込みも用意する</span></td></tr>
+      <tr><td>S-03</td><td>教材一覧・検索</td><td><code>/materials</code></td><td>全員</td><td>公開されている教材の一覧・検索。<span class="rev-old">単元・コース単位で表示</span><span class="rev-new">章・ページ数とタグで表示（v1.11、6.2節 T-23参照）</span><span class="rev-new">。テーブルに「プロジェクト」列を追加し、プロジェクトタブでも絞り込める。タグはハッシュタグ形式で複数付与でき、検索欄・タグチップで横断的に絞り込める（v1.12でコース〔T-05〕をタグに置き換え）</span><span class="rev-new">。全社Wiki所属の任意教材の行には「マイ学習に追加」/「マイ学習から外す」ボタンを表示する（F-31、必修教材・招待制プロジェクトの任意教材は登録不要のため表示しない）</span></td></tr>
+      <tr><td>S-04</td><td><span class="rev-old">教材受講</span><span class="rev-new">教材受講：目次</span></td><td><code>/materials/:materialId</code></td><td>対象者（全員）</td><td><span class="rev-old">教材本文の閲覧、選択式・記述式問題への回答。通常受講／反復演習／誤答のみ抽出の3タブ</span><span class="rev-new">教材の目次（章・小見出し・ページの入れ子構造）と全体進捗、合否判定・再受験結果（<code>materials.attempt_scope</code>で定まる受験単位ごとに独立して判定。既定は教材全体。F-14は変更なし）を表示。目次／反復演習／誤答のみ抽出の3タブ。ページを選ぶとS-16へ遷移する（v1.11）。ドボン問題（<code>is_critical</code>）に起因する不合格は理由を明示。教材全体・章の受験後アンケート（任意設置時）もここで表示する（v1.17）</span></td></tr>
+      <tr><td>S-05</td><td><span class="rev-old">教材編集</span><span class="rev-new">教材編集：目次編集</span></td><td><code>/materials/:materialId/edit</code></td><td><span class="rev-old">対象教材のオーナー・共同編集者、対象教材が紐づくプロジェクトの管理者・編集者</span><span class="rev-new">対象教材が紐づくプロジェクトの管理者・編集者</span>、<span class="badge badge-admin">admin</span></td><td><span class="rev-old">本文・問題編集、単元/コース構成、</span><span class="rev-new">目次（章・小見出し・ページ）編集、タグ付け、合否判定・再受験設定、</span>ファイル・リンク添付、<span class="rev-old">共同編集者管理（個人教材の場合）／</span>プロジェクトメンバーの確認とS-12への導線<span class="rev-old">（プロジェクト教材の場合）</span>、AIレビュー結果・改訂履歴の確認<span class="rev-old">。個人教材（3.4節）とプロジェクトに紐づく教材（3.5節）の両方に対応する</span><span class="rev-new">。教材は必ずいずれかのプロジェクトに属するため（F-25）、アクセス可否・編集権限は常に3.5節のロジックのみで判定する。目次編集タブに所属プロジェクトの選択欄を持ち、新規作成時に未指定なら「全社Wiki」が既定選択となる。各ページの説明文・問題そのものの編集はS-17で行う（v1.11）</span><span class="rev-new">。受験単位（教材/章/小見出し/ページ）・再受験範囲（全問/誤答のみ）・AI講評スタイルの既定・AI採点コンテキスト・受験後アンケートの設置（教材全体・章ごと、任意）を目次編集タブで設定する（v1.17）</span></td></tr>
+      <tr><td>S-06</td><td>配信設定</td><td><span class="rev-old"><code>/admin/assignments</code></span><span class="rev-new"><code>/assignments</code></span></td><td><span class="rev-old"><span class="badge badge-admin">admin</span></span><span class="rev-old"><span class="badge badge-admin">admin</span>（全社スコープ）、対象プロジェクトの管理者（自プロジェクトのスコープ）</span><span class="rev-new">全員（サイドバーの通常メニューに常設。プロジェクト・教材を1つも持たない社員にも表示し、管理できる教材が無ければ空状態を表示）。実際に配信設定を編集できるのは<span class="badge badge-admin">admin</span>（全教材）、対象プロジェクトの管理者（自プロジェクトに属する教材のみ）</span></td><td>教材の配信対象（<span class="rev-old">全社/部署/</span><span class="rev-old">全社/</span><span class="rev-new">教材自身が所属するプロジェクトに固定。他プロジェクトは選べない/</span>個人）、必修/任意、受講期限の設定。<span class="rev-new">教材が全社Wikiに属する場合は必修に設定不可（v1.42）</span></td></tr>
+      <tr class="rev-row"><td>S-07</td><td><span class="rev-old">組織管理</span></td><td><span class="rev-old"><code>/admin/organization</code></span></td><td><span class="rev-old"><span class="badge badge-admin">admin</span></span></td><td><span class="rev-old">部署の登録のみを扱う。プロジェクトの作成・メンバー管理はS-11・S-12へ移管した（誰でも作成できるため、管理者専用画面からは分離した）</span><span class="rev-new">廃止（v1.5）。部署（department）の概念をシステムから廃止したため、部署登録を行う画面自体が不要になった。プロジェクトの作成・管理はS-11・S-12を参照。画面ID・パスは欠番として保持する。</span></td></tr>
+      <tr><td>S-08</td><td>受講状況ダッシュボード</td><td><code>/dashboard</code></td><td><span class="rev-old"><span class="badge badge-manager">manager</span> <span class="badge badge-admin">admin</span>、対象プロジェクトの管理者（自プロジェクト分のみ）</span><span class="rev-new"><span class="badge badge-admin">admin</span>（全社スコープ）、対象プロジェクトの管理者（自プロジェクトのスコープ）</span></td><td>担当範囲（<span class="rev-old">部署/</span>プロジェクト/全社）の受講率・合格率・未受講者の確認。AI組織レポートの表示</td></tr>
+      <tr><td>S-09</td><td>個人学習レポート</td><td><code>/reports/:userId</code></td><td>本人, <span class="rev-old"><span class="badge badge-manager">manager</span> <span class="badge badge-admin">admin</span></span><span class="rev-new">対象者が所属するプロジェクトの管理者, <span class="badge badge-admin">admin</span></span></td><td>AIによる個人フィードバック（理解不足点・推奨教材）と学習履歴の表示<span class="rev-row">。実装済み（v1.52、2026-09-02）。AI個人フィードバックの生成は「開いたら自動」ではなく画面上の「生成する」ボタンでの手動トリガーとした（9.1節参照）</span></td></tr>
+      <tr><td>S-10</td><td>管理</td><td><code>/admin/settings</code></td><td><span class="badge badge-admin">admin</span></td><td>タブ構成: 「ユーザー管理」（ロール変更・有効/無効）、「システム設定」（AI利用設定・Slack通知・猶予期間）</td></tr>
+      <tr class="rev-row"><td>S-11</td><td>プロジェクト作成</td><td><code>/projects/new</code></td><td>全員</td><td>プロジェクト名・説明を入力して新規作成する。作成者は自動的にそのプロジェクトの管理者になる（F-24）</td></tr>
+      <tr class="rev-row"><td>S-12</td><td>プロジェクト管理</td><td><code>/projects/:projectId/manage</code></td><td>対象プロジェクトの管理者、<span class="badge badge-admin">admin</span></td><td>プロジェクト情報の編集、メンバーの<span class="rev-old">追加</span><span class="rev-new">招待</span>・削除・ロール設定、プロジェクトに紐づく教材の他プロジェクトへの共有<span class="rev-new">申請</span>設定（F-24〜F-26）。<span class="rev-new">自プロジェクト宛ての共有リクエストの確認・承認・却下も行う</span></td></tr>
+      <tr class="rev-row"><td>S-13</td><td>教材編集：プロジェクト選択</td><td><code>/materials/edit-projects</code></td><td>全員</td><td>「教材編集」ナビの入口。編集する教材が属するプロジェクトをカードから選ぶ。全社員が「全社Wiki」の編集者を自動的に持つため常時表示される（v1.9）</td></tr>
+      <tr class="rev-row"><td>S-14</td><td>教材編集：教材一覧</td><td><code>/projects/:projectId/materials/edit</code></td><td>対象プロジェクトの編集者・管理者、<span class="badge badge-admin">admin</span></td><td>選んだプロジェクトの教材一覧（下書きを含む）。「＋新規教材を作成」「複製」「編集する」の起点。S-03と異なり公開済みでない教材も表示する<span class="rev-new">。「状態」絞り込みに「アーカイブ済み」を選ぶと、既定では非表示のアーカイブ済み教材（F-30）を表示し、「復元」できる</span></td></tr>
+      <tr class="rev-row"><td>S-15</td><td>プロフィール編集</td><td><code>/profile</code></td><td>全員</td><td><span class="rev-old">アイコン画像の設定、氏名・メールアドレス（Googleアカウント連動、参照のみ）の確認、</span><span class="rev-new">表示名・アイコン画像の変更（v1.22。4.14a節）、メールアドレス（Googleアカウント連動、参照のみ）の確認、</span>所属プロジェクト一覧の確認。<span class="rev-new">自分宛てのプロジェクト招待（F-24）の一覧確認・承諾・辞退</span></td></tr>
+      <tr class="rev-row"><td>S-16</td><td>教材受講：ページ</td><td><code>/materials/:materialId/pages/:nodeId</code></td><td>対象者（全員）</td><td>1ページ分の説明文の閲覧、単一選択・複数選択・<span class="rev-new">並び替え・</span>記述式・コード記述式<span class="rev-new">・スコア記録</span>問題への回答。ページは説明のみ／問題のみ／両方のいずれもあり得る。S-04（目次）から遷移する（v1.11新設）。<span class="rev-new">設問ごとの回答必須／任意（<code>required</code>）、ドボン問題（<code>is_critical</code>）の明示、出題プール（<code>quiz_mode='pool'</code>）からのランダム出題に対応。受験後アンケート（任意設置時）をここで表示することもある（v1.17）</span></td></tr>
+      <tr class="rev-row"><td>S-17</td><td>教材編集：ページ編集</td><td><code>/materials/:materialId/pages/:nodeId/edit</code></td><td>対象教材が紐づくプロジェクトの管理者・編集者、<span class="badge badge-admin">admin</span></td><td>1ページ分の説明文（Markdown/HTML切替）と問題の編集。単一選択・複数選択は<code>correct_answer</code>を直接設定（AI非依存）、記述式・コード記述式は<code>scoring_criteria</code>を設定してAI採点に委ねる。保存するとS-05に戻る（v1.11新設）。<span class="rev-new">並び替え問題（正しい順序の登録）、スコア記録問題（単位のみ設定、正解の概念なし）、設問ごとの回答必須／任意・ドボン問題・AI講評スタイル上書き、出題プール設定を編集できる（v1.17）</span></td></tr>
+      <tr class="rev-row"><td>S-18</td><td><span class="rev-old">教材編集：Claude Code下書き作成</span></td><td><span class="rev-old"><code>/materials/draft-sessions/:sessionId</code></span></td><td><span class="rev-old">対象プロジェクトの編集者・管理者、admin</span></td><td><span class="rev-old">廃止（v1.20）。F-27（AI教材作成アシスト）の廃止に伴い画面も廃止した。F-27はManabi側で従量課金が発生する経路だったが、代替のF-05（Claude Code CLI連携）は利用者本人の契約で課金されるため、Manabi側のコストが発生しないF-05に一本化した。S-14「＋新規教材を作成」は空のS-05目次編集画面へ直接遷移する。画面ID・パスは欠番として保持する。</span></td></tr>
+      <tr class="rev-row"><td>S-19</td><td>設問別の回答・結果一覧</td><td><code>/materials/:materialId/questions/:questionId/answers</code></td><td>対象教材が紐づくプロジェクトの管理者・編集者、<span class="badge badge-admin">admin</span></td><td><span class="rev-old">指定した設問への全受講者の回答・スコアを氏名付き一覧で表示する。記述式・コード記述式はAI採点結果の確認・<code>reviewed_by</code>修正を行える（従来抜けていたレビュー画面を兼ねる）。スコア記録型は最新スコア・推移の一覧になる。S-05・S-17から遷移する（v1.17新設）</span><span class="rev-new">指定した設問への全受講者の回答を氏名付き一覧で表示する<strong>読み取り専用の診断画面</strong>。単一選択・複数選択・並び替えは正答率・選択肢ごとの回答分布、記述式・コード記述式は正答率とAI採点結果の傾向、スコア記録型は最新スコア・推移を表示し、「この設問を見直すべきか」を判断する材料に特化する。S-05「問題一覧」タブ・S-17の各設問カードから遷移する（v1.17新設）。<strong>採点操作（旧「採点する」「採点を修正」）はv1.26でS-20へ分離した</strong>。教材編集中に特定の設問の出来を確認したい場面（本画面）と、担当教材を横断して溜まった手動採点を処理する場面（S-20）は性質が異なるため、行き先を分けた</span></td></tr>
+      <tr class="rev-row"><td>S-20</td><td>採点</td><td><code>/grading</code></td><td>対象教材が紐づくプロジェクトの管理者・編集者、<span class="badge badge-admin">admin</span></td><td>記述式・コード記述式のうち採点方式が「プロジェクト担当者が手動採点」で未採点の回答だけを、<strong>自分が編集者・管理者を務める全プロジェクト・全教材を横断して</strong>教材ごとにまとめて表示する未処理キュー。プロジェクト・教材で絞り込めるほか、<span class="badge badge-admin">admin</span>には「全プロジェクトを表示」トグルがあり、既定（自分の担当プロジェクトのみ）から全社横断表示に切り替えられる（adminは全教材にアクセスできるため件数が膨らみやすいことへの対応）。「採点する」から正誤・講評を入力すると<code>reviewed_by</code>・<code>is_correct</code>が確定する。サイドバーの独立項目として常時表示する（v1.26新設）</td></tr>
+    </tbody>
+  </table>
+  <p class="table-notes">実働画面はS-20の追加により20件（S-07・S-18は廃止済みで欠番）となった。</p>
+
+  <h3>4.2 画面遷移図</h3>
+  <div class="diagram">
+    <svg width="820" height="420" viewBox="0 0 820 420" font-family="'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif">
+      <defs>
+        <marker id="arw3" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+          <path d="M0,0 L9,4.5 L0,9 z" fill="#1e40af"/>
+        </marker>
+        <marker id="arw3g" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+          <path d="M0,0 L9,4.5 L0,9 z" fill="#8a8f98"/>
+        </marker>
+      </defs>
+
+      <rect x="20" y="120" width="120" height="56" rx="8" fill="#eff6ff" stroke="#1e40af" stroke-width="1.5"/>
+      <text x="80" y="143" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1e3a8a">S-01 ログイン</text>
+      <text x="80" y="161" text-anchor="middle" font-size="10.5" fill="#60656d">/login</text>
+
+      <rect x="200" y="120" width="130" height="56" rx="8" fill="#eff6ff" stroke="#1e40af" stroke-width="1.5"/>
+      <text x="265" y="143" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1e3a8a">S-02 マイ学習</text>
+      <text x="265" y="161" text-anchor="middle" font-size="10.5" fill="#60656d">/（初期画面）</text>
+
+      <rect x="390" y="120" width="150" height="56" rx="8" fill="#eff6ff" stroke="#1e40af" stroke-width="1.5"/>
+      <text x="465" y="143" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1e3a8a">S-03 教材一覧・検索</text>
+      <text x="465" y="161" text-anchor="middle" font-size="10.5" fill="#60656d">/materials</text>
+
+      <rect x="600" y="120" width="150" height="56" rx="8" fill="#eff6ff" stroke="#1e40af" stroke-width="1.5"/>
+      <text x="675" y="143" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1e3a8a">S-04 教材受講</text>
+      <text x="675" y="161" text-anchor="middle" font-size="10.5" fill="#60656d">/materials/:id</text>
+
+      <rect x="200" y="30" width="130" height="50" rx="8" fill="#ffffff" stroke="#1e40af" stroke-width="1.5"/>
+      <text x="265" y="52" text-anchor="middle" font-size="12" font-weight="600" fill="#1e3a8a">S-09 個人学習</text>
+      <text x="265" y="68" text-anchor="middle" font-size="11" fill="#1e3a8a">レポート</text>
+
+      <rect x="20" y="220" width="130" height="56" rx="8" fill="#ffffff" stroke="#1e40af" stroke-width="1.5"/>
+      <text x="85" y="243" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1e3a8a">S-05 教材編集</text>
+      <text x="85" y="261" text-anchor="middle" font-size="10.5" fill="#60656d">プロジェクト管理者・編集者</text>
+
+      <rect x="200" y="220" width="130" height="56" rx="8" fill="#fafbfc" stroke="#8a8f98" stroke-width="1.5"/>
+      <text x="265" y="243" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1a1d21">S-06 配信設定</text>
+      <text x="265" y="261" text-anchor="middle" font-size="10.5" fill="#60656d">全員（編集可否は管理者のみ）</text>
+
+      <!-- v1.2: S-07 組織管理は要件定義書v1.5対応で廃止（部署の概念を廃止） -->
+
+      <rect x="390" y="220" width="130" height="56" rx="8" fill="#fafbfc" stroke="#8a8f98" stroke-width="1.5"/>
+      <text x="455" y="243" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1a1d21">S-08 ダッシュボード</text>
+      <text x="455" y="261" text-anchor="middle" font-size="10.5" fill="#60656d">admin/プロジェクト管理者</text>
+
+      <rect x="530" y="220" width="90" height="56" rx="8" fill="#fafbfc" stroke="#8a8f98" stroke-width="1.5"/>
+      <text x="575" y="243" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1a1d21">S-10 管理</text>
+      <text x="575" y="261" text-anchor="middle" font-size="10.5" fill="#60656d">adminのみ</text>
+
+      <line x1="140" y1="148" x2="197" y2="148" stroke="#1e40af" stroke-width="1.5" marker-end="url(#arw3)"/>
+      <text x="168" y="140" text-anchor="middle" font-size="10" fill="#1e40af">ログイン成功</text>
+
+      <line x1="330" y1="148" x2="387" y2="148" stroke="#1e40af" stroke-width="1.5" marker-end="url(#arw3)"/>
+      <text x="358" y="140" text-anchor="middle" font-size="10" fill="#1e40af">教材を探す</text>
+
+      <line x1="540" y1="148" x2="597" y2="148" stroke="#1e40af" stroke-width="1.5" marker-end="url(#arw3)"/>
+      <text x="568" y="140" text-anchor="middle" font-size="10" fill="#1e40af">受講する</text>
+
+      <line x1="265" y1="120" x2="265" y2="82" stroke="#8a8f98" stroke-width="1.5" marker-end="url(#arw3g)"/>
+      <text x="330" y="102" text-anchor="middle" font-size="10" fill="#8a8f98">学習記録確認</text>
+
+      <line x1="85" y1="176" x2="85" y2="217" stroke="#8a8f98" stroke-width="1.5" marker-end="url(#arw3g)"/>
+      <text x="60" y="200" text-anchor="middle" font-size="9.5" fill="#8a8f98">サイドバー</text>
+
+      <line x1="265" y1="176" x2="265" y2="217" stroke="#8a8f98" stroke-width="1.5" marker-end="url(#arw3g)"/>
+      <line x1="455" y1="176" x2="455" y2="217" stroke="#8a8f98" stroke-width="1.5" marker-end="url(#arw3g)"/>
+      <line x1="575" y1="176" x2="575" y2="217" stroke="#8a8f98" stroke-width="1.5" marker-end="url(#arw3g)"/>
+      <text x="480" y="200" text-anchor="middle" font-size="9.5" fill="#8a8f98">管理者メニュー（adminのみ表示。S-08はプロジェクト管理者にも自プロジェクト範囲で表示）</text>
+
+      <!-- v1.1追加: S-11 プロジェクト作成 / S-12 プロジェクト管理 -->
+      <rect x="20" y="300" width="150" height="56" rx="8" fill="#fff5f5" stroke="#dc2626" stroke-width="1.5"/>
+      <text x="95" y="323" text-anchor="middle" font-size="12.5" font-weight="600" fill="#b91c1c">S-12 プロジェクト管理</text>
+      <text x="95" y="341" text-anchor="middle" font-size="10" fill="#b91c1c">管理者 / admin</text>
+
+      <rect x="200" y="300" width="150" height="56" rx="8" fill="#fff5f5" stroke="#dc2626" stroke-width="1.5"/>
+      <text x="275" y="323" text-anchor="middle" font-size="12.5" font-weight="600" fill="#b91c1c">S-11 プロジェクト作成</text>
+      <text x="275" y="341" text-anchor="middle" font-size="10" fill="#b91c1c">全員・常時表示</text>
+
+      <line x1="85" y1="176" x2="70" y2="297" stroke="#dc2626" stroke-width="1.3" stroke-dasharray="4 3" marker-end="url(#arw3)"/>
+      <text x="30" y="270" text-anchor="middle" font-size="9" fill="#b91c1c">紐づく教材編集</text>
+
+      <line x1="170" y1="328" x2="197" y2="328" stroke="#dc2626" stroke-width="1.5" marker-end="url(#arw3)"/>
+      <text x="184" y="320" text-anchor="middle" font-size="9" fill="#b91c1c">←管理</text>
+
+      <line x1="265" y1="120" x2="270" y2="297" stroke="#dc2626" stroke-width="1.3" stroke-dasharray="4 3" marker-end="url(#arw3)"/>
+      <text x="330" y="230" text-anchor="middle" font-size="9" fill="#b91c1c">ヘッダーに常時表示（全員）</text>
+
+      <text x="95" y="374" text-anchor="middle" font-size="9.5" fill="#8a8f98">S-12は自分が管理者であるプロジェクトがある場合に表示</text>
+      <text x="275" y="374" text-anchor="middle" font-size="9.5" fill="#8a8f98">作成すると自動的に管理者になりS-12を開ける</text>
+
+      <text x="410" y="18" text-anchor="middle" font-size="13" font-weight="600" fill="#1e3a8a">Manabi 画面遷移</text>
+    </svg>
+  </div>
+
+  <div class="callout">
+    <strong>共通レイアウト:</strong> 左サイドバー（メニュー: マイ学習、教材一覧・検索、教材編集[<span class="rev-old">オーナー・共同編集者、またはプロジェクトの管理者・編集者</span><span class="rev-new">プロジェクトの管理者・編集者</span>を持つ教材がある場合のみ表示]、プロジェクト作成[全員に常時表示]、個人学習レポート、<span class="rev-new">配信設定[プロジェクト・教材の有無や管理者かどうかによらず全員に常時表示。v1.42でこの位置に移動]</span>／管理者メニュー: プロジェクト管理[自分が管理者であるプロジェクトがある場合のみ表示]、受講状況ダッシュボード、<span class="rev-old">配信設定、</span><span class="rev-old">組織管理、</span>管理[adminのみ表示]）＋ ヘッダー（システム名、ユーザー名/アバター/ロールバッジ、ログアウト）。<span class="rev-new">組織管理（S-07）はv1.5で廃止した。</span>認証ガードは <code>frontend/src/App.tsx</code> で行い、未認証時は S-01 へ、権限外パスへのアクセス時は S-02 へ誘導する。フォーム部品はKeirekiと同様に自作の共通UIコンポーネント（<code>frontend/src/components/ui/</code>）に統一する。
+  </div>
+
+  <p>各画面の具体的なレイアウト・UI項目は画面モックアップ「<a href="../03_画面モックアップ/index.html">03_画面モックアップ/</a>」を参照のこと。以下では各画面の設計概要のみ記す。</p>
+
+  <h3>4.3 S-01 ログイン</h3>
+  <ul>
+    <li><strong>表示項目:</strong> システム名（社内学習管理システム Manabi）、「Googleでログイン」ボタン、@kogasoftware.com アカウントのみ利用可の旨、研修サンプルである旨の注記。</li>
+    <li><strong>操作:</strong> ボタン押下で A-01 へ遷移しGoogle OAuth 2.0フローを開始する。認証エラー時は本画面にエラーメッセージを表示する。</li>
+  </ul>
+
+  <h3>4.4 S-02 マイ学習</h3>
+  <ul>
+    <li><strong>表示項目:</strong> サマリー（必修教材受講率、期限が近い必修教材件数、任意教材受講済み件数、直近の受講日）、「期限が近い必修教材」の強調表示パネル、必修教材一覧、任意教材一覧。各教材カードに進捗バー・必修/任意バッジ・期限を表示。</li>
+    <li><strong>操作:</strong> A-39（マイ学習一覧取得）で必修・任意それぞれの進捗付き一覧を取得。「続きから受講」「受講を開始」「復習する」「反復演習する」等のボタンから S-04 へ遷移する。</li>
+    <li class="rev-new"><strong>任意教材一覧の対象範囲（F-31）:</strong> 招待制プロジェクトの任意教材はプロジェクトメンバーであれば自動的に含める。全社Wiki（<code>is_company_wide=true</code>）所属の任意教材は、受講者本人がS-03で「マイ学習に追加」した教材のみを含める（T-30 <code>my_learning_registrations</code>）。必修教材は登録の有無によらず常に表示する。</li>
+    <li class="rev-new"><strong>学習履歴（F-31）:</strong> 登録状態を問わず、T-12 <code>enrollment_progress</code>の行が存在する（少しでも着手した）教材を横断的に確認できる絞り込み・タブを別途設ける。マイ学習登録は「これから計画的に取り組む」ためのものであるのに対し、学習履歴は「過去に触れた記録」を後から見返すためのもので、目的が異なる。</li>
+  </ul>
+
+  <h3>4.5 S-03 教材一覧・検索</h3>
+  <ul>
+    <li><strong>検索パネル（開閉式）:</strong> キーワード（教材名・見出し名・<span class="rev-old">コース名</span><span class="rev-new">#タグ</span>）<span class="rev-new">／タグチップ（クリックで絞り込み）</span>／区分（必修/任意）のプルダウン、「未受講のみ表示」「自分が受講対象の教材のみ表示」チェックボックス。</li>
+    <li><strong>一覧テーブル列:</strong> 教材（タイトル＋<span class="rev-new">章数・ページ数</span>・問題種別・問題数）／<span class="rev-old">コース</span><span class="rev-new">タグ（複数付与可）</span>／区分／所要時間（目安）／更新日／操作（受講する・続きから受講・復習する・反復演習）。表示件数選択とページネーションを備える。</li>
+    <li><strong>操作:</strong> A-14（一覧・検索）を呼び出す。行選択・操作ボタンで S-04 へ遷移する。</li>
+  </ul>
+
+  <h3>4.6 <span class="rev-old">S-04 教材受講</span><span class="rev-new">S-04 教材受講：目次</span></h3>
+  <ul>
+    <li><strong>タブ構成:</strong> <span class="rev-old">「通常受講」</span><span class="rev-new">「目次」</span>「反復演習」「誤答のみ抽出」の3タブ（4.1節ヘッダーに必修/任意バッジ・期限・<span class="rev-old">単元位置</span><span class="rev-new">章・ページ数</span>を表示）。</li>
+    <li class="rev-new"><strong>目次タブ:</strong> <code>materials.attempt_scope</code>で定まる受験単位（教材全体/章/小見出し/ページ）ごとに独立した「前回の受験結果」パネルを表示（既定は教材全体で1枚。v1.17）。不合格時は再受験可否・残り回数を表示し、ドボン問題（<code>is_critical</code>）が原因の場合は該当設問名を理由として明示する。記述式回答のAI採点結果（採点中/採点済みの状態表示）、教材全体の進捗バー（完了ページ数/全ページ数）、<strong>教材全体の資料</strong>（特定ページに属さない添付ファイル・リンク。<code>node_id</code>未設定のT-09行。S-05「ファイル・リンク」タブで登録されたもの。v1.17追加）、章・小見出し・ページのツリー表示（各ページの完了/未完了マーク、種別バッジ〔説明／問題×N／説明＋問題×N／スコア記録〕）。ページ行を選ぶとS-16へ遷移する。「一時中断する」「続きから受講」ボタン。<strong>受験後アンケート</strong>（教材全体・該当する章に設置されている場合、対象の受験単位を完了した直後に表示。回答は任意でスキップ可。<code>repeat_mode='once'</code>なら2回目以降は表示しない。v1.17）。</li>
+    <li><strong>反復演習タブ:</strong> 実施履歴（正答数・所要時間）と「反復演習を開始」ボタン。合否には影響しない旨を明示。対象は教材内の全ページの問題。<span class="rev-new">ドボン問題（<code>is_critical</code>）の判定は行わない（合否に関わらないモードのため）。</span></li>
+    <li><strong>誤答のみ抽出タブ:</strong> 出題範囲（この教材内の誤答のみ／全教材の誤答から出題）をラジオボタンで選択し「誤答問題を解く」ボタンで開始。</li>
+    <li><strong>操作:</strong> A-15（目次〔ツリー〕取得）、<span class="rev-new">A-28（<code>node_id</code>を指定せずに呼び出し、教材全体の資料を取得）、</span>A-40（受験開始）→ A-41（回答保存、都度呼び出しで中断・再開を実現）→ A-42（提出、AI採点トリガーを含む）→ A-43（結果取得）。反復演習・誤答抽出は A-40 の <code>mode</code> パラメータ、A-44（誤答抽出出題取得）で実現する。<span class="rev-new">再受験はA-71（<code>materials.retake_scope</code>に応じて全問または誤答のみを新しい試行に含める）、アンケート回答はA-72（v1.17）。</span></li>
+  </ul>
+
+  <h3 class="rev-new">4.6a S-16 教材受講：ページ</h3>
+  <ul class="rev-new">
+    <li><strong>表示項目:</strong> パンくず（教材名／章／小見出し）、教材全体の進捗バー、説明文パネル（ページに説明文がある場合のみ表示）、設問カード（ページに問題がある場合のみ表示。回答済み・回答中・未解放の状態を視覚的に区別）。「目次へ戻る」「回答して次のページへ」ボタン。<span class="rev-new">設問カードには種別に応じたUIを出す: 並び替え問題はドラッグ操作可能な項目リスト、スコア記録問題は数値入力欄＋「これまでの記録」表示（過去の<code>response.score</code>推移）。<code>required=false</code>の設問は「スキップ」操作を表示。<code>is_critical=true</code>の設問には「⚠ ドボン」バッジを表示する（v1.17）。</span></li>
+    <li><strong>操作:</strong> A-41（回答保存）、A-42（提出）。回答内容は都度保存され、中断してもS-04から同じページへ再開できる。</li>
+    <li><strong>アクセス制御:</strong> 対象教材の受講対象者（7.3節）。</li>
+  </ul>
+
+  <h3>4.7 <span class="rev-old">S-05 教材編集</span><span class="rev-new">S-05 教材編集：目次編集</span></h3>
+  <ul>
+    <li><strong>ヘッダー:</strong> 教材タイトル・公開状態バッジ、<span class="rev-old">オーナー・共同編集者</span><span class="rev-new">教材が紐づくプロジェクトの管理者・編集者</span>のアバター表示、<span class="rev-old">「Claude Codeに相談」（クリックで画面右にチャットパネルを開閉するトグルボタン。画面を離れずに対話的な編集ができる。v1.19。F-27廃止に伴いv1.20で削除）</span>「プレビュー」<span class="rev-new">（章・ページを通しで確認する専用画面へ遷移。当初は表示仕様が未確定のため見送っていたが、v1.45で実装した。編集者〔対象教材のプロジェクトの編集者以上、admin〕限定とし、受講対象者向けの同等機能は設けない方針とした。受講せずに教材の中身を読めてしまう抜け道を作らないためで、学習者向けの閲覧は引き続きS-04/S-16のみとする）</span>「下書き保存」「公開する」「複製」<span class="rev-new">「アーカイブ」（アーカイブ済みの場合は「復元」。F-30。確認モーダルを経由する）、下書きのときのみ「削除」（物理削除。F-30。確認モーダルを経由する）</span>ボタン。</li>
+    <li><strong>タブ構成:</strong> <span class="rev-old">「本文編集」（Markdown/HTML切替、エディタ＋プレビュー分割表示。プレビューは未保存の入力内容であってもA-64でサーバー側サニタイズを経てから描画する（8.6節））、「問題編集」（単元ごとに単一選択/複数選択/記述式の設問を追加・編集・削除、記述式は模範解答・採点基準を入力）、「構成（単元/コース）」（所属コース選択、単元の追加・並び替え・削除、合否判定・再受験設定）、</span><span class="rev-new">「目次編集」（教材タイトル・<span class="rev-old">所属プロジェクト・タグの編集</span><span class="rev-new">タグの編集、所属プロジェクトの表示（変更不可。プロジェクト間の共有はF-26で行う。v1.31）</span>、章〔見出し〕・小見出し・ページのツリー編集（追加・並び替え・削除・入れ子）、合否判定・再受験設定〔<strong>受験単位</strong>: 教材/章/小見出し/ページ、<strong>再受験範囲</strong>: 全問/誤答のみ〕、<strong>採点方式の既定</strong>（記述式・コード記述式向け。AI自動採点／プロジェクト担当者〔管理者・編集者〕による手動採点。v1.18）、<strong>AI講評スタイルの既定</strong>（正解提示/コードレビュー型/ヒント型。採点方式=AI自動採点の設問にのみ適用）、<strong>AI採点・AIアシストへの指示</strong>（<code>ai_context</code>。言語・フレームワーク・禁止事項等の自由記述）、<strong>受験後アンケートの設置</strong>（教材全体・章ごとに任意でON/OFF、設置時は設問編集モーダルを開く）。各ページ行の「編集する」でS-17へ遷移する。v1.17で拡張）、</span><span class="rev-new">「問題一覧」（この教材に含まれる全ページの設問をフラットに一覧表示する読み取り専用ビュー。正答率が低い・手動採点の未採点が溜まっている設問ほど上に並ぶ。各行の「詳細を見る」でS-19〔設問別の回答・結果一覧〕へ遷移し、設問を見直すかどうかの判断材料にする。手動採点分を実際に採点する場合はサイドバーの「採点」〔S-20〕を使う。v1.26新設）、</span>「ファイル・リンク」（<span class="rev-new">特定ページに属さない教材全体の資料〔シラバス等〕のみを扱う。ページ固有の資料はS-17で管理するため、ここには含めない。v1.14。</span>添付済み一覧、ファイル選択・外部リンク追加フォーム）、「<span class="rev-old">共同編集者」（一覧・追加・削除・オーナー引き継ぎ）</span><span class="rev-new">プロジェクトメンバー」（管理者・編集者・受講者の一覧を表示する参照専用タブ。追加・削除・ロール変更はS-12で行うため本タブからS-12への導線を設ける）</span>、「AIレビュー結果」（実行ボタン・指摘/提案の一覧）、「改訂履歴」（日時・変更者・変更内容・経路の一覧）。</li>
+    <li><strong>操作:</strong> <span class="rev-old">A-17/A-19/A-20（本文更新、画面用・Claude Code連携共通）、A-31（問題一括更新）、</span><span class="rev-new">A-15（目次取得）、A-16/A-17（教材新規作成・更新。目次構造・attempt_scope・retake_scope・default_feedback_style・ai_contextを含む）、A-78/A-79（受験後アンケートの取得・設置/解除。v1.24）、</span>A-28/A-29（添付ファイル・リンク）、<span class="rev-old">A-23〜A-26（共同編集者・オーナー引き継ぎ）</span><span class="rev-new">A-11（プロジェクトメンバー一覧取得。参照のみ）</span>、A-32/A-33（AIレビュー）、A-22（改訂履歴取得）<span class="rev-new">、A-94（プレビュー専用の目次一括取得。教材全体・正解込みの全設問を1回で返す。編集者限定、v1.45新設）</span><span class="rev-old">、A-68〜A-70（「Claude Codeに相談」パネル。<code>material_id</code>を初期コンテキストにセッション開始。5.28節。v1.19。F-27廃止に伴いv1.20で削除）</span>。</li>
+    <li><strong>アクセス制御:</strong> <span class="rev-old">対象教材のオーナー・共同編集者、または admin（3.4節）。ロールは問わない。</span><span class="rev-new">対象教材が紐づくプロジェクトの管理者・編集者、または admin（3.5節）。教材は必ずいずれかのプロジェクトに属するため（F-25）、システム全体のロールは問わない。</span></li>
+  </ul>
+
+  <h3 class="rev-new">4.7a S-17 教材編集：ページ編集</h3>
+  <ul class="rev-new">
+    <li><strong>ヘッダー:</strong> <span class="rev-old">「Claude Codeに相談」（画面右にチャットパネルを開閉するトグルボタン。<code>node_id</code>〔このページ〕を初期コンテキストにセッション開始。v1.19。F-27廃止に伴いv1.20で削除）</span>「目次編集に戻る」「プレビュー」「このページを保存」ボタン。</li>
+    <li><strong>表示項目:</strong> パンくず（教材名／章）、ページタイトル・概要入力欄、「説明文を含める」「問題を含める」の独立したチェックボックス（少なくとも一方は必須）、説明文エディタ（Markdown/HTML切替、エディタ＋プレビュー分割表示。プレビューは未保存の入力内容であってもA-64でサーバー側サニタイズを経てから描画する。8.6節）、設問編集カード（種別: 単一選択/複数選択/<strong>並び替え</strong>/記述式/コード記述式/<strong>スコア記録</strong>。選択式は正解にチェック、並び替えは正しい順序の項目リストを登録、記述式・コード記述式は模範解答・採点基準を入力、スコア記録は単位表記のみ設定〔正解の概念なし〕。<strong>回答必須／任意</strong>（<code>required</code>）、<strong>ドボン問題</strong>（<code>is_critical</code>。チェックで有効化。スコア記録型には設定不可）、<strong>採点方式</strong>（記述式・コード記述式のみ。教材既定に従う／AI自動採点／手動採点のいずれかで<code>grading_mode</code>を上書き。v1.18）、<strong>AI講評スタイル</strong>（教材既定を上書きする場合のみ選択。採点方式が手動採点の設問では無効化して表示）、<strong>出題プール</strong>（このページの問題をすべて出題／プールからランダムN問抽出のいずれかに切替。プール抽出数を設定）、「回答傾向を見る」リンク（S-19の診断ビューへ。v1.26で「回答一覧」から改称）。v1.17で種別・属性を拡張、v1.18で採点方式を追加）、<strong>このページの添付ファイル・リンク</strong>（S-05「ファイル・リンク」タブと同じUIをこのページの<code>node_id</code>で絞り込んで表示。ここで登録した資料はS-16でこのページを開いたときにのみ表示される。v1.14追加）。</li>
+    <li><strong>操作:</strong> A-19/A-20（本文更新、画面用・Claude Code連携共通）、A-31（問題一括更新。<code>required</code>・<code>is_critical</code>・<code>feedback_style</code>・<code>pool_group_id</code>・<code>score_unit</code>・<code>grading_mode</code>を含む）、A-64（本文プレビュー。8.6節）、A-28/A-29（<code>node_id</code>にこのページのIDを指定して添付ファイル・リンクを取得・登録）、A-73（この設問の回答一覧をS-19で取得）<span class="rev-old">、A-68〜A-70（「Claude Codeに相談」パネル。5.28節。v1.19。F-27廃止に伴いv1.20で削除）</span>。保存後はS-05へ戻る。</li>
+    <li><strong>アクセス制御:</strong> 対象教材が紐づくプロジェクトの管理者・編集者、または admin（3.5節）。</li>
+  </ul>
+
+  <h3>4.7b S-18 <span class="rev-old">教材編集：Claude Code下書き作成</span></h3>
+  <div class="callout rev-old">
+    <strong>この画面は基本設計書v1.20で廃止されました。</strong> F-27（AI教材作成アシスト。ブラウザ内対話生成）の廃止に伴い、この画面も廃止した。F-27はManabiのバックエンドがAnthropic Claude APIを直接呼び出す構造のため、利用のたびにManabi側で従量課金が発生していたが、F-05（Claude Code CLI連携）はClaude Code利用者本人の契約で課金され、Manabi側の運用コストが発生しない。両者が似た体験を提供する代替経路だったため、コストの発生しないF-05に一本化することとした。教材の作成・修正へのAI支援はすべてF-05経由で行う（8章参照）。S-14「＋新規教材を作成」は、この画面を経由せず空のS-05目次編集画面へ直接遷移する（v1.14以前の遷移に戻した）。画面ID・パス・関連API（A-68〜A-70）・関連テーブル（T-24, T-25）はいずれも欠番として保持する。
+  </div>
+
+  <h3 class="rev-new">4.7c S-19 設問別の回答・結果一覧</h3>
+  <div class="callout rev-new">
+    <strong>v1.26で読み取り専用の診断画面に再整理:</strong> 当初は本画面が「回答の確認」と「採点」の両方を兼ねていたが、教材編集中に特定の設問の出来を確認して見直すかどうか判断する場面（本画面）と、担当教材を横断して溜まった手動採点を処理する場面（S-20）は利用者の目的が異なるため、行き先を分離した。本画面から採点操作（旧「採点する」「採点を修正」）を取り除き、判断材料としての回答傾向表示に特化した。
+  </div>
+  <ul class="rev-new">
+    <li><strong>表示項目:</strong> パンくず（教材名／設問の所在）、対象設問の概要（設問文・種別・採点方式）、設問形式に応じた診断テーブル。単一選択/複数選択/並び替えは<strong>選択肢（または項目）ごとの回答数・割合</strong>と全体正答率、記述式/コード記述式は受講者ごとの回答内容・AI採点結果（<code>grading_mode='manual'</code>の未採点分は「未採点」バッジのみ、正誤の概念は表示しない）と全体正答率、<code>score_log</code>は受講者ごとの最新スコア・推移（例: 45→52→58）・最終記録日を表示する。各設問の末尾に、正答率が低い理由や誤答の傾向についての診断コメント（AI講評の集計、またはF-21のつまずき分析の抜粋）を表示する。</li>
+    <li><strong>操作:</strong> A-73（設問別回答一覧取得）のみ。<strong>採点操作（A-74呼び出し）は行わない</strong>。手動採点の未採点分を実際に採点する場合は、サイドバーの「採点」（S-20）を案内する。</li>
+    <li><strong>アクセス制御:</strong> 対象教材が紐づくプロジェクトの管理者・編集者、または admin（3.5節）。氏名付きで個々の回答を表示するため、受講者本人・一般のプロジェクトメンバーはアクセスできない。</li>
+    <li><strong>入口:</strong> S-05「問題一覧」タブの「詳細を見る」、またはS-17の各設問カードの「回答傾向を見る」から遷移する。</li>
+  </ul>
+
+  <h3 class="rev-new">4.7d S-20 採点</h3>
+  <ul class="rev-new">
+    <li><strong>表示項目:</strong> 見出し（画面名のみ、対象教材の指定はない）、サマリー（未採点の合計件数・対象教材数・最も古い未採点の提出日）、絞り込みフィルタ（プロジェクト・教材のセレクト、<span class="badge badge-admin">admin</span>のみに表示される「全プロジェクトを表示」チェックボックス）、教材ごとにグループ化した未採点一覧（各行: 設問の所在・受講者・回答内容・提出日・「採点する」ボタン）。1教材あたりの表示件数が多い場合は「もっと見る」でページングする。</li>
+    <li><strong>絞り込みの既定値:</strong> プロジェクト管理者・編集者は自分が実際にメンバーとして参加しているプロジェクトの分のみを対象とする。<span class="badge badge-admin">admin</span>は全プロジェクト・全教材にアクセスできるため件数が膨らみやすく、既定では（adminであっても）自分が実際に参加しているプロジェクトの分のみに絞って表示し、「全プロジェクトを表示」を明示的にONにした場合のみ全社横断表示に切り替える（意図しない大量表示を避けるためのオプトイン方式）。</li>
+    <li><strong>操作:</strong> A-83（採点キュー取得。<code>project_id</code>・<code>material_id</code>・<code>scope</code>クエリで絞り込み）。「採点する」ボタンから開くモーダルで<code>is_correct</code>・<code>ai_feedback</code>（担当者の講評として保存）を編集し、保存時に<code>reviewed_by</code>・<code>reviewed_at</code>を設定するA-74を呼ぶ。保存後は一覧からその行を除去し、次の未採点にフォーカスを移す。</li>
+    <li><strong>アクセス制御:</strong> いずれかのプロジェクトの管理者・編集者、または admin（3.5節）。表示対象は本人が権限を持つプロジェクトの範囲に自動的に絞られる。</li>
+    <li><strong>入口:</strong> サイドバーの独立項目「採点」から常時遷移可能（S-05・S-17に付随する画面ではなく、教材編集ナビとは独立したトップレベル項目とする。v1.26新設）。</li>
+  </ul>
+
+  <h3>4.8 S-06 配信設定</h3>
+  <ul>
+    <li><strong>サイドバー表示:</strong> <span class="rev-new">「配信設定」は他の画面と同じ通常のメニューに常設し、admin・プロジェクト管理者に限らず全社員に表示する（プロジェクト・教材を1つも持たない一般社員にも表示）。管理できる教材が1件も無い場合は、一覧を0件にして「配信設定できる教材がありません」と画面側で案内する（v1.42）。</span></li>
+    <li><strong>一覧テーブル:</strong> 教材／配信対象（<span class="rev-old">部署・</span>プロジェクト・個人名を要約表示）／区分（必修/任意）／期限／状態（公開中/下書き）／操作。検索・状態フィルタを備える。</li>
+    <li><strong>編集パネル:</strong> <span class="rev-old">配信対象（全社/部署/プロジェクト/個人。複数選択可）、必修・任意の切替（任意選択時は期限入力を無効化）、対象者プレビュー人数表示。全社を選択した場合、管理者以外は「任意公開」のみ選択可能で「必修配信」はグレーアウトして選べないようにする（理由をツールチップで表示）。</span><span class="rev-new">「プロジェクト全体に配信する」チェック（既定オフ。オンにすると配信対象＝教材自身が所属するプロジェクトに固定表示・選択不可で、必修・任意の切替〔任意選択時は期限入力を無効化〕が現れる。オフのまま保存すると一覧では「未設定」表示になる）、個人を追加指定（任意。候補は教材自身のプロジェクトの現役メンバーのみ。追加した各メンバーはプロジェクト全体設定とは独立に、それぞれ自分だけの必修・任意/期限を持てる〔上書き〕）、対象者プレビュー人数表示。教材が全社Wiki（<code>is_company_wide=true</code>）に属する場合、役割・adminを問わず「必修」を選択不可（グレーアウト＋ツールチップ「全社Wikiの教材は必修にできません」。プロジェクト全体・個人のいずれの行も対象）。合否判定・再受験条件（<code>pass_score_pct</code>等）はこの画面では扱わない（5.9節「設計判断」参照、S-06実装時にS-05から入力する旧方針を撤回した）。</span></li>
+    <li><strong>操作:</strong> A-36（配信設定一覧）、A-37（特定教材の配信設定取得）、A-38（配信設定の更新）。</li>
+    <li><strong>アクセス制御:</strong> <span class="rev-old">admin のみ。admin（全社スコープの配信対象を設定可能）、対象プロジェクトの管理者（自プロジェクトをスコープとする配信対象のみ設定可能）。</span><span class="rev-old">admin（全スコープを設定可能）、対象プロジェクトの管理者（自プロジェクトをスコープとする配信対象、および自分の教材の全社任意公開を設定可能。全社必修配信はadmin限定。5.9節）。</span><span class="rev-new">画面自体は全員に表示するが、実際に配信設定を編集できるのはadmin（全教材が対象）、対象教材が紐づくプロジェクトの管理者（自プロジェクトに属する教材のみ）。「全社」スコープの廃止に伴い、権限分岐は「対象教材のプロジェクト管理者かどうか」の1軸のみになった（v1.42、5.9節）。</span></li>
+  </ul>
+
+  <h3 class="rev-row">4.9 <span class="rev-old">S-07 組織管理</span></h3>
+  <div class="callout rev-new">
+    <strong>廃止（v1.5）:</strong> 部署（department）の概念をシステムから廃止したため、部署登録を行うS-07自体が不要になった。v1.4時点では「部署の登録のみを扱う画面」として残していたが、部署がなくなったことで画面ごと廃止する。プロジェクトの作成・管理はS-11・S-12（4.13・4.14節）を参照。画面ID・パス・関連APIは欠番として保持する。
+  </div>
+
+  <h3>4.10 S-08 受講状況ダッシュボード</h3>
+  <ul>
+    <li><strong>表示項目:</strong> 担当範囲選択（<span class="rev-old">manager は自分が部署長・PMを務める部署/プロジェクトのみ選択可</span><span class="rev-new">プロジェクト管理者は自分が管理者であるプロジェクトのみ選択可</span>、admin はさらに「全社」を選択可）、サマリー（対象教材数・必修受講率・合格率・未受講者数）、教材別受講率の棒グラフ、未受講者一覧（Slack催促ボタン付き）、AI組織レポート（要約・示唆タグ・再生成ボタン）。</li>
+    <li><strong>操作:</strong> A-45（ダッシュボード取得、scope指定）、A-46（未受講者一覧）、A-47（Slack催促送信）、A-48/A-49（AI組織レポート生成・取得）。</li>
+    <li><strong>アクセス制御:</strong> <span class="rev-old">manager（担当範囲に限定）、admin（全社）。</span><span class="rev-new">対象プロジェクトの管理者（自プロジェクトのスコープに限定、3.5節）、admin（全社）。</span></li>
+  </ul>
+
+  <h3>4.11 S-09 個人学習レポート</h3>
+  <ul>
+    <li><strong>表示項目:</strong> 対象者情報（氏名・<span class="rev-old">部署・</span>プロジェクト）、サマリー（受講済み教材数・未受講必修数・平均正答率・直近受講日）、AIによる個人フィードバック（コメント・理解不足分野タグ・おすすめ教材）、学習履歴テーブル（教材・受講日・結果・スコア）。</li>
+    <li><strong>操作:</strong> A-50（個人学習レポート取得）、A-51/A-52（AI個人フィードバック生成・取得）。</li>
+    <li><strong>アクセス制御:</strong> <span class="rev-old">本人、担当範囲の manager、admin。</span><span class="rev-new">本人、対象者が所属するプロジェクトの管理者、admin。</span>学習記録は人事評価に用いない旨を画面に注記する。</li>
+  </ul>
+
+  <h3>4.12 S-10 管理</h3>
+  <ul>
+    <li><strong>タブ構成:</strong> 「ユーザー管理」（氏名・メール・ロール・有効/無効の一覧。ロール変更・有効/無効切替。自分自身の降格・無効化は不可。<span class="rev-row">実装時、システムadminが実質1人しかいない状態でその最後の1人を降格・無効化できてしまうと管理機能自体が使えなくなるため、プロジェクトの「唯一の管理者は降格・削除不可」（5.26節等）と同じ考え方で「システムadminが1人になる変更も拒否する」ガードを追加した（2026-09-02、ユーザー確認済み）。この「最後の1人」ガードは、複数のadminが互いを同時に降格・無効化するとどちらも相手のコミット前の古い件数を読んでしまい両方とも許可されうるTOCTOU競合状態を含んでいたため、対象行・現役admin行を行ロック（<code>SELECT ... FOR UPDATE</code>）して解消した（2026-09-02、ユーザー依頼による再監査で発見。F-26 A-65の二重承認競合と同種）。</span>「ユーザー管理」タブを実装済み）、「システム設定」（AI利用モデル選択、<span class="rev-new">今月のAI利用状況を機能別（F-08/F-20/F-21〜F-23）の呼び出し件数・トークン数・概算コストの内訳で表示（v1.21。9.3節のT-19集計を<code>feature</code>で group by して取得）。教材の作成・修正（F-05、Claude Code CLI連携）は利用者本人の契約で課金されるためこの集計には含まれない旨を明記する。<span class="rev-row">この「今月のAI利用状況」表示を実装済み（2026-09-02）。</span></span>、Slack Webhook URL・通知先チャンネル・テスト送信、プロジェクト所属の猶予期間日数）。<span class="rev-row">AI利用モデル選択・Slack通知設定・プロジェクト所属の猶予期間日数も実装済み（v1.51、2026-09-02）。T-21 <code>app_settings</code>の新設に伴い、5.25節の猶予期間ロジックの実装も本バージョンで行った。</span></li>
+    <li><strong>操作:</strong> A-53/A-54（ユーザー一覧・更新）、A-55/A-56（設定取得・更新）、A-57（Slackテスト送信）、A-58（AI利用状況取得）。</li>
+    <li><strong>アクセス制御:</strong> admin のみ。</li>
+  </ul>
+
+  <h3 class="rev-new">4.13 S-11 プロジェクト作成</h3>
+  <ul class="rev-new">
+    <li><strong>表示項目:</strong> プロジェクト名・説明の入力欄、作成すると何が起きるかの説明（作成者が自動的にそのプロジェクトの管理者になる旨）、「自分が参加しているプロジェクト」一覧（プロジェクト名・自分のロール・<span class="rev-new">状態〔進行中/停止。表示ラベルは「停止」だがAPI・DB上のenum値は<code>'completed'</code>のまま。停止中のプロジェクトも含めて全件表示し</span>・S-12を開く操作。管理者ロールの行のみS-12への導線を有効化<span class="rev-new">し、状態もその場で変更〔停止済みの再開を含む〕できる。この一覧はS-12（4.14節）のプロジェクト一覧表示と共通の部品である（v1.40）</span>）。</li>
+    <li><strong>操作:</strong> A-09（プロジェクト作成。作成者を <code>project_memberships.role='admin'</code> で自動登録。3.5節・5.25節参照）。「自分が参加しているプロジェクト」一覧はA-11をログインユーザーのuser_idで絞り込んで取得する<span class="rev-new">。一覧上の状態変更はA-92を呼ぶ（v1.40）</span>。<span class="rev-new">「作成する」押下は即座にAPIを呼ばず、内容確認モーダルを1段階挟む（誤操作防止。v1.40）</span>。</li>
+    <li><strong>アクセス制御:</strong> 全員（誰でも新規作成できる。F-24）。サイドバー・ヘッダーに常時表示する。</li>
+  </ul>
+
+  <h3 class="rev-new">4.14 S-12 プロジェクト管理</h3>
+  <ul class="rev-new">
+    <li><strong>ヘッダー:</strong> <span class="rev-old">管理するプロジェクトの選択（自分が管理者であるプロジェクトが複数ある場合はプルダウンで切替。adminは全プロジェクトから選択可）。</span><span class="rev-old">「管理者であるプロジェクトが実質1件（有効な状態のプロジェクトの管理者が1つだけ）」のときのみ自動的にその詳細へ遷移する。それ以外（0件、複数件、または管理者であるプロジェクトが停止中のみ等）の場合は、S-11と共通の「自分の全プロジェクト一覧」（プロジェクト名・ロール・状態〔進行中/停止〕・操作。管理者ロールの行のみ状態変更・詳細への遷移が可能）をまず表示する。従来は常に最初の管理対象プロジェクトへ自動遷移していたが、A-81の並び順（全社Wiki先頭固定）の影響で「複数プロジェクトを管理していると必ず全社Wikiが開く」という分かりにくさがあったため変更した（v1.40）。</span><span class="rev-new">:projectId未指定時は、管理者であるプロジェクトの件数によらず（1件のみの場合も含む）常にS-11と共通の「自分の全プロジェクト一覧」（プロジェクト名・ロール・状態〔進行中/停止〕・操作。管理者ロールの行のみ状態変更・詳細への遷移が可能）をまず表示する。自動遷移は一切行わない。v1.40では「1件のみなら自動遷移」としていたが、1件しかない場合でも一覧を経由してから詳細に入りたいというユーザーフィードバックを受け、この自動遷移を撤回した（v1.41）。</span>個別プロジェクトの詳細を開いているときはヘッダーに「一覧に戻る」導線を表示する。</li>
+    <li><strong>「自分の全プロジェクト一覧」の絞り込み・色分け:</strong> <span class="rev-new">既定では進行中のプロジェクトのみを表示し、「停止中のプロジェクトも表示する（N件）」チェックで停止中も含めた全件表示に切り替える。停止中の行は進行中と視覚的に区別できるよう淡色表示・状態バッジの色分け（進行中=緑、停止=グレー）にする（v1.42）。</span></li>
+    <li><strong>タブ構成:</strong> 「プロジェクト情報」（名称・説明・状態の編集、作成日・作成者の表示<span class="rev-new">、条件を満たす場合のみ有効化される「プロジェクトを削除」ボタン。5.32節参照</span>）、「メンバー管理」（氏名・全社ロール・プロジェクトロール・参加日の一覧、ロール変更、社員選択による追加、削除。唯一の管理者は削除・降格不可）、「教材の共有」（このプロジェクトに紐づく公開済み教材ごとの共有先プロジェクト設定・申請〔下書き教材は共有不可〕に加え、他プロジェクトからこのプロジェクト宛ての共有リクエストの確認・承認・却下も同じタブで行う。5.27節）。</li>
+    <li><strong>操作:</strong> A-10（プロジェクト情報更新）、A-11（メンバー一覧取得）、A-12（メンバー追加・ロール設定）、A-13（メンバー削除・ロール変更）、A-59〜A-61（教材のプロジェクト間共有設定。5.27節参照）<span class="rev-new">、A-92（一覧からの状態のみの変更・停止済みプロジェクトの再開。v1.40）、A-93（プロジェクトの完全削除。v1.42、5.32節）</span>。</li>
+    <li><strong>アクセス制御:</strong> 対象プロジェクトの管理者、または admin（3.5節）。</li>
+  </ul>
+
+  <h3 class="rev-new">4.14a S-15 プロフィール編集</h3>
+  <ul class="rev-new">
+    <li><strong>表示項目:</strong> 現在のアイコン画像（独自アップロード分があればそれ、無ければGoogleプロフィール画像）、表示名の入力欄、メールアドレス（参照専用）、システムロールのバッジ表示、所属プロジェクト一覧、招待されているプロジェクト一覧（承諾・辞退操作。F-24）。</li>
+    <li><strong>操作:</strong> 表示名を編集して保存するとA-75（PUT /api/auth/me）を呼ぶ。アイコンを選択するとA-76（POST /api/auth/me/icon/upload-url）で署名付きURLを取得してアップロードし、A-75で確定する。「Googleの画像に戻す」でA-77（DELETE /api/auth/me/icon）を呼ぶ。所属プロジェクト一覧はA-11（<code>user_id</code>=自分, <code>status='active'</code>）、招待一覧はA-11（<code>user_id</code>=自分, <code>status='invited'</code>）と応答用のA-67を使用する（5.25節）。</li>
+    <li><strong>アクセス制御:</strong> 全員（自分自身の情報のみ操作可）。</li>
+    <li><strong>変更履歴の扱い:</strong> 表示名・アイコンの変更はT-08 material_revisions（教材専用）の対象外であり、専用の履歴保持は行わない（変更前の値を追跡する要求が無いため）。</li>
+  </ul>
+
+  <p>画面IDは<span class="rev-old">S-01〜S-12</span><span class="rev-new">S-01〜S-19</span>の体系とし、要件定義書4.1節の画面一覧と一致させている。S-11・S-12はv1.4（教材のプロジェクト単位管理、F-24〜F-26）で新設した。<span class="rev-new">S-13〜S-15はv1.9〜v1.11（プロジェクト表示の改善、共有承認フロー、招待制メンバー追加）で新設した。S-16・S-17はv1.11（教材構造案の採用）でS-04・S-05からページ単位の受講・編集を分離する形で新設した。S-18はv1.12（F-27 AI教材作成アシスト）で新設した<span class="rev-old">が、F-27の廃止に伴いv1.20で廃止した</span>。S-19はv1.17（設問別回答一覧・レビュー画面の欠落への対応）で新設した。</span>S-07（組織管理）はv1.5（部署の概念の廃止）<span class="rev-old">、S-18（教材編集：Claude Code下書き作成）はv1.20（F-27の廃止）</span>で廃止したためIDを欠番とし、実働する画面は<span class="rev-old">11件（S-01〜S-06, S-08〜S-12）</span><span class="rev-old">18件（S-01〜S-06, S-08〜S-19）</span><span class="rev-new">17件（S-01〜S-06, S-08〜S-17, S-19）</span>である。</p>
+
+  <!-- ============ 5. 機能設計 ============ -->
+
+  <footer class="doc-footer">
+    <span>社内学習管理システム（Manabi）基本設計書 v1.52</span>
+    <span>コガソフトウェア株式会社 / 2026-08-24</span>
+  </footer>
+
+</div>
+</body>
+</html>
+

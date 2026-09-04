@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>11. 前提・制約 | 基本設計書 | 社内学習管理システム（Manabi）</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<script src="../_sidenav.js"></script>
+<div class="doc">
+
+<p class="chapter-nav" style="display:flex;justify-content:space-between;font-size:13px;margin:0 0 16px"><a href="10_非機能設計.html">← 10. 非機能設計</a><a href="index.html">目次</a><span></span></p>
+
+  <h2 id="sec11">11. 前提・制約</h2>
+
+  <p>要件定義書9章の前提条件・制約を踏まえ、要件定義書が「基本設計フェーズで定める」としていた事項について、本書での決定を以下にまとめる。いずれも1〜6章・7〜10章の該当箇所ですでに決定済みの内容であり、本節はそれらを一覧として集約するものである。</p>
+  <table>
+    <thead><tr><th>要件定義書が委ねていた事項</th><th>本書での決定</th><th>該当節</th></tr></thead>
+    <tbody>
+      <tr><td>ファイル容量の上限（9.2節）</td><td>1ファイルあたり200MB。環境変数<code>MAX_ATTACHMENT_SIZE_MB</code>で調整可</td><td>5.6節</td></tr>
+      <tr><td>プロジェクト離任後の猶予期間の具体的日数（9.2節）</td><td>既定30日。T-21 <code>app_settings</code>（<code>key='project_leave_grace_period_days'</code>）でS-10から変更可</td><td>5.25節・6.2節</td></tr>
+      <tr><td>教材・問題の項目定義（9.2節）</td><td>フロントマター・本文中の問題ブロックのスキーマとして確定</td><td>8.3節</td></tr>
+      <tr><td>HTMLサニタイズの許可リストの詳細（要件定義書5.1節）</td><td>許可タグ・属性の一覧、および提供時サニタイズという適用方式を確定</td><td>8.6節</td></tr>
+      <tr><td>AI APIへ送信するデータの範囲（9.2節）</td><td>機能ごとの送信・非送信データを確定</td><td>9.5節</td></tr>
+      <tr><td>AI利用費用の管理方法（9.2節）</td><td>S-10でのトークン数・概算コスト表示に加え、環境変数によるアラート閾値を追加</td><td>9.3節</td></tr>
+      <tr><td>ファイルストレージ・ホスティングの選定（9.1節）</td><td>Supabase Storage / Koyeb（LCC CRM踏襲）</td><td>2章</td></tr>
+      <tr><td>AI連携先の選定（9.1節「外部AI API」）</td><td>Anthropic Claude API（Messages API）</td><td>2.2節</td></tr>
+    </tbody>
+  </table>
+
+  <ul>
+    <li>技術スタック・コード規約・エラー形式・ディレクトリ構成は既存システムLCC CRM（lcc_crm）の規約に準拠する（REQ-N-06）。本書で定義しない実装上の細則はlcc_crmの慣例に従う。</li>
+    <li>利用者はGoogle Workspaceアカウント保有者（許可ドメイン: kogasoftware.com）に限る。ドメイン外ユーザー向けの代替認証手段は提供しない（3.1節）。</li>
+    <li>想定規模は社員200名程度であり、これを大きく超えるスケールは本設計の対象外とする（要件定義書8章・9章）。</li>
+    <li>組織単位は「全社」「プロジェクト」「個人」の3種とし、部署（department）単位の組織管理は対象外とする（要件定義書v1.5、3.3節・5.24節）。</li>
+    <li>プロジェクト所属情報・教材の項目定義等の他システム（プロジェクト管理システム等）とのAPI連携による自動取得（Claude Code経由を含む）は、参照可能な外部システムが現時点で存在しないため初期実装の対象外とする（要件定義書9.2節）。</li>
+    <li>実装の段階的な進め方（フェーズ0〜5）は要件定義書10章に定義済みであり、本書は同章のフェーズ分けと矛盾しない範囲で7〜10章の設計を行っている（例: 8章の教材連携APIはフェーズ1、9章の非同期AI機能の一部はフェーズ4〜5に対応する）。</li>
+    <li>本ドキュメント一式は新人社員のAI開発研修のサンプル成果物として作成されている。</li>
+  </ul>
+
+
+  <footer class="doc-footer">
+    <span>社内学習管理システム（Manabi）基本設計書 v1.52</span>
+    <span>コガソフトウェア株式会社 / 2026-08-24</span>
+  </footer>
+
+</div>
+</body>
+</html>
+

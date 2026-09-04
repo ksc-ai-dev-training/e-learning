@@ -1,0 +1,22 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+backend/backend_out.log
+backend/backend_err.log
+
+# ローカル開発時の添付ファイル保存先（storage.py。本番はSupabase Storageを使う）
+backend/uploads/
+
+# Node
+node_modules/
+dist/
+
+# 環境変数・秘密情報
+.env
+.env.*
+!.env.example
+
+# OS
+Thumbs.db
+.DS_Store

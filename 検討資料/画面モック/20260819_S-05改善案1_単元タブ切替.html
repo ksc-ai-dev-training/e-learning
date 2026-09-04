@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>【検討中】S-05改善案1: 本文編集タブ内の単元切替 | Manabi</title>
+<link rel="stylesheet" href="../../docs/03_画面モックアップ/mock.css">
+<style>
+  .unit-pills { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+  .unit-pill {
+    display: inline-flex; align-items: center; height: 30px; padding: 0 14px;
+    border: 1px solid var(--border-strong); border-radius: 999px;
+    background: #fff; color: var(--text-muted); font-size: 12.5px; cursor: pointer;
+  }
+  .unit-pill.active { background: var(--accent-600); border-color: var(--accent-600); color: #fff; font-weight: 600; }
+  .unit-pill.no-questions::after { content: "・問題なし"; font-size: 10.5px; color: #b45309; margin-left: 4px; }
+  .unit-pill.active.no-questions::after { color: #fde68a; }
+</style>
+</head>
+<body>
+
+<div style="background:#fef3c7;border-bottom:1px solid #fbbf24;color:#78350f;font-size:12px;font-weight:600;text-align:center;padding:6px;">
+  【検討中】案1: 本文編集タブ内に単元セレクタ（ピル）を追加 ／ 正式版ではありません
+</div>
+
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-mark">M</div>
+      <div>
+        <div class="brand-name">Manabi</div>
+        <div class="brand-sub">社内学習管理システム</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-label">メニュー</div>
+      <a class="nav-item" href="#">マイ学習</a>
+      <a class="nav-item" href="#">教材一覧・検索</a>
+      <a class="nav-item active" href="#">教材編集</a>
+      <a class="nav-item" href="#">個人学習レポート</a>
+      <a class="nav-item" href="#">プロジェクト作成</a>
+      <a class="nav-item" href="#">プロジェクト管理</a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="sidebar-user-row">
+        <span class="avatar">鈴</span>
+        <div>
+          <div class="user-name">鈴木 美咲 <span class="badge badge-role role-member">member</span></div>
+          <div class="user-mail">m.suzuki@kogasoftware.com</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="page-header">
+      <div>
+        <div class="page-title-group">
+          <h1>教材編集 — 新人向けGit入門</h1>
+          <span class="badge badge-status-off">下書き修正中</span>
+          <span class="screen-id">検討中</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:4px;font-size:12px;color:var(--text-subtle);flex-wrap:wrap">
+          紐づくプロジェクト: <a href="#">LCC CRM刷新</a>
+          ／ あなたのロール: <span class="badge badge-projrole projrole-editor">編集者</span>
+          ／ プロジェクト管理者: 山田 花子
+        </div>
+      </div>
+      <div class="header-actions">
+        <a class="btn btn-secondary" href="#">← 教材編集の一覧に戻る</a>
+        <button class="btn btn-secondary" type="button">プレビュー</button>
+        <button class="btn btn-primary" type="button">公開する</button>
+      </div>
+    </header>
+
+    <div class="page-body">
+
+      <div class="tabs" role="tablist">
+        <button class="tab active" type="button">本文編集</button>
+        <button class="tab" type="button">問題編集</button>
+        <button class="tab" type="button">構成（単元/コース）</button>
+        <button class="tab" type="button">ファイル・リンク</button>
+        <button class="tab" type="button">プロジェクトメンバー</button>
+        <button class="tab" type="button">AIレビュー結果</button>
+        <button class="tab" type="button">改訂履歴</button>
+      </div>
+
+      <!-- 本文編集タブ：冒頭に単元セレクタを追加 -->
+      <div class="callout" style="margin-bottom:14px">
+        <strong>案1のポイント:</strong> タブ構造はそのまま維持し、「本文編集」タブに入った直後にどの単元を編集しているかがピルの選択状態で一目でわかるようにした。ピルをクリックすると（実運用では）その単元の本文に即座に切り替わる。今は「単元1」を選んでいる状態を例示。
+      </div>
+
+      <div class="unit-pills" role="tablist" aria-label="編集する単元の選択">
+        <button class="unit-pill active" type="button">単元1: Gitの基本概念とセットアップ</button>
+        <button class="unit-pill no-questions" type="button">単元2: ブランチとプルリクエストの基本</button>
+        <button class="unit-pill no-questions" type="button">単元3: コンフリクトの解消</button>
+        <button class="unit-pill" type="button">単元4: よく使うコマンドまとめ</button>
+        <button class="unit-pill" type="button" style="border-style:dashed">+ 単元を追加</button>
+      </div>
+
+      <div class="tab-panel active">
+        <div class="field-row">
+          <div class="field">
+            <label>単元タイトル</label>
+            <input type="text" value="単元1: Gitの基本概念とセットアップ">
+          </div>
+          <div class="field">
+            <label>概要（一覧表示用）</label>
+            <input type="text" value="バージョン管理の考え方と、ローカル環境でのGitセットアップを学びます">
+          </div>
+        </div>
+
+        <div class="field">
+          <label>記述形式</label>
+          <div class="segmented">
+            <button type="button" class="active">Markdown</button>
+            <button type="button">HTML</button>
+          </div>
+        </div>
+
+        <div class="editor-split">
+          <div class="editor-pane">
+            <div class="preview-label">本文（Markdown）</div>
+            <textarea>## Gitとは
+
+複数人での開発において、変更履歴を管理するための分散型バージョン管理システムです。
+
+## セットアップ
+
+```
+git config --global user.name "あなたの名前"
+git config --global user.email "you@example.com"
+```
+
+## リポジトリの作成
+
+```
+git init
+```</textarea>
+          </div>
+          <div class="preview-pane">
+            <div class="preview-label">プレビュー</div>
+            <h3>Gitとは</h3>
+            <p>複数人での開発において、変更履歴を管理するための分散型バージョン管理システムです。</p>
+            <h3>セットアップ</h3>
+            <pre style="background:#1e2530;color:#dce3ec;border-radius:6px;padding:10px 12px;font-size:12px;margin-bottom:10px">git config --global user.name "あなたの名前"
+git config --global user.email "you@example.com"</pre>
+            <h3>リポジトリの作成</h3>
+            <pre style="background:#1e2530;color:#dce3ec;border-radius:6px;padding:10px 12px;font-size:12px">git init</pre>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button class="btn btn-primary" type="button">本文を保存</button>
+          <span class="actions-note">「単元2」に切り替えると、この本文欄の内容も単元2のものに入れ替わります（他の単元を編集中は自動下書き保存）</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="mock-note">検討中の改善案1（本文編集タブ内の単元切替）</div>
+
+</body>
+</html>

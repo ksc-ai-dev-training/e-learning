@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>【検討中】問題形式・採点拡張案 | Manabi</title>
+<style>
+  :root { --border-strong:#d0d5dd; --bg-subtle:#f6f7f9; --text:#1a1d21; --text-muted:#565e6c; --text-subtle:#8a8f98; --accent-600:#2563eb; --accent-100:#dbeafe; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: -apple-system, "Segoe UI", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif; background:#f6f7f9; color:var(--text); font-size:12.5px; }
+  .status-bar { background:#fef3c7; border-bottom:1px solid #fbbf24; color:#78350f; font-size:12px; font-weight:600; text-align:center; padding:6px; }
+  .doc-wrap { max-width: 1100px; margin: 0 auto; padding: 28px 24px 100px; }
+  .doc-header h1 { font-size: 20px; margin: 0 0 6px; }
+  .doc-meta { font-size: 12px; color: var(--text-subtle); }
+  .toc { background:#fff; border:1px solid var(--border-strong); border-radius:10px; padding:14px 18px; margin-top:18px; font-size:12.5px; }
+  .toc a { color: var(--accent-600); text-decoration:none; }
+  .toc ol { margin:6px 0 0; padding-left:20px; }
+  .doc-section { margin-top: 34px; scroll-margin-top: 12px; }
+  .doc-section h2 { font-size: 16px; border-left: 4px solid var(--accent-600); padding-left: 10px; margin-bottom: 10px; }
+  .doc-section h3 { font-size: 13.5px; margin: 20px 0 8px; padding-bottom:4px; border-bottom:1px solid var(--border-strong); }
+  .doc-section p, .doc-section li { font-size: 12.5px; line-height: 1.8; }
+  .doc-section ul, .doc-section ol { padding-left: 20px; margin: 6px 0; }
+  table.def { border-collapse: collapse; width:100%; margin: 8px 0 16px; font-size: 12px; }
+  table.def th, table.def td { border: 1px solid var(--border-strong); padding: 6px 8px; text-align: left; vertical-align: top; }
+  table.def th { background: var(--bg-subtle); font-weight: 600; }
+  .callout { border:1px solid #bfdbfe; background:#eff6ff; border-radius:8px; padding:12px 14px; font-size:12.5px; line-height:1.8; margin: 10px 0; }
+  .callout.warn { border-color:#fbbf24; background:#fffbeb; }
+  .callout.danger { border-color:#fca5a5; background:#fef2f2; }
+  .callout.q { border-color:#c4b5fd; background:#f5f3ff; }
+  code.inline { background: var(--bg-subtle); padding: 1px 5px; border-radius: 4px; font-size: 11.5px; font-family: ui-monospace, Consolas, monospace; }
+  .badge { display:inline-block; padding:2px 8px; border-radius: 999px; font-size:10.5px; font-weight:700; }
+  .badge-new { background:#dbeafe; color:#1e40af; }
+  .badge-danger { background:#fee2e2; color:#991b1b; }
+
+  /* 画面フラグメント（実装後のUIイメージ） */
+  .frag { border:1px solid var(--border-strong); border-radius:10px; background:#fff; padding:16px; margin:12px 0; }
+  .frag-label { font-size:11px; font-weight:700; color:var(--text-subtle); margin-bottom:10px; text-transform:uppercase; letter-spacing:.03em; }
+  .field { margin-bottom:12px; }
+  .field label { display:block; font-size:11.5px; font-weight:600; margin-bottom:4px; }
+  .field input[type=text], .field input[type=number], .field select, .field textarea {
+    width:100%; border:1px solid var(--border-strong); border-radius:6px; padding:6px 8px; font-size:12.5px; font-family:inherit;
+  }
+  .field-help { font-size:11px; color:var(--text-subtle); display:block; margin-top:3px; }
+  .radio-group, .checkbox-group { display:flex; gap:14px; flex-wrap:wrap; }
+  .radio-line, .checkbox-line { font-size:12px; display:flex; align-items:center; gap:5px; }
+  .edit-card { border:1px solid var(--border-strong); border-radius:8px; padding:12px 14px; margin-bottom:10px; }
+  .edit-card-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .edit-card-title { font-size:12.5px; font-weight:700; }
+  .field-row { display:grid; grid-template-columns: repeat(3,1fr); gap:10px; margin-bottom:10px; }
+  .reorder-item { display:flex; align-items:center; gap:8px; padding:5px 8px; background:var(--bg-subtle); border-radius:6px; margin:3px 0; font-size:12px; }
+  .reorder-item .handle { color:var(--text-subtle); cursor:grab; }
+  .btn { display:inline-block; border-radius:6px; padding:5px 12px; font-size:12px; font-weight:600; border:1px solid var(--border-strong); background:#fff; cursor:pointer; text-decoration:none; color:var(--text); }
+  .btn-primary { background:var(--accent-600); border-color:var(--accent-600); color:#fff; }
+  .btn-danger { border-color:#fca5a5; color:#b91c1c; background:#fff; }
+  .bomb-tag { display:inline-flex; align-items:center; gap:4px; font-size:10.5px; font-weight:700; color:#991b1b; background:#fee2e2; border-radius:999px; padding:2px 8px; }
+</style>
+</head>
+<body>
+
+<div class="status-bar">【検討中】問題形式・採点まわりの拡張案 ／ 正式版ではありません（docs/ には未反映）</div>
+
+<div class="doc-wrap">
+
+  <div class="doc-header">
+    <h1>問題形式・採点拡張案</h1>
+    <div class="doc-meta">検討資料 ／ 2026-08-21 ／ ユーザー要望の整理と画面イメージ。docs/03_画面モックアップ（S-04・S-05・S-16・S-17・S-18）・要件定義書・基本設計書への反映はこの資料でのすり合わせ後に行う</div>
+  </div>
+
+  <div class="callout">
+    <strong>この資料の位置づけ:</strong> 「AI採点フィードバックの指定」「再受験・完了条件の柔軟化」「問題形式の追加」「AI採点コンテキストの指定」「受験後アンケート」という5系統の要望を、データモデルと画面イメージのレベルまで具体化した。まだ「検討中」段階なので、認識のズレがないか・優先度をどうするかをこの資料で確認してから、正式な設計書・画面モックアップへ反映する。
+  </div>
+
+  <div class="toc">
+    <strong>目次</strong>
+    <ol>
+      <li><a href="#sec1">要望の整理</a></li>
+      <li><a href="#sec2">1. AI採点フィードバックのスタイル指定</a></li>
+      <li><a href="#sec3">2. 再受験・完了条件の柔軟化</a></li>
+      <li><a href="#sec4">3. 問題形式の追加（並び替え／ドボン問題／ランダム出題プール）</a></li>
+      <li><a href="#sec5">4. AI採点コンテキストの教材ごと指定</a></li>
+      <li><a href="#sec6">5. 受験後アンケート</a></li>
+      <li><a href="#sec7">データモデルへの影響（参考）</a></li>
+      <li><a href="#sec8">確認したい点</a></li>
+    </ol>
+  </div>
+
+  <!-- ============ 1. 要望の整理 ============ -->
+  <div class="doc-section" id="sec1">
+    <h2>1. 要望の整理</h2>
+    <table class="def">
+      <thead><tr><th>系統</th><th>要望</th><th>設定単位</th></tr></thead>
+      <tbody>
+        <tr><td rowspan="1">AI採点フィードバック</td><td>正解を提示 ／ コードレビュー的に間違いだけ指摘 ／ 正解は見せずヒントのみ</td><td>教材ごと（既定）＋設問ごとの上書き</td></tr>
+        <tr><td rowspan="3">再受験・完了条件</td><td>合否判定・再受験の単位（受験単位）を教材／見出し／小見出し／ページから選べる。再受験時に間違った問題だけ再挑戦できる</td><td>受験単位・再受験範囲とも教材ごとに作成者が選択</td></tr>
+        <tr><td>必ず正解しないと完了にならない課題を設定できる（＝ドボン問題）</td><td>設問ごと</td></tr>
+        <tr><td>問題ごとに回答必須／任意を設定できる</td><td>設問ごと</td></tr>
+        <tr><td rowspan="3">問題形式</td><td>並び替え問題</td><td>設問の種別として追加</td></tr>
+        <tr><td>ドボン問題（1問でも間違えると教材全体が不合格）</td><td>設問の属性として追加</td></tr>
+        <tr><td>全50問のプールからランダムにN問出題</td><td>ページ（または章）ごとの出題プール設定</td></tr>
+        <tr><td>正解のない活動（タイピング練習等）のスコアを記録し、管理者が一覧で見られる。受講者はAIから推移コメントをもらえる</td><td>設問の種別として追加、管理者向けにS-19（新設）</td></tr>
+        <tr><td>AI採点コンテキスト</td><td>使用言語・フレームワーク・バージョンの指定、「直接答えを教えるな」等の指示</td><td>教材ごと（システムプロンプトに追加）</td></tr>
+        <tr><td>受験後アンケート</td><td>受験後にアンケートを実施し、統計をAIが要約して作成者・管理者に改善材料として提示する</td><td>設置有無・設置単位（教材／章）とも作成者が任意で指定</td></tr>
+      </tbody>
+    </table>
+    <p>このほか「回答方式のレパートリー: 再提出（間違った問題だけ）」は上表の「再受験時、間違った問題だけ再挑戦」と同じ要望として統合した。</p>
+  </div>
+
+  <!-- ============ 2. AI採点フィードバックのスタイル ============ -->
+  <div class="doc-section" id="sec2">
+    <h2>2. AI採点フィードバックのスタイル指定</h2>
+    <p>現行のF-20（AI記述式採点・講評）は「正誤・点数（v1.12で廃止）・講評」を返すだけで、講評の「見せ方」は固定だった。これを教材作成者が選べるようにする。</p>
+    <table class="def">
+      <thead><tr><th>スタイル</th><th>受講者に見せる内容</th><th>想定用途</th></tr></thead>
+      <tbody>
+        <tr><td><code class="inline">show_answer</code><br>正解提示型</td><td>模範解答＋講評（現行と同じ）</td><td>知識確認中心の問題</td></tr>
+        <tr><td><code class="inline">review_only</code><br>コードレビュー型</td><td>正解は見せず、コード記述式なら「この部分が問題」という指摘のみ</td><td>コード課題（模範解答が1つに定まらない）</td></tr>
+        <tr><td><code class="inline">hint_only</code><br>ヒント型</td><td>正解は見せず、「なぜ間違っているか」「考える方向のヒント」のみ</td><td>選択式でも、自力で答えに気づいてほしい問題</td></tr>
+      </tbody>
+    </table>
+    <div class="frag">
+      <div class="frag-label">S-17 ページ編集 — 設問カードの追加フィールド（イメージ）</div>
+      <div class="edit-card">
+        <div class="edit-card-head">
+          <span class="edit-card-title">設問2（記述式）</span>
+          <button class="btn btn-danger" type="button">削除</button>
+        </div>
+        <div class="field">
+          <label>AI講評のスタイル</label>
+          <select>
+            <option>教材の既定に従う（正解提示型）</option>
+            <option>正解提示型</option>
+            <option>コードレビュー型（間違いのみ指摘）</option>
+            <option>ヒント型（正解を見せない）</option>
+          </select>
+          <span class="field-help">教材全体の既定はS-05「合否判定・再受験設定」パネルで指定する。この設問だけ変えたい場合にここで上書きする。</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 3. 再受験・完了条件 ============ -->
+  <div class="doc-section" id="sec3">
+    <h2>3. 再受験・完了条件の柔軟化</h2>
+
+    <h3>3.0 受験単位（合否判定の粒度そのものを作成者が選べるようにする）</h3>
+    <div class="callout">
+      <strong>方針転換:</strong> 当初「合否判定・再受験は教材1冊分をまとめて1回の受験」と固定していたが、レビューにより「教材全体」「見出し（章）」「小見出し」「ページ」のどの粒度を1回の受験単位にするかは<strong>作成者が教材ごとに選べるべき</strong>という指摘を受けた。公開前にS-05で設定する。小見出しを使わない章（ページが章に直接ぶら下がる構成）で「小見出し単位」を選んだ場合は、その章自身が受験単位になる（小見出しが無ければそれより1段階粗い単位に自動的に繰り上がる、という考え方）。
+    </div>
+    <div class="frag">
+      <div class="frag-label">S-05 目次編集 — 「合否判定・再受験設定」パネルの追加項目（イメージ）</div>
+      <div class="field">
+        <label>受験単位</label>
+        <select>
+          <option>教材全体（この教材の全ページをまとめて1回の受験）</option>
+          <option selected>見出し（章）ごと</option>
+          <option>小見出しごと（小見出しが無い章はその章単位）</option>
+          <option>ページごと</option>
+        </select>
+        <span class="field-help">選んだ単位ごとに、進捗・合否判定・再受験・ドボン問題の影響範囲が独立する。例えば「見出し（章）ごと」を選んだ場合、第1章に合格していても第2章は未受験・不合格のままにできる。</span>
+      </div>
+      <div class="field" style="margin-bottom:0">
+        <label>再受験時の出題範囲</label>
+        <div class="radio-group">
+          <label class="radio-line"><input type="radio" name="retake-scope" checked> 全問を解き直す</label>
+          <label class="radio-line"><input type="radio" name="retake-scope"> 前回間違えた問題だけ解き直す</label>
+        </div>
+        <span class="field-help">「間違えた問題だけ」を選んだ場合、前回正解した設問の結果はそのまま引き継がれ、今回解き直した設問の結果と合算して正答率を再計算する（この合算・再計算は上で選んだ「受験単位」の中で行う）。</span>
+      </div>
+    </div>
+    <div class="frag">
+      <div class="frag-label">S-04 目次 — 「受験単位: 見出し（章）ごと」を選んだ場合の表示イメージ（現行の教材全体1枚パネルから変更）</div>
+      <div style="border:1px solid var(--border-strong);border-radius:8px;overflow:hidden;margin-bottom:8px">
+        <div style="background:var(--bg-subtle);padding:7px 12px;font-weight:700;font-size:12.5px;display:flex;justify-content:space-between;align-items:center">
+          第1章 Claude Codeとは
+          <span class="badge" style="background:#dcfce7;color:#166534">合格</span>
+        </div>
+        <div style="padding:8px 12px;font-size:11.5px;color:var(--text-muted)">2026-08-15 実施 ／ 正答率100%</div>
+      </div>
+      <div style="border:1px solid #fecaca;border-radius:8px;overflow:hidden">
+        <div style="background:#fef2f2;padding:7px 12px;font-weight:700;font-size:12.5px;display:flex;justify-content:space-between;align-items:center">
+          第2章 基本コマンドとワークフロー
+          <span class="badge badge-danger">不合格・再受験可（残り2回）</span>
+        </div>
+        <div style="padding:8px 12px;font-size:11.5px;color:var(--text-muted)">2026-08-16 実施 ／ 正答率58%（合格基準70%）</div>
+      </div>
+      <p class="field-help">章ごとに独立した「受験結果」ミニパネルを、その章の目次ブロックの直下に表示するイメージ。「前回の受験結果」の書式に近いS-04のパネルを、章の数だけ縦に並べる形になる。</p>
+    </div>
+    <h3>3.2 設問ごとの回答必須／任意</h3>
+    <p>現行はページ単位で「問題を含める」かどうかを選ぶのみで、1ページに複数設問がある場合に個々の設問を任意（スキップ可）にする手段がなかった。設問ごとに「回答必須」フラグを追加する。</p>
+    <div class="frag">
+      <div class="frag-label">S-17 ページ編集 — 設問カードの追加フィールド（イメージ）</div>
+      <div class="field" style="margin-bottom:0">
+        <label>回答</label>
+        <div class="radio-group">
+          <label class="radio-line"><input type="radio" name="q-required" checked> 必須（回答しないと次のページへ進めない）</label>
+          <label class="radio-line"><input type="radio" name="q-required"> 任意（スキップ可）</label>
+        </div>
+      </div>
+    </div>
+    <h3>3.3 ドボン問題（正解しないとその受験単位が合格にならない）</h3>
+    <div class="callout danger">
+      <strong>挙動（確認済み）:</strong> ドボン問題を1問でも間違えると、同じ設問の正答率によらず不合格になる。即座に受験終了にはせず、最後まで通常どおり回答は続けられる。合否判定結果には「ドボン問題『（設問名）』に正解しなかったため不合格」という理由を明示する。<strong>影響範囲は3.0節の「受験単位」に従う</strong>（別立ての設定は持たない）。受験単位が「見出し（章）ごと」ならドボン問題を含む章だけが不合格になり、他の章の合否には影響しない。受験単位が「教材全体」ならドボン問題1問で教材全体が不合格になる。
+    </div>
+    <div class="frag">
+      <div class="frag-label">S-17 ページ編集 — 設問カードの追加フィールド（イメージ）</div>
+      <div class="checkbox-line" style="margin-bottom:6px">
+        <input type="checkbox" id="bomb"> <label for="bomb" style="margin:0;font-weight:600">この設問を「ドボン問題」にする</label>
+      </div>
+      <span class="field-help">チェックすると <span class="bomb-tag">⚠ ドボン</span> のようにS-05の目次・S-16の問題カードに表示され、受講者にも「間違えられない問題」であることが伝わる。1教材に複数設定することもできる（すべてに正解しないと合格しない）。</span>
+    </div>
+    <div class="frag">
+      <div class="frag-label">S-04 目次 — 受験単位「見出し（章）ごと」でドボン問題により第2章だけ不合格になる場合の表示イメージ</div>
+      <div style="border:1px solid var(--border-strong);border-radius:8px;overflow:hidden;margin-bottom:8px">
+        <div style="background:var(--bg-subtle);padding:7px 12px;font-weight:700;font-size:12.5px;display:flex;justify-content:space-between;align-items:center">
+          第1章 Claude Codeとは
+          <span class="badge" style="background:#dcfce7;color:#166534">合格</span>
+        </div>
+        <div style="padding:8px 12px;font-size:11.5px;color:var(--text-muted)">2026-08-15 実施 ／ 正答率100%</div>
+      </div>
+      <div style="border:1px solid #fecaca;border-radius:8px;overflow:hidden">
+        <div style="background:#fef2f2;padding:7px 12px;font-weight:700;font-size:12.5px;display:flex;justify-content:space-between;align-items:center">
+          第2章 基本コマンドとワークフロー
+          <span class="badge badge-danger">不合格・再受験可（残り2回）</span>
+        </div>
+        <div style="padding:8px 12px;font-size:12px;color:var(--text-muted)">
+          2026-08-10 実施 ／ 正答率88%（合格基準70%は満たしている）<br>
+          <strong style="color:#991b1b">ただし <span class="bomb-tag">⚠ ドボン</span> 設問1「本番環境で直接 force push してよいか」に正解しなかったため、この章は不合格と判定されました。</strong>
+        </div>
+      </div>
+      <p class="field-help">受験単位が「教材全体」の場合は、この2つのパネルが1つの「前回の受験結果」パネルに統合され、ドボン問題を含む章がどこであっても教材全体が不合格になる。</p>
+    </div>
+  </div>
+
+  <!-- ============ 4. 問題形式の追加 ============ -->
+  <div class="doc-section" id="sec4">
+    <h2>4. 問題形式の追加</h2>
+    <h3>4.1 並び替え問題（新しい種別）</h3>
+    <div class="frag">
+      <div class="frag-label">S-17 ページ編集 — 並び替え問題の編集イメージ</div>
+      <div class="edit-card">
+        <div class="edit-card-head">
+          <span class="edit-card-title">設問3（並び替え）<span class="badge badge-new" style="margin-left:6px">新種別</span></span>
+          <button class="btn btn-danger" type="button">削除</button>
+        </div>
+        <div class="field">
+          <label>種別</label>
+          <select><option>単一選択</option><option>複数選択</option><option selected>並び替え</option><option>記述式</option><option>コード記述式</option></select>
+        </div>
+        <div class="field">
+          <label>設問文</label>
+          <input type="text" value="Gitでのプルリクエスト作成までの手順を正しい順番に並べ替えてください。">
+        </div>
+        <div class="field" style="margin-bottom:0">
+          <label>正しい順番（ドラッグで並び替え。この並びが正解になる）</label>
+          <div class="reorder-item"><span class="handle">⠿</span> 1. 作業ブランチを作成する</div>
+          <div class="reorder-item"><span class="handle">⠿</span> 2. 変更をコミットする</div>
+          <div class="reorder-item"><span class="handle">⠿</span> 3. リモートへpushする</div>
+          <div class="reorder-item"><span class="handle">⠿</span> 4. プルリクエストを作成する</div>
+          <button class="btn" type="button" style="margin-top:6px">+ 項目を追加</button>
+        </div>
+      </div>
+      <p class="field-help">受講側（S-16）では項目がシャッフルされた状態で表示され、受講者がドラッグ（またはボタン）で並び替えて回答する。採点は<code class="inline">correct_answer</code>（配列）と回答順序の完全一致で判定し、AIは使わない。</p>
+    </div>
+
+    <h3>4.2 ランダム出題プール（全N問からM問を出題）</h3>
+    <p>現行モデルは「1ページ＝固定の設問リスト」だが、大きな問題バンクから毎回一部だけ出題したいケース（例: 章末に50問プールを用意し、受講のたびランダムに5問）に対応できない。ページに「出題プールモード」を追加する。</p>
+    <div class="frag">
+      <div class="frag-label">S-17 ページ編集 — 「問題」パネルの出題方式切替（イメージ）</div>
+      <div class="field">
+        <label>出題方式</label>
+        <div class="radio-group">
+          <label class="radio-line"><input type="radio" name="quiz-mode" checked> このページの設問をすべて出題する（現行）</label>
+          <label class="radio-line"><input type="radio" name="quiz-mode"> 問題プールからランダムに出題する</label>
+        </div>
+      </div>
+      <div class="field" style="margin-bottom:0">
+        <label>プール設定</label>
+        <div class="field-row">
+          <div><span class="field-help">プール内の設問数</span><input type="number" value="50" style="margin-top:2px"></div>
+          <div><span class="field-help">1回あたりの出題数</span><input type="number" value="5" style="margin-top:2px"></div>
+          <div><span class="field-help">出題順</span><select style="margin-top:2px"><option>毎回ランダム</option><option>登録順</option></select></div>
+        </div>
+        <span class="field-help">プール内の設問は通常の設問編集カードと同じ形式で50問登録しておき、受講開始（A-40）のたびにサーバー側で指定数をランダム抽出する。抽出結果はT-13 <code class="inline">quiz_attempts.question_order</code>（既存カラム）に記録するため、追加の受験記録テーブルは不要。</span>
+      </div>
+    </div>
+
+    <h3>4.3 スコア記録型（新しい種別。正解のない活動の点数を記録する）</h3>
+    <p>タイピング練習のように「正解・不正解の判定ができない、点数だけがある」活動に対応する。既存の種別（単一選択〜コード記述式）はすべて「正しい答えがある」前提だったが、これは前提が異なるため独立した種別として追加する。</p>
+    <div class="frag">
+      <div class="frag-label">S-17 ページ編集 — スコア記録型の編集イメージ</div>
+      <div class="edit-card" style="margin-bottom:0">
+        <div class="edit-card-head">
+          <span class="edit-card-title">設問4（スコア記録）<span class="badge badge-new" style="margin-left:6px">新種別</span></span>
+          <button class="btn btn-danger" type="button">削除</button>
+        </div>
+        <div class="field">
+          <label>種別</label>
+          <select><option>単一選択</option><option>複数選択</option><option>並び替え</option><option>記述式</option><option>コード記述式</option><option selected>スコア記録</option></select>
+        </div>
+        <div class="field-row">
+          <div style="grid-column:span 2"><span class="field-help">設問文（指示文）</span><input type="text" value="タイピング練習の結果（正打数）を入力してください" style="margin-top:2px"></div>
+          <div><span class="field-help">単位</span><input type="text" value="WPM" style="margin-top:2px"></div>
+        </div>
+        <span class="field-help" style="display:block;margin-top:4px">正解・不正解の概念を持たない。受講者が数値を自己申告で入力するだけの設問になる（外部のタイピング練習サイト等で計測した結果を転記する運用を想定）。反復演習（F-16）と組み合わせて使うことで、実施のたびにスコアが記録され推移が残る。</span>
+      </div>
+    </div>
+    <div class="frag">
+      <div class="frag-label">S-16 ページ受講 — 受講者側の表示イメージ（反復演習タブ内）</div>
+      <div style="border:1px solid var(--border-strong);border-radius:8px;padding:10px 12px;font-size:12px">
+        タイピング練習の結果（正打数）を入力してください　<input type="number" placeholder="例: 58" style="width:80px;padding:3px 6px"> WPM　<a class="btn btn-primary" href="#" style="margin-left:6px">記録する</a>
+        <div style="margin-top:8px;color:var(--text-muted)">これまでの記録: 45 → 52 → 58 WPM（3回）</div>
+      </div>
+      <div class="callout" style="border-color:#93c5fd;background:#eff6ff;margin-top:10px">
+        <strong>AIコメント（S-09 個人学習レポートに表示）:</strong> 「タイピング練習のスコアが着実に上がっています！ 直近3回で45→52→58 WPMと安定して伸びています。この調子で続けましょう。」
+      </div>
+      <p class="field-help">正誤判定がないためF-20（AI記述式採点）は使わず、既存のF-22（AI個人フィードバック）にスコアの推移を入力データとして加える形にする。新しいAI機能は作らない。</p>
+    </div>
+
+    <h3>4.4 設問（スコア記録型・記述式等）の一覧を管理者が見る画面（新設 S-19）</h3>
+    <p>前段の相談で判明した「AI採点結果のレビュー（<code class="inline">reviewed_by</code>）を行う画面がそもそも無い」という欠落と、今回のスコア記録型を管理者が一覧で見たいという要望は、同じ画面で解決できる。設問（またはページ）を指定すると、対象者全員の回答・スコアが一覧表示される画面を新設する。</p>
+    <div class="frag">
+      <div class="frag-label">S-19（新設）設問別の回答・結果一覧 — イメージ</div>
+      <div style="border:1px solid var(--border-strong);border-radius:8px;overflow:hidden">
+        <div style="background:var(--bg-subtle);padding:8px 12px;font-weight:700;font-size:12.5px">設問4「タイピング練習の結果」 ／ 第1章「Gitの基本操作」</div>
+        <table class="def" style="margin:0;border:none">
+          <thead><tr><th>受講者</th><th>最新スコア</th><th>推移</th><th>最終記録日</th></tr></thead>
+          <tbody>
+            <tr><td>佐藤 健一</td><td>58 WPM</td><td>45 → 52 → 58</td><td>2026-08-20</td></tr>
+            <tr><td>高橋 大輔</td><td>41 WPM</td><td>38 → 41</td><td>2026-08-19</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="field-help">記述式・コード記述式の設問を指定した場合は、スコアの列の代わりに「回答内容・AI採点結果・正誤」の列になり、行ごとに<code class="inline">reviewed_by</code>を設定する「採点を修正」操作が行える（当初の「レビュー画面が無い」問題への対応を兼ねる）。氏名付きの一覧になるため、アクセス制御は対象教材が紐づくプロジェクトの管理者・編集者、またはadminに限定する（3.5節）。</p>
+    </div>
+
+    <h3>4.5 これらの機能はClaude Codeへの指示だけで作れるか</h3>
+    <div class="callout">
+      <strong>結論: 可能。</strong> ここまでの拡張（並び替え・ドボン・スコア記録・受験単位・回答必須／任意・アンケート・AI講評スタイル・AI採点コンテキスト）は、すべて既存テーブルへの列追加または既存<code class="inline">type</code>列挙値の追加にとどまり、独立した新しいエンジンを必要としない。そのため、S-17/S-05のような画面から直接入力する方法と、Claude Codeに指示して作らせる方法のどちらでも同じ結果になるよう設計できる。
+      <ul style="margin:8px 0 0">
+        <li><strong>F-27（S-18、ブラウザ内チャット）:</strong> エージェントがツール呼び出しでT-10・T-23・T-06・T-27等を直接操作する設計（7.2.3節 A-69）。「ドボン問題にして」「受験単位を章ごとにして」「タイピング練習用のスコア記録問題を作って」といった指示に対応するツール定義を追加するだけで済み、新しいアーキテクチャは不要。</li>
+        <li><strong>F-05（Claude Code CLI、テキスト往復）:</strong> 8.3節のフロントマター・問題ブロックのYAMLに、新しいキー（<code class="inline">required</code>・<code class="inline">is_critical</code>・<code class="inline">feedback_style</code>・<code class="inline">type: reorder</code>/<code class="inline">score_log</code>等）を追加すればテキストで表現できる。アンケート（教材・章に紐づく別枠の設問群）だけは、ページ本文の見出し構造とは別に、フロントマター側に<code class="inline">survey:</code>のような専用セクションを新設して表現する想定。</li>
+      </ul>
+    </div>
+    <div class="callout">
+      <strong>確認済み（章・ページは自由に作れることを利用する。スキーマ変更は不要）:</strong> 章・ページとも自由にタイトルを付けられるため、「特定の内容単元に属さない記録」は2通りの並べ方で表現できる。T-23の制約緩和は不要で、既存の章・ページの仕組みだけで対応する。
+      <ul style="margin:8px 0 0">
+        <li><strong>パターンA（章＝日付）:</strong>「8月20日」を1つの章にして、その中に採点問題のページを1つだけ置く。日々別々の章として並ぶ。</li>
+        <li><strong>パターンB（章＝テーマ、ページ＝日付）:</strong>「タイピング選手権」という章を1つ作り、その中に「8月20日」「8月21日」…とページを積み重ねる。同じ活動の記録が1つの章にまとまるため、S-04の目次で推移をまとめて見やすい。</li>
+      </ul>
+      どちらを選ぶかは作成者の整理の好み次第で、システム側の扱いに違いはない。
+    </div>
+    <div class="frag">
+      <div class="frag-label">S-18 チャットパネル — 指示例（イメージ）</div>
+      <div class="cc-msg-user" style="margin-bottom:10px"><div style="background:var(--accent-600);color:#fff;border-radius:10px 10px 2px 10px;padding:9px 12px;font-size:12.5px;display:inline-block">第2章の設問1「本番環境で直接force pushしてよいか」をドボン問題にして。あと、「タイピング練習（WPM）」のスコア記録問題を、日付ごとの章（今日の日付）を作ってその中に1問だけ追加して。</div></div>
+      <div class="cc-msg-ai"><div style="background:#fff;border:1px solid var(--border-strong);border-radius:10px 10px 10px 2px;padding:9px 12px;font-size:12.5px;display:inline-block;max-width:90%">
+        承知しました。
+        <div style="font-family:ui-monospace,Consolas,monospace;font-size:11px;background:#0f172a;color:#a5f3fc;border-radius:6px;padding:6px 10px;margin:6px 0">questions.update(node:821-q1, is_critical: true)</div>
+        <div style="font-size:11px;color:#166534;border-left:2px solid #86efac;padding-left:8px;margin:2px 0">✓ 第2章 設問1を「ドボン問題」に設定しました</div>
+        <div style="font-family:ui-monospace,Consolas,monospace;font-size:11px;background:#0f172a;color:#a5f3fc;border-radius:6px;padding:6px 10px;margin:6px 0">material_nodes.create(kind: chapter, title: "8月20日")<br>material_nodes.create(kind: page, parent: 上記の章, title: "タイピング練習")<br>questions.create(type: score_log, unit: "WPM", ...)</div>
+        <div style="font-size:11px;color:#166534;border-left:2px solid #86efac;padding-left:8px;margin:2px 0">✓ 第4章「8月20日」を作成し、その中にスコア記録問題を1問作成しました</div>
+        左のプレビューに反映しています。ご確認ください。
+      </div></div>
+      <p class="field-help">この例はパターンA（章＝日付）。「タイピング選手権という章を作って、その下に日付ページを積み重ねて」と指示すればパターンB（章＝テーマ、ページ＝日付）にもなる。どちらも既存の目次モデルのままで実現でき、特別な対応は不要。長期的に日々の記録が増えていく場合、パターンAは章が大量に並び、パターンBは1つの章の中にページが積み重なる形になる（表示・並び替えはいずれもS-04目次の範囲で対応できる）。</p>
+    </div>
+  </div>
+
+  <!-- ============ 5. AI採点コンテキスト ============ -->
+  <div class="doc-section" id="sec5">
+    <h2>5. AI採点コンテキストの教材ごと指定</h2>
+    <p>F-20（AI記述式採点）・F-27（AI教材作成アシスト）どちらも、Claude APIへの呼び出しに教材ごとの前提条件（言語・フレームワーク・バージョン）や制約（「直接答えを教えるな」等）を反映できるようにする。</p>
+    <div class="frag">
+      <div class="frag-label">S-05 目次編集 — 「合否判定・再受験設定」パネル付近に新設（イメージ）</div>
+      <div class="field" style="margin-bottom:0">
+        <label>AI採点・AIアシストへの指示（任意）</label>
+        <textarea rows="4">言語: Python 3.12 / フレームワークは使用しない標準ライブラリのみを対象とする。
+記述式・コード記述式の採点では、正解や完成コードを直接提示しないこと。ヒントや考え方の指摘に留める。</textarea>
+        <span class="field-help">ここに書いた内容は、F-20（採点）・F-27（Claude Codeでの下書き作成）の両方でAIへのプロンプトに追加される（教材全体で共通の前提として）。個々の設問の「模範解答・採点基準」は引き続き設問ごとに設定する。</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 6. 受験後アンケート ============ -->
+  <div class="doc-section" id="sec6">
+    <h2>6. 受験後アンケート</h2>
+    <p>受験（合否判定の対象となる受験単位の完了時）の直後に、任意でアンケートを実施できるようにする。アンケートは既存の設問（T-10 questions）とは別枠で、正誤のない「主観的なフィードバック」を集める目的に特化する。回答の統計はAIが要約し、F-21（AIつまずき分析・教材改善提案）に合流させて作成者・管理者に提示する。</p>
+
+    <h3>6.1 設置単位（教材ごと・章ごと、いずれも任意）</h3>
+    <div class="callout">
+      <strong>方針（確認済み）:</strong> アンケートの設置有無は作成者が任意に決める（必須ではない）。設置できる単位は「教材全体」と「見出し（章）」の2箇所で、両方に置くこともできる（例: 教材全体アンケートで総合満足度を聞きつつ、特に難しかった第3章にだけ追加で章別アンケートを置く）。3.0節の「受験単位」設定そのものとは独立していて、受験単位が「教材全体」でも章ごとのアンケートを個別に置くことができる。</div>
+    <div class="frag">
+      <div class="frag-label">S-05 目次編集 — アンケート設置（イメージ。教材タイトル欄の下、または目次ツリーの章ヘッダー付近に配置）</div>
+      <div class="field">
+        <label>受験後アンケート（教材全体）</label>
+        <div class="checkbox-line" style="margin-bottom:6px">
+          <input type="checkbox" checked id="survey-material"> <label for="survey-material" style="margin:0">この教材にアンケートを設置する</label>
+        </div>
+        <span class="field-help">設置すると「アンケートを編集」ボタンが表示され、設問（5段階評価・自由記述・選択式）を組み立てられる。未設置の場合は受験後にアンケートは表示されない。</span>
+      </div>
+      <div class="toc-edit-chapter" style="border:1px solid var(--border-strong);border-radius:8px;margin-top:10px">
+        <div style="display:flex;align-items:center;gap:8px;padding:9px 12px;background:var(--bg-subtle);border-radius:8px 8px 0 0;border-bottom:1px solid var(--border-strong)">
+          <span style="font-size:12px;font-weight:700;color:var(--accent-600)">第3章</span>
+          <span style="flex:1;font-size:13px;font-weight:700">Javaオブジェクト指向</span>
+          <span class="checkbox-line" style="font-size:11px"><input type="checkbox" checked> この章にもアンケートを設置</span>
+        </div>
+      </div>
+    </div>
+
+    <h3>6.2 アンケート編集</h3>
+    <div class="frag">
+      <div class="frag-label">アンケート編集モーダル／パネル（イメージ）</div>
+      <div class="edit-card">
+        <div class="edit-card-head"><span class="edit-card-title">設問1</span><button class="btn btn-danger" type="button">削除</button></div>
+        <div class="field-row">
+          <div><span class="field-help">形式</span><select style="margin-top:2px"><option selected>5段階評価</option><option>単一選択</option><option>自由記述</option></select></div>
+          <div style="grid-column:span 2"><span class="field-help">設問文</span><input type="text" value="この章の内容は理解しやすかったですか？" style="margin-top:2px"></div>
+        </div>
+      </div>
+      <div class="edit-card" style="margin-bottom:0">
+        <div class="edit-card-head"><span class="edit-card-title">設問2</span><button class="btn btn-danger" type="button">削除</button></div>
+        <div class="field-row">
+          <div><span class="field-help">形式</span><select style="margin-top:2px"><option>5段階評価</option><option>単一選択</option><option selected>自由記述</option></select></div>
+          <div style="grid-column:span 2"><span class="field-help">設問文</span><input type="text" value="分かりにくかった箇所や、改善してほしい点があれば教えてください" style="margin-top:2px"></div>
+        </div>
+      </div>
+      <button class="btn" type="button" style="margin-top:8px">+ 設問を追加</button>
+      <span class="field-help" style="display:block;margin-top:8px">全問「回答は任意」で統一する（アンケートに回答必須は設けない。学習の完了自体を妨げないようにするため）。匿名扱いとし、個々の回答者は作成者・管理者にも表示しない（統計としてのみ利用）。</span>
+    </div>
+
+    <h3>6.3 受講者への表示（回答は任意・スキップ可）</h3>
+    <div class="frag">
+      <div class="frag-label">S-04 目次 or S-16 ページ受講 — 受験単位を完了した直後の表示イメージ</div>
+      <div class="callout" style="border-color:#93c5fd;background:#eff6ff">
+        <strong>アンケートにご協力ください（任意・30秒程度）</strong>
+        <p style="margin:6px 0 0">第3章「Javaオブジェクト指向」の内容は理解しやすかったですか？<br>
+        <span style="display:inline-flex;gap:4px;margin-top:4px">
+          <span class="btn" style="padding:3px 10px">1</span><span class="btn" style="padding:3px 10px">2</span><span class="btn" style="padding:3px 10px">3</span><span class="btn" style="padding:3px 10px">4</span><span class="btn" style="padding:3px 10px">5</span>
+        </span></p>
+        <p style="margin:10px 0 0"><a class="btn" href="#" style="margin-right:6px">回答する</a><a href="#" style="font-size:11.5px;color:var(--text-subtle)">今回はスキップ</a></p>
+      </div>
+    </div>
+
+    <h3>6.4 作成者・管理者への要約表示（F-21との合流）</h3>
+    <div class="frag">
+      <div class="frag-label">S-05「AIレビュー結果」タブ、または個別「アンケート結果」タブ（イメージ）</div>
+      <div style="border:1px solid var(--border-strong);border-radius:8px;overflow:hidden">
+        <div style="background:var(--bg-subtle);padding:8px 12px;font-weight:700;font-size:12.5px;display:flex;justify-content:space-between">
+          アンケート結果（第3章） <span style="font-weight:400;color:var(--text-subtle)">回答42件</span>
+        </div>
+        <div style="padding:10px 12px;font-size:12px;color:var(--text-muted);line-height:1.8">
+          理解度: 平均 3.1 / 5（他章平均 4.2）<br>
+          <strong style="color:var(--text)">AI要約:</strong> 「継承とポリモーフィズムの違いが分かりにくい」という趣旨の自由記述が18件中11件で見られました。図解の追加、または継承とポリモーフィズムを別ページに分けることを提案します。この傾向は正答率データ（設問3の正答率42%）とも整合しています。
+        </div>
+      </div>
+      <p class="field-help">既存のF-21（AIつまずき分析・教材改善提案）は正答率・誤答傾向という定量データのみを入力にしていた。アンケートの自由記述・評価点を追加の入力として渡すことで、「なぜ間違えるのか」を受講者自身の言葉からも分析できるようにする。アンケート未設置の教材ではF-21は従来どおり正答率データのみで分析する。</p>
+    </div>
+  </div>
+
+  <!-- ============ 7. データモデルへの影響 ============ -->
+  <div class="doc-section" id="sec7">
+    <h2>7. データモデルへの影響（参考・未確定）</h2>
+    <table class="def">
+      <thead><tr><th>対象</th><th>変更内容</th></tr></thead>
+      <tbody>
+        <tr><td>T-10 <code class="inline">questions</code></td><td><code class="inline">type</code>に<code class="inline">'reorder'</code>・<code class="inline">'score_log'</code>（スコア記録型。<code class="inline">correct_answer</code>は使わない）を追加。<code class="inline">score_unit</code>（text、nullable。<code class="inline">type='score_log'</code>のときの単位。例:'WPM'）、<code class="inline">required</code>（bool、既定true）、<code class="inline">is_critical</code>（bool、既定false。ドボン問題フラグ。<code class="inline">score_log</code>には設定不可）、<code class="inline">feedback_style</code>（enum、nullable。教材既定を上書きする場合のみ設定）、<code class="inline">pool_group_id</code>（自己参照、nullable。同じ値を持つ設問がプールを構成する）を追加</td></tr>
+        <tr><td>T-14 <code class="inline">answers</code>（スコア記録型）</td><td><code class="inline">type='score_log'</code>の設問への回答は、既存の<code class="inline">response</code>（JSONB）に<code class="inline">{"score": 58}</code>のように格納する。<code class="inline">is_correct</code>・<code class="inline">ai_score_pct</code>・<code class="inline">ai_feedback</code>は使わずNULLのまま（正誤判定を行わないため）。反復演習（<code class="inline">quiz_attempts.mode='practice'</code>）で毎回1行ずつ記録が積み上がる想定</td></tr>
+        <tr><td>material_nodes（T-23）</td><td><code class="inline">quiz_mode</code>（'all'/'pool'、既定'all'）、<code class="inline">pool_draw_count</code>（int、nullable。'pool'のとき出題数）を追加</td></tr>
+        <tr><td>T-06 <code class="inline">materials</code></td><td><span class="badge badge-new">方針転換</span> <code class="inline">attempt_scope</code>（'material'/'chapter'/'section'/'page'、既定'material'。3.0節の「受験単位」）、<code class="inline">retake_scope</code>（'all'/'wrong_only'、既定'all'）、<code class="inline">default_feedback_style</code>（enum、既定'show_answer'）、<code class="inline">ai_context</code>（text、nullable）を追加</td></tr>
+        <tr><td>T-13 <code class="inline">quiz_attempts</code></td><td><span class="badge badge-new">方針転換</span> <code class="inline">material_id</code>だけでなく<code class="inline">scope_node_id</code>（FK→material_nodes、nullable）を追加し、<code class="inline">attempt_scope</code>が'material'以外のときはどの章・小見出し・ページに対する受験かを表す（'material'のときはNULL）。1教材につき<code class="inline">scope_node_id</code>ごとに複数の受験記録が並存する。「間違った問題だけ再受験」の回で前回正解分を引き継ぐには、<code class="inline">carried_over_question_ids</code>（JSONB配列、nullable）のような形で引き継ぎ範囲を記録する案（詳細は要件確定後に設計）</td></tr>
+        <tr><td>T-14 <code class="inline">answers</code></td><td>並び替え問題の回答は<code class="inline">response</code>（JSONB、既存カラム）に順序配列として保存すれば追加カラム不要</td></tr>
+        <tr><td><span class="badge badge-new">新設</span> T-27 <code class="inline">surveys</code></td><td>material_id（FK）、node_id（FK→material_nodes、nullable。NULLは教材全体、設定時は対象の章）、title、is_active（bool）。UNIQUE(material_id, node_id)で1箇所につき1アンケートまで</td></tr>
+        <tr><td><span class="badge badge-new">新設</span> T-28 <code class="inline">survey_questions</code></td><td>survey_id（FK）、type（'rating_5'/'single_choice'/'free_text'）、prompt、options（JSONB、選択式のみ）、sort_order。T-10 questionsと違い<code class="inline">correct_answer</code>は持たない（正誤のない設問のため）</td></tr>
+        <tr><td><span class="badge badge-new">新設</span> T-29 <code class="inline">survey_responses</code></td><td>survey_id（FK）、user_id（FK、nullable。統計利用のみで個別表示はしないため匿名運用も選べるようnullable）、submitted_at。1ユーザー1survey_idにつき原則1回（再受験のたびに再表示するかは要検討、7章参照）</td></tr>
+        <tr><td><span class="badge badge-new">新設</span> T-30 <code class="inline">survey_answers</code></td><td>response_id（FK→survey_responses）、survey_question_id（FK）、value（JSONB。評価点・選択値・自由記述文のいずれか）</td></tr>
+      </tbody>
+    </table>
+    <div class="callout">
+      <strong>F-21（AIつまずき分析・教材改善提案）との関係:</strong> アンケートが設置されている教材・章では、F-21の分析入力に「正答率の低い設問の集計」に加えて「T-29/T-30の集計（評価点の平均、自由記述のテキスト群）」を追加する。分析結果（T-16 <code class="inline">ai_material_insights</code>）に反映する提案文は、両方のデータを踏まえたものになる。アンケート未設置の教材は従来どおり正答率データのみで分析する。</div>
+  </div>
+
+  <!-- ============ 8. 確認したい点 ============ -->
+  <div class="doc-section" id="sec8">
+    <h2>8. 確認したい点</h2>
+    <div class="callout">
+      <strong>確認済み:</strong> 受験単位（3.0節）は教材・見出し（章）・小見出し・ページのいずれかを作成者が公開前に選ぶ。小見出しを使わない章は、選んだ単位が小見出しでもその章自身が単位になる（1段階粗い単位に自動的に繰り上がる）。再受験の出題範囲（全問／間違いのみ）も作成者が選ぶ設定であり、選んだ受験単位の中で判定・再計算される。<strong>ドボン問題の影響範囲も別立ての設定を持たず、この受験単位にそのまま従う</strong>（受験単位が「章ごと」ならドボン問題を含む章だけが不合格。「教材全体」なら教材全体が不合格。3.3節）。
+    </div>
+    <div class="callout q">
+      <ol style="margin:0">
+        <li><strong>ドボン問題は「反復演習」「誤答のみ抽出」モードでも同じ扱いにするか？</strong> それとも合否判定（graded）モードだけの概念か（反復演習は元々合否に影響しないため、ドボンの概念自体が不要という考え方もできる）。</li>
+        <li><strong>「回答必須」の設問を全教材の既定にするか？</strong> 現行は暗黙に全設問が回答必須だったので、既定値を<code class="inline">required=true</code>にすれば後方互換になる。</li>
+        <li><strong>AI講評スタイルの「ヒント型」は選択式問題にも適用できるようにするか？</strong> 選択式は現状AI非依存（<code class="inline">correct_answer</code>と直接照合）だが、ヒント表示に限ってはAIの生成が必要になる（不正解の選択肢ごとに「なぜ違うか」を都度AIに聞く）。</li>
+        <li><strong>優先度づけはどうするか？</strong> 一度にすべて実装すると規模が大きいため、まず「受験単位」「設問ごとの回答必須／任意」「AI講評スタイル」「AI採点コンテキスト」あたりから着手し、「並び替え問題」「ランダム出題プール」「ドボン問題」「受験後アンケート」は次段階、という順番も考えられる。</li>
+        <li><strong>アンケートは再受験のたびに毎回表示するか、初回のみか？</strong> 毎回表示すると煩わしい可能性がある一方、初回のみだと再受験後の感想（改善されたかどうか）が集まらない。「初回のみ」を既定としつつ、教材ごとに「毎回表示する」を選べるようにする案もある。</li>
+        <li><strong>アンケート結果はいつAIが要約するか？</strong> F-21と同様にオンデマンド実行（作成者が「分析を実行」を押す）にするか、回答が一定件数（例: 10件）たまるたびに自動実行するか。</li>
+        <li><strong>スコア記録型は合否判定（正答率の計算）から常に除外でよいか？</strong> 正解の概念が無いため、受験単位に<code class="inline">score_log</code>の設問が含まれていても、正答率の分母（全設問数）には数えない、という扱いを想定している。</li>
+        <li><strong>AIのスコア推移コメント（F-22個人フィードバック）はいつ生成するか？</strong> 記録するたび（反復演習1回ごと）に生成すると頻繁すぎる可能性があるため、S-09を開いたときにまとめて生成する現行のF-22のタイミングに乗せる想定でよいか。</li>
+      </ol>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

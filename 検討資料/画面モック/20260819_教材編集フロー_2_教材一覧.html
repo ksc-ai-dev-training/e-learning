@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>【検討中】教材編集フロー 2/5: 教材一覧 | Manabi</title>
+<link rel="stylesheet" href="../../docs/03_画面モックアップ/mock.css">
+<style>
+  .flow-nav { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+  .flow-nav .fn-step { font-size: 11px; padding: 3px 9px; border-radius: 999px; background: var(--bg-muted); color: var(--text-subtle); }
+  .flow-nav .fn-step.current { background: var(--accent-600); color: #fff; font-weight: 600; }
+  .breadcrumb-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; font-size: 12.5px; color: var(--text-muted); }
+  .breadcrumb-bar a { color: var(--accent-600); text-decoration: none; font-weight: 600; }
+  .branch-actions { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; }
+  a.cell-main:hover { text-decoration: underline !important; color: var(--accent-600) !important; }
+</style>
+</head>
+<body>
+
+<div style="background:#fef3c7;border-bottom:1px solid #fbbf24;color:#78350f;font-size:12px;font-weight:600;text-align:center;padding:6px;">
+  【検討中】教材編集フロー（クリックして遷移を確認できます） ／ 正式版ではありません
+</div>
+
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-mark">M</div>
+      <div>
+        <div class="brand-name">Manabi</div>
+        <div class="brand-sub">社内学習管理システム</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-label">メニュー</div>
+      <a class="nav-item" href="#">マイ学習</a>
+      <a class="nav-item" href="#">教材一覧・検索</a>
+      <a class="nav-item active" href="20260819_教材編集フロー_1_プロジェクト選択.html">教材編集</a>
+      <a class="nav-item" href="#">個人学習レポート</a>
+      <a class="nav-item" href="#">プロジェクト作成</a>
+      <a class="nav-item" href="#">プロジェクト管理</a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="sidebar-user-row">
+        <span class="avatar">鈴</span>
+        <div>
+          <div class="user-name">鈴木 美咲 <span class="badge badge-role role-member">member</span></div>
+          <div class="user-mail">m.suzuki@kogasoftware.com</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="page-header">
+      <div class="page-title-group">
+        <h1>教材編集 — LCC CRM刷新</h1>
+        <span class="screen-id">検討中 2/5</span>
+      </div>
+    </header>
+
+    <div class="page-body">
+
+      <div class="flow-nav">
+        <a class="fn-step" href="20260819_教材編集フロー_1_プロジェクト選択.html">1. プロジェクト選択</a>
+        <span class="fn-step current">2. 教材一覧</span>
+        <span class="fn-step">3a. 新規作成 / 3b. 構成</span>
+        <span class="fn-step">4. 本文編集</span>
+      </div>
+
+      <div class="breadcrumb-bar">
+        <a href="20260819_教材編集フロー_1_プロジェクト選択.html">← プロジェクト選択に戻る</a>
+        <span>／</span>
+        <span>LCC CRM刷新</span>
+      </div>
+
+      <div class="branch-actions">
+        <a class="btn btn-primary" href="20260819_教材編集フロー_3a_新規作成.html">＋ このプロジェクトに新規教材を作成</a>
+        <span style="font-size:12px;color:var(--text-subtle)">または、下の一覧から既存の教材を選んで編集</span>
+      </div>
+
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>教材</th>
+              <th style="width:90px">状態</th>
+              <th style="width:100px">単元数</th>
+              <th style="width:110px">更新日</th>
+              <th style="width:110px">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <a class="cell-main" href="20260819_教材編集フロー_3b_構成.html" style="text-decoration:none;color:inherit;display:block">新人向けGit入門</a>
+                <div class="cell-sub">記述式 全5問 ／ 作成: 鈴木 美咲（あなた）</div>
+              </td>
+              <td><span class="badge badge-status-on">公開中</span></td>
+              <td class="num">4単元</td>
+              <td>2026-08-14</td>
+              <td><a class="btn btn-secondary btn-sm" href="20260819_教材編集フロー_3b_構成.html">編集する</a></td>
+            </tr>
+            <tr>
+              <td>
+                <a class="cell-main" href="20260819_教材編集フロー_3b_構成.html" style="text-decoration:none;color:inherit;display:block">データベース設計入門 v2（改訂中）</a>
+                <div class="cell-sub">単一選択・記述式 全9問 ／ 作成: 鈴木 美咲（あなた）</div>
+              </td>
+              <td><span class="badge badge-status-off">下書き</span></td>
+              <td class="num">3単元</td>
+              <td>2026-08-18</td>
+              <td><a class="btn btn-secondary btn-sm" href="20260819_教材編集フロー_3b_構成.html">編集する</a></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="mock-note">検討中の改善案（教材編集フロー 2/5: 教材一覧）</div>
+
+</body>
+</html>

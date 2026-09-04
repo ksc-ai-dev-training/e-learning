@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S-06 配信設定 | Manabi 画面モックアップ</title>
+<link rel="stylesheet" href="mock.css">
+</head>
+<body>
+
+<div class="app">
+
+  <!-- サイドバー（プロジェクト管理者: 山田 花子。LCC CRM刷新・Keireki保守の2プロジェクトの管理者。
+       配信設定はadmin専用ではないため、山田のようなプロジェクト管理者でもメニューに表示される。
+       プロジェクト・教材を1つも持たない一般社員にも同様にこの項目自体は表示され、開くと
+       「配信設定できる教材がありません」の空状態を表示する（nav-item自体を非表示にはしない）。 -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-mark">M</div>
+      <div>
+        <div class="brand-name">Manabi</div>
+        <div class="brand-sub">社内学習管理システム</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-label">メニュー</div>
+      <a class="nav-item" href="S-02_my-learning.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h3.5v-6h5v6H18a1 1 0 0 0 1-1V9.5"/></svg></span>
+        マイ学習
+      </a>
+      <a class="nav-item" href="S-03_materials-list.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></span>
+        教材一覧・検索
+      </a>
+      <a class="nav-item" href="S-13_material-edit-project-select.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></span>
+        教材編集
+      </a>
+      <a class="nav-item" href="S-20_grading-queue.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></span>
+        採点
+      </a>
+      <a class="nav-item" href="S-09_my-report.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
+        個人学習レポート
+      </a>
+      <a class="nav-item" href="S-11_project-create.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></span>
+        プロジェクト作成
+      </a>
+      <a class="nav-item" href="S-12_project-management.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg></span>
+        プロジェクト管理
+      </a>
+      <a class="nav-item active" href="S-06_assignment-settings.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></span>
+        配信設定
+      </a>
+      <div class="nav-label">管理者メニュー</div>
+      <a class="nav-item" href="S-08_dashboard.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg></span>
+        受講状況ダッシュボード
+      </a>
+      <div class="nav-note">※ 「配信設定」は admin・プロジェクト管理者に限らず全社員のメニューに常に表示される（管理できる教材が1件も無い場合も、項目自体は隠さず画面側で案内する。6.1節）。「受講状況ダッシュボード」は引き続き admin（全社スコープ）、対象プロジェクトの管理者（自プロジェクトのスコープ）にのみ表示する。</div>
+    </nav>
+    <div class="sidebar-user">
+      <div class="sidebar-user-row">
+        <span class="avatar">山</span>
+        <div>
+          <div class="user-name">山田 花子 <span class="badge badge-role role-member">member</span></div>
+          <div class="user-mail">h.yamada@kogasoftware.com</div>
+        </div>
+      </div>
+      <a class="sidebar-logout" href="S-15_profile-edit.html">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        プロフィール編集
+      </a>
+      <a class="sidebar-logout" href="S-01_login.html">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        ログアウト
+      </a>
+    </div>
+  </aside>
+
+  <!-- メインエリア -->
+  <div class="main">
+    <header class="page-header">
+      <div class="page-title-group">
+        <h1>配信設定</h1>
+        <span class="screen-id">S-06</span>
+      </div>
+    </header>
+
+    <div class="page-body">
+
+      <p class="tab-note">アクセス制御: <span class="badge badge-role role-admin">admin</span>（全教材が対象）、対象プロジェクトの管理者（自プロジェクトに属する教材〔下書き含む〕が対象）。一般メンバー（プロジェクト管理者を1つも務めていない社員）がこの画面を開いた場合は、一覧が0件になり「配信設定できる教材がありません」と表示する（下の「管理対象の教材が無い場合」参照）。</p>
+
+      <p class="tab-note">配信対象は<strong>「プロジェクト」「個人」</strong>の2種類（部署・全社スコープはv1.5・本節でそれぞれ廃止済み）。<strong>全社Wiki（<code>is_company_wide=true</code>）に属する教材は、配信対象を問わず常に「任意」固定</strong>で、必修には設定できない（全社Wikiは誰でも編集者として参加できる社内ナレッジベースの位置づけのため。そのプロジェクトの管理者が実質的な全社必修を作れてしまう抜け道を防ぐ設計判断。6.1節）。</p>
+
+      <p class="tab-note"><strong>配信対象として選べるプロジェクト・個人は、常に「自分が管理者を務めるプロジェクト」の範囲に限定される</strong>（adminは全プロジェクトが対象）。無関係な他プロジェクトや、そのメンバーではない社員へ一方的に必修を割り当てることはできない（他プロジェクトのメンバー管理を招待制にしている設計判断〔基本設計書5.25節〕と同じ考え方）。他プロジェクトの教材を配信対象にしたい場合は、そのプロジェクトの管理者自身が自分のこの画面から設定する。F-26（教材共有）で共有された先のプロジェクトについても同様に、共有先プロジェクトの管理者自身が設定すればよいため、本画面に共有専用の特別な操作は設けない。</p>
+
+      <div class="toolbar">
+        <div class="search-box">
+          <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="search" placeholder="教材名で検索">
+        </div>
+        <select style="width:140px">
+          <option selected>すべての状態</option>
+          <option>公開中</option>
+          <option>下書き</option>
+        </select>
+        <select style="width:170px">
+          <option selected>すべてのプロジェクト</option>
+          <option>📌 全社Wiki</option>
+          <option>新人研修2026運営</option>
+          <option>情報セキュリティ委員会</option>
+          <option>LCC CRM刷新</option>
+          <option>Manabi新規構築</option>
+        </select>
+        <select style="width:200px">
+          <option selected>並び順: 必修を優先</option>
+          <option>並び順: 更新日が新しい順</option>
+          <option>並び順: 教材名順</option>
+        </select>
+        <span class="result-count"><strong>6件</strong> 表示中</span>
+      </div>
+
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>教材</th>
+              <th style="width:150px">プロジェクト</th>
+              <th>配信対象</th>
+              <th style="width:80px">区分</th>
+              <th style="width:110px">期限</th>
+              <th style="width:90px">状態</th>
+              <th style="width:90px">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="outline:2px solid var(--accent-500);outline-offset:-2px">
+              <td class="cell-main">新人向けGit入門</td>
+              <td><span class="chip">LCC CRM刷新</span></td>
+              <td>プロジェクト: LCC CRM刷新（18名）</td>
+              <td><span class="badge badge-required">必修</span></td>
+              <td>2026-09-15</td>
+              <td><span class="badge badge-status-on">公開中</span></td>
+              <td><button class="btn btn-secondary btn-sm" type="button">編集中</button></td>
+            </tr>
+            <tr>
+              <td class="cell-main">TypeScript入門</td>
+              <td><span class="chip">Manabi新規構築</span></td>
+              <td>プロジェクト: Manabi新規構築（6名）</td>
+              <td><span class="badge badge-optional">任意</span></td>
+              <td>—</td>
+              <td><span class="badge badge-status-on">公開中</span></td>
+              <td><button class="btn btn-ghost btn-sm" type="button">編集</button></td>
+            </tr>
+            <tr>
+              <td class="cell-main">データベース設計入門</td>
+              <td><span class="chip">LCC CRM刷新</span></td>
+              <td>個人: 高橋 大輔 ほか2名</td>
+              <td><span class="badge badge-optional">任意</span></td>
+              <td>—</td>
+              <td><span class="badge badge-status-on">公開中</span></td>
+              <td><button class="btn btn-ghost btn-sm" type="button">編集</button></td>
+            </tr>
+            <tr>
+              <td class="cell-main">React入門（改訂版）</td>
+              <td><span class="chip">Manabi新規構築</span></td>
+              <td>未設定</td>
+              <td><span class="badge badge-optional">任意</span></td>
+              <td>—</td>
+              <td><span class="badge badge-status-off">下書き</span></td>
+              <td><button class="btn btn-ghost btn-sm" type="button">編集</button></td>
+            </tr>
+            <tr style="color:var(--text-subtle)">
+              <td class="cell-main">Python基礎ハンズオン資料</td>
+              <td><span class="chip chip-proj">📌 全社Wiki</span></td>
+              <td>未設定<span class="field-help" style="display:block;margin-top:2px">全社Wikiの教材は常に「任意」固定（必修にはできない）</span></td>
+              <td><span class="badge badge-optional">任意</span></td>
+              <td>—</td>
+              <td><span class="badge badge-status-on">公開中</span></td>
+              <td><button class="btn btn-ghost btn-sm" type="button">編集</button></td>
+            </tr>
+            <tr style="color:var(--text-subtle)">
+              <td class="cell-main">AWS基礎メモ</td>
+              <td><span class="chip chip-proj">📌 全社Wiki</span></td>
+              <td>未設定<span class="field-help" style="display:block;margin-top:2px">個人が配信設定なしで公開した例</span></td>
+              <td><span class="badge badge-optional">任意</span></td>
+              <td>—</td>
+              <td><span class="badge badge-status-on">公開中</span></td>
+              <td><button class="btn btn-ghost btn-sm" type="button">編集</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 選択中の教材の配信設定 編集パネル -->
+      <section class="panel" style="margin-top:20px">
+        <div class="panel-header">
+          <div class="panel-title">配信設定を編集 — 新人向けGit入門</div>
+        </div>
+        <div class="panel-body">
+
+          <div class="field">
+            <label>配信対象（プロジェクト全体）</label>
+            <div style="display:flex;align-items:center;gap:8px;height:36px">
+              <span class="chip">LCC CRM刷新</span>
+              <span class="field-help" style="margin:0">この教材が属するプロジェクトです（変更不可）</span>
+            </div>
+            <span class="field-help"><strong>配信対象のプロジェクトは、教材自身が属するプロジェクトに固定されており、選択はできません</strong>（教材は必ずいずれかのプロジェクトに属するというF-25の原則どおり。他プロジェクトを配信対象に選べてしまうと、その教材が元のプロジェクトに残ったまま他プロジェクトにも“複製”されたのと同じ状態になり、F-26（教材共有）と役割が重複してしまうため。他プロジェクトへ配信したい場合はF-26で共有し、共有先プロジェクトの管理者が自分の複製に対してこの画面から改めて配信設定を行う）。</span>
+          </div>
+
+          <div class="field">
+            <label>必修・任意</label>
+            <div class="radio-group">
+              <label class="radio-line"><input type="radio" name="required" checked> 必修</label>
+              <label class="radio-line"><input type="radio" name="required"> 任意</label>
+            </div>
+            <span class="field-help">このプロジェクト（LCC CRM刷新）の現役メンバー全員に対する必修・任意を設定します。</span>
+          </div>
+
+          <div class="field" style="max-width:220px">
+            <label>受講期限（必修の場合のみ）</label>
+            <input type="date" value="2026-09-15">
+            <span class="field-help">「任意」の場合は期限を設定できません</span>
+          </div>
+
+          <div class="field">
+            <label>個人を追加指定（任意）</label>
+            <select style="max-width:280px">
+              <option selected disabled>プロジェクトメンバーから選択…</option>
+              <option>高橋 大輔</option>
+              <option>伊藤 修</option>
+            </select>
+            <span class="field-help">プロジェクト全体の設定とは別に、<strong>このプロジェクトの特定メンバーだけ</strong>個別の必修・期限を上書きしたい場合に使います（例: 中途参加者に猶予を与える、逆に特定の1人だけ先に必修化するなど）。選択肢はこのプロジェクトの現役メンバーに限られ、他プロジェクトの社員は選べません。</span>
+          </div>
+
+          <div class="search-actions">
+            <button class="btn btn-primary" type="button">保存</button>
+            <button class="btn btn-secondary" type="button">キャンセル</button>
+            <span class="actions-note" style="margin-left:auto">対象者プレビュー: <strong style="color:var(--text)">LCC CRM刷新 所属 18名</strong></span>
+          </div>
+        </div>
+      </section>
+
+      <!-- 全社Wikiの教材を編集しようとした場合の例（必修がグレーアウトされる） -->
+      <section class="panel" style="margin-top:20px">
+        <div class="panel-header">
+          <div class="panel-title">配信設定を編集 — Python基礎ハンズオン資料<span class="field-help" style="font-weight:400">（全社Wikiの教材の例）</span></div>
+        </div>
+        <div class="panel-body">
+
+          <div class="field">
+            <label>配信対象</label>
+            <div class="radio-group">
+              <label class="radio-line"><input type="radio" name="target-scope-2" checked> プロジェクト（全社Wiki）</label>
+              <label class="radio-line"><input type="radio" name="target-scope-2"> 個人</label>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>必修・任意</label>
+            <div class="radio-group">
+              <label class="radio-line"><input type="radio" name="required-2" disabled title="全社Wikiの教材は必修にできません"> 必修</label>
+              <label class="radio-line"><input type="radio" name="required-2" checked> 任意</label>
+            </div>
+            <span class="field-help"><strong>全社Wikiに属する教材は「必修」を選択できません</strong>（グレーアウト表示、ホバーで理由をツールチップ表示）。全社員に必修配信したい教材がある場合は、対象者を招待する専用プロジェクトを別途作成し、そちらで配信設定してください。</span>
+          </div>
+
+          <div class="field" style="max-width:220px">
+            <label>受講期限</label>
+            <input type="date" disabled>
+          </div>
+
+          <div class="search-actions">
+            <button class="btn btn-primary" type="button">保存</button>
+            <button class="btn btn-secondary" type="button">キャンセル</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 管理対象の教材が無い場合（一般メンバー・新規プロジェクト管理者向けの空状態） -->
+      <section class="panel" style="margin-top:20px">
+        <div class="panel-header">
+          <div class="panel-title">管理対象の教材が無い場合の表示例</div>
+        </div>
+        <div class="panel-body">
+          <div style="text-align:center;padding:32px 16px;color:var(--text-subtle)">
+            <p style="margin:0 0 4px;font-size:14px;font-weight:600;color:var(--text-muted)">配信設定できる教材がありません</p>
+            <p style="margin:0;font-size:12.5px">あなたが管理者を務めるプロジェクトに教材が無いか、まだどのプロジェクトの管理者にもなっていません。<br>プロジェクトを作成するか、既存プロジェクトの管理者に追加してもらうと、ここに教材が表示されます。</p>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<div class="mock-note">画面モックアップ（S-06）/ 研修サンプル</div>
+
+<script src="mock-sidebar.js"></script>
+</body>
+</html>

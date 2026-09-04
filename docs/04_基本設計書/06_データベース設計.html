@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>6. データベース設計 | 基本設計書 | 社内学習管理システム（Manabi）</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<script src="../_sidenav.js"></script>
+<div class="doc">
+
+<p class="chapter-nav" style="display:flex;justify-content:space-between;font-size:13px;margin:0 0 16px"><a href="05_機能設計.html">← 5. 機能設計</a><a href="index.html">目次</a><a href="07_API設計.html">7. API設計 →</a></p>
+
+  <h2 id="sec6">6. データベース設計</h2>
+
+  <h3>6.1 ER図</h3>
+  <p>PostgreSQL (Supabase) 上に<span class="rev-old">21〜22</span><span class="rev-old">実働26（IDはT-01〜T-29の29件、うちT-02 departments・T-05 courses・T-07 material_co_editorsは廃止し欠番）</span><span class="rev-new">実働24（IDはT-01〜T-29の29件、うちT-02 departments・T-05 courses・T-07 material_co_editors・T-24 ai_draft_sessions・T-25 ai_draft_messagesは廃止し欠番）</span>のテーブルを配置する。全テーブルを1枚に収めることはせず、「組織・教材まわり」と「配信・受講記録まわり」の2枚に分けて示す。AI関連テーブル（T-15〜T-20）と T-21 app_settings、<span class="rev-new">アンケート関連（T-26〜T-29）</span>は、各機能・users への参照のみを持つ独立性の高いテーブルであり、Keirekiの app_settings と同様の位置づけのため図示を省略し、6.2節の一覧表で示す。T-22 <code>material_project_shares</code>（F-26）は図Aに簡略な形で追記する。</p>
+
+  <div class="diagram">
+    <svg width="860" height="420" viewBox="0 0 860 420" font-family="'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif">
+      <!-- users -->
+      <rect x="30" y="170" width="170" height="66" rx="8" fill="#eff6ff" stroke="#1e40af" stroke-width="1.5"/>
+      <rect x="30" y="170" width="170" height="26" rx="8" fill="#1e40af"/>
+      <rect x="30" y="186" width="170" height="10" fill="#1e40af"/>
+      <text x="115" y="188" text-anchor="middle" font-size="12" font-weight="600" fill="#ffffff">T-01 users</text>
+      <text x="115" y="210" text-anchor="middle" font-size="11" fill="#1a1d21">ユーザー</text>
+      <text x="115" y="226" text-anchor="middle" font-size="10" fill="#60656d">email / role</text>
+
+      <!-- v1.2: T-02 departments は要件定義書v1.5対応で廃止（部署の概念を廃止） -->
+      <text x="365" y="90" text-anchor="middle" font-size="9.5" fill="#b91c1c">T-02 departments は廃止（v1.5、欠番）</text>
+
+      <!-- projects -->
+      <rect x="280" y="150" width="170" height="60" rx="8" fill="#ffffff" stroke="#1e40af" stroke-width="1.5"/>
+      <rect x="280" y="150" width="170" height="24" rx="8" fill="#dbeafe"/>
+      <rect x="280" y="164" width="170" height="10" fill="#dbeafe"/>
+      <text x="365" y="166" text-anchor="middle" font-size="11.5" font-weight="600" fill="#1e3a8a">T-03 projects</text>
+      <text x="365" y="186" text-anchor="middle" font-size="10.5" fill="#1a1d21">プロジェクト</text>
+      <text x="365" y="201" text-anchor="middle" font-size="9.5" fill="#60656d">name / pm_user_id / status</text>
+
+      <!-- project_memberships -->
+      <rect x="280" y="240" width="170" height="60" rx="8" fill="#ffffff" stroke="#1e40af" stroke-width="1.5"/>
+      <rect x="280" y="240" width="170" height="24" rx="8" fill="#dbeafe"/>
+      <rect x="280" y="254" width="170" height="10" fill="#dbeafe"/>
+      <text x="365" y="256" text-anchor="middle" font-size="11.5" font-weight="600" fill="#1e3a8a">T-04 project_memberships</text>
+      <text x="365" y="276" text-anchor="middle" font-size="10.5" fill="#1a1d21">プロジェクトメンバー（ロール制）</text>
+      <text x="365" y="291" text-anchor="middle" font-size="9.5" fill="#dc2626">role / joined_at / left_at</text>
+
+      <!-- courses: v1.12でT-05 coursesは廃止（欠番）。materials.tagsに置き換え -->
+      <text x="635" y="55" text-anchor="middle" font-size="9.5" fill="#b91c1c">T-05 courses は廃止（v1.12、欠番）</text>
+      <text x="635" y="68" text-anchor="middle" font-size="9" fill="#b91c1c">タグ（materials.tags）に置き換え</text>
+
+      <!-- materials -->
+      <rect x="560" y="120" width="150" height="70" rx="8" fill="#eff6ff" stroke="#1e40af" stroke-width="1.5"/>
+      <rect x="560" y="120" width="150" height="24" rx="8" fill="#1e40af"/>
+      <text x="635" y="136" text-anchor="middle" font-size="11.5" font-weight="600" fill="#ffffff">T-06 materials</text>
+      <text x="635" y="158" text-anchor="middle" font-size="10.5" fill="#1a1d21">教材</text>
+      <text x="635" y="173" text-anchor="middle" font-size="9.5" fill="#dc2626">course_id / created_by / project_id</text>
+      <text x="635" y="186" text-anchor="middle" font-size="9.5" fill="#60656d">body / format / status</text>
+
+      <!-- v1.2: T-07 material_co_editors は要件定義書v1.5対応で廃止（個人所有教材モデルの廃止） -->
+      <text x="560" y="252" text-anchor="start" font-size="8.5" fill="#b91c1c">T-07 material_co_editors</text>
+      <text x="560" y="264" text-anchor="start" font-size="8.5" fill="#b91c1c">は廃止（v1.5、欠番）</text>
+
+      <!-- material_attachments -->
+      <rect x="560" y="305" width="150" height="55" rx="8" fill="#ffffff" stroke="#1e40af" stroke-width="1.5"/>
+      <rect x="560" y="305" width="150" height="22" rx="8" fill="#dbeafe"/>
+      <text x="635" y="320" text-anchor="middle" font-size="11.5" font-weight="600" fill="#1e3a8a">T-09 attachments</text>
+      <text x="635" y="338" text-anchor="middle" font-size="10.5" fill="#1a1d21">添付ファイル・リンク</text>
+      <text x="635" y="352" text-anchor="middle" font-size="9.5" fill="#60656d">material_id / storage_key</text>
+
+      <!-- questions -->
+      <rect x="770" y="120" width="80" height="70" rx="8" fill="#ffffff" stroke="#1e40af" stroke-width="1.5"/>
+      <rect x="770" y="120" width="80" height="24" rx="8" fill="#dbeafe"/>
+      <text x="810" y="136" text-anchor="middle" font-size="10.5" font-weight="600" fill="#1e3a8a">T-10</text>
+      <text x="810" y="158" text-anchor="middle" font-size="10" fill="#1a1d21">問題</text>
+      <text x="810" y="172" text-anchor="middle" font-size="9" fill="#60656d">unit_index</text>
+      <text x="810" y="184" text-anchor="middle" font-size="9" fill="#60656d">type</text>
+
+      <!-- relations -->
+      <line x1="200" y1="203" x2="278" y2="270" stroke="#60656d" stroke-width="1.3" stroke-dasharray="5 4"/>
+      <text x="215" y="220" font-size="9.5" fill="#8a8f98">joined_at/left_at</text>
+
+      <line x1="450" y1="180" x2="278" y2="203" stroke="#60656d" stroke-width="1.3"/>
+      <text x="440" y="200" font-size="10.5" font-weight="600" fill="#1e40af">1</text>
+      <text x="290" y="215" font-size="10.5" font-weight="600" fill="#1e40af">N</text>
+
+      <line x1="450" y1="170" x2="115" y2="215" stroke="#8a8f98" stroke-width="1.3" stroke-dasharray="5 4"/>
+      <text x="330" y="185" font-size="9.5" fill="#8a8f98">pm_user_id（PM, FK）</text>
+
+      <line x1="710" y1="60" x2="560" y2="145" stroke="#60656d" stroke-width="1.3"/>
+      <text x="700" y="90" font-size="10.5" font-weight="600" fill="#1e40af">1</text>
+      <text x="565" y="140" font-size="10.5" font-weight="600" fill="#1e40af">N</text>
+
+      <line x1="200" y1="220" x2="558" y2="165" stroke="#8a8f98" stroke-width="1.3" stroke-dasharray="5 4"/>
+      <text x="380" y="255" font-size="9.5" fill="#8a8f98">created_by（作成者, FK）</text>
+
+      <line x1="635" y1="190" x2="635" y2="303" stroke="#60656d" stroke-width="1.3"/>
+      <line x1="710" y1="155" x2="768" y2="155" stroke="#60656d" stroke-width="1.3"/>
+      <text x="720" y="148" font-size="10.5" font-weight="600" fill="#1e40af">1</text>
+      <text x="758" y="148" font-size="10.5" font-weight="600" fill="#1e40af">N</text>
+
+      <!-- v1.1追加: T-22 material_project_shares（F-26） -->
+      <rect x="770" y="225" width="80" height="95" rx="8" fill="#fff5f5" stroke="#dc2626" stroke-width="1.5"/>
+      <rect x="770" y="225" width="80" height="22" rx="8" fill="#fee2e2"/>
+      <text x="810" y="240" text-anchor="middle" font-size="10" font-weight="600" fill="#b91c1c">T-22</text>
+      <text x="810" y="257" text-anchor="middle" font-size="8.5" fill="#b91c1c">教材の</text>
+      <text x="810" y="269" text-anchor="middle" font-size="8.5" fill="#b91c1c">プロジェクト間共有</text>
+      <text x="810" y="285" text-anchor="middle" font-size="7.5" fill="#8a8f98">material_id /</text>
+      <text x="810" y="296" text-anchor="middle" font-size="7.5" fill="#8a8f98">shared_to_project_id</text>
+      <text x="810" y="310" text-anchor="middle" font-size="7.5" fill="#8a8f98">shared_by</text>
+      <line x1="720" y1="190" x2="775" y2="228" stroke="#dc2626" stroke-width="1.3" stroke-dasharray="5 4"/>
+      <text x="700" y="212" font-size="8.5" fill="#b91c1c">material_id（共有元教材）</text>
+      <text x="810" y="330" text-anchor="middle" font-size="8" fill="#8a8f98">shared_to_project_id は T-03 projects を参照（共有先）</text>
+
+      <line x1="450" y1="175" x2="558" y2="150" stroke="#dc2626" stroke-width="1.3"/>
+      <text x="500" y="145" text-anchor="middle" font-size="8.5" fill="#b91c1c">project_id（NOT NULL、v1.5〜）</text>
+
+      <text x="430" y="15" text-anchor="middle" font-size="13" font-weight="600" fill="#1e3a8a">図A: 組織・教材まわり</text>
+    </svg>
+  </div>
+
+  <div class="diagram">
+    <svg width="860" height="360" viewBox="0 0 860 360" font-family="'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif">
+      <!-- materials (再掲・縮小) -->
+      <rect x="30" y="150" width="150" height="60" rx="8" fill="#f5f7f9" stroke="#60656d" stroke-width="1.5"/>
+      <rect x="30" y="150" width="150" height="22" rx="8" fill="#e7eaee"/>
+      <text x="105" y="165" text-anchor="middle" font-size="11.5" font-weight="600" fill="#1a1d21">T-06 materials</text>
+      <text x="105" y="184" text-anchor="middle" font-size="10" fill="#1a1d21">教材（再掲）</text>
+      <text x="105" y="198" text-anchor="middle" font-size="9" fill="#60656d">図A参照</text>
+
+      <!-- material_revisions -->
+      <rect x="30" y="30" width="150" height="60" rx="8" fill="#ffffff" stroke="#1e40af" stroke-width="1.5"/>
+      <rect x="30" y="30" width="150" height="22" rx="8" fill="#dbeafe"/>
+      <text x="105" y="45" text-anchor="middle" font-size="11.5" font-weight="600" fill="#1e3a8a">T-08 revisions</text>
+      <text x="105" y="64" text-anchor="middle" font-size="10" fill="#1a1d21">改訂履歴</text>
+      <text x="105" y="78" text-anchor="middle" font-size="9" fill="#60656d">body_snapshot / changed_via</text>
+
+      <!-- questions -->
+      <rect x="30" y="260" width="150" height="60" rx="8" fill="#ffffff" stroke="#1e40af" stroke-width="1.5"/>
+      <rect x="30" y="260" width="150" height="22" rx="8" fill="#dbeafe"/>
+      <text x="105" y="275" text-anchor="middle" font-size="11.5" font-weight="600" fill="#1e3a8a">T-10 questions</text>
+      <text x="105" y="294" text-anchor="middle" font-size="10" fill="#1a1d21">問題（再掲）</text>
+      <text x="105" y="308" text-anchor="middle" font-size="9" fill="#60656d">type / correct_answer</text>
+
+      <!-- assignments -->
+      <rect x="260" y="150" width="160" height="66" rx="8" fill="#eff6ff" stroke="#1e40af" stroke-width="1.5"/>
+      <rect x="260" y="150" width="160" height="24" rx="8" fill="#1e40af"/>
+      <text x="340" y="166" text-anchor="middle" font-size="11.5" font-weight="600" fill="#ffffff">T-11 assignments</text>
+      <text x="340" y="188" text-anchor="middle" font-size="10.5" fill="#1a1d21">配信設定</text>
+      <text x="340" y="202" text-anchor="middle" font-size="9.5" fill="#60656d">scope_type / scope_id / required</text>
+
+      <!-- enrollment_progress -->
+      <rect x="490" y="60" width="160" height="66" rx="8" fill="#ffffff" stroke="#1e40af" stroke-width="1.5"/>
+      <rect x="490" y="60" width="160" height="24" rx="8" fill="#dbeafe"/>
+      <text x="570" y="76" text-anchor="middle" font-size="11.5" font-weight="600" fill="#1e3a8a">T-12 progress</text>
+      <text x="570" y="98" text-anchor="middle" font-size="10.5" fill="#1a1d21">受講進捗</text>
+      <text x="570" y="112" text-anchor="middle" font-size="9.5" fill="#60656d">user_id / material_id / status</text>
+
+      <!-- quiz_attempts -->
+      <rect x="490" y="150" width="160" height="66" rx="8" fill="#ffffff" stroke="#1e40af" stroke-width="1.5"/>
+      <rect x="490" y="150" width="160" height="24" rx="8" fill="#dbeafe"/>
+      <text x="570" y="166" text-anchor="middle" font-size="11.5" font-weight="600" fill="#1e3a8a">T-13 quiz_attempts</text>
+      <text x="570" y="188" text-anchor="middle" font-size="10.5" fill="#1a1d21">受験記録</text>
+      <text x="570" y="202" text-anchor="middle" font-size="9.5" fill="#60656d">mode / score_pct / passed</text>
+
+      <!-- answers -->
+      <rect x="490" y="240" width="160" height="66" rx="8" fill="#eff6ff" stroke="#1e40af" stroke-width="1.5"/>
+      <rect x="490" y="240" width="160" height="24" rx="8" fill="#1e40af"/>
+      <text x="570" y="256" text-anchor="middle" font-size="11.5" font-weight="600" fill="#ffffff">T-14 answers</text>
+      <text x="570" y="278" text-anchor="middle" font-size="10.5" fill="#1a1d21">回答</text>
+      <text x="570" y="292" text-anchor="middle" font-size="9.5" fill="#60656d">response / ai_score_pct</text>
+
+      <!-- users (端点参照のみ) -->
+      <rect x="740" y="150" width="100" height="66" rx="8" fill="#f5f7f9" stroke="#60656d" stroke-width="1.5"/>
+      <rect x="740" y="150" width="100" height="24" rx="8" fill="#e7eaee"/>
+      <text x="790" y="166" text-anchor="middle" font-size="11" font-weight="600" fill="#1a1d21">T-01 users</text>
+      <text x="790" y="188" text-anchor="middle" font-size="10" fill="#1a1d21">ユーザー（再掲）</text>
+
+      <line x1="105" y1="90" x2="105" y2="148" stroke="#60656d" stroke-width="1.3"/>
+      <text x="112" y="115" font-size="10" font-weight="600" fill="#1e40af">1</text>
+      <text x="112" y="140" font-size="10" font-weight="600" fill="#1e40af">N</text>
+
+      <line x1="105" y1="212" x2="105" y2="258" stroke="#60656d" stroke-width="1.3"/>
+      <text x="112" y="232" font-size="10" font-weight="600" fill="#1e40af">1</text>
+      <text x="112" y="252" font-size="10" font-weight="600" fill="#1e40af">N</text>
+
+      <line x1="180" y1="180" x2="258" y2="180" stroke="#60656d" stroke-width="1.3"/>
+      <text x="190" y="173" font-size="10" font-weight="600" fill="#1e40af">1</text>
+      <text x="242" y="173" font-size="10" font-weight="600" fill="#1e40af">N</text>
+
+      <line x1="180" y1="160" x2="488" y2="95" stroke="#8a8f98" stroke-width="1.3" stroke-dasharray="5 4"/>
+      <text x="330" y="120" font-size="9.5" fill="#8a8f98">material_id（進捗対象）</text>
+
+      <line x1="180" y1="175" x2="488" y2="182" stroke="#8a8f98" stroke-width="1.3" stroke-dasharray="5 4"/>
+      <text x="330" y="195" font-size="9.5" fill="#8a8f98">material_id（受験対象）</text>
+
+      <line x1="570" y1="126" x2="570" y2="148" stroke="#60656d" stroke-width="1.3"/>
+      <line x1="570" y1="216" x2="570" y2="238" stroke="#60656d" stroke-width="1.3"/>
+      <text x="580" y="140" font-size="10" font-weight="600" fill="#1e40af">1</text>
+      <text x="580" y="230" font-size="10" font-weight="600" fill="#1e40af">1〜N</text>
+
+      <line x1="180" y1="285" x2="488" y2="270" stroke="#8a8f98" stroke-width="1.3" stroke-dasharray="5 4"/>
+      <text x="330" y="292" font-size="9.5" fill="#8a8f98">question_id（設問参照）</text>
+
+      <line x1="650" y1="183" x2="738" y2="183" stroke="#60656d" stroke-width="1.3"/>
+      <text x="660" y="176" font-size="10" font-weight="600" fill="#1e40af">N</text>
+      <text x="724" y="176" font-size="10" font-weight="600" fill="#1e40af">1</text>
+      <text x="680" y="196" font-size="9.5" fill="#8a8f98">user_id（受験者）</text>
+
+      <text x="430" y="15" text-anchor="middle" font-size="13" font-weight="600" fill="#1e3a8a">図B: 配信・受講記録まわり</text>
+    </svg>
+  </div>
+
+  <div class="callout">
+    <strong>図に含めなかったテーブル:</strong> T-15〜T-20（AI関連の各結果保存・利用ログ・Slack送信ログ）は、それぞれ対応する機能（materials／users／assignments）への参照のみを持ち、相互の関連を持たない。T-21 <code>app_settings</code> は Keireki の T-08 と同方針の汎用key-value設定テーブルであり、更新者（<code>updated_by</code>）として users(id) を参照するのみで、他の業務テーブルとは関連を持たない独立テーブルである。
+  </div>
+
+  <h3>6.2 テーブル一覧</h3>
+  <table>
+    <thead><tr><th>ID</th><th>物理名</th><th>論理名</th><th>概要</th></tr></thead>
+    <tbody>
+      <tr><td>T-01</td><td><code>users</code></td><td>ユーザー</td><td>email（UNIQUE）、<strong>name</strong>（<span class="rev-new">初回登録時にGoogleプロフィールの氏名を初期値とし、以降は本人がS-15で変更するまでシステム側では更新しない。v1.22。3.1節参照</span>）、picture_url（<span class="rev-new">Googleプロフィール画像のURL。DBに保存せず<code>custom_picture_key</code>未設定時のフォールバックとして参照のたびに取得する</span>）、role（<span class="rev-old">'learner'/'author'/'manager'/'admin'、DEFAULT 'learner'</span><span class="rev-new">'member'/'admin'、DEFAULT 'member'</span>）、<span class="rev-old">department_id（FK→departments、nullable）、</span>is_active（DEFAULT true）<span class="rev-new">。department_idはv1.5で削除した（部署の概念の廃止に伴う）</span><span class="rev-new">、<strong>custom_picture_key</strong>（text、nullable。Supabase Storageのパス。本人がS-15でアップロードした独自アイコン。v1.22追加。5.29節参照）</span></td></tr>
+      <tr class="rev-row"><td>T-02</td><td><span class="rev-old"><code>departments</code></span></td><td><span class="rev-old">部署</span></td><td><span class="rev-old">name（UNIQUE）、head_user_id（FK→users、nullable。部署長。S-08の担当範囲判定に使用）</span><span class="rev-new">廃止（v1.5）。部署（department）の概念をシステムから廃止したため、本テーブルは廃止した。T-01 <code>users.department_id</code> も同時に削除した。IDは欠番として保持する。</span></td></tr>
+      <tr class="rev-row"><td>T-03</td><td><code>projects</code></td><td>プロジェクト</td><td>name、description、status（'active'/'completed'、DEFAULT 'active'）、<strong>pm_user_id</strong>（FK→users、nullable。PM。S-08の担当範囲判定に使用）、created_by（FK→users）、<strong class="rev-new">is_company_wide</strong><span class="rev-new">（BOOLEAN NOT NULL DEFAULT false。「全社Wiki」プロジェクトを表すフラグ。trueの行は初期データとして1行のみ投入し、通常のAPI〔A-09/A-10〕からtrueに設定する手段は提供しない。5.25節参照）</span></td></tr>
+      <tr class="rev-row"><td>T-04</td><td><code>project_memberships</code></td><td><span class="rev-new">プロジェクトメンバー</span><span class="rev-old">プロジェクト所属</span></td><td>project_id（FK）、user_id（FK）、<strong class="rev-new">role</strong><span class="rev-new">（'admin'/'editor'/'learner'、DEFAULT 'learner'。プロジェクトのローカルロール。3.5節参照）</span>、<strong class="rev-new">assigned_by</strong><span class="rev-new">（FK→users、nullable。ロールを設定したプロジェクト管理者。作成時の自動付与はNULL）</span>、<strong class="rev-new">status</strong><span class="rev-new">（'invited'/'active'/'declined'、DEFAULT 'invited'。権限が有効になるのはactiveのみ。3.5節参照）</span>、joined_at<span class="rev-new">（nullable。招待の承諾時〔statusがactiveになった時点〕に設定。プロジェクト作成者・全社Wikiへの自動参加は作成と同時に設定）</span>、left_at（nullable。NULLが現役メンバー。<span class="rev-new">プロジェクト管理者によるメンバー削除時に設定し、削除後の猶予期間判定に使用（5.25節参照）</span><span class="rev-old">離任後の猶予期間判定に使用。5.3節参照</span>）。UNIQUE(project_id, user_id)。<span class="rev-old">自己申告制</span><span class="rev-new">メンバーの招待・削除・ロール設定はプロジェクト管理者が行うが、招待の承諾・辞退は招待された本人のみが行う（3.5節）</span></td></tr>
+      <tr class="rev-row"><td>T-05</td><td><span class="rev-old"><code>courses</code></span></td><td><span class="rev-old">コース</span></td><td><span class="rev-old">name、description、sort_order。単元・コース構成の最上位単位</span><span class="rev-new">廃止（v1.12）。コースという固定リストの事前登録をやめ、教材に自由な複数タグ（<code>materials.tags</code>）を付与する方式に一本化した。学習順序のまとまりが必要な場面は、プロジェクト・タグの組み合わせで代替する。IDは欠番として保持する。</span></td></tr>
+      <tr><td>T-06</td><td><code>materials</code></td><td>教材</td><td><span class="rev-old">course_id（FK、nullable）、</span>title、description（一覧表示用概要）、<span class="rev-old">format（'markdown'/'html'）、body（本文。単元は本文中の見出しから抽出。5.4節参照）、</span><span class="rev-new">教材のメタ情報のみを持つ入れ物に変わり、本文フィールドは持たない（v1.11）。目次構造・各ページの本文はT-23が保持する。<strong>tags</strong>（JSONB配列、DEFAULT '[]'。自由なタグ文字列の配列。v1.12でcourse_idから置き換え。T-05 courses廃止）、</span><span class="rev-old">owner_id（FK→users）</span><span class="rev-new"><strong>created_by</strong>（FK→users。作成者を記録する用途のみで、編集権限判定には用いない。v1.5でowner_idから読み替えた）</span>、<strong>project_id</strong>（FK→projects、<span class="rev-old">nullable。個人教材はNULL、プロジェクトに紐づく教材は該当プロジェクトID。編集権限判定の分岐に用いる。</span><span class="rev-new">NOT NULL。教材は必ずいずれかのプロジェクトに属する（v1.5）。編集権限は常にこのプロジェクトのローカルロールで判定する。</span>3.5節・5.26節参照）、status（'draft'/'published'）、sort_order、<span class="rev-new"><strong>attempt_scope</strong>（'material'/'chapter'/'section'/'page'、DEFAULT 'material'。合否判定・再受験の単位〔受験単位〕。公開前に作成者が設定する。5.14節参照）、<strong>retake_scope</strong>（'all'/'wrong_only'、DEFAULT 'all'。再受験時に全問解き直すか前回の誤答のみか）、<strong>default_feedback_style</strong>（'show_answer'/'review_only'/'hint_only'、DEFAULT 'show_answer'。AI講評スタイルの教材既定。設問側のT-10.feedback_styleで上書き可）、<strong>ai_context</strong>（text、nullable。F-20のAI呼び出しに追加する前提条件・制約の指示文。5.20節参照。<span class="rev-new">当初はF-27にも共通適用していたが、F-27はv1.20で廃止した（5.28節参照）</span>）</span><span class="rev-new">、<strong>grading_mode</strong>（'ai'/'manual'、DEFAULT 'ai'。記述式・コード記述式の採点方式の教材既定。'manual'ではAIは正誤・点数を判定せず、対象教材が紐づくプロジェクトの管理者・編集者がS-19で採点する。設問側のT-10.grading_modeで上書き可。5.20節参照）</span></td></tr>
+      <tr class="rev-row"><td>T-07</td><td><span class="rev-old"><code>material_co_editors</code></span></td><td><span class="rev-old">共同編集者</span></td><td><span class="rev-old">material_id（FK）、user_id（FK）、added_by（FK→users）。UNIQUE(material_id, user_id)</span><span class="rev-new">廃止（v1.5）。教材は必ずいずれかのプロジェクトに属する方式に一本化され、個人所有の教材（オーナー・共同編集者モデル）が廃止されたため、本テーブルは廃止した。IDは欠番として保持する。</span></td></tr>
+      <tr><td>T-08</td><td><code>material_revisions</code></td><td>教材改訂履歴</td><td>material_id（FK）、body_snapshot、format、changed_by（FK→users）、changed_via（'web'/'claude_code'）、change_summary。8.4節参照</td></tr>
+      <tr><td>T-09</td><td><code>material_attachments</code></td><td>添付ファイル・リンク</td><td>material_id（FK）、<span class="rev-new"><strong>node_id</strong>（FK→material_nodes、nullable。特定のページに紐づく場合はそのページのnode_id、教材全体の参考資料〔シラバスPDF等、特定ページに属さないもの〕はNULL。v1.14追加）、</span>kind（'file'/'link'）、storage_key（nullable。Supabase Storageのパス）、external_url（nullable）、filename、mime_type、size_bytes</td></tr>
+      <tr><td>T-10</td><td><code>questions</code></td><td>問題</td><td>material_id（FK）、<span class="rev-old"><strong>unit_index</strong>（nullable int。本文中の単元出現順。5.4節参照）</span><span class="rev-new"><strong>node_id</strong>（FK→material_nodes。問題が属する葉ノード〔ページ〕。v1.11でunit_indexから置き換え）</span>、type（'single'/'multi'/'free_text'<span class="rev-new">/'code'</span><span class="rev-new">/'reorder'/'score_log'</span>）、prompt、options（JSONB）、correct_answer（JSONB）、<strong>scoring_criteria</strong>（text、nullable。記述式・<span class="rev-new">code</span>のAI採点基準）、<span class="rev-new"><strong>code_language</strong>（text、nullable。type='code'のときの言語ヒント。例: 'python'。AIへのプロンプトに含める）、</span><span class="rev-old"><strong>points</strong>（int、DEFAULT 10。配点）、</span>sort_order<span class="rev-new">（<strong>points</strong>はv1.12で廃止。配点による重み付けは行わず、教材全体の正答率〔正解した設問数／全設問数〕のみで合否判定する。5.14節参照）</span>、<span class="rev-new"><strong>required</strong>（bool、DEFAULT true。回答必須／任意。falseの場合は未回答でも次のページへ進める）、<strong>is_critical</strong>（bool、DEFAULT false。「ドボン問題」。trueの設問に不正解だと、attempt_scopeで定まる受験単位が正答率によらず不合格になる。反復演習・誤答抽出モードでは判定しない）、<strong>feedback_style</strong>（'show_answer'/'review_only'/'hint_only'、nullable。materials.default_feedback_styleを上書きする場合のみ設定）、<strong>pool_group_id</strong>（自己参照、nullable。同じ値を持つ設問群が出題プールを構成する。material_nodes.quiz_mode='pool'のときに使用）、<strong>score_unit</strong>（text、nullable。type='score_log'のときの単位表記。例:'WPM'。type='score_log'ではcorrect_answer・is_criticalは使わない）</span><span class="rev-new">、<strong>grading_mode</strong>（'ai'/'manual'、nullable。materials.grading_modeを上書きする場合のみ設定。type='free_text'/'code'のときのみ意味を持つ。5.20節参照）</span></td></tr>
+      <tr><td>T-11</td><td><code>assignments</code></td><td>配信設定</td><td>material_id（FK）、scope_type（<span class="rev-old">'company'/'department'/'project'/'individual'</span><span class="rev-old">'company'/'project'/'individual'。'department'はv1.5で削除した（部署の概念の廃止に伴う）</span><span class="rev-new">'project'/'individual'。'department'はv1.5で、'company'はv1.42でそれぞれ削除した（'company'廃止の理由は5.9節「設計判断（全社スコープを廃止した理由）」参照）</span>）、scope_id（<span class="rev-new">scope_type='project'なら常にmaterials.project_idと同値、scope_type='individual'ならそのプロジェクトの現役メンバーのuser_id。</span>nullable不可。<span class="rev-old">scope_type='company'の行のみscope_idはnullable</span>）、required（bool）、due_at（nullable）、pass_score_pct（nullable）、retake_allowed（bool）、retake_limit（nullable）、created_by（FK→users）。1教材に対し複数行を持ちうる（5.9節）<span class="rev-old">。scope_type='company'の行は、required値によって作成できる者が異なる（required=trueはadmin限定、required=falseは対象教材が紐づくプロジェクトの管理者も可。5.9節）</span><span class="rev-new">（プロジェクトスコープ1行＋個人スコープ複数行が典型）。教材が全社Wiki（is_company_wide=true）に属する場合、required=trueの行は役割・adminを問わず作成できない（アプリケーション層でバリデーション。5.9節）</span></td></tr>
+      <tr><td>T-12</td><td><code>enrollment_progress</code></td><td>受講進捗</td><td>user_id（FK）、material_id（FK）、status（'not_started'/'in_progress'/'completed'）、<span class="rev-old">current_position（単元インデックス等の再開位置）</span><span class="rev-new"><strong>current_node_id</strong>（FK→material_nodes、nullable。再開位置となる現在のページ。v1.11でcurrent_positionから置き換え）、<strong>completed_node_ids</strong>（JSONB配列、DEFAULT '[]'。完了済みページのnode_id一覧。目次画面〔S-04〕の完了マーク・進捗率表示に使用）</span>、started_at、completed_at。UNIQUE(user_id, material_id)</td></tr>
+      <tr><td>T-13</td><td><code>quiz_attempts</code></td><td>受験記録</td><td>user_id（FK）、material_id（FK）、<span class="rev-new"><strong>scope_node_id</strong>（FK→material_nodes、nullable。materials.attempt_scopeが'material'以外のとき、どの章・小見出し・ページに対する受験かを表す。'material'のときはNULL）、</span>mode（'graded'/'practice'）、attempt_no、score_pct、passed（bool、nullable。採点中はNULL。<span class="rev-new">is_critical設問への不正解がある場合は正答率によらずfalse。5.14節参照</span>）、<span class="rev-new"><strong>fail_reason</strong>（text、nullable。ドボン問題起因で不合格の場合に該当設問を記録。S-04の不合格理由表示に使用）、</span>question_order（JSONB）、<span class="rev-new"><strong>carried_over_question_ids</strong>（JSONB配列、nullable。retake_scope='wrong_only'の再受験で、前回正解し今回は解き直していない設問のID一覧。正答率の再計算に用いる）、</span>started_at、submitted_at</td></tr>
+      <tr><td>T-14</td><td><code>answers</code></td><td>回答</td><td>attempt_id（FK）、question_id（FK）、response（JSONB）、is_correct（bool、nullable）、ai_score_pct（nullable）、ai_feedback（text、nullable）、reviewed_by（FK→users、nullable）、reviewed_at（nullable）<span class="rev-new">。対象設問のgrading_mode='manual'の場合、is_correct・ai_score_pct・ai_feedbackはAIによって自動設定されず、reviewed_by（採点したプロジェクト管理者・編集者）がS-19で入力するまでNULLのまま（「未採点」）となる。この場合ai_feedbackにはAIの講評ではなく担当者が入力した講評テキストを保持する。5.20節参照</span></td></tr>
+      <tr><td>T-15</td><td><code>ai_material_reviews</code></td><td>AI教材レビュー結果</td><td>material_id（FK）、requested_by（FK→users）、findings（JSONB）。F-08</td></tr>
+      <tr><td>T-16</td><td><code>ai_material_insights</code></td><td>AIつまずき分析結果</td><td>material_id（FK）、<span class="rev-new">requested_by（FK→users）、requested_at（TIMESTAMPTZ NOT NULL。9.2節のスタックジョブ検出に使用）、</span>weak_questions（JSONB<span class="rev-new">、nullable。完了時に設定</span>）、suggestions（text<span class="rev-new">、nullable。完了時に設定</span>）。F-21</td></tr>
+      <tr><td>T-17</td><td><code>ai_personal_feedback</code></td><td>AI個人フィードバック</td><td>user_id（FK）、<span class="rev-new">requested_at（TIMESTAMPTZ NOT NULL。9.2節のスタックジョブ検出に使用）、</span>content（text<span class="rev-new">、nullable。完了時に設定</span>）。F-22</td></tr>
+      <tr><td>T-18</td><td><code>ai_org_reports</code></td><td>AI組織レポート</td><td>scope_type、scope_id（nullable）、<span class="rev-new">requested_by（FK→users）、requested_at（TIMESTAMPTZ NOT NULL。9.2節のスタックジョブ検出に使用）、</span>content（text<span class="rev-new">、nullable。完了時に設定</span>）。F-23</td></tr>
+      <tr><td>T-19</td><td><code>ai_usage_logs</code></td><td>AI利用ログ</td><td>user_id（FK、nullable）、feature、model、input_tokens、output_tokens、cost_estimate。Keireki T-09と同方針（質問・回答の内容は保存しない）。9.3節</td></tr>
+      <tr><td>T-20</td><td><code>slack_notification_logs</code></td><td>Slack送信ログ</td><td>user_id（FK）、assignment_id（FK→assignments）、sent_at、status。F-12</td></tr>
+      <tr><td>T-21</td><td><code>app_settings</code></td><td>システム設定</td><td>key（PK）、value_text、updated_by（FK→users、nullable）。AIモデル選択（<code>key='ai_model'</code>）、Slack Webhook URL（<code>key='slack_webhook_url'</code>）・通知先チャンネル（<code>key='slack_channel'</code>）、プロジェクト離任猶予期間日数（<code>key='project_leave_grace_period_days'</code>）等をkey-valueで保持。Keireki T-08と同方針</td></tr>
+      <tr class="rev-row"><td>T-22</td><td><code>material_project_shares</code></td><td>教材のプロジェクト間共有</td><td>material_id（FK→materials）、shared_to_project_id（FK→projects）、shared_by（FK→users。共有を申請した共有元プロジェクト管理者）、shared_at（TIMESTAMPTZ NOT NULL DEFAULT now()）、<strong class="rev-new">status</strong><span class="rev-new">（'pending'/'accepted'/'rejected'、DEFAULT 'pending'。受講対象に反映されるのはacceptedのみ）、<strong>responded_by</strong>（FK→users、nullable。承認・却下した共有先プロジェクト管理者）、<strong>responded_at</strong>（TIMESTAMPTZ、nullable）</span>。UNIQUE(material_id, shared_to_project_id)。F-26（5.27節）</td></tr>
+      <tr class="rev-row"><td>T-23</td><td><code>material_nodes</code></td><td>教材の目次ノード（章・小見出し・ページ）</td><td>material_id（FK→materials）、<strong>parent_node_id</strong>（FK→material_nodes、nullable。NULLはルート直下＝章）、title、<strong>kind</strong>（'chapter'/'section'/'page'。章・小見出し・ページの種別）、sort_order（同じparent_node_id内での並び順）、<strong>content_kind</strong>（'explanation'/'quiz'/'mixed'/NULL。kind='page'のときのみ設定。説明文のみ／問題のみ／両方）、<strong>format</strong>（'markdown'/'html'、nullable。kind='page'かつ説明文を含む場合のみ）、<strong>body</strong>（text、nullable。kind='page'かつ説明文を含む場合の本文）。葉ノード（kind='page'）だけが実際のコンテンツ（body・T-10 questions経由の問題）を持つ。章・小見出しはタイトルとツリー構造のみを持つ入れ物。CHECK制約でkind='chapter'の行はparent_node_idがNULLであることを保証する。v1.11新設（6.2節冒頭の設計判断コールアウト参照）。<span class="rev-new">章・ページとも自由にタイトルを付けられる汎用構造のため、特定の内容単元に属さない記録（例: 日々のタイピング練習）も、日付や活動名を章・ページのタイトルにするだけで表現でき、追加のカラム・制約緩和は不要（v1.17、5.13節参照）。</span><span class="rev-new"><strong>quiz_mode</strong>（'all'/'pool'、DEFAULT 'all'。kind='page'のときのみ意味を持つ。'pool'の場合、このページの問題はT-10のpool_group_idで束ねた設問群からランダム抽出する）、<strong>pool_draw_count</strong>（int、nullable。quiz_mode='pool'のときの1回あたり出題数）を追加（v1.17）。</span></td></tr>
+      <tr class="rev-row"><td>T-24</td><td><span class="rev-old"><code>ai_draft_sessions</code></span></td><td><span class="rev-old">Claude Code下書きセッション（F-27）</span></td><td><span class="rev-old">廃止（v1.20）。F-27（AI教材作成アシスト）の廃止に伴い不要になった。IDは欠番として保持する。</span></td></tr>
+      <tr class="rev-row"><td>T-25</td><td><span class="rev-old"><code>ai_draft_messages</code></span></td><td><span class="rev-old">Claude Code下書きセッションのメッセージ</span></td><td><span class="rev-old">廃止（v1.20）。F-27（AI教材作成アシスト）の廃止に伴い不要になった。IDは欠番として保持する。</span></td></tr>
+      <tr class="rev-row"><td>T-26</td><td><code>surveys</code></td><td>受験後アンケート</td><td>material_id（FK→materials）、node_id（FK→material_nodes、nullable。NULLは教材全体、設定時は対象の章）、title、is_active（bool、DEFAULT true）、<strong>repeat_mode</strong>（'once'/'every_time'、DEFAULT 'once'。同じ受講者に毎回表示するか初回のみか）。UNIQUE(material_id, node_id)で1箇所につき1アンケートまで。v1.17新設</td></tr>
+      <tr class="rev-row"><td>T-27</td><td><code>survey_questions</code></td><td>アンケート設問</td><td>survey_id（FK→surveys）、type（'rating_5'/'single_choice'/'free_text'）、prompt、options（JSONB、選択式のみ）、sort_order。T-10 questionsと異なりcorrect_answerは持たない（正誤のない設問のため）。v1.17新設</td></tr>
+      <tr class="rev-row"><td>T-28</td><td><code>survey_responses</code></td><td>アンケート回答（ヘッダー）</td><td>survey_id（FK→surveys）、user_id（FK→users、nullable。統計利用のみで個別表示はしないため匿名運用も想定しnullable）、submitted_at。v1.17新設</td></tr>
+      <tr class="rev-row"><td>T-29</td><td><code>survey_answers</code></td><td>アンケート回答（設問ごと）</td><td>response_id（FK→survey_responses）、survey_question_id（FK→survey_questions）、value（JSONB。評価点・選択値・自由記述文のいずれか）。v1.17新設</td></tr>
+      <tr class="rev-new"><td>T-30</td><td><code>my_learning_registrations</code></td><td>マイ学習登録（F-31）</td><td>user_id（FK→users）、material_id（FK→materials ON DELETE CASCADE）、created_at。UNIQUE(user_id, material_id)。全社Wiki所属の任意教材をマイ学習に表示するかどうかの明示的な意思表示（S-02着手前の設計検討で新設）</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout">
+    <strong>与件からの調整点:</strong> 骨子で示されたテーブル構成に対し、次の<span class="rev-old">2〜4</span><span class="rev-new">4〜6</span>点を追加・変更した。(1) T-02 departments に <code>head_user_id</code>、T-03 projects に <code>pm_user_id</code> を追加した。S-08受講状況ダッシュボードで<span class="rev-old">manager</span><span class="rev-new">担当者</span>が確認できる「担当範囲」（部署長／PM）を判定するために必須のカラムであり、画面モックアップにも部署長・PM列が存在するため補った。<span class="rev-new">v1.5でT-02 departmentsを廃止したため<code>head_user_id</code>は消滅した。<code>pm_user_id</code>は残すが、S-08の担当範囲判定は5.19節のとおりプロジェクトのローカルロールのみで行うため、表示用の参考情報という位置づけに変わった。</span>(2) T-10 questions に <code>unit_index</code>・<code>scoring_criteria</code>・<code>points</code> を追加した。<code>unit_index</code> は5.4節の単元設計（見出しベース）に対応するため、<code>scoring_criteria</code>・<code>points</code> は画面モックアップ（S-05問題編集タブ）が示す記述式のAI採点基準入力・配点入力を保持するために必要である。(3) 要件定義書v1.4（教材のプロジェクト単位管理）に対応するため、T-04 project_memberships に <code>role</code>・<code>assigned_by</code> を追加した。旧v1.3の「自己申告制」の所属テーブルを、プロジェクト管理者がロールを設定するテーブルへ変更したことに伴う（3.5節・5.25節）。(4) T-06 materials に <code>project_id</code> を追加し、教材をプロジェクトに紐づけて管理できるようにした（F-25、5.26節）。また新規テーブル T-22 material_project_shares を追加し、教材のプロジェクト間共有（F-26、5.27節）を表現した。この(3)(4)により、テーブル数はT-01〜T-21（21件）からT-01〜T-22（22件）に増えた。<span class="rev-new">(5) 要件定義書v1.5（権限モデルの簡素化）に対応するため、T-02 departments・T-07 material_co_editors を廃止した（IDは欠番として保持）。あわせてT-01 users から <code>department_id</code> を、T-11 assignments の <code>scope_type</code> から <code>'department'</code> を削除した。(6) T-06 materials は、<code>owner_id</code> を編集権限判定に用いない作成者記録用の <code>created_by</code> に読み替え、<code>project_id</code> を nullable から NOT NULL に変更した（教材は必ずいずれかのプロジェクトに属するため）。この(5)(6)により、実働するテーブル数はT-01〜T-22の22件から2件減り20件になった（IDの欠番はT-02・T-07）。</span><span class="rev-new">(7) 要件定義書v1.12（教材構造案の採用）に対応するため、新規テーブル T-23 material_nodes を追加した。教材の内部構造が「本文＋本文中の見出しから動的抽出する単元」から「章／小見出し（任意）／ページ」の自己参照ツリーに変わったことに伴い、T-06 materials から <code>format</code>・<code>body</code> を削除（目次・各ページの本文はT-23へ移管）し、T-10 questions の <code>unit_index</code> を <code>node_id</code>（FK→material_nodes）に、T-12 enrollment_progress の <code>current_position</code> を <code>current_node_id</code>・<code>completed_node_ids</code> に置き換えた。この(7)により、実働するテーブル数はT-01〜T-22の20件から1件増え21件になった（IDの欠番は引き続きT-02・T-07のみ）。</span><span class="rev-new">(8) レビュー指摘を踏まえ、T-05 courses を廃止した（IDは欠番として保持）。「コース」という固定リストの事前登録をやめ、T-06 materials に <code>tags</code>（JSONB配列）を追加して教材ごとに自由な複数タグを付与する方式に変更した。あわせてT-10 questions の <code>points</code>（配点）を廃止し、設問間の重み付けを行わず教材全体の正答率（正解した設問数／全設問数）のみで合否判定する方式に単純化した（5.14節）。この(8)により、実働するテーブル数はT-01〜T-23の21件から1件減り20件になった（IDの欠番はT-02・T-05・T-07）。</span><span class="rev-new">(9) 要件定義書v1.14（F-27 AI教材作成アシスト）に対応するため、新規テーブル T-24 ai_draft_sessions・T-25 ai_draft_messages を追加した。ブラウザ内チャットでのやりとりと、そのつどAIが実行したツール操作（章・ページの作成等）の履歴を保持するために必要である。この(9)により、実働するテーブル数はT-01〜T-25の20件から2件増え22件になった（IDの欠番は引き続きT-02・T-05・T-07）。</span><span class="rev-new">(10) 検討資料での合意（20260821_問題形式・採点拡張案.html）を反映し、以下を追加した。T-06 materialsに<code>attempt_scope</code>・<code>retake_scope</code>・<code>default_feedback_style</code>・<code>ai_context</code>を追加（受験単位・再受験範囲・AI講評スタイルの既定・AI採点コンテキストを教材ごとに設定できるようにするため）。T-10 questionsに<code>type</code>の追加値<code>'reorder'</code>・<code>'score_log'</code>と、<code>required</code>・<code>is_critical</code>（ドボン問題）・<code>feedback_style</code>（教材既定の上書き）・<code>pool_group_id</code>・<code>score_unit</code>を追加。T-13 quiz_attemptsに<code>scope_node_id</code>（受験単位が教材全体以外のときの対象ノード）・<code>fail_reason</code>・<code>carried_over_question_ids</code>を追加。T-23 material_nodesに<code>quiz_mode</code>・<code>pool_draw_count</code>を追加。新規テーブルT-26〜T-29（surveys・survey_questions・survey_responses・survey_answers）で受験後アンケートを表現した。設問ごとの回答一覧・AI採点レビューを行う新画面S-19も新設した（4.12a節）。この(10)により、実働するテーブル数はT-01〜T-25の22件から4件増え26件になった（IDの欠番は引き続きT-02・T-05・T-07）。</span><span class="rev-new">(11) 記述式・コード記述式の採点をプロジェクト担当者（管理者・編集者）が手動で行える選択肢を追加するため、T-06 materialsに<code>grading_mode</code>（'ai'/'manual'、教材既定）、T-10 questionsに<code>grading_mode</code>（設問ごとの上書き、nullable）を追加した。新規テーブルは伴わず、T-14 answersの既存カラム（<code>is_correct</code>・<code>ai_score_pct</code>・<code>ai_feedback</code>・<code>reviewed_by</code>・<code>reviewed_at</code>）をそのまま使い回せるため、この(11)による実働するテーブル数の変化はない（引き続き26件）。</span><span class="rev-new">(12) F-27（AI教材作成アシスト）を廃止したことに伴い、T-24 ai_draft_sessions・T-25 ai_draft_messagesを廃止した（IDは欠番として保持）。教材の作成・修正へのAI支援はF-05（Claude Code CLI連携）に一本化し、F-27固有のセッション・メッセージ履歴を保持する必要がなくなったため。この(12)により、実働するテーブル数はT-01〜T-29の26件から2件減り24件になった（IDの欠番はT-02・T-05・T-07・T-24・T-25）。</span>いずれも既存テーブルへのカラム追加・変更、独立性の高い新規テーブルの追加、または不要になったテーブル・カラムの削除のみで対応しており、他テーブルの再設計は伴わない。
+  </div>
+
+  <h3>6.3 共通設計方針</h3>
+  <ul>
+    <li>主キー: <code>id</code> は BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY で統一する（T-21のみ <code>key</code> TEXT を主キーとする、Keirekiと同方針）。</li>
+    <li>タイムスタンプ: <code>created_at</code> / <code>updated_at</code> は TIMESTAMPTZ NOT NULL DEFAULT now() で全テーブルに付与する。</li>
+    <li>コード値（role, format, status, mode, type, kind, scope_type）はCHECK制約で許容値を担保する。</li>
+    <li>JSONB項目（options, correct_answer, response, question_order, findings, weak_questions等）は、詳細設計書でスキーマ（フィールド定義）を定める。</li>
+    <li>スキーマ定義は <code>backend/database.py</code>（SCHEMA定義）に集約し、テーブル定義書を docs/ で管理する。</li>
+  </ul>
+  <p>各テーブルのカラム詳細（型・NULL可否・制約・既定値の全定義）は詳細設計書に委ねる。</p>
+
+  <div class="callout">
+    <strong>RLS方針:</strong> 全テーブルでRow Level Security（RLS）を有効にする（<code>ALTER TABLE ... ENABLE ROW LEVEL SECURITY;</code>）。アプリケーションは asyncpg で直接接続するため通常アクセスの権限判定（3章のRBAC・<span class="rev-old">オーナー/共同編集者判定</span><span class="rev-new">プロジェクトのローカルロール判定</span>）はAPI層で行うが、Supabaseの他経路（PostgREST等）からの意図しない参照を遮断する多層防御として全テーブルRLSを必須とする（Keirekiと同方針）。
+  </div>
+
+  <!-- ============ 7. API設計 ============ -->
+
+  <footer class="doc-footer">
+    <span>社内学習管理システム（Manabi）基本設計書 v1.52</span>
+    <span>コガソフトウェア株式会社 / 2026-08-24</span>
+  </footer>
+
+</div>
+</body>
+</html>
+

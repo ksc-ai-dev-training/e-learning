@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>【検討中】教材構造案 編集者2/4: 教材一覧 | Manabi</title>
+<link rel="stylesheet" href="../../docs/03_画面モックアップ/mock.css">
+<style>
+  .branch-actions { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; }
+</style>
+</head>
+<body>
+
+<div style="background:#fef3c7;border-bottom:1px solid #fbbf24;color:#78350f;font-size:12px;font-weight:600;text-align:center;padding:6px;">
+  【検討中】教材構造案（プロジェクト＝学年・教材の中に見出し/小見出し/ページの入れ子構造） ／ 既存のS-03/S-04/S-05とは独立した別案です
+</div>
+
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-mark">M</div>
+      <div>
+        <div class="brand-name">Manabi</div>
+        <div class="brand-sub">社内学習管理システム</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-label">メニュー</div>
+      <a class="nav-item" href="#">マイ学習</a>
+      <a class="nav-item" href="#">教材一覧・検索</a>
+      <a class="nav-item active" href="20260820_教科書構造_編集者_プロジェクト選択.html">教材編集</a>
+      <a class="nav-item" href="#">個人学習レポート</a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="sidebar-user-row">
+        <span class="avatar">鈴</span>
+        <div>
+          <div class="user-name">鈴木 美咲 <span class="badge badge-role role-member">member</span></div>
+          <div class="user-mail">m.suzuki@kogasoftware.com</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="page-header">
+      <div class="page-title-group">
+        <h1>教材編集 — 新人研修2027</h1>
+        <span class="screen-id">検討中 2/4</span>
+      </div>
+    </header>
+
+    <div class="page-body">
+
+      <p class="tab-note">
+        <a href="20260820_教科書構造_編集者_プロジェクト選択.html">← プロジェクト選択に戻る</a>
+        ／ このプロジェクトの教材（下書きを含む）を一覧表示する。1冊＝複数の見出し・小見出し・ページからなる教材構造。
+      </p>
+
+      <div class="branch-actions">
+        <a class="btn btn-primary" href="20260820_教科書構造_編集者_目次編集.html#new">＋ このプロジェクトに新規教材を作成</a>
+        <span style="font-size:12px;color:var(--text-subtle)">または、下の一覧から既存の教材を編集・複製</span>
+      </div>
+
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>教材</th>
+              <th style="width:90px">状態</th>
+              <th style="width:130px">構成</th>
+              <th style="width:110px">更新日</th>
+              <th style="width:170px">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <div class="cell-main">Git研修</div>
+                <div class="cell-sub">全2章 ／ 作成: 鈴木 美咲（あなた）</div>
+              </td>
+              <td><span class="badge badge-status-on">公開中</span></td>
+              <td class="num">2章・7ページ</td>
+              <td>2026-08-05</td>
+              <td>
+                <a class="btn btn-secondary btn-sm" href="20260820_教科書構造_編集者_目次編集.html">編集する</a>
+                <a class="btn btn-ghost btn-sm" href="20260820_教科書構造_編集者_目次編集.html#duplicated" title="この教材の目次・ページ内容をすべてコピーして新しい下書きを作成">複製</a>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <div class="cell-main">Java研修</div>
+                <div class="cell-sub">全3章（うち1章は小見出しあり） ／ 作成: 鈴木 美咲（あなた）</div>
+              </td>
+              <td><span class="badge badge-status-on">公開中</span></td>
+              <td class="num">3章・9ページ</td>
+              <td>2026-08-20</td>
+              <td>
+                <a class="btn btn-secondary btn-sm" href="20260820_教科書構造_編集者_目次編集.html">編集する</a>
+                <a class="btn btn-ghost btn-sm" href="20260820_教科書構造_編集者_目次編集.html#duplicated" title="この教材の目次・ページ内容をすべてコピーして新しい下書きを作成">複製</a>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <div class="cell-main">WEBアプリ研修</div>
+                <div class="cell-sub">全4章 ／ 作成: 田中 悠斗</div>
+              </td>
+              <td><span class="badge badge-status-on">公開中</span></td>
+              <td class="num">4章・15ページ</td>
+              <td>2026-07-30</td>
+              <td>
+                <a class="btn btn-secondary btn-sm" href="20260820_教科書構造_編集者_目次編集.html">編集する</a>
+                <a class="btn btn-ghost btn-sm" href="20260820_教科書構造_編集者_目次編集.html#duplicated" title="この教材の目次・ページ内容をすべてコピーして新しい下書きを作成">複製</a>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <div class="cell-main">AWS研修</div>
+                <div class="cell-sub">全3章 ／ 作成: 田中 悠斗</div>
+              </td>
+              <td><span class="badge badge-status-on">公開中</span></td>
+              <td class="num">3章・11ページ</td>
+              <td>2026-07-28</td>
+              <td>
+                <a class="btn btn-secondary btn-sm" href="20260820_教科書構造_編集者_目次編集.html">編集する</a>
+                <a class="btn btn-ghost btn-sm" href="20260820_教科書構造_編集者_目次編集.html#duplicated" title="この教材の目次・ページ内容をすべてコピーして新しい下書きを作成">複製</a>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <div class="cell-main">AI開発研修（作成中）</div>
+                <div class="cell-sub">全1章 ／ 作成: 鈴木 美咲（あなた）</div>
+              </td>
+              <td><span class="badge badge-status-off">下書き</span></td>
+              <td class="num">1章・2ページ</td>
+              <td>2026-08-19</td>
+              <td>
+                <a class="btn btn-secondary btn-sm" href="20260820_教科書構造_編集者_目次編集.html">編集する</a>
+                <a class="btn btn-ghost btn-sm" href="20260820_教科書構造_編集者_目次編集.html#duplicated" title="この教材の目次・ページ内容をすべてコピーして新しい下書きを作成">複製</a>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="table-notes" style="margin-top:10px">
+        ※ 「複製」を押すと、教材1冊分（章・小見出し・ページの目次構造と、各ページの説明文・問題の中身）をまるごとコピーした新しい下書きが作成され、目次編集画面が開く。複製元の公開状態・受講進捗・改訂履歴は引き継がず、複製後の教材は常に下書きから始まる。年度更新（例: 「Java研修2026」を複製して「Java研修2027」の下書きを作る）を想定した機能。
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="mock-note">検討中の改善案（教材構造・編集者側 2/4: 教材一覧）</div>
+
+</body>
+</html>

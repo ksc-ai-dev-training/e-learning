@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S-15 プロフィール編集 | Manabi 画面モックアップ</title>
+<link rel="stylesheet" href="mock.css">
+<style>
+  .avatar-lg {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 64px; height: 64px; border-radius: 50%;
+    background: var(--role-admin-bg, #ede9fe); color: var(--role-admin-fg, #6d28d9);
+    font-size: 22px; font-weight: 700;
+  }
+  .avatar-row { display: flex; align-items: center; gap: 18px; margin-bottom: 4px; }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- サイドバー（受講者: 佐藤 健一） -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-mark">M</div>
+      <div>
+        <div class="brand-name">Manabi</div>
+        <div class="brand-sub">社内学習管理システム</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-label">メニュー</div>
+      <a class="nav-item" href="S-02_my-learning.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h3.5v-6h5v6H18a1 1 0 0 0 1-1V9.5"/></svg></span>
+        マイ学習
+      </a>
+      <a class="nav-item" href="S-03_materials-list.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></span>
+        教材一覧・検索
+      </a>
+      <a class="nav-item" href="S-13_material-edit-project-select.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></span>
+        教材編集
+      </a>
+      <a class="nav-item" href="S-20_grading-queue.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></span>
+        採点
+      </a>
+      <a class="nav-item" href="S-09_my-report.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
+        個人学習レポート
+      </a>
+      <a class="nav-item" href="S-11_project-create.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></span>
+        プロジェクト作成
+      </a>
+      <a class="nav-item" href="S-12_project-management.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg></span>
+        プロジェクト管理
+      </a>
+      <a class="nav-item" href="S-06_assignment-settings.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></span>
+        配信設定
+      </a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="sidebar-user-row">
+        <span class="avatar">佐</span>
+        <div>
+          <div class="user-name">佐藤 健一 <span class="badge badge-role role-member">member</span></div>
+          <div class="user-mail">k.sato@kogasoftware.com</div>
+        </div>
+      </div>
+      <a class="sidebar-logout" href="S-15_profile-edit.html" style="font-weight:600;color:var(--accent-600)">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        プロフィール編集
+      </a>
+      <a class="sidebar-logout" href="S-01_login.html">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        ログアウト
+      </a>
+    </div>
+  </aside>
+
+  <!-- メインエリア -->
+  <div class="main">
+    <header class="page-header">
+      <div class="page-title-group">
+        <h1>プロフィール編集</h1>
+        <span class="screen-id">S-15</span>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-primary" type="button">保存</button>
+      </div>
+    </header>
+
+    <div class="page-body">
+
+      <p class="tab-note">表示名・アイコン画像は自分で変更できます。メールアドレスはGoogleアカウントと連動しており、この画面からは変更できません。</p>
+
+      <section class="panel">
+        <div class="panel-header">
+          <div class="panel-title">アイコン</div>
+        </div>
+        <div class="panel-body">
+          <div class="avatar-row">
+            <span class="avatar-lg">佐</span>
+            <div>
+              <div class="file-pick">
+                <input type="file" accept="image/png,image/jpeg">
+              </div>
+              <span class="field-help">PNG/JPG、2MBまで。未設定の場合はGoogleアカウントのプロフィール画像を使用します。</span>
+            </div>
+          </div>
+          <div class="form-actions" style="border-top:none;padding-top:0;margin-top:10px">
+            <button class="btn btn-secondary btn-sm" type="button">Googleの画像に戻す</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <div class="panel-title">アカウント情報</div>
+        </div>
+        <div class="panel-body">
+          <div class="field-row">
+            <div class="field">
+              <label for="display-name">表示名</label>
+              <input type="text" id="display-name" value="佐藤 健一" maxlength="100">
+              <span class="field-help">初回登録時はGoogleアカウントの氏名が設定されます。ここで変更した表示名は、Googleアカウント側の氏名が変わっても上書きされません。</span>
+            </div>
+            <div class="field">
+              <label>メールアドレス</label>
+              <input type="text" value="k.sato@kogasoftware.com" disabled>
+              <span class="field-help">Googleアカウントと連動しており、この画面からは変更できません。</span>
+            </div>
+          </div>
+          <div class="field-row" style="margin-bottom:0">
+            <div class="field">
+              <label>システムロール</label>
+              <div><span class="badge badge-role role-member">member</span></div>
+              <span class="field-help">ロールの変更は管理者のみ行えます（S-10 管理画面）。</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <div class="panel-title">所属プロジェクト</div>
+          <span class="panel-count" id="my-projects-count">3件</span>
+        </div>
+        <div class="panel-body">
+          <div class="table-wrap" style="box-shadow:none;border:none">
+            <table class="table" id="my-projects-table">
+              <thead><tr><th>プロジェクト</th><th style="width:160px">ロール</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td>
+                    <span class="chip chip-proj">📌 全社Wiki</span>
+                  </td>
+                  <td><span class="badge badge-projrole projrole-editor">編集者</span></td>
+                </tr>
+                <tr>
+                  <td>新人研修2026運営</td>
+                  <td><span class="badge badge-projrole projrole-member">受講者</span></td>
+                </tr>
+                <tr>
+                  <td>情報セキュリティ委員会</td>
+                  <td><span class="badge badge-projrole projrole-member">受講者</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <span class="field-help">メンバーの招待・削除・ロール変更は、各プロジェクトの管理者が行います（S-12）。</span>
+        </div>
+      </section>
+
+      <section class="panel" style="border-color:#fca5a5">
+        <div class="panel-header" style="background:#fff5f5">
+          <div class="panel-title">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#b91c1c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            招待されているプロジェクト
+          </div>
+          <span class="panel-count" id="invitations-count">1件</span>
+        </div>
+        <div class="panel-body">
+          <p class="tab-note" style="margin-bottom:10px">プロジェクトの管理者から招待されています。承諾するまで、そのプロジェクトの教材の受講・編集はできません。承諾・辞退はいつでもあなた自身の判断で行えます。</p>
+          <div class="table-wrap" id="invitations-wrap" style="box-shadow:none;border:none">
+            <table class="table">
+              <thead><tr><th>プロジェクト</th><th style="width:130px">招待されたロール</th><th style="width:110px">招待日</th><th style="width:190px">操作</th></tr></thead>
+              <tbody id="invitations-body">
+                <tr id="invitation-1">
+                  <td class="cell-main">LCC CRM刷新</td>
+                  <td><span class="badge badge-projrole projrole-editor">編集者</span></td>
+                  <td>2026-08-19</td>
+                  <td>
+                    <button class="btn btn-primary btn-sm" type="button" onclick="respondInvitation('invitation-1', 'LCC CRM刷新', '編集者', 'projrole-editor')">承諾</button>
+                    <button class="btn btn-ghost btn-sm" type="button" onclick="respondInvitation('invitation-1', null, null, null)">辞退</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p id="invitations-empty" style="display:none;font-size:12px;color:var(--text-subtle)">現在、招待されているプロジェクトはありません。</p>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<div class="mock-note">画面モックアップ（S-15）/ 研修サンプル</div>
+
+<script>
+// プロジェクト招待への応答（静的モック確認用の最小限のJS）
+function respondInvitation(rowId, projectName, roleLabel, roleClass) {
+  var row = document.getElementById(rowId);
+  if (!row) return;
+  row.remove();
+
+  var remaining = document.querySelectorAll('#invitations-body tr').length;
+  document.getElementById('invitations-count').textContent = remaining + '件';
+  if (remaining === 0) {
+    document.getElementById('invitations-wrap').style.display = 'none';
+    document.getElementById('invitations-empty').style.display = 'block';
+  }
+
+  if (projectName) {
+    // 承諾: 所属プロジェクト一覧に追加
+    var tbody = document.querySelector('#my-projects-table tbody');
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td>' + projectName + '</td><td><span class="badge badge-projrole ' + roleClass + '">' + roleLabel + '</span></td>';
+    tbody.appendChild(tr);
+    var count = document.querySelectorAll('#my-projects-table tbody tr').length;
+    document.getElementById('my-projects-count').textContent = count + '件';
+    alert('「' + projectName + '」への参加を承諾しました。すぐにそのプロジェクトの教材にアクセスできます。');
+  } else {
+    alert('招待を辞退しました。このプロジェクトのメンバーにはなりません。');
+  }
+}
+</script>
+
+<script src="mock-sidebar.js"></script>
+</body>
+</html>

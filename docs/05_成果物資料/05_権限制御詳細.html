@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>5. 権限制御詳細 | 詳細設計書 | 社内学習管理システム（Manabi）</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<script src="../_sidenav.js"></script>
+<div class="doc">
+
+<p class="chapter-nav" style="display:flex;justify-content:space-between;font-size:13px;margin:0 0 16px"><a href="04_API詳細設計.html">← 4. API詳細設計</a><a href="index.html">目次</a><a href="06_検索受講対象判定処理詳細.html">6. 検索・受講対象判定処理詳細 →</a></p>
+
+  <h2 id="sec5">5. 権限制御詳細</h2>
+
+  <h3>5.1 auth_helpers.py の依存関数一覧</h3>
+  <table>
+    <thead><tr><th>依存関数</th><th>シグネチャ</th><th>判定内容</th></tr></thead>
+    <tbody>
+      <tr><td><code>require_auth</code></td><td><code>(request) -&gt; User</code></td><td>有効なセッションJWT／CLIトークンを持つこと（role不問）。無効・欠落は401</td></tr>
+      <tr><td><code>require_roles</code></td><td><code>(*roles)(request) -&gt; User</code></td><td><code>user.role</code>が指定ロールのいずれかであること（例: <code>require_roles("admin")</code>）。不足は403</td></tr>
+      <tr><td><code>require_project_role</code></td><td><code>(project_id, min_role)(request) -&gt; User</code></td><td>5.2節参照。<code>user.role == 'admin'</code>は常に許可（プロジェクトロール不問）</td></tr>
+      <tr><td><code>require_material_access</code></td><td><code>(material_id)(request) -&gt; User</code></td><td>5.3節参照（受講対象者判定のOR条件）</td></tr>
+      <tr><td><code>require_material_editor</code></td><td><code>(material_id)(request) -&gt; User</code></td><td>対象教材の<code>project_id</code>を取得し<code>require_project_role(project_id, min_role='editor')</code>に委譲する薄いラッパー</td></tr>
+    </tbody>
+  </table>
+  <p><strong>適用マトリクス（router別）:</strong></p>
+  <table>
+    <thead><tr><th>router</th><th>使用する依存関数</th></tr></thead>
+    <tbody>
+      <tr><td>auth.py</td><td>A-03, A-04: require_auth／A-63: require_auth（token_type='cli'を追加検証）／A-75〜A-77: require_auth（対象は常にリクエスト者自身のため、追加のリソース所有者チェックは不要）</td></tr>
+      <tr><td>organization.py</td><td>A-09: require_auth／A-10, A-12, A-13: require_project_role(min_role='admin')／A-11: require_auth（本人判定はハンドラ内）／A-67: require_auth（本人判定はハンドラ内）／A-59〜A-61, A-65, A-66: require_project_role(min_role='admin')</td></tr>
+      <tr><td>materials.py</td><td>A-14: require_auth／A-15, A-19, A-28, A-30, A-43: require_material_access（編集権限者は追加でrequire_material_editor相当のOR）／A-16, A-21: require_project_role(min_role='editor')（対象project_idに対して。A-21はパスに<code>material_id</code>を持たずproject_idを直接取るため、material_idからの解決を挟むrequire_material_editorではなくこちらを使う）／A-17, A-20, A-22, A-27, A-29, A-31〜A-35, A-64, A-78, A-79: require_material_editor／A-18, A-59: require_project_role(min_role='admin')</td></tr>
+      <tr><td>assignments.py</td><td>A-36, A-37: require_project_role(min_role='admin')（自プロジェクト分に絞り込み）またはrequire_roles("admin")／A-38: 4.4節callout参照</td></tr>
+      <tr><td>learning.py</td><td>A-39: require_auth／A-40〜A-42, A-44, A-71, A-72: require_material_access／A-43: require_material_access または require_material_editor／A-73, A-74: require_material_editor</td></tr>
+      <tr><td>dashboard.py, reports.py</td><td>A-45〜A-49: require_project_role(min_role='admin')またはrequire_roles("admin")／A-50〜A-52: 本人 or 「対象者が所属するプロジェクトの管理者」（5.4節の専用判定関数）</td></tr>
+      <tr><td>users.py, settings.py</td><td>全API: require_roles("admin")</td></tr>
+    </tbody>
+  </table>
+
+  <h3>5.2 require_project_role の実装</h3>
+  <pre><code>ROLE_RANK = {"learner": 1, "editor": 2, "admin": 3}
+
+async def require_project_role(project_id: int, min_role: str):
+    async def checker(request: Request) -&gt; User:
+        user = await require_auth(request)
+        if user.role == "admin":
+            return user   # システム全体のadminは常に許可（保守目的）
+        row = await conn.fetchrow(
+            """SELECT role FROM project_memberships
+                WHERE project_id = $1 AND user_id = $2
+                  AND status = 'active'""",
+            project_id, user.id)
+        if row is None or ROLE_RANK[row["role"]] &lt; ROLE_RANK[min_role]:
+            raise HTTPException(403, detail="この操作を行う権限がありません")
+        return user
+    return checker</code></pre>
+  <p><code>status != 'active'</code>（招待中<code>invited</code>・辞退<code>declined</code>）のメンバーはロールを問わず不許可となる。<code>left_at IS NOT NULL</code>（削除済み）の行はそもそも<code>status</code>を条件に含めても除外されない可能性があるため、実装上は<code>WHERE ... AND status = 'active' AND left_at IS NULL</code>とする（削除時に<code>status</code>は変更しないため。4.2節A-13参照）。</p>
+
+  <div class="callout">
+    <strong>実装との対応（S-05着手分）:</strong> 本節の<code>require_project_role</code>・5.1節の<code>require_material_editor</code>は、実装では<code>backend/auth_helpers.py</code>の<code>check_project_role(user, project_id, min_role)</code>（本文だけの判定関数）と、それを使う<code>require_project_role(min_role)</code>／<code>require_material_role(min_role)</code>という2つのFastAPI依存性ファクトリに分かれている。<code>require_material_role</code>は教材IDパスパラメータから<code>project_id</code>を引いて<code>check_project_role</code>に委譲する点は本節の設計通りだが、加えて<strong>全社Wikiプロジェクトの下書き制限</strong>（<code>is_company_wide_draft_restricted</code>）も行う：教材が<code>status='draft'</code>かつ所属プロジェクトが<code>is_company_wide=true</code>の場合、作成者本人・そのプロジェクトの管理者・システムadmin以外は403にする。全社Wikiは全社員が自動でeditorになる特殊プロジェクトのため、下書きが他メンバーに意図せず見られてしまう問題があり追加した（教材保存時のフィードバックを受けて2026-08-27追加）。A-21（教材一覧）も同じ条件で一覧から除外する。全社Wiki以外の（招待制の）プロジェクトはメンバーが元々限定されているため、この追加制限は適用しない。
+  </div>
+
+  <h3>5.3 require_material_access の実装（受講対象者判定）</h3>
+  <p>基本設計書7.3節が定める「対象教材の受講対象者」のOR条件を1つの依存関数に集約する。個々のルーターが判定ロジックを重複実装しないようにするための共通化である。<strong>2条件（当初3条件から簡素化。2026-08-28）:</strong> F-26（教材共有、基本設計書5.27節）を「共有先には権限だけを付与する参照共有モデル」から「承認時に共有先プロジェクトへ教材の複製を新規作成する複製モデル」に変更したことに伴い、複製後の教材は共有先プロジェクト自身の<code>project_id</code>を持つ独立レコードになるため、共有先メンバーは条件1（プロジェクトの現役メンバー）だけで自然にアクセスでき、専用の「条件3: 共有先メンバーシップ」は不要になった。</p>
+  <pre><code>async def require_material_access(material_id: int):
+    async def checker(request: Request) -&gt; User:
+        user = await require_auth(request)
+        if user.role == "admin":
+            return user
+        material = await fetch_material_scope_row(material_id)  # project_id, status
+        # 条件1: 教材が紐づくプロジェクトの現役メンバー（受講者以上）
+        is_project_member = await has_active_project_role(
+            material["project_id"], user.id, min_role="learner")
+        if is_project_member:
+            return user
+        # 条件2: 配信設定（T-11 assignments）で個人指定されている
+        is_individual_target = await conn.fetchval(
+            """SELECT EXISTS(
+                 SELECT 1 FROM assignments
+                  WHERE material_id = $1 AND scope_type = 'individual'
+                    AND scope_id = $2)""",
+            material_id, user.id)
+        if is_individual_target:
+            return user
+        raise HTTPException(403, detail="この教材の受講対象ではありません")
+    return checker</code></pre>
+  <div class="callout">
+    <strong>なぜ2条件のORが必要か:</strong> プロジェクトのローカルロール（5.2節）だけでは、プロジェクトのメンバーでない社員を個人指定で受講対象に加える配信設定（F-09）を表現できない。この2条件は「教材が紐づく1つのプロジェクトのメンバーであること」を必須としない設計であり、必ずどちらか1つを満たせばよい。教材のプロジェクト間共有（F-26）は、共有先プロジェクトへ教材そのものの複製を作る方式（複製モデル）のため、この判定関数に共有専用の条件を追加する必要はない（共有先の複製は、その複製自身のproject_idに対する条件1で自然にアクセスできる）。
+  </div>
+  <div class="callout">
+    <strong>実装上の注意（F-26着手時）:</strong> F-26実装前の設計検討過程では「共有先プロジェクトのメンバーである」という条件3の追加が一時的に構想されていた（`material_project_shares`テーブルを参照する版）。この構想は複製モデルの採用により不要になったため、F-26に着手する際は本節の2条件版を正とし、既存コードのコメント等に「条件3を追加する」という古い記述が残っていても従わないこと（基本設計書5.27節「参照共有モデルから複製モデルへ変更した理由」を参照）。
+  </div>
+
+  <h3>5.4 「対象者が所属するプロジェクトの管理者」判定</h3>
+  <p>S-09（個人学習レポート）・A-50〜A-52で使用する。対象ユーザー（<code>user_id</code>）が現役メンバーであるいずれかのプロジェクトについて、リクエスト者が<code>require_project_role(min_role='admin')</code>を満たすかを判定する（基本設計書7.3節と同じ判定）。</p>
+  <pre><code>async def is_manager_of_target_user(target_user_id: int, requester: User) -&gt; bool:
+    if requester.role == "admin":
+        return True
+    target_project_ids = await conn.fetch(
+        """SELECT project_id FROM project_memberships
+            WHERE user_id = $1 AND status = 'active' AND left_at IS NULL""",
+        target_user_id)
+    for row in target_project_ids:
+        if await has_active_project_role(
+                row["project_id"], requester.id, min_role="admin"):
+            return True
+    return False</code></pre>
+  <p><strong>実装済み（2026-09-02）。</strong><code>backend/auth_helpers.py</code>の<code>is_manager_of_target_user</code>として上記のとおり実装した。</p>
+
+  <h3>5.5 プロジェクト離任後の猶予期間判定</h3>
+  <p>基本設計書5.25節の猶予期間ロジックを、5.3節の<code>has_active_project_role</code>を拡張する形で実装する。「現役メンバー」または「削除から猶予日数以内」のいずれかを満たせば受講権限を継続する。</p>
+  <pre><code>async def has_active_project_role(project_id: int, user_id: int, min_role: str) -&gt; bool:
+    row = await conn.fetchrow(
+        """SELECT role, status, left_at FROM project_memberships
+            WHERE project_id = $1 AND user_id = $2""",
+        project_id, user_id)
+    if row is None:
+        return False
+    if row["status"] == "active" and row["left_at"] is None:
+        return ROLE_RANK[row["role"]] &gt;= ROLE_RANK[min_role]
+    if row["left_at"] is not None:
+        grace_days = await get_setting_int(
+            "project_leave_grace_period_days", default=30)
+        if row["left_at"] + timedelta(days=grace_days) &gt;= datetime.now(timezone.utc):
+            # 猶予期間中は「受講者」相当のアクセスのみ継続する（編集権限は即時失効）
+            return min_role == "learner"
+    return False</code></pre>
+  <div class="callout">
+    <strong>猶予期間中は受講権限のみ継続する:</strong> 基本設計書5.25節の設計判断のとおり、ロール降格そのものは猶予期間の対象外とし、プロジェクトから削除された場合のみ猶予期間が発生する。上記実装では<code>left_at</code>が設定された行に対しては<code>min_role == "learner"</code>のときのみtrueを返すことで、「猶予期間中でも教材の新規編集はできない（即時失効）が、既に配信された教材の閲覧・受講は継続できる」という非対称な扱いを表現している。<br>
+    <strong>実装済み（2026-09-02）。</strong>実際には<code>backend/auth_helpers.py</code>の<code>has_active_project_role(project_id, user_id, min_role)</code>としてこの節のpseudocodeどおり実装し、猶予日数はA-56で設定するT-21 <code>project_leave_grace_period_days</code>（新設<code>backend/settings_store.py</code>の<code>get_setting_int</code>経由、既定30日）を参照する。実装にあたり、同じ「現役プロジェクトメンバーか」という判定がこの関数の新設以前に4箇所（<code>check_project_role</code>・<code>routers/materials.py</code>の<code>_require_view_access</code>と<code>_has_project_role</code>・<code>routers/learning.py</code>の<code>get_attempt</code>）に個別実装されており、このうち1箇所だけを猶予期間対応にすると挙動が箇所ごとに食い違う不整合が生じるため、全て本関数を経由するよう統合した（<code>_has_project_role</code>は削除）。A-39（マイ学習一覧）・A-14（<code>my_assignments_only</code>絞り込み）はSQLのEXISTS句で同等の条件を直接組み立てているため関数呼び出しには統合していないが、猶予日数を同じ<code>get_setting_int</code>で取得し同一のSQL条件（<code>left_at IS NULL OR left_at + 猶予日数 &gt;= now()</code>）を適用することで挙動を一致させた。</div>
+
+  <h3>5.6 フロントエンド側のガード</h3>
+  <p><code>frontend/src/App.tsx</code>でA-04（<code>/api/auth/me</code>）の結果とS-11「自分が参加しているプロジェクト」の集計に基づきルート・メニュー表示を制御する。権限の正はサーバー側検証（5.1〜5.5節）であり、以下はUX目的の表示制御に過ぎない。</p>
+  <ul>
+    <li>未認証（A-04が401）→ S-01（<code>/login</code>）へリダイレクト</li>
+    <li>「教材編集」メニュー: 常時表示（全社員が「全社Wiki」プロジェクトの編集者を自動的に持つため、実質的に誰でもS-13へ進める。基本設計書4.2節）</li>
+    <li>「プロジェクト管理」メニュー（S-12への導線）: 自分が管理者であるプロジェクトが1件以上ある場合のみ表示</li>
+    <li>「受講状況ダッシュボード」（S-08）・「配信設定」（S-06）メニュー: adminは常時表示。member はプロジェクト管理者であるプロジェクトが1件以上ある場合のみ表示（自プロジェクト範囲）</li>
+    <li>「システム管理」メニュー（S-10。表示ラベルのみ「システム管理」、画面自体の名称はS-10「管理」のまま）: adminのみ表示（実装済み、2026-09-02。<code>NAV_ITEMS</code>で初めて<code>adminOnly</code>によるロール限定表示を導入した）</li>
+    <li>S-19（設問別の回答・結果一覧）へのリンク: S-05・S-17の設問カードで、当該教材のプロジェクトの管理者/編集者、またはadminにのみ表示</li>
+  </ul>
+  <div class="callout warn">
+    <strong>重要:</strong> フロントエンドのメニュー出し分けはあくまで表示制御（UX目的）であり、権限の正はサーバー側検証（5.1〜5.5節）である。URL直打ちやAPI直接呼び出しが行われても、全APIがauth_helpers.pyの依存関数で検証するため越権操作はできない。
+  </div>
+
+  <h3 class="rev-row">5.7 子リソースの所属検証（2026-09-02、網羅的コードレビューで発見・修正）</h3>
+  <p class="rev-row"><strong>処理概要:</strong> 5.1〜5.6節の「プロジェクト・教材への権限」に加え、書き込み系APIには「リクエストボディで指定した子リソースID（設問ID・ノードID・アンケート設問IDなど）が、実際に権限確認済みの親リソースに属するか」という別種の検証が必要になる。権限自体は正しく確認していても、この所属検証が漏れていると、権限のある操作（例: 自分が受講中の教材への回答保存）を経由して権限の無いリソース（例: 非公開の別教材の設問）を不正に参照・汚染できてしまう。網羅的コードレビューで、以下3件がこの所属検証を欠いていたことが判明し修正した。</p>
+  <table>
+    <thead><tr><th>API</th><th>欠けていた検証</th><th>影響</th></tr></thead>
+    <tbody>
+      <tr><td>A-41 <code>PUT /api/attempts/{attempt_id}/answers</code></td><td><code>question_id</code>が当該<code>attempt</code>の<code>material_id</code>に属するか</td><td>非公開の別教材の設問IDを指定すると、AIがそのまま採点・講評を返し、正解の内容を実質的に探り当てられた。修正: <code>SELECT ... FROM questions WHERE id = $1 AND material_id = $2</code>（<code>attempt.material_id</code>で絞り込み）</td></tr>
+      <tr><td>A-29 <code>POST /api/materials/{id}/attachments</code></td><td><code>node_id</code>が対象教材<code>id</code>のノードか</td><td>別教材のノードIDを指定した添付行が作成され、material_id/node_idの不整合なレコードが残る。修正: 事前に<code>material_nodes</code>への所属を確認し、一致しなければ422</td></tr>
+      <tr><td>A-72 <code>POST /api/surveys/{survey_id}/responses</code></td><td><code>survey_question_id</code>が対象<code>survey_id</code>の設問か</td><td>別アンケートの設問IDを指定すると、そのアンケートの集計にデータが混入する。修正: 保存前に<code>survey_questions</code>への所属を一括確認し、一致しなければ422</td></tr>
+    </tbody>
+  </table>
+  <p>類似のAPI（<code>replace_questions</code>・<code>upsert_survey</code>）は元々この種の所属検証を行っており、上記3件だけが漏れていた。今後、子リソースIDを受け取る新規APIを追加する際は、この所属検証を必ずセットで実装すること。</p>
+
+  <h3 class="rev-row">5.8 ローカル開発用ファイル配信の署名付きURL（2026-09-02、網羅的コードレビューで発見・修正）</h3>
+  <p class="rev-row"><strong>処理概要:</strong> 本番（<code>SUPABASE_URL</code>設定時）はA-27/A-30がSupabase Storageの署名付きURL（対象<code>storage_key</code>限定・600秒で失効）を返すが、ローカル開発専用の代替経路（<code>backend/routers/uploads.py</code>）は<code>require_auth</code>のみで、<code>storage_key</code>さえ知っていれば認証済みの任意のユーザーが無期限に閲覧・上書きできてしまっていた。本番と同等の保護をローカルでも持たせるため、<code>storage.py</code>に<code>make_local_signed_query</code>/<code>verify_local_signed_query</code>（HMAC-SHA256、<code>JWT_SECRET</code>を鍵として<code>storage_key:expires</code>に署名、600秒で失効）を新設し、A-27（<code>create_upload_target</code>）・A-30（<code>create_download_url</code>）が返すローカルURLに<code>?expires=...&amp;sig=...</code>クエリを付与、<code>uploads.py</code>のGET/PUTでこれを検証するようにした。署名が無い・期限切れ・別の<code>storage_key</code>向けの署名を流用した場合はいずれも403で拒否する。本番環境（Supabase Storage使用時）はこの経路自体を通らないため影響しない。</p>
+
+  <footer class="doc-footer">
+    <span>社内学習管理システム（Manabi）詳細設計書 v1.77</span>
+    <span>コガソフトウェア株式会社 / 2026-08-24</span>
+  </footer>
+
+</div>
+</body>
+</html>
+

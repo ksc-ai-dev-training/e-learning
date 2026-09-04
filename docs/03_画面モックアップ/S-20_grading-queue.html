@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S-20 採点（未採点キュー） | Manabi 画面モックアップ</title>
+<link rel="stylesheet" href="mock.css">
+</head>
+<body>
+
+<div class="app">
+
+  <!-- サイドバー（プロジェクト編集者: 鈴木 美咲） -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-mark">M</div>
+      <div>
+        <div class="brand-name">Manabi</div>
+        <div class="brand-sub">社内学習管理システム</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-label">メニュー</div>
+      <a class="nav-item" href="S-02_my-learning.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h3.5v-6h5v6H18a1 1 0 0 0 1-1V9.5"/></svg></span>
+        マイ学習
+      </a>
+      <a class="nav-item" href="S-03_materials-list.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></span>
+        教材一覧・検索
+      </a>
+      <a class="nav-item" href="S-13_material-edit-project-select.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></span>
+        教材編集
+      </a>
+      <a class="nav-item active" href="S-20_grading-queue.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></span>
+        採点
+      </a>
+      <a class="nav-item" href="S-09_my-report.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
+        個人学習レポート
+      </a>
+      <a class="nav-item" href="S-11_project-create.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></span>
+        プロジェクト作成
+      </a>
+      <a class="nav-item" href="S-12_project-management.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg></span>
+        プロジェクト管理
+      </a>
+      <a class="nav-item" href="S-06_assignment-settings.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></span>
+        配信設定
+      </a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="sidebar-user-row">
+        <span class="avatar">鈴</span>
+        <div>
+          <div class="user-name">鈴木 美咲 <span class="badge badge-role role-member">member</span></div>
+          <div class="user-mail">m.suzuki@kogasoftware.com</div>
+        </div>
+      </div>
+      <a class="sidebar-logout" href="S-15_profile-edit.html">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        プロフィール編集
+      </a>
+      <a class="sidebar-logout" href="S-01_login.html">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        ログアウト
+      </a>
+    </div>
+  </aside>
+
+  <!-- メインエリア -->
+  <div class="main">
+    <header class="page-header">
+      <div>
+        <div class="page-title-group">
+          <h1>採点</h1>
+          <span class="screen-id">S-20</span>
+        </div>
+        <div style="font-size:12px;color:var(--text-subtle);margin-top:2px">あなたが編集者・管理者を務める全プロジェクトを横断した、手動採点の未処理分の一覧です</div>
+      </div>
+    </header>
+
+    <div class="page-body">
+
+      <p class="tab-note">記述式・コード記述式の設問のうち<strong>採点方式が「プロジェクト担当者が手動採点」で、まだ採点していない回答</strong>だけを、教材ごとにまとめて表示します。設問の傾向を見て内容を見直したい場合はS-05「問題一覧」タブ→S-19（設問別の回答・結果一覧）を使ってください。ここは採点の処理に特化した画面です。</p>
+
+      <section class="panel" style="margin-bottom:18px">
+        <div class="panel-body" style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end">
+          <div class="field" style="margin-bottom:0;min-width:220px">
+            <label>プロジェクトで絞り込み</label>
+            <select>
+              <option selected>自分が担当するプロジェクトすべて</option>
+              <option>LCC CRM刷新</option>
+              <option>新人研修2026</option>
+            </select>
+          </div>
+          <div class="field" style="margin-bottom:0;min-width:220px">
+            <label>教材で絞り込み</label>
+            <select>
+              <option selected>すべての教材</option>
+              <option>新人向けGit入門</option>
+              <option>TypeScript実践演習</option>
+            </select>
+          </div>
+          <div style="margin-bottom:6px">
+            <div class="checkbox-line">
+              <input type="checkbox" id="admin-scope-toggle" onchange="toggleAdminScope()"> <label for="admin-scope-toggle" style="margin:0">全プロジェクトを表示</label>
+            </div>
+            <span class="field-help" style="display:block;margin-top:2px">このチェックボックスはシステムadminにのみ表示されます。自分が参加していないプロジェクトの分も含め、全社の未採点を横断表示します。プロジェクト管理者・編集者は自分の担当プロジェクトのみが対象のため表示されません。</span>
+          </div>
+        </div>
+      </section>
+
+      <div class="stat-row" style="margin-bottom:18px">
+        <div class="stat stat-warn">
+          <div class="stat-label">未採点の合計</div>
+          <div class="stat-value"><span id="stat-total">3</span><span class="stat-unit">件</span></div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">対象教材</div>
+          <div class="stat-value"><span id="stat-materials">2</span><span class="stat-unit">件</span></div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">最も古い未採点</div>
+          <div class="stat-value" style="font-size:15px">2026-08-14</div>
+        </div>
+      </div>
+
+      <section class="panel" style="margin-bottom:18px">
+        <div class="panel-header">
+          <div class="panel-title">新人向けGit入門</div>
+          <span class="panel-count">LCC CRM刷新 ／ 未採点1件</span>
+        </div>
+        <div class="panel-body">
+          <div class="table-wrap" style="box-shadow:none;border:none">
+            <table class="table">
+              <thead>
+                <tr><th style="width:230px">設問</th><th style="width:100px">受講者</th><th>回答内容</th><th style="width:100px">提出日</th><th style="width:110px"></th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td style="white-space:normal;max-width:230px">第2章／プルリクエストを作成する<br><span style="color:var(--text-subtle);font-size:11.5px">設問5「Claude Codeに指示を出す際に気をつけていることを自由に述べてください」</span></td>
+                  <td>佐藤 健一</td>
+                  <td style="white-space:normal">変更範囲を具体的に伝え、重要な設定ファイルは事前にバックアップを取るようにしています。</td>
+                  <td>2026-08-20</td>
+                  <td><button class="btn btn-primary btn-sm" type="button" onclick="openGradingModal()">採点する</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <div class="panel-title">TypeScript実践演習</div>
+          <span class="panel-count">新人研修2026 ／ 未採点2件</span>
+        </div>
+        <div class="panel-body">
+          <div class="table-wrap" style="box-shadow:none;border:none">
+            <table class="table">
+              <thead>
+                <tr><th style="width:230px">設問</th><th style="width:100px">受講者</th><th>回答内容</th><th style="width:100px">提出日</th><th style="width:110px"></th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td style="white-space:normal;max-width:230px">第3章／型定義を書く<br><span style="color:var(--text-subtle);font-size:11.5px">設問3「anyを使わずに型安全に実装する利点を説明してください」</span></td>
+                  <td>鈴木 一郎</td>
+                  <td style="white-space:normal">補完が効くようになり、実行前に型の不一致に気づけるからです。</td>
+                  <td>2026-08-14</td>
+                  <td><button class="btn btn-primary btn-sm" type="button" onclick="openGradingModal()">採点する</button></td>
+                </tr>
+                <tr>
+                  <td style="white-space:normal;max-width:230px">第3章／型定義を書く<br><span style="color:var(--text-subtle);font-size:11.5px">設問3「anyを使わずに型安全に実装する利点を説明してください」</span></td>
+                  <td>田中 花子</td>
+                  <td style="white-space:normal">anyだと結局何でも入るので、型を書く意味が薄れると思います。</td>
+                  <td>2026-08-18</td>
+                  <td><button class="btn btn-primary btn-sm" type="button" onclick="openGradingModal()">採点する</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- 「全プロジェクトを表示」ONで現れる、自分が参加していないプロジェクト分（admin向け）。
+           既定では非表示にして、対象範囲を絞った状態をデフォルトにする -->
+      <div id="admin-extra-group" style="display:none">
+        <section class="panel" style="margin-bottom:18px">
+          <div class="panel-header">
+            <div class="panel-title">実践型ライティング研修</div>
+            <span class="panel-count">マーケティング本部研修 ／ 未採点1件</span>
+          </div>
+          <div class="panel-body">
+            <div class="table-wrap" style="box-shadow:none;border:none">
+              <table class="table">
+                <thead>
+                  <tr><th style="width:230px">設問</th><th style="width:100px">受講者</th><th>回答内容</th><th style="width:100px">提出日</th><th style="width:110px"></th></tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td style="white-space:normal;max-width:230px">第1章／伝わる文章の基本<br><span style="color:var(--text-subtle);font-size:11.5px">設問1「結論から書くべき理由を説明してください」</span></td>
+                    <td>伊藤 玲奈</td>
+                    <td style="white-space:normal">読み手が最後まで読まなくても要点が伝わるからです。</td>
+                    <td>2026-08-17</td>
+                    <td><button class="btn btn-primary btn-sm" type="button" onclick="openGradingModal()">採点する</button></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel" style="margin-bottom:18px">
+          <div class="panel-header">
+            <div class="panel-title">経理システム操作研修</div>
+            <span class="panel-count">経理部研修 ／ 未採点3件</span>
+          </div>
+          <div class="panel-body">
+            <div class="table-wrap" style="box-shadow:none;border:none">
+              <table class="table">
+                <thead>
+                  <tr><th style="width:230px">設問</th><th style="width:100px">受講者</th><th>回答内容</th><th style="width:100px">提出日</th><th style="width:110px"></th></tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td style="white-space:normal;max-width:230px">第2章／伝票の起票<br><span style="color:var(--text-subtle);font-size:11.5px">設問2「起票時に必ず確認すべき項目を挙げてください」</span></td>
+                    <td>渡辺 直子</td>
+                    <td style="white-space:normal">勘定科目・金額・証憑の有無を確認します。</td>
+                    <td>2026-08-12</td>
+                    <td><button class="btn btn-primary btn-sm" type="button" onclick="openGradingModal()">採点する</button></td>
+                  </tr>
+                  <tr>
+                    <td style="white-space:normal;max-width:230px">第2章／伝票の起票<br><span style="color:var(--text-subtle);font-size:11.5px">設問2「起票時に必ず確認すべき項目を挙げてください」</span></td>
+                    <td>小林 誠</td>
+                    <td style="white-space:normal">金額の桁と取引先名だけ見ています。</td>
+                    <td>2026-08-15</td>
+                    <td><button class="btn btn-primary btn-sm" type="button" onclick="openGradingModal()">採点する</button></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="table-notes" style="margin-top:8px">3件中2件を表示 ／ <a href="#">もっと見る（残り1件）</a></p>
+          </div>
+        </section>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- 採点モーダル（「採点する」の遷移先。実装時はモーダルで完結し画面遷移は発生しない） -->
+<div class="modal-overlay" id="grading-modal">
+  <div class="modal" style="width:560px">
+    <div class="modal-header">
+      <span class="modal-title">回答を採点 — 佐藤 健一</span>
+      <button class="modal-close" type="button" onclick="closeGradingModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="field" style="margin-bottom:12px">
+        <label>教材／設問</label>
+        <div style="font-size:13px;color:var(--text-muted)">新人向けGit入門 ／ 第2章 ／「Claude Codeに指示を出す際に気をつけていることを自由に述べてください」（記述式／採点方式: 手動採点）</div>
+      </div>
+      <div class="field" style="margin-bottom:12px">
+        <label>回答内容</label>
+        <div style="background:var(--bg-subtle);border:1px solid var(--border);border-radius:6px;padding:10px 12px;font-size:13px;line-height:1.6">変更範囲を具体的に伝え、重要な設定ファイルは事前にバックアップを取るようにしています。</div>
+      </div>
+      <div class="field" style="margin-bottom:14px">
+        <label>採点基準（教材作成者が設定した参考情報）</label>
+        <div style="font-size:12.5px;color:var(--text-subtle)">「指示の具体性」「事故防止の観点（バックアップ・レビュー等）」のいずれかに触れているか</div>
+      </div>
+      <div class="field" style="margin-bottom:14px">
+        <label>正誤判定</label>
+        <div class="radio-group">
+          <label class="radio-line"><input type="radio" name="grade-result" checked> 正解</label>
+          <label class="radio-line"><input type="radio" name="grade-result"> 不正解</label>
+        </div>
+      </div>
+      <div class="field" style="margin-bottom:0">
+        <label>講評（受講者に表示されます）</label>
+        <textarea rows="3" placeholder="受講者へのフィードバックを入力してください">具体的な運用ルールに触れられており良い回答です。</textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" type="button" onclick="closeGradingModal()">キャンセル</button>
+      <button class="btn btn-primary" type="button" onclick="closeGradingModal()">採点結果を保存（次の未採点へ）</button>
+    </div>
+  </div>
+</div>
+
+<div class="mock-note">画面モックアップ（S-20）/ 研修サンプル</div>
+
+<script>
+// 採点モーダルの開閉（静的モック確認用の最小限のJS。実装時は行ごとに教材・設問・回答内容を出し分け、
+// 保存後は一覧からその行を消して次の未採点へフォーカスを移す想定）
+function openGradingModal() {
+  document.getElementById('grading-modal').classList.add('open');
+}
+function closeGradingModal() {
+  document.getElementById('grading-modal').classList.remove('open');
+}
+
+// 「全プロジェクトを表示」トグル（admin向け。静的モック確認用の最小限のJS）。
+// 既定は自分の担当プロジェクトのみに絞った状態で、ONにすると自分が参加していない
+// プロジェクト分（実装時はサーバー側で追加取得）が現れ、集計件数もそれに合わせて増える。
+function toggleAdminScope() {
+  var on = document.getElementById('admin-scope-toggle').checked;
+  document.getElementById('admin-extra-group').style.display = on ? 'block' : 'none';
+  document.getElementById('stat-total').textContent = on ? '7' : '3';
+  document.getElementById('stat-materials').textContent = on ? '4' : '2';
+}
+</script>
+
+<script src="mock-sidebar.js"></script>
+</body>
+</html>

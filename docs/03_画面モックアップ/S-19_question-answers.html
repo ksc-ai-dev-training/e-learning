@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S-19 設問別の回答・結果一覧 | Manabi 画面モックアップ</title>
+<link rel="stylesheet" href="mock.css">
+<style>
+  .tabs2 { display:flex; gap:8px; margin-bottom:14px; }
+  .tabs2 button {
+    font-size:12.5px; font-weight:600; padding:6px 14px; border-radius:999px; border:1px solid var(--border-strong);
+    background:#fff; color: var(--text-muted); cursor:pointer;
+  }
+  .tabs2 button.active { background: var(--accent-600); color:#fff; border-color: var(--accent-600); }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- サイドバー（プロジェクト編集者: 鈴木 美咲） -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-mark">M</div>
+      <div>
+        <div class="brand-name">Manabi</div>
+        <div class="brand-sub">社内学習管理システム</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-label">メニュー</div>
+      <a class="nav-item" href="S-02_my-learning.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h3.5v-6h5v6H18a1 1 0 0 0 1-1V9.5"/></svg></span>
+        マイ学習
+      </a>
+      <a class="nav-item" href="S-03_materials-list.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></span>
+        教材一覧・検索
+      </a>
+      <a class="nav-item active" href="S-13_material-edit-project-select.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></span>
+        教材編集
+      </a>
+      <a class="nav-item" href="S-20_grading-queue.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></span>
+        採点
+      </a>
+      <a class="nav-item" href="S-09_my-report.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
+        個人学習レポート
+      </a>
+      <a class="nav-item" href="S-11_project-create.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></span>
+        プロジェクト作成
+      </a>
+      <a class="nav-item" href="S-12_project-management.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg></span>
+        プロジェクト管理
+      </a>
+      <a class="nav-item" href="S-06_assignment-settings.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></span>
+        配信設定
+      </a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="sidebar-user-row">
+        <span class="avatar">鈴</span>
+        <div>
+          <div class="user-name">鈴木 美咲 <span class="badge badge-role role-member">member</span></div>
+          <div class="user-mail">m.suzuki@kogasoftware.com</div>
+        </div>
+      </div>
+      <a class="sidebar-logout" href="S-15_profile-edit.html">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        プロフィール編集
+      </a>
+      <a class="sidebar-logout" href="S-01_login.html">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        ログアウト
+      </a>
+    </div>
+  </aside>
+
+  <!-- メインエリア -->
+  <div class="main">
+    <header class="page-header">
+      <div>
+        <div class="page-title-group">
+          <h1>設問別の回答・結果一覧</h1>
+          <span class="screen-id">S-19</span>
+        </div>
+        <div style="font-size:12px;color:var(--text-subtle);margin-top:2px">新人向けGit入門 ／ 第2章 ブランチとプルリクエストの基本 ／ ページ「プルリクエストを作成する」</div>
+      </div>
+      <div class="header-actions">
+        <a class="btn btn-secondary" href="S-05_material-edit.html">← 目次編集に戻る</a>
+      </div>
+    </header>
+
+    <div class="page-body">
+
+      <p class="tab-note">この画面は<strong>設問ごとの回答傾向を確認し、設問を見直すかどうかの判断材料にするための読み取り専用ビュー</strong>です。S-05「問題一覧」タブの「詳細を見る」から開きます。手動採点の未採点分を実際に処理する場合はサイドバーの「採点」を使用してください（採点操作はそちらに一本化しています）。氏名付きで全受講者の回答を確認できるため、対象教材が紐づくプロジェクトの管理者・編集者、またはadminのみアクセスできます（3.5節）。</p>
+
+      <!-- 設問1: 単一選択（選択肢ごとの回答分布で「紛らわしい設問」を判断する） -->
+      <section class="panel" style="margin-bottom:22px">
+        <div class="panel-header">
+          <div class="panel-title">設問1「プルリクエストの主な目的として正しいものは？」</div>
+          <span class="panel-count">単一選択 ／ 正答率 76%（回答42件）</span>
+        </div>
+        <div class="panel-body">
+          <div class="table-wrap" style="box-shadow:none;border:none">
+            <table class="table">
+              <thead>
+                <tr><th>選択肢</th><th style="width:90px">正解</th><th style="width:100px">回答数</th><th style="width:90px">割合</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>変更内容をレビューしてもらい、マージ前に品質を確認するため</td>
+                  <td><span class="badge badge-complete">正解</span></td>
+                  <td class="num">32人</td>
+                  <td class="num">76%</td>
+                </tr>
+                <tr>
+                  <td>コードを書いたことを記録として残すため</td>
+                  <td>—</td>
+                  <td class="num">6人</td>
+                  <td class="num">14%</td>
+                </tr>
+                <tr>
+                  <td>リポジトリの容量を増やすため</td>
+                  <td>—</td>
+                  <td class="num">4人</td>
+                  <td class="num">10%</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="callout" style="margin-top:10px">
+            <strong>診断:</strong> 誤答は2つの選択肢にほぼ均等に分散しており、特定の選択肢に票が偏っていません。設問文・選択肢の見直しは不要と判断できます。
+          </div>
+        </div>
+      </section>
+
+      <!-- 設問2: 記述式（AI自動採点。誤答理由の傾向から設問文の改善点を判断する） -->
+      <section class="panel" style="margin-bottom:22px">
+        <div class="panel-header">
+          <div class="panel-title">設問2「よいプルリクエストの説明文に含めるべき情報を2つ挙げて説明してください」</div>
+          <span class="panel-count">記述式 ／ 採点方式: AI自動採点 ／ 正答率 62%（26/42件、回答済み）</span>
+        </div>
+        <div class="panel-body">
+          <div class="table-wrap" style="box-shadow:none;border:none">
+            <table class="table">
+              <thead>
+                <tr><th>受講者</th><th>回答内容</th><th style="width:90px">AI採点</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>佐藤 健一</td>
+                  <td style="max-width:360px">変更の目的と、動作確認の方法を書きました。</td>
+                  <td><span class="badge badge-complete">正解</span></td>
+                </tr>
+                <tr>
+                  <td>高橋 大輔</td>
+                  <td style="max-width:360px">変更内容だけ書きました。</td>
+                  <td><span class="badge badge-failed">不正解</span></td>
+                </tr>
+                <tr>
+                  <td>田中 悠斗</td>
+                  <td style="max-width:360px">（未提出）</td>
+                  <td><span class="badge">未回答</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="callout" style="margin-top:10px">
+            <strong>診断:</strong> 不正解16件のうち大半（高橋さんの例を含む）が「動作確認の方法への言及漏れ」というAI講評で一致しています。設問文に「動作確認の方法も含めること」と明記すると正答率が上がる可能性があります。
+          </div>
+        </div>
+      </section>
+
+      <!-- 設問3: 記述式（手動採点。未採点は件数のみ表示し、実際の採点はS-20で行う） -->
+      <section class="panel" style="margin-bottom:22px">
+        <div class="panel-header">
+          <div class="panel-title">設問5「Claude Codeに指示を出す際に気をつけていることを自由に述べてください」</div>
+          <span class="panel-count">記述式 ／ 採点方式: 手動採点 ／ 回答2件</span>
+        </div>
+        <div class="panel-body">
+          <div class="table-wrap" style="box-shadow:none;border:none">
+            <table class="table">
+              <thead>
+                <tr><th>受講者</th><th>回答内容</th><th style="width:90px">採点</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>佐藤 健一</td>
+                  <td style="max-width:360px">変更範囲を具体的に伝え、重要な設定ファイルは事前にバックアップを取るようにしています。</td>
+                  <td><span class="badge">未採点</span></td>
+                </tr>
+                <tr>
+                  <td>高橋 大輔</td>
+                  <td style="max-width:360px">特にありません。</td>
+                  <td><span class="badge badge-failed">不正解</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="callout" style="margin-top:10px">
+            <strong>手動採点（S-17で採点方式=「プロジェクト担当者が手動採点」を選んだ設問）:</strong> AIは正誤・点数を一切判定しないため、回答は「未採点」のまま並びます。この画面は診断・参照専用のため採点操作は置いていません。<strong>未採点1件を実際に採点するにはサイドバーの「採点」（S-20）を開いてください。</strong>採点結果はF-21のつまずき分析の集計材料としてのみAIが利用します。
+          </div>
+        </div>
+      </section>
+
+      <!-- 設問4: スコア記録型の一覧 -->
+      <section class="panel">
+        <div class="panel-header">
+          <div class="panel-title">設問4「タイピング練習の結果（正打数）を入力してください」</div>
+          <span class="panel-count">スコア記録 ／ 記録者2名</span>
+        </div>
+        <div class="panel-body">
+          <div class="table-wrap" style="box-shadow:none;border:none">
+            <table class="table">
+              <thead>
+                <tr><th>受講者</th><th style="width:110px">最新スコア</th><th>推移</th><th style="width:120px">最終記録日</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>佐藤 健一</td>
+                  <td class="num">58 WPM</td>
+                  <td>45 → 52 → 58</td>
+                  <td>2026-08-20</td>
+                </tr>
+                <tr>
+                  <td>高橋 大輔</td>
+                  <td class="num">41 WPM</td>
+                  <td>38 → 41</td>
+                  <td>2026-08-19</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="table-notes" style="margin-top:8px">正誤の概念がないため「AI採点」列はなく、代わりにスコアの推移を表示します。受講者本人にはS-09（個人学習レポート）でAIの推移コメントが届きます。</p>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<div class="mock-note">画面モックアップ（S-19）/ 研修サンプル</div>
+
+<script src="mock-sidebar.js"></script>
+</body>
+</html>

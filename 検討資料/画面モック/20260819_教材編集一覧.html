@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>【検討中】教材編集の入口（一覧画面） | Manabi</title>
+<link rel="stylesheet" href="../../docs/03_画面モックアップ/mock.css">
+</head>
+<body>
+
+<div style="background:#fef3c7;border-bottom:1px solid #fbbf24;color:#78350f;font-size:12px;font-weight:600;text-align:center;padding:6px;">
+  【検討中】「教材編集」ナビの入口として、S-05へ直接飛ばずこの一覧を経由する案 ／ 正式版ではありません
+</div>
+
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-mark">M</div>
+      <div>
+        <div class="brand-name">Manabi</div>
+        <div class="brand-sub">社内学習管理システム</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-label">メニュー</div>
+      <a class="nav-item" href="#">マイ学習</a>
+      <a class="nav-item" href="#">教材一覧・検索</a>
+      <a class="nav-item active" href="#">教材編集</a>
+      <a class="nav-item" href="#">個人学習レポート</a>
+      <a class="nav-item" href="#">プロジェクト作成</a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="sidebar-user-row">
+        <span class="avatar">佐</span>
+        <div>
+          <div class="user-name">佐藤 健一 <span class="badge badge-role role-member">member</span></div>
+          <div class="user-mail">k.sato@kogasoftware.com</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="page-header">
+      <div class="page-title-group">
+        <h1>教材編集</h1>
+        <span class="screen-id">検討中</span>
+      </div>
+      <div class="header-actions">
+        <a class="btn btn-primary" href="#">＋ 新規教材を作成</a>
+      </div>
+    </header>
+
+    <div class="page-body">
+
+      <div class="callout" style="margin-bottom:16px">
+        <strong>この画面の位置づけ:</strong> 「全社公開」プロジェクトが新設されたことで、全社員が最低1つ（全社公開）のプロジェクトで編集者になる。つまり「教材編集」ナビは<u>もう条件付き表示にする理由がない</u>ため、S-11（プロジェクト作成）と同様に全員へ常時表示する。ここは教材一覧・検索（S-03）と違い、<strong>自分が編集できる教材だけ</strong>を、下書きも含めて表示する画面として新設する。
+      </div>
+
+      <!-- プロジェクトタブ -->
+      <div class="proj-tabs" role="tablist" aria-label="所属プロジェクトで絞り込み">
+        <button class="proj-tab active" type="button">すべて <span class="proj-count">4件</span></button>
+        <button class="proj-tab pinned" type="button">
+          <svg class="pin-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a1 1 0 0 0 0-2H8a1 1 0 0 0 0 2h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/></svg>
+          全社公開 <span class="proj-count">1件</span>
+        </button>
+        <button class="proj-tab" type="button">LCC CRM刷新 <span class="proj-count">2件</span></button>
+        <button class="proj-tab" type="button">Manabi新規構築 <span class="proj-count">1件</span></button>
+      </div>
+
+      <div class="table-notes">
+        ※ 自分が編集者以上の権限を持つプロジェクトの教材のみ表示します（下書きを含む）。「全社公開」は全社員が自動的に編集者のため、佐藤さんもここに1件表示されます。
+      </div>
+
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>教材</th>
+              <th>プロジェクト</th>
+              <th style="width:90px">状態</th>
+              <th style="width:100px">単元数</th>
+              <th style="width:110px">更新日</th>
+              <th style="width:110px">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <div class="cell-main">Python基礎ハンズオン資料</div>
+                <div class="cell-sub">記述式・コード記述式 全5問 ／ 作成: あなた</div>
+              </td>
+              <td><span class="chip chip-proj">📌 全社公開</span></td>
+              <td><span class="badge badge-status-on">公開中</span></td>
+              <td class="num">2単元</td>
+              <td>2026-08-17</td>
+              <td><a class="btn btn-secondary btn-sm" href="#">編集する</a></td>
+            </tr>
+            <tr>
+              <td>
+                <div class="cell-main">新人向けGit入門</div>
+                <div class="cell-sub">記述式 全5問 ／ 作成: 鈴木 美咲</div>
+              </td>
+              <td><span class="chip">LCC CRM刷新</span></td>
+              <td><span class="badge badge-status-on">公開中</span></td>
+              <td class="num">4単元</td>
+              <td>2026-08-14</td>
+              <td><a class="btn btn-secondary btn-sm" href="#">編集する</a></td>
+            </tr>
+            <tr>
+              <td>
+                <div class="cell-main">データベース設計入門 v2（改訂中）</div>
+                <div class="cell-sub">単一選択・記述式 全9問 ／ 作成: 鈴木 美咲</div>
+              </td>
+              <td><span class="chip">LCC CRM刷新</span></td>
+              <td><span class="badge badge-status-off">下書き</span></td>
+              <td class="num">3単元</td>
+              <td>2026-08-18</td>
+              <td><a class="btn btn-secondary btn-sm" href="#">編集する</a></td>
+            </tr>
+            <tr>
+              <td>
+                <div class="cell-main">TypeScript入門</div>
+                <div class="cell-sub">単一選択・記述式 全12問</div>
+              </td>
+              <td><span class="chip">Manabi新規構築</span></td>
+              <td><span class="badge badge-status-on">公開中</span></td>
+              <td class="num">6単元</td>
+              <td>2026-08-05</td>
+              <td><a class="btn btn-secondary btn-sm" href="#">編集する</a></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="mock-note">検討中の改善案（教材編集の入口一覧）</div>
+
+</body>
+</html>

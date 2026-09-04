@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>【検討中】教材構造案 編集者1/4: プロジェクト選択 | Manabi</title>
+<link rel="stylesheet" href="../../docs/03_画面モックアップ/mock.css">
+<style>
+  .proj-select-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+  .proj-select-card {
+    border: 1px solid var(--border-strong); border-radius: 10px; background: var(--bg);
+    padding: 16px; display: flex; flex-direction: column; gap: 8px; text-decoration: none; color: inherit;
+  }
+  .proj-select-card:hover { border-color: var(--accent-600); box-shadow: var(--shadow-sm); }
+  .proj-select-card.pinned { border-color: #bfdbfe; background: #eff6ff; }
+  .proj-select-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .proj-select-card-title { font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+  .proj-select-card-meta { font-size: 11.5px; color: var(--text-subtle); }
+  .proj-select-card .pin-icon { width: 13px; height: 13px; color: var(--accent-600); flex-shrink: 0; }
+</style>
+</head>
+<body>
+
+<div style="background:#fef3c7;border-bottom:1px solid #fbbf24;color:#78350f;font-size:12px;font-weight:600;text-align:center;padding:6px;">
+  【検討中】教材構造案（プロジェクト＝学年・教材の中に見出し/小見出し/ページの入れ子構造） ／ 既存のS-03/S-04/S-05とは独立した別案です
+</div>
+
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-mark">M</div>
+      <div>
+        <div class="brand-name">Manabi</div>
+        <div class="brand-sub">社内学習管理システム</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-label">メニュー</div>
+      <a class="nav-item" href="#">マイ学習</a>
+      <a class="nav-item" href="#">教材一覧・検索</a>
+      <a class="nav-item active" href="20260820_教科書構造_編集者_プロジェクト選択.html">教材編集</a>
+      <a class="nav-item" href="#">個人学習レポート</a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="sidebar-user-row">
+        <span class="avatar">鈴</span>
+        <div>
+          <div class="user-name">鈴木 美咲 <span class="badge badge-role role-member">member</span></div>
+          <div class="user-mail">m.suzuki@kogasoftware.com</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="page-header">
+      <div class="page-title-group">
+        <h1>教材編集</h1>
+        <span class="screen-id">検討中 1/4</span>
+      </div>
+    </header>
+
+    <div class="page-body">
+
+      <p class="tab-note">編集する教材が属するプロジェクトを選ぶ。全社員が「全社公開」の編集者を自動的に持つ前提は現行案と同じなので、このメニューは常に表示される。</p>
+
+      <div class="proj-select-cards">
+        <a class="proj-select-card" href="20260820_教科書構造_編集者_教材一覧.html">
+          <div class="proj-select-card-head">
+            <span class="proj-select-card-title">新人研修2027</span>
+            <span class="badge badge-projrole projrole-editor">編集者</span>
+          </div>
+          <span class="proj-select-card-meta">教材5冊（公開4・下書き1）／ メンバー6名</span>
+        </a>
+        <a class="proj-select-card pinned" href="20260820_教科書構造_編集者_教材一覧.html">
+          <div class="proj-select-card-head">
+            <span class="proj-select-card-title">
+              <svg class="pin-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a1 1 0 0 0 0-2H8a1 1 0 0 0 0 2h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/></svg>
+              全社公開
+            </span>
+            <span class="badge badge-projrole projrole-editor">編集者</span>
+          </div>
+          <span class="proj-select-card-meta">教材1冊 ／ 全社員が自動参加</span>
+        </a>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="mock-note">検討中の改善案（教材構造・編集者側 1/4: プロジェクト選択）</div>
+
+</body>
+</html>

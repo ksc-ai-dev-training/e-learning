@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Manabi 画面モックアップ一覧</title>
+<link rel="stylesheet" href="mock.css">
+</head>
+<body>
+<script src="../_sidenav.js"></script>
+<div class="index-page">
+  <div class="index-header">
+    <div class="brand-mark">M</div>
+    <h1>Manabi 画面モックアップ一覧</h1>
+  </div>
+  <p class="index-lead">社内学習管理システム（Manabi）の画面モックアップ（静的HTML）です。各カードをクリックすると画面イメージを確認できます。<br>
+  <span style="font-size:11.5px;color:var(--text-subtle)">Ver 1.11 ／ 要件定義書 v1.18 ／ 基本設計書 v1.21 に基づき更新（S-20新設に伴い、サイドバーの独立項目「採点」をS-01（ログイン画面）を除く全画面に追加した。また、教材の削除機能として「アーカイブ」（ソフトデリート）を新設: S-05のヘッダーに「アーカイブ」ボタンと確認モーダルを追加し、目次・ページ・設問・添付ファイル・受験記録・アンケート回答を削除せず教材一覧・検索から非表示にする方式にした（実体は削除しないため、いつでも復元可能）。S-14の「状態」絞り込みに「アーカイブ済み」を追加し、既定では一覧から除外、選択時のみ表示（操作は「復元」のみ）とした。以下、旧履歴: S-05「問題一覧」タブを新設し、教材内の全設問をページ横断でフラットに一覧表示できるようにした。S-19（設問別の回答・結果一覧）は当初「採点」も兼ねる画面だったが、教材編集中に設問の出来を確認する用途（診断・読み取り専用）と、担当教材を横断して溜まった手動採点を処理する用途（運用タスク）は性質が異なるため役割を分離: S-19は診断専用（正答率・選択肢分布・AI採点結果の傾向表示のみ、採点操作なし）とし、採点操作は新設のS-20「採点」（サイドバーの独立項目、全プロジェクト・全教材を横断した未採点キュー）に一本化した（v1.26）。以下、旧履歴:教材の内部構造を「本文＋単元」から「章／小見出し／ページ」の入れ子構造〔教材構造案〕に刷新。S-04を目次画面に、S-05を目次編集画面に再構成し、ページ受講〔S-16〕・ページ編集〔S-17〕を新設。設問の配点を廃止し正答率のみで合否判定、「コース」をタグに置き換え。合否判定の単位を教材全体固定から作成者が選べる「受験単位」〔教材/章/小見出し/ページ〕に拡張し、ドボン問題・再受験範囲（間違えた問題だけ）・回答必須/任意・並び替え問題・スコア記録問題・出題プール・AI講評スタイル・AI採点コンテキスト・受験後アンケートを追加。設問別回答一覧S-19を新設。記述式・コード記述式の採点方式にAI自動採点に加え、プロジェクト担当者による手動採点を追加（S-19で採点）。ブラウザ内でClaude Codeとチャットしながら教材の下書きを作成できるS-18〔F-27〕を新設したが、Manabi側で従量課金が発生する経路だったため、コストの発生しないClaude Code CLI連携（F-05）に一本化しv1.20で廃止（S-18・T-24・T-25・A-68〜A-70は欠番）。S-10「システム設定」タブのAI利用状況表示を、機能別（F-08/F-20/F-21/F-22/F-23）の呼び出し件数・トークン数・概算コストの内訳表示にv1.21で拡張。画面一覧・画面遷移は要件定義書 4.1・4.2、基本設計書 4章 準拠）</span><br>
+  <span style="font-size:11.5px;color:var(--text-subtle)">※ 設計時点のイメージです。デザインシステムは Keireki（社員経歴書管理システム）のモックアップを踏襲しています。</span></p>
+
+  <div class="mock-cards">
+    <a class="mock-card" href="S-01_login.html">
+      <div class="card-top">
+        <span class="card-id">S-01</span>
+        <span class="card-name">ログイン</span>
+      </div>
+      <div class="card-roles">
+        <span class="badge">全員（未認証）</span>
+      </div>
+      <p class="card-desc">Googleでログインボタンのみのシンプルな画面。許可ドメイン（kogasoftware.com）のみ利用可。</p>
+    </a>
+
+    <a class="mock-card" href="S-02_my-learning.html">
+      <div class="card-top">
+        <span class="card-id">S-02</span>
+        <span class="card-name">マイ学習</span>
+      </div>
+      <div class="card-roles">
+        <span class="badge">全員</span>
+      </div>
+      <p class="card-desc">ログイン後の初期画面。自分が受けるべき必修・任意教材の一覧と進捗状況を表示。期限が近い必修教材を強調表示。</p>
+    </a>
+
+    <a class="mock-card" href="S-03_materials-list.html">
+      <div class="card-top">
+        <span class="card-id">S-03</span>
+        <span class="card-name">教材一覧・検索</span>
+      </div>
+      <div class="card-roles">
+        <span class="badge">全員</span>
+      </div>
+      <p class="card-desc">公開されている教材の一覧・検索。章・ページ数とタグで表示し、必修/任意・所要時間を確認できる。タグはハッシュタグ形式で複数付与でき、検索欄・タグチップから横断的に絞り込める。</p>
+    </a>
+
+    <a class="mock-card" href="S-04_material-view.html">
+      <div class="card-top">
+        <span class="card-id">S-04</span>
+        <span class="card-name">教材受講：目次</span>
+      </div>
+      <div class="card-roles">
+        <span class="badge">対象者（全員）</span>
+      </div>
+      <p class="card-desc">教材（章・小見出し・ページの入れ子構造）の目次と全体進捗、合否判定・再受験結果を表示。<code>attempt_scope</code>で定まる受験単位（教材全体/章/小見出し/ページ）ごとに独立した結果パネルを表示し、ドボン問題起因の不合格は理由を明示。中断・再開、反復演習・誤答抽出出題にタブで対応。教材全体・章の受験後アンケートもここに表示。ページを選ぶとS-16に入る。v1.11で教材構造案を正式採用、v1.17で受験単位・アンケートを追加。</p>
+    </a>
+
+    <a class="mock-card" href="S-16_material-page-view.html">
+      <div class="card-top">
+        <span class="card-id">S-16</span>
+        <span class="card-name">教材受講：ページ</span>
+      </div>
+      <div class="card-roles">
+        <span class="badge">対象者（全員）</span>
+      </div>
+      <p class="card-desc">1ページ分の説明文の閲覧、単一選択・複数選択・並び替え・記述式・コード記述式・スコア記録問題への回答。ページは説明のみ／問題のみ／両方のいずれもあり得る。ドボン問題・回答任意設問の表示に対応。v1.11新設、v1.17で問題形式・属性を拡張。</p>
+    </a>
+
+    <a class="mock-card" href="S-05_material-edit.html">
+      <div class="card-top">
+        <span class="card-id">S-05</span>
+        <span class="card-name">教材編集：目次編集</span>
+      </div>
+      <div class="card-roles">
+        <span class="badge">対象教材が紐づくプロジェクトの管理者・編集者</span>
+        <span class="badge badge-role role-admin">admin</span>
+      </div>
+      <p class="card-desc">教材（章・小見出し・ページの入れ子構造）の目次編集、タグ付け、合否判定・再受験設定（受験単位・再受験範囲）、採点方式（AI自動採点／プロジェクト担当者による手動採点）の既定・AI講評スタイル・AI採点コンテキスト、受験後アンケートの設置（教材全体・章ごと）、ファイル・リンク添付、プロジェクトメンバーの確認とS-12への導線、AIレビュー結果・改訂履歴の確認。教材は必ずいずれかのプロジェクトに属するため（F-25）、アクセス可否は常にプロジェクトのローカルロールで判定されます。各ページの「編集する」からS-17に入ります。複製ボタンで既存教材をコピーして新規作成できます。S-13→S-14を経由してこの画面に入ります。v1.11で教材構造案を正式採用し、本文編集・問題編集タブをS-17に分離、コースをタグに置き換え、v1.17で受験単位・AI設定・アンケートを追加、v1.18で採点方式を追加しました。</p>
+    </a>
+
+    <a class="mock-card" href="S-06_assignment-settings.html">
+      <div class="card-top">
+        <span class="card-id">S-06</span>
+        <span class="card-name">配信設定</span>
+      </div>
+      <div class="card-roles">
+        <span class="badge badge-role role-admin">admin</span>
+        <span class="badge">対象プロジェクトの管理者</span>
+      </div>
+      <p class="card-desc">教材の配信対象（全社/プロジェクト/個人）、必修/任意、受講期限の設定。全社スコープはadmin、プロジェクトスコープは対象プロジェクトの管理者も設定可能。</p>
+    </a>
+
+    <a class="mock-card" href="S-07_org-management.html" style="opacity:0.6">
+      <div class="card-top">
+        <span class="card-id">S-07</span>
+        <span class="card-name">組織管理</span>
+        <span class="badge badge-status-off">廃止（v1.5）</span>
+      </div>
+      <div class="card-roles">
+        <span class="badge badge-status-off">画面ID欠番</span>
+      </div>
+      <p class="card-desc">要件定義書v1.5で廃止。部署（department）の概念をシステムから廃止したため、部署登録を行う本画面自体が不要になりました。プロジェクトの作成・管理はS-11・S-12を参照。</p>
+    </a>
+
+    <a class="mock-card" href="S-08_dashboard.html">
+      <div class="card-top">
+        <span class="card-id">S-08</span>
+        <span class="card-name">受講状況ダッシュボード</span>
+      </div>
+      <div class="card-roles">
+        <span class="badge badge-role role-admin">admin</span>
+        <span class="badge">対象プロジェクトの管理者</span>
+      </div>
+      <p class="card-desc">担当範囲（プロジェクト/全社）の受講率・合格率・未受講者の確認。AI組織レポートの表示。admin は全社スコープ、対象プロジェクトの管理者は自プロジェクトのスコープに限定。</p>
+    </a>
+
+    <a class="mock-card" href="S-09_my-report.html">
+      <div class="card-top">
+        <span class="card-id">S-09</span>
+        <span class="card-name">個人学習レポート</span>
+      </div>
+      <div class="card-roles">
+        <span class="badge">本人</span>
+        <span class="badge">対象者が所属するプロジェクトの管理者</span>
+        <span class="badge badge-role role-admin">admin</span>
+      </div>
+      <p class="card-desc">AIによる個人フィードバック（理解不足点・推奨教材）と学習履歴の表示。</p>
+    </a>
+
+    <a class="mock-card" href="S-10_admin.html">
+      <div class="card-top">
+        <span class="card-id">S-10</span>
+        <span class="card-name">管理</span>
+      </div>
+      <div class="card-roles">
+        <span class="badge badge-role role-admin">admin</span>
+      </div>
+      <p class="card-desc">タブ構成: 「ユーザー管理」（ロール変更・有効/無効）、「システム設定」（利用するAIモデルの既定、今月のAI利用状況を機能別〔F-08/F-20/F-21/F-22/F-23〕の呼び出し件数・トークン数・概算コストの内訳で表示、Slack通知・猶予期間）。教材の作成・修正（F-05）はここに含まれず、Manabi側の従量課金は発生しない旨を明記。v1.21でAI利用状況を機能別内訳表示に拡張。</p>
+    </a>
+
+    <a class="mock-card" href="S-11_project-create.html">
+      <div class="card-top">
+        <span class="card-id">S-11</span>
+        <span class="card-name">プロジェクト作成</span>
+      </div>
+      <div class="card-roles">
+        <span class="badge">全員</span>
+      </div>
+      <p class="card-desc">プロジェクト名・説明を入力して新規作成するシンプルな画面。作成者は自動的にそのプロジェクトの管理者になる（F-24、v1.4新設）。</p>
+    </a>
+
+    <a class="mock-card" href="S-12_project-management.html">
+      <div class="card-top">
+        <span class="card-id">S-12</span>
+        <span class="card-name">プロジェクト管理</span>
+      </div>
+      <div class="card-roles">
+        <span class="badge">対象プロジェクトの管理者</span>
+        <span class="badge badge-role role-admin">admin</span>
+      </div>
+      <p class="card-desc">タブ構成: 「プロジェクト情報」（名称・説明の編集）、「メンバー管理」（メンバー一覧・ロール設定・追加削除）、「教材の共有」（他プロジェクトへの共有申請・承認。承認すると独立した複製が新規作成される複製モデル）。F-24〜F-26、v1.4新設。</p>
+    </a>
+
+    <a class="mock-card" href="S-13_material-edit-project-select.html">
+      <div class="card-top">
+        <span class="card-id">S-13</span>
+        <span class="card-name">教材編集：プロジェクト選択</span>
+      </div>
+      <div class="card-roles">
+        <span class="badge">全員</span>
+      </div>
+      <p class="card-desc">「教材編集」ナビの入口。編集する教材が属するプロジェクトを選ぶ。全社員が「全社Wiki」の編集者を自動的に持つため（5.25節）、このメニューは常に表示される。v1.9新設。</p>
+    </a>
+
+    <a class="mock-card" href="S-14_material-edit-list.html">
+      <div class="card-top">
+        <span class="card-id">S-14</span>
+        <span class="card-name">教材編集：教材一覧</span>
+      </div>
+      <div class="card-roles">
+        <span class="badge">対象プロジェクトの編集者・管理者</span>
+        <span class="badge badge-role role-admin">admin</span>
+      </div>
+      <p class="card-desc">選んだプロジェクトの教材一覧（下書きを含む）。「＋新規教材を作成」「複製」「編集する」の起点。S-03と異なり公開済みでない教材も表示する。v1.9新設。</p>
+    </a>
+
+    <a class="mock-card" href="S-15_profile-edit.html">
+      <div class="card-top">
+        <span class="card-id">S-15</span>
+        <span class="card-name">プロフィール編集</span>
+      </div>
+      <div class="card-roles">
+        <span class="badge">全員</span>
+      </div>
+      <p class="card-desc">アイコン画像の設定・削除。氏名・メールアドレスはGoogleアカウント連動のため参照のみ。所属プロジェクト一覧も確認できる。サイドバーの自分のアカウント欄から全画面共通で遷移できる。</p>
+    </a>
+
+    <a class="mock-card" href="S-17_material-page-edit.html">
+      <div class="card-top">
+        <span class="card-id">S-17</span>
+        <span class="card-name">教材編集：ページ編集</span>
+      </div>
+      <div class="card-roles">
+        <span class="badge">対象教材が紐づくプロジェクトの管理者・編集者</span>
+        <span class="badge badge-role role-admin">admin</span>
+      </div>
+      <p class="card-desc">1ページ分の説明文（Markdown/HTML切替）と問題の編集。「説明文を含める」「問題を含める」を独立に選べ、説明のみ／問題のみ／両方のいずれのページも作れる。単一選択・複数選択・並び替えは正解を直接設定（AI非依存）、記述式・コード記述式はAI採点基準・採点方式（AI自動採点／手動採点）・AI講評スタイルを設定する。設問ごとに回答必須／任意・ドボン問題を指定でき、出題方式（全問／N問ランダム抽出）も切り替えられる。各設問カードから「回答一覧」でS-19に遷移可能。保存するとS-05に戻る。v1.11新設、v1.17で問題形式・属性を拡張、v1.18で採点方式を追加。</p>
+    </a>
+
+    <a class="mock-card" href="S-19_question-answers.html">
+      <div class="card-top">
+        <span class="card-id">S-19</span>
+        <span class="card-name">設問別の回答・結果一覧</span>
+      </div>
+      <div class="card-roles">
+        <span class="badge">対象教材が紐づくプロジェクトの管理者・編集者</span>
+        <span class="badge badge-role role-admin">admin</span>
+      </div>
+      <p class="card-desc">設問単位で全受講者の回答を一覧表示する<strong>読み取り専用の診断ビュー</strong>。単一選択・複数選択・並び替えは正答率・選択肢ごとの回答分布を、記述式・コード記述式はAI採点結果の分布と代表的な誤答傾向を、スコア記録型は受講者ごとのスコア推移を表示する。「この設問を見直すべきか」を判断する材料に特化しており、採点操作は置かない（採点はS-20）。S-05「問題一覧」タブ・S-17の各設問カードから遷移。v1.17新設、v1.18で手動採点に対応、v1.26で採点機能をS-20へ分離し診断専用に再整理。</p>
+    </a>
+
+    <a class="mock-card" href="S-20_grading-queue.html">
+      <div class="card-top">
+        <span class="card-id">S-20</span>
+        <span class="card-name">採点</span>
+      </div>
+      <div class="card-roles">
+        <span class="badge">プロジェクトの管理者・編集者（自分が担当するプロジェクトの分のみ）</span>
+        <span class="badge badge-role role-admin">admin</span>
+      </div>
+      <p class="card-desc">記述式・コード記述式のうち採点方式が「プロジェクト担当者が手動採点」で、まだ採点していない回答だけを、<strong>自分が編集者・管理者を務める全プロジェクト・全教材を横断して</strong>教材ごとにまとめて表示する未処理キュー。プロジェクト・教材で絞り込めるほか、システムadminには「全プロジェクトを表示」トグルがあり、既定（自分の担当プロジェクトのみ）から全社横断表示に切り替えられる（adminは全教材にアクセスできるため件数が膨らみやすいことへの対応）。「採点する」から正誤・講評を入力すると<code>reviewed_by</code>・<code>is_correct</code>が確定する。サイドバーの独立項目として常時表示する。設問ごとの回答傾向を見て設問自体を見直したい場合はS-19を使う（役割を分離）。v1.26新設。</p>
+    </a>
+
+    <a class="mock-card" href="S-18_ai-draft-session.html" style="opacity:0.6">
+      <div class="card-top">
+        <span class="card-id">S-18</span>
+        <span class="card-name">教材編集：Claude Code下書き作成</span>
+        <span class="badge badge-status-off">廃止（v1.20）</span>
+      </div>
+      <div class="card-roles">
+        <span class="badge badge-status-off">画面ID欠番</span>
+      </div>
+      <p class="card-desc">基本設計書v1.20で廃止。F-27（AI教材作成アシスト）の廃止に伴い不要になりました。F-27はManabiのバックエンドがAnthropic Claude APIを直接呼び出す構造のため利用のたびに従量課金が発生していましたが、代替のF-05（Claude Code CLI連携）は利用者本人の契約で課金されるため、コストの発生しないF-05に一本化しました。教材の作成・修正へのAI支援はF-05をお使いください。S-14「＋新規教材を作成」は空のS-05目次編集画面へ直接遷移します。</p>
+    </a>
+  </div>
+
+  <div class="flow-section">
+    <div class="flow-title">画面遷移図</div>
+    <div class="flow-diagram">
+      <div class="flow-lane">
+        <div class="flow-node flow-start">
+          <div class="flow-id">S-01</div>
+          <div class="flow-name">ログイン</div>
+        </div>
+        <div class="flow-arrow">
+          <span class="arrow-label">ログイン成功</span>
+          <span class="arrow-line"></span>
+        </div>
+        <div class="flow-node">
+          <div class="flow-id">S-02</div>
+          <div class="flow-name">マイ学習</div>
+        </div>
+        <div class="flow-arrow">
+          <span class="arrow-label">教材を探す</span>
+          <span class="arrow-line"></span>
+        </div>
+        <div class="flow-node">
+          <div class="flow-id">S-03</div>
+          <div class="flow-name">教材一覧・検索</div>
+        </div>
+        <div class="flow-arrow">
+          <span class="arrow-label">受講する</span>
+          <span class="arrow-line"></span>
+        </div>
+        <div class="flow-node">
+          <div class="flow-id">S-04</div>
+          <div class="flow-name">教材受講：目次</div>
+        </div>
+        <div class="flow-arrow">
+          <span class="arrow-label">ページを選ぶ</span>
+          <span class="arrow-line"></span>
+        </div>
+        <div class="flow-node">
+          <div class="flow-id">S-16</div>
+          <div class="flow-name">教材受講：ページ</div>
+        </div>
+      </div>
+
+      <div class="flow-branch">
+        <div class="flow-node">
+          <div class="flow-id">S-09</div>
+          <div class="flow-name">個人学習レポート</div>
+        </div>
+        <div class="flow-branch-note">← S-02「マイ学習」から、自分の学習記録・AIフィードバックを確認するために遷移</div>
+      </div>
+
+      <div class="flow-branch">
+        <div class="flow-node">
+          <div class="flow-id">S-13</div>
+          <div class="flow-name">教材編集：プロジェクト選択</div>
+        </div>
+        <div class="flow-arrow">
+          <span class="arrow-label">プロジェクトを選ぶ</span>
+          <span class="arrow-line"></span>
+        </div>
+        <div class="flow-node">
+          <div class="flow-id">S-14</div>
+          <div class="flow-name">教材編集：教材一覧</div>
+        </div>
+        <div class="flow-arrow">
+          <span class="arrow-label">編集する／複製</span>
+          <span class="arrow-line"></span>
+        </div>
+        <div class="flow-node">
+          <div class="flow-id">S-05</div>
+          <div class="flow-name">教材編集：目次編集</div>
+        </div>
+        <div class="flow-arrow">
+          <span class="arrow-label">ページの「編集する」</span>
+          <span class="arrow-line"></span>
+        </div>
+        <div class="flow-node">
+          <div class="flow-id">S-17</div>
+          <div class="flow-name">教材編集：ページ編集</div>
+        </div>
+        <div class="flow-branch-note">← サイドバーの「教材編集」から遷移。全社員が「全社Wiki」の編集者を自動的に持つため常時表示（v1.9）。S-05は目次（章・小見出し・ページ）を編集する画面で、各ページの「編集する」からS-17（説明文・問題の編集）に入ります（v1.11）</div>
+      </div>
+
+      <div class="flow-branch">
+        <div class="flow-node">
+          <div class="flow-id">S-05</div>
+          <div class="flow-name">教材編集：目次編集</div>
+        </div>
+        <div class="flow-node">
+          <div class="flow-id">S-17</div>
+          <div class="flow-name">教材編集：ページ編集</div>
+        </div>
+        <div class="flow-arrow">
+          <span class="arrow-label">「問題一覧」タブ／設問の「回答傾向を見る」</span>
+          <span class="arrow-line"></span>
+        </div>
+        <div class="flow-node">
+          <div class="flow-id">S-19</div>
+          <div class="flow-name">設問別の回答・結果一覧</div>
+        </div>
+        <div class="flow-branch-note">← S-05「問題一覧」タブ・S-17の各設問カードから遷移。設問ごとの回答傾向（正答率・選択肢分布・AI採点結果）を確認し、設問を見直すかどうかの判断材料にする<strong>読み取り専用</strong>画面（v1.17新設、v1.26でS-20新設に伴い採点機能を分離し診断専用に再整理）</div>
+      </div>
+
+      <div class="flow-branch">
+        <div class="flow-node">
+          <div class="flow-id">S-20</div>
+          <div class="flow-name">採点</div>
+        </div>
+        <div class="flow-branch-note">← サイドバーの「採点」から直接遷移（常時表示）。自分が編集者・管理者を務める全プロジェクト・全教材を横断し、手動採点（<code>grading_mode='manual'</code>）でまだ採点していない回答だけを教材ごとにまとめて表示する。設問ごとの回答傾向を見たいだけの場合はS-19を使う（v1.26新設。教材ごとに問題一覧タブを開いて回る必要があった採点作業を、横断的な未処理キューとして独立させた）</div>
+      </div>
+
+      <div class="flow-branch">
+        <div class="flow-node">
+          <div class="flow-id">S-14</div>
+          <div class="flow-name">教材編集：教材一覧</div>
+        </div>
+        <div class="flow-arrow">
+          <span class="arrow-label">＋新規教材を作成</span>
+          <span class="arrow-line"></span>
+        </div>
+        <div class="flow-node">
+          <div class="flow-id">S-05</div>
+          <div class="flow-name">教材編集：目次編集</div>
+        </div>
+        <div class="flow-branch-note">← S-14「＋新規教材を作成」から空のS-05目次編集画面へ直接遷移する。AIを使って教材を作成・修正したい場合はClaude Code CLI（F-05、8章）を利用する。旧S-18（Claude Code下書き作成、ブラウザ内チャットでAIが対話的に下書きを作成する画面）はF-27（AI教材作成アシスト）の廃止に伴いv1.20で廃止した（Manabi側の従量課金が発生する経路だったため）</div>
+      </div>
+
+      <div class="flow-branch">
+        <div class="flow-node">
+          <div class="flow-id">S-06</div>
+          <div class="flow-name">配信設定</div>
+        </div>
+        <div class="flow-node">
+          <div class="flow-id">S-08</div>
+          <div class="flow-name">受講状況ダッシュボード</div>
+        </div>
+        <div class="flow-node">
+          <div class="flow-id">S-10</div>
+          <div class="flow-name">管理</div>
+        </div>
+        <div class="flow-branch-note">← S-08・S-10はサイドバーの管理者メニューから遷移（S-10「管理」はadminのみ表示。S-07組織管理はv1.5で廃止）</div>
+      </div>
+
+      <div class="flow-branch">
+        <div class="flow-branch-note">※ S-06（配信設定）は管理者メニューではなく通常のメニューに常設し、システム全体のロールによらず全社員に表示する（管理できる教材が1件も無い場合は画面側で案内。6.1節）。S-08（受講状況ダッシュボード）は引き続き対象プロジェクトの管理者〔ローカルロール〕であれば自プロジェクト分がメニュー表示され（adminは全社分）、S-10「管理」はadmin限定</div>
+      </div>
+
+      <div class="flow-branch">
+        <div class="flow-node">
+          <div class="flow-id">S-11</div>
+          <div class="flow-name">プロジェクト作成</div>
+        </div>
+        <div class="flow-arrow">
+          <span class="arrow-label">作成（自動的に管理者に）</span>
+          <span class="arrow-line"></span>
+        </div>
+        <div class="flow-node">
+          <div class="flow-id">S-12</div>
+          <div class="flow-name">プロジェクト管理</div>
+        </div>
+        <div class="flow-branch-note">← S-11・S-12とも全員のメニューに常時表示（v1.9でS-12も常時表示に変更。管理者でなくても、いつでもプロジェクトを作って自分が管理者になれることを見せるため）。F-24〜F-26</div>
+      </div>
+
+      <div class="flow-branch">
+        <div class="flow-node">
+          <div class="flow-id">S-12</div>
+          <div class="flow-name">プロジェクト管理</div>
+        </div>
+        <div class="flow-arrow">
+          <span class="arrow-label">紐づく教材を編集</span>
+          <span class="arrow-line"></span>
+        </div>
+        <div class="flow-node">
+          <div class="flow-id">S-05</div>
+          <div class="flow-name">教材編集：目次編集</div>
+        </div>
+        <div class="flow-branch-note">プロジェクト教材の場合、S-05とS-12は相互にリンクします（メンバー管理の導線／教材一覧の導線）</div>
+      </div>
+
+      <div class="flow-branch">
+        <div class="flow-node">
+          <div class="flow-id">S-15</div>
+          <div class="flow-name">プロフィール編集</div>
+        </div>
+        <div class="flow-branch-note">← 全画面共通のサイドバー（自分のアカウント欄）から遷移。全員がアクセス可能</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="mock-note">画面モックアップ 一覧 / 研修サンプル</div>
+
+</body>
+</html>

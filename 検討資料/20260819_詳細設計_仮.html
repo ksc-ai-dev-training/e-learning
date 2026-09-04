@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>【検討中】詳細設計（仮） | Manabi</title>
+<style>
+  :root { --border-strong:#d0d5dd; --bg-subtle:#f6f7f9; --text:#1a1d21; --text-muted:#565e6c; --text-subtle:#8a8f98; --accent-600:#2563eb; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: -apple-system, "Segoe UI", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif; background:#f6f7f9; color:var(--text); font-size:12.5px; }
+  .status-bar { background:#fef3c7; border-bottom:1px solid #fbbf24; color:#78350f; font-size:12px; font-weight:600; text-align:center; padding:6px; }
+  .doc-wrap { max-width: 1240px; margin: 0 auto; padding: 28px 24px 100px; }
+  .doc-header h1 { font-size: 20px; margin: 0 0 6px; }
+  .doc-meta { font-size: 12px; color: var(--text-subtle); }
+  .toc { background:#fff; border:1px solid var(--border-strong); border-radius:10px; padding:14px 18px; margin-top:18px; font-size:12.5px; }
+  .toc a { color: var(--accent-600); text-decoration:none; }
+  .toc ol { margin:6px 0 0; padding-left:20px; }
+  .doc-section { margin-top: 34px; scroll-margin-top: 12px; }
+  .doc-section h2 { font-size: 16px; border-left: 4px solid var(--accent-600); padding-left: 10px; margin-bottom: 10px; }
+  .doc-section h3 { font-size: 13.5px; margin: 20px 0 8px; padding-bottom:4px; border-bottom:1px solid var(--border-strong); }
+  .doc-section h4 { font-size: 12.5px; margin: 14px 0 6px; color: var(--text-muted); }
+  .doc-section p, .doc-section li { font-size: 12.5px; line-height: 1.8; }
+  .doc-section ul, .doc-section ol { padding-left: 20px; margin: 6px 0; }
+  table.def { border-collapse: collapse; width:100%; margin: 8px 0 4px; font-size: 12px; }
+  table.def th, table.def td { border: 1px solid var(--border-strong); padding: 5px 8px; text-align: left; vertical-align: top; }
+  table.def th { background: var(--bg-subtle); font-weight: 600; white-space:nowrap; }
+  table.def td.mono, table.def th.mono { font-family: ui-monospace, Consolas, monospace; }
+  table.def tr.pk td:first-child::after { content: " 🔑"; }
+  .twrap { overflow-x:auto; border:1px solid var(--border-strong); border-radius:8px; margin: 8px 0 16px; }
+  .twrap table.def { border:none; margin:0; }
+  .tblock { background:#fff; border:1px solid var(--border-strong); border-radius:10px; padding:14px 16px; margin: 14px 0; }
+  .tblock-head { display:flex; align-items:baseline; gap:10px; margin-bottom:8px; }
+  .tblock-head .tid { font-family: ui-monospace, Consolas, monospace; font-weight:700; color:var(--accent-600); }
+  .tblock-head .tname { font-family: ui-monospace, Consolas, monospace; font-weight:600; }
+  .tblock-head .tlabel { color:var(--text-subtle); font-size:12px; }
+  .tblock-note { font-size:11.5px; color:var(--text-muted); margin-top:6px; }
+  .callout { border:1px solid #bfdbfe; background:#eff6ff; border-radius:8px; padding:12px 14px; font-size:12.5px; line-height:1.8; margin: 10px 0; }
+  .callout.warn { border-color:#fbbf24; background:#fffbeb; }
+  .callout.danger { border-color:#fca5a5; background:#fef2f2; }
+  code.inline { background: var(--bg-subtle); padding: 1px 5px; border-radius: 4px; font-size: 11.5px; font-family: ui-monospace, Consolas, monospace; }
+  .badge { display:inline-block; padding:1px 7px; border-radius: 999px; font-size:10.5px; font-weight:700; color:#fff; }
+  .b-get{background:#2563eb} .b-post{background:#16a34a} .b-put{background:#d97706} .b-delete{background:#dc2626}
+  .b-admin{background:#7c3aed} .b-member{background:#64748b}
+  .b-projrole{display:inline-block;padding:1px 7px;border-radius:999px;font-size:10.5px;font-weight:700;border:1px dashed var(--accent-600);color:var(--accent-600);background:#fff}
+  .checklist { display:grid; grid-template-columns: repeat(2,1fr); gap:10px; margin:14px 0; }
+  .check-card { border:1px solid var(--border-strong); border-radius:8px; background:#fff; padding:10px 12px; font-size:12px; }
+  .check-card .q { font-weight:700; margin-bottom:4px; }
+  .matrix td.yes { text-align:center; color:#16a34a; font-weight:700; }
+  .matrix td.no { text-align:center; color:#d0d5dd; }
+  .top-link { font-size:11px; }
+</style>
+</head>
+<body>
+
+<div class="status-bar">【検討中】ER図を軸にした詳細設計の仮組み ／ 正式版ではありません（docs/ には未反映。04_基本設計書.html 6.3節が「詳細設計書に委ねる」としていた内容の下書き）</div>
+
+<div class="doc-wrap">
+
+  <div class="doc-header">
+    <h1>詳細設計（仮）</h1>
+    <div class="doc-meta">検討資料 ／ 2026-08-19 ／ 元データ: docs/04_基本設計書.html（v1.7）・20260819_ER図_全体像.html ／ 対象: テーブル定義・API定義・画面項目定義・権限マトリクス・エラーハンドリング方針</div>
+  </div>
+
+  <div class="callout">
+    <strong>この資料の位置づけ:</strong> 04_基本設計書.html 6.3節は「各テーブルのカラム詳細（型・NULL可否・制約・既定値の全定義）は詳細設計書に委ねる」としていた。ここではその宿題を、直前に作成したER図（20260819_ER図_全体像.html）のテーブル構成をそのまま軸にして、仮に詳細化する。まだ「仮」段階なので、内容の粒度・妥当性を確認しながら進める。
+  </div>
+
+  <div class="toc">
+    <strong>目次</strong>
+    <ol>
+      <li><a href="#sec1">テーブル定義書（DDL相当）</a></li>
+      <li><a href="#sec2">API定義書（URL・入力・出力）</a></li>
+      <li><a href="#sec3">画面項目定義（入力欄とバリデーション）</a></li>
+      <li><a href="#sec4">権限マトリクス（誰がどのAPIを呼べるか）</a></li>
+      <li><a href="#sec5">エラーハンドリング方針</a></li>
+    </ol>
+  </div>
+
+  <!-- ============ 1. テーブル定義書 ============ -->
+  <div class="doc-section" id="sec1">
+    <h2>1. テーブル定義書（DDL相当）</h2>
+
+    <h3>1.0 データ設計で気をつけたポイント</h3>
+    <p>テーブルごとの詳細に入る前に、今回の設計で特に注意した4つの観点と、それぞれをどう反映したかを整理する。</p>
+    <div class="checklist">
+      <div class="check-card">
+        <div class="q">① そのデータは1件か、複数か</div>
+        受講記録は「1ユーザーが複数の教材・複数回の受験を持つ」構造のため、進捗（T-12）・受験記録（T-13）・回答（T-14）を分離した。1テーブルに集約すると「同じ教材を2回受験した場合の再受験前の回答」が上書きされ失われてしまう。
+      </div>
+      <div class="check-card">
+        <div class="q">② 消したらどうなるか</div>
+        教材削除（A-18）は物理削除ではなく前提として残すべきか要検討（下記1.1「削除方針」参照）。プロジェクトからのメンバー削除（A-13）は <code class="inline">left_at</code> を立てる論理削除とし、猶予期間判定（5.25節）に使う。物理削除すると「いつ抜けたか」が失われ、猶予期間ロジックが成立しない。
+      </div>
+      <div class="check-card">
+        <div class="q">③ 履歴が要るか</div>
+        教材本文は上書き更新すると変更前の内容が失われるため、T-08 material_revisionsに変更のたびスナップショットを追加する（上書きしない）。回答（T-14）も受験のたびに新規行として保存し、採点結果で上書きしない。
+      </div>
+      <div class="check-card">
+        <div class="q">④ 後から増えるか</div>
+        問題タイプ（type）は選択式・記述式に加え、当初想定になかった「コード記述式」が本セッション中に追加要求として発生した実績がある（<code class="inline">type='code'</code>）。CHECK制約の許容値リストに追加するだけで対応でき、テーブル構造自体は変えずに済んだ。同様の理由で、コード値カラム（role, status, type等）は全てCHECK制約＋余裕を持たせた命名とし、将来の値追加を安価にしている。
+      </div>
+    </div>
+
+    <h3>1.1 共通規約</h3>
+    <table class="def">
+      <thead><tr><th>項目</th><th>内容</th></tr></thead>
+      <tbody>
+        <tr><td>主キー</td><td class="mono">id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY</td><td>全テーブル共通（T-21のみ<code class="inline">key TEXT</code>が主キー）。以下の各テーブル定義では省略し、固有カラムのみ記載する。</td></tr>
+        <tr><td>タイムスタンプ</td><td class="mono">created_at / updated_at TIMESTAMPTZ NOT NULL DEFAULT now()</td><td>全テーブル共通。以下では省略する。<code class="inline">updated_at</code>はAPI層の更新時に明示的に再セット（DBトリガーは使わない、Keirekiと同方針）。</td></tr>
+        <tr><td>コード値</td><td class="mono">CHECK制約</td><td>role, format, status, mode, type, kind, scope_type 等は必ずCHECK制約で許容値を担保する。</td></tr>
+        <tr><td>削除方針</td><td>論理削除 or 物理削除は用途による</td><td>「所属」を表すテーブル（project_memberships）は<code class="inline">left_at</code>による論理削除。「教材本体」（materials）は物理削除だが、削除前提として関連する進捗・受験記録が残っているケースは<strong>要検討</strong>（1.2節の <span class="b-projrole" style="border-color:#dc2626;color:#dc2626">TODO</span> 参照）。</td></tr>
+        <tr><td>RLS</td><td class="mono">ENABLE ROW LEVEL SECURITY</td><td>全テーブルで有効化（6.3節）。通常の権限判定はAPI層で行う多層防御。</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout danger">
+      <strong>TODO（要決定）:</strong> <code class="inline">materials</code> を <strong>DELETE</strong>（A-18）した場合、紐づく <code class="inline">enrollment_progress</code>・<code class="inline">quiz_attempts</code>・<code class="inline">answers</code>・<code class="inline">assignments</code>・<code class="inline">material_project_shares</code> 等の受講記録をどうするかが未決定。案(a) <code class="inline">ON DELETE CASCADE</code>で受講記録ごと消す（「消したらどうなるか」の代表例）、案(b) 教材の物理削除を禁止し<code class="inline">status='archived'</code>等の論理削除に変える（受講記録・監査ログを残す）。研修記録は後から「あの人はいつ何を受けたか」を追える必要がある可能性が高く、<strong>(b)の論理削除方式を仮の推奨とする</strong>。この場合 T-06 <code class="inline">status</code> のCHECK許容値に <code class="inline">'archived'</code> を追加し、A-18の実装を「物理DELETEではなくstatus更新」に変更する必要がある（要合意）。
+    </div>
+
+    <h3>1.2 各テーブルの定義</h3>
+
+    <div class="tblock">
+      <div class="tblock-head"><span class="tid">T-01</span><span class="tname">users</span><span class="tlabel">ユーザー</span></div>
+      <div class="twrap"><table class="def">
+        <thead><tr><th>カラム</th><th>型</th><th>NULL</th><th>デフォルト</th><th>制約・備考</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">email</td><td class="mono">TEXT</td><td>NOT NULL</td><td>-</td><td>UNIQUE</td></tr>
+          <tr><td class="mono">name</td><td class="mono">TEXT</td><td>NOT NULL</td><td>-</td><td>-</td></tr>
+          <tr><td class="mono">picture_url</td><td class="mono">TEXT</td><td>NULL可</td><td>-</td><td>-</td></tr>
+          <tr><td class="mono">role</td><td class="mono">TEXT</td><td>NOT NULL</td><td class="mono">'member'</td><td>CHECK IN ('member','admin')</td></tr>
+          <tr><td class="mono">is_active</td><td class="mono">BOOLEAN</td><td>NOT NULL</td><td class="mono">true</td><td>-</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+
+    <div class="tblock">
+      <div class="tblock-head"><span class="tid">T-03</span><span class="tname">projects</span><span class="tlabel">プロジェクト</span></div>
+      <div class="twrap"><table class="def">
+        <thead><tr><th>カラム</th><th>型</th><th>NULL</th><th>デフォルト</th><th>制約・備考</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">name</td><td class="mono">TEXT</td><td>NOT NULL</td><td>-</td><td>-</td></tr>
+          <tr><td class="mono">description</td><td class="mono">TEXT</td><td>NULL可</td><td>-</td><td>-</td></tr>
+          <tr><td class="mono">status</td><td class="mono">TEXT</td><td>NOT NULL</td><td class="mono">'active'</td><td>CHECK IN ('active','completed')</td></tr>
+          <tr><td class="mono">pm_user_id</td><td class="mono">BIGINT</td><td>NULL可</td><td>-</td><td>FK→users.id</td></tr>
+          <tr><td class="mono">created_by</td><td class="mono">BIGINT</td><td>NOT NULL</td><td>-</td><td>FK→users.id</td></tr>
+          <tr><td class="mono">is_company_wide</td><td class="mono">BOOLEAN</td><td>NOT NULL</td><td class="mono">false</td><td><span style="color:#dc2626">検討中（未確定）</span>: 「全社公開」プロジェクトを識別するフラグ案。1行のみtrueを許容し削除不可にする想定だが、S-03/S-02の改善案採否と合わせて要確定</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+
+    <div class="tblock">
+      <div class="tblock-head"><span class="tid">T-04</span><span class="tname">project_memberships</span><span class="tlabel">プロジェクトメンバー</span></div>
+      <div class="twrap"><table class="def">
+        <thead><tr><th>カラム</th><th>型</th><th>NULL</th><th>デフォルト</th><th>制約・備考</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">project_id</td><td class="mono">BIGINT</td><td>NOT NULL</td><td>-</td><td>FK→projects.id</td></tr>
+          <tr><td class="mono">user_id</td><td class="mono">BIGINT</td><td>NOT NULL</td><td>-</td><td>FK→users.id</td></tr>
+          <tr><td class="mono">role</td><td class="mono">TEXT</td><td>NOT NULL</td><td class="mono">'learner'</td><td>CHECK IN ('admin','editor','learner')</td></tr>
+          <tr><td class="mono">assigned_by</td><td class="mono">BIGINT</td><td>NULL可</td><td>-</td><td>FK→users.id（自動付与時はNULL）</td></tr>
+          <tr><td class="mono">joined_at</td><td class="mono">TIMESTAMPTZ</td><td>NOT NULL</td><td class="mono">now()</td><td>-</td></tr>
+          <tr><td class="mono">left_at</td><td class="mono">TIMESTAMPTZ</td><td>NULL可</td><td>-</td><td>NULL=現役メンバー（論理削除）</td></tr>
+        </tbody>
+      </table></div>
+      <div class="tblock-note">制約: UNIQUE(project_id, user_id)</div>
+    </div>
+
+    <div class="tblock">
+      <div class="tblock-head"><span class="tid">T-05</span><span class="tname">courses</span><span class="tlabel">コース</span></div>
+      <div class="twrap"><table class="def">
+        <thead><tr><th>カラム</th><th>型</th><th>NULL</th><th>デフォルト</th><th>制約・備考</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">name</td><td class="mono">TEXT</td><td>NOT NULL</td><td>-</td><td>-</td></tr>
+          <tr><td class="mono">description</td><td class="mono">TEXT</td><td>NULL可</td><td>-</td><td>-</td></tr>
+          <tr><td class="mono">sort_order</td><td class="mono">INTEGER</td><td>NOT NULL</td><td class="mono">0</td><td>-</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+
+    <div class="tblock">
+      <div class="tblock-head"><span class="tid">T-06</span><span class="tname">materials</span><span class="tlabel">教材</span></div>
+      <div class="twrap"><table class="def">
+        <thead><tr><th>カラム</th><th>型</th><th>NULL</th><th>デフォルト</th><th>制約・備考</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">course_id</td><td class="mono">BIGINT</td><td>NULL可</td><td>-</td><td>FK→courses.id</td></tr>
+          <tr><td class="mono">project_id</td><td class="mono">BIGINT</td><td>NOT NULL</td><td>-</td><td>FK→projects.id。未指定作成時は「全社公開」プロジェクトIDを既定値としてAPI層で補完（検討中の改善案、2.2 A-16参照）</td></tr>
+          <tr><td class="mono">title</td><td class="mono">TEXT</td><td>NOT NULL</td><td>-</td><td>-</td></tr>
+          <tr><td class="mono">description</td><td class="mono">TEXT</td><td>NULL可</td><td>-</td><td>一覧表示用概要</td></tr>
+          <tr><td class="mono">format</td><td class="mono">TEXT</td><td>NOT NULL</td><td class="mono">'markdown'</td><td>CHECK IN ('markdown','html')</td></tr>
+          <tr><td class="mono">body</td><td class="mono">TEXT</td><td>NOT NULL</td><td class="mono">''</td><td>-</td></tr>
+          <tr><td class="mono">created_by</td><td class="mono">BIGINT</td><td>NOT NULL</td><td>-</td><td>FK→users.id（作成者記録のみ、編集権限判定には不使用）</td></tr>
+          <tr><td class="mono">status</td><td class="mono">TEXT</td><td>NOT NULL</td><td class="mono">'draft'</td><td>CHECK IN ('draft','published')。1.1節TODO採用時は'archived'追加</td></tr>
+          <tr><td class="mono">sort_order</td><td class="mono">INTEGER</td><td>NOT NULL</td><td class="mono">0</td><td>-</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+
+    <div class="tblock">
+      <div class="tblock-head"><span class="tid">T-08</span><span class="tname">material_revisions</span><span class="tlabel">教材改訂履歴</span></div>
+      <div class="twrap"><table class="def">
+        <thead><tr><th>カラム</th><th>型</th><th>NULL</th><th>デフォルト</th><th>制約・備考</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">material_id</td><td class="mono">BIGINT</td><td>NOT NULL</td><td>-</td><td>FK→materials.id</td></tr>
+          <tr><td class="mono">body_snapshot</td><td class="mono">TEXT</td><td>NOT NULL</td><td>-</td><td>変更後の本文全文（上書きしない・毎回追加）</td></tr>
+          <tr><td class="mono">format</td><td class="mono">TEXT</td><td>NOT NULL</td><td>-</td><td>CHECK IN ('markdown','html')</td></tr>
+          <tr><td class="mono">changed_by</td><td class="mono">BIGINT</td><td>NOT NULL</td><td>-</td><td>FK→users.id</td></tr>
+          <tr><td class="mono">changed_via</td><td class="mono">TEXT</td><td>NOT NULL</td><td>-</td><td>CHECK IN ('web','claude_code')</td></tr>
+          <tr><td class="mono">change_summary</td><td class="mono">TEXT</td><td>NULL可</td><td>-</td><td>-</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+
+    <div class="tblock">
+      <div class="tblock-head"><span class="tid">T-09</span><span class="tname">material_attachments</span><span class="tlabel">添付ファイル・リンク</span></div>
+      <div class="twrap"><table class="def">
+        <thead><tr><th>カラム</th><th>型</th><th>NULL</th><th>デフォルト</th><th>制約・備考</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">material_id</td><td class="mono">BIGINT</td><td>NOT NULL</td><td>-</td><td>FK→materials.id</td></tr>
+          <tr><td class="mono">kind</td><td class="mono">TEXT</td><td>NOT NULL</td><td>-</td><td>CHECK IN ('file','link')</td></tr>
+          <tr><td class="mono">storage_key</td><td class="mono">TEXT</td><td>NULL可</td><td>-</td><td>kind='file'のとき必須（アプリ層CHECK）</td></tr>
+          <tr><td class="mono">external_url</td><td class="mono">TEXT</td><td>NULL可</td><td>-</td><td>kind='link'のとき必須（アプリ層CHECK）</td></tr>
+          <tr><td class="mono">filename</td><td class="mono">TEXT</td><td>NOT NULL</td><td>-</td><td>-</td></tr>
+          <tr><td class="mono">mime_type</td><td class="mono">TEXT</td><td>NULL可</td><td>-</td><td>-</td></tr>
+          <tr><td class="mono">size_bytes</td><td class="mono">BIGINT</td><td>NULL可</td><td>-</td><td>-</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+
+    <div class="tblock">
+      <div class="tblock-head"><span class="tid">T-10</span><span class="tname">questions</span><span class="tlabel">問題</span></div>
+      <div class="twrap"><table class="def">
+        <thead><tr><th>カラム</th><th>型</th><th>NULL</th><th>デフォルト</th><th>制約・備考</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">material_id</td><td class="mono">BIGINT</td><td>NOT NULL</td><td>-</td><td>FK→materials.id</td></tr>
+          <tr><td class="mono">unit_index</td><td class="mono">INTEGER</td><td>NULL可</td><td>-</td><td>本文中の単元出現順</td></tr>
+          <tr><td class="mono">type</td><td class="mono">TEXT</td><td>NOT NULL</td><td>-</td><td>CHECK IN ('single','multi','free_text','code')</td></tr>
+          <tr><td class="mono">prompt</td><td class="mono">TEXT</td><td>NOT NULL</td><td>-</td><td>-</td></tr>
+          <tr><td class="mono">options</td><td class="mono">JSONB</td><td>NULL可</td><td>-</td><td>type='single'/'multi'のとき使用。スキーマは1.3節</td></tr>
+          <tr><td class="mono">correct_answer</td><td class="mono">JSONB</td><td>NULL可</td><td>-</td><td>スキーマは1.3節</td></tr>
+          <tr><td class="mono">scoring_criteria</td><td class="mono">TEXT</td><td>NULL可</td><td>-</td><td>type='free_text'/'code'のAI採点基準。アプリ層で必須化</td></tr>
+          <tr><td class="mono">code_language</td><td class="mono">TEXT</td><td>NULL可</td><td>-</td><td>type='code'のとき使用（例:'python'）</td></tr>
+          <tr><td class="mono">points</td><td class="mono">INTEGER</td><td>NOT NULL</td><td class="mono">10</td><td>CHECK points > 0</td></tr>
+          <tr><td class="mono">sort_order</td><td class="mono">INTEGER</td><td>NOT NULL</td><td class="mono">0</td><td>-</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+
+    <div class="tblock">
+      <div class="tblock-head"><span class="tid">T-11</span><span class="tname">assignments</span><span class="tlabel">配信設定</span></div>
+      <div class="twrap"><table class="def">
+        <thead><tr><th>カラム</th><th>型</th><th>NULL</th><th>デフォルト</th><th>制約・備考</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">material_id</td><td class="mono">BIGINT</td><td>NOT NULL</td><td>-</td><td>FK→materials.id</td></tr>
+          <tr><td class="mono">scope_type</td><td class="mono">TEXT</td><td>NOT NULL</td><td>-</td><td>CHECK IN ('company','project','individual')</td></tr>
+          <tr><td class="mono">scope_id</td><td class="mono">BIGINT</td><td>NULL可</td><td>-</td><td>ポリモーフィック（scope_type='project'→projects.id, 'individual'→users.id, 'company'→NULL）。FK制約は付与できないためアプリ層で検証</td></tr>
+          <tr><td class="mono">required</td><td class="mono">BOOLEAN</td><td>NOT NULL</td><td class="mono">false</td><td>-</td></tr>
+          <tr><td class="mono">due_at</td><td class="mono">TIMESTAMPTZ</td><td>NULL可</td><td>-</td><td>-</td></tr>
+          <tr><td class="mono">pass_score_pct</td><td class="mono">INTEGER</td><td>NULL可</td><td>-</td><td>CHECK 0〜100</td></tr>
+          <tr><td class="mono">retake_allowed</td><td class="mono">BOOLEAN</td><td>NOT NULL</td><td class="mono">true</td><td>-</td></tr>
+          <tr><td class="mono">retake_limit</td><td class="mono">INTEGER</td><td>NULL可</td><td>-</td><td>CHECK retake_limit > 0（NULL=無制限）</td></tr>
+          <tr><td class="mono">created_by</td><td class="mono">BIGINT</td><td>NOT NULL</td><td>-</td><td>FK→users.id</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+
+    <div class="tblock">
+      <div class="tblock-head"><span class="tid">T-12</span><span class="tname">enrollment_progress</span><span class="tlabel">受講進捗</span></div>
+      <div class="twrap"><table class="def">
+        <thead><tr><th>カラム</th><th>型</th><th>NULL</th><th>デフォルト</th><th>制約・備考</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">user_id</td><td class="mono">BIGINT</td><td>NOT NULL</td><td>-</td><td>FK→users.id</td></tr>
+          <tr><td class="mono">material_id</td><td class="mono">BIGINT</td><td>NOT NULL</td><td>-</td><td>FK→materials.id</td></tr>
+          <tr><td class="mono">status</td><td class="mono">TEXT</td><td>NOT NULL</td><td class="mono">'not_started'</td><td>CHECK IN ('not_started','in_progress','completed')</td></tr>
+          <tr><td class="mono">current_position</td><td class="mono">INTEGER</td><td>NULL可</td><td>-</td><td>再開位置（単元インデックス等）</td></tr>
+          <tr><td class="mono">started_at</td><td class="mono">TIMESTAMPTZ</td><td>NULL可</td><td>-</td><td>-</td></tr>
+          <tr><td class="mono">completed_at</td><td class="mono">TIMESTAMPTZ</td><td>NULL可</td><td>-</td><td>-</td></tr>
+        </tbody>
+      </table></div>
+      <div class="tblock-note">制約: UNIQUE(user_id, material_id)</div>
+    </div>
+
+    <div class="tblock">
+      <div class="tblock-head"><span class="tid">T-13</span><span class="tname">quiz_attempts</span><span class="tlabel">受験記録</span></div>
+      <div class="twrap"><table class="def">
+        <thead><tr><th>カラム</th><th>型</th><th>NULL</th><th>デフォルト</th><th>制約・備考</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">user_id</td><td class="mono">BIGINT</td><td>NOT NULL</td><td>-</td><td>FK→users.id</td></tr>
+          <tr><td class="mono">material_id</td><td class="mono">BIGINT</td><td>NOT NULL</td><td>-</td><td>FK→materials.id</td></tr>
+          <tr><td class="mono">mode</td><td class="mono">TEXT</td><td>NOT NULL</td><td>-</td><td>CHECK IN ('graded','practice')</td></tr>
+          <tr><td class="mono">attempt_no</td><td class="mono">INTEGER</td><td>NOT NULL</td><td>-</td><td>同一user×material内で1から連番</td></tr>
+          <tr><td class="mono">score_pct</td><td class="mono">NUMERIC(5,2)</td><td>NULL可</td><td>-</td><td>採点中はNULL</td></tr>
+          <tr><td class="mono">passed</td><td class="mono">BOOLEAN</td><td>NULL可</td><td>-</td><td>採点中はNULL</td></tr>
+          <tr><td class="mono">question_order</td><td class="mono">JSONB</td><td>NULL可</td><td>-</td><td>出題順（question_idの配列）。スキーマは1.3節</td></tr>
+          <tr><td class="mono">started_at</td><td class="mono">TIMESTAMPTZ</td><td>NOT NULL</td><td class="mono">now()</td><td>-</td></tr>
+          <tr><td class="mono">submitted_at</td><td class="mono">TIMESTAMPTZ</td><td>NULL可</td><td>-</td><td>-</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+
+    <div class="tblock">
+      <div class="tblock-head"><span class="tid">T-14</span><span class="tname">answers</span><span class="tlabel">回答</span></div>
+      <div class="twrap"><table class="def">
+        <thead><tr><th>カラム</th><th>型</th><th>NULL</th><th>デフォルト</th><th>制約・備考</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">attempt_id</td><td class="mono">BIGINT</td><td>NOT NULL</td><td>-</td><td>FK→quiz_attempts.id</td></tr>
+          <tr><td class="mono">question_id</td><td class="mono">BIGINT</td><td>NOT NULL</td><td>-</td><td>FK→questions.id</td></tr>
+          <tr><td class="mono">response</td><td class="mono">JSONB</td><td>NULL可</td><td>-</td><td>スキーマは1.3節</td></tr>
+          <tr><td class="mono">is_correct</td><td class="mono">BOOLEAN</td><td>NULL可</td><td>-</td><td>選択式は即時判定、記述式/コードはAI採点待ちの間NULL</td></tr>
+          <tr><td class="mono">ai_score_pct</td><td class="mono">NUMERIC(5,2)</td><td>NULL可</td><td>-</td><td>-</td></tr>
+          <tr><td class="mono">ai_feedback</td><td class="mono">TEXT</td><td>NULL可</td><td>-</td><td>-</td></tr>
+          <tr><td class="mono">reviewed_by</td><td class="mono">BIGINT</td><td>NULL可</td><td>-</td><td>FK→users.id（人手レビューした場合）</td></tr>
+          <tr><td class="mono">reviewed_at</td><td class="mono">TIMESTAMPTZ</td><td>NULL可</td><td>-</td><td>-</td></tr>
+        </tbody>
+      </table></div>
+      <div class="tblock-note">制約: UNIQUE(attempt_id, question_id)</div>
+    </div>
+
+    <h4>AI・運用系（相互の関連を持たず、materials/usersを参照するのみ）</h4>
+    <div class="tblock">
+      <div class="tblock-head"><span class="tid">T-15</span><span class="tname">ai_material_reviews</span></div>
+      <div class="twrap"><table class="def">
+        <thead><tr><th>カラム</th><th>型</th><th>NULL</th><th>デフォルト</th><th>制約・備考</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">material_id</td><td class="mono">BIGINT</td><td>NOT NULL</td><td>-</td><td>FK→materials.id</td></tr>
+          <tr><td class="mono">requested_by</td><td class="mono">BIGINT</td><td>NOT NULL</td><td>-</td><td>FK→users.id</td></tr>
+          <tr><td class="mono">findings</td><td class="mono">JSONB</td><td>NOT NULL</td><td class="mono">'[]'</td><td>スキーマは1.3節</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+    <div class="tblock">
+      <div class="tblock-head"><span class="tid">T-16</span><span class="tname">ai_material_insights</span></div>
+      <div class="twrap"><table class="def">
+        <thead><tr><th>カラム</th><th>型</th><th>NULL</th><th>デフォルト</th><th>制約・備考</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">material_id</td><td class="mono">BIGINT</td><td>NOT NULL</td><td>-</td><td>FK→materials.id</td></tr>
+          <tr><td class="mono">requested_by</td><td class="mono">BIGINT</td><td>NOT NULL</td><td>-</td><td>FK→users.id</td></tr>
+          <tr><td class="mono">requested_at</td><td class="mono">TIMESTAMPTZ</td><td>NOT NULL</td><td class="mono">now()</td><td>スタックジョブ検出用（9.2節）</td></tr>
+          <tr><td class="mono">weak_questions</td><td class="mono">JSONB</td><td>NULL可</td><td>-</td><td>完了時に設定。スキーマは1.3節</td></tr>
+          <tr><td class="mono">suggestions</td><td class="mono">TEXT</td><td>NULL可</td><td>-</td><td>完了時に設定</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+    <div class="tblock">
+      <div class="tblock-head"><span class="tid">T-17</span><span class="tname">ai_personal_feedback</span></div>
+      <div class="twrap"><table class="def">
+        <thead><tr><th>カラム</th><th>型</th><th>NULL</th><th>デフォルト</th><th>制約・備考</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">user_id</td><td class="mono">BIGINT</td><td>NOT NULL</td><td>-</td><td>FK→users.id</td></tr>
+          <tr><td class="mono">requested_at</td><td class="mono">TIMESTAMPTZ</td><td>NOT NULL</td><td class="mono">now()</td><td>-</td></tr>
+          <tr><td class="mono">content</td><td class="mono">TEXT</td><td>NULL可</td><td>-</td><td>完了時に設定</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+    <div class="tblock">
+      <div class="tblock-head"><span class="tid">T-18</span><span class="tname">ai_org_reports</span></div>
+      <div class="twrap"><table class="def">
+        <thead><tr><th>カラム</th><th>型</th><th>NULL</th><th>デフォルト</th><th>制約・備考</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">scope_type</td><td class="mono">TEXT</td><td>NOT NULL</td><td>-</td><td>CHECK IN ('company','project')</td></tr>
+          <tr><td class="mono">scope_id</td><td class="mono">BIGINT</td><td>NULL可</td><td>-</td><td>scope_type='project'のときFK→projects.id相当（アプリ層検証）</td></tr>
+          <tr><td class="mono">requested_by</td><td class="mono">BIGINT</td><td>NOT NULL</td><td>-</td><td>FK→users.id</td></tr>
+          <tr><td class="mono">requested_at</td><td class="mono">TIMESTAMPTZ</td><td>NOT NULL</td><td class="mono">now()</td><td>-</td></tr>
+          <tr><td class="mono">content</td><td class="mono">TEXT</td><td>NULL可</td><td>-</td><td>完了時に設定</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+    <div class="tblock">
+      <div class="tblock-head"><span class="tid">T-19</span><span class="tname">ai_usage_logs</span></div>
+      <div class="twrap"><table class="def">
+        <thead><tr><th>カラム</th><th>型</th><th>NULL</th><th>デフォルト</th><th>制約・備考</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">user_id</td><td class="mono">BIGINT</td><td>NULL可</td><td>-</td><td>FK→users.id</td></tr>
+          <tr><td class="mono">feature</td><td class="mono">TEXT</td><td>NOT NULL</td><td>-</td><td>-</td></tr>
+          <tr><td class="mono">model</td><td class="mono">TEXT</td><td>NOT NULL</td><td>-</td><td>-</td></tr>
+          <tr><td class="mono">input_tokens</td><td class="mono">INTEGER</td><td>NOT NULL</td><td class="mono">0</td><td>-</td></tr>
+          <tr><td class="mono">output_tokens</td><td class="mono">INTEGER</td><td>NOT NULL</td><td class="mono">0</td><td>-</td></tr>
+          <tr><td class="mono">cost_estimate</td><td class="mono">NUMERIC(10,4)</td><td>NULL可</td><td>-</td><td>-</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+    <div class="tblock">
+      <div class="tblock-head"><span class="tid">T-20</span><span class="tname">slack_notification_logs</span></div>
+      <div class="twrap"><table class="def">
+        <thead><tr><th>カラム</th><th>型</th><th>NULL</th><th>デフォルト</th><th>制約・備考</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">user_id</td><td class="mono">BIGINT</td><td>NOT NULL</td><td>-</td><td>FK→users.id</td></tr>
+          <tr><td class="mono">assignment_id</td><td class="mono">BIGINT</td><td>NOT NULL</td><td>-</td><td>FK→assignments.id</td></tr>
+          <tr><td class="mono">sent_at</td><td class="mono">TIMESTAMPTZ</td><td>NOT NULL</td><td class="mono">now()</td><td>-</td></tr>
+          <tr><td class="mono">status</td><td class="mono">TEXT</td><td>NOT NULL</td><td>-</td><td>CHECK IN ('sent','failed')</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+    <div class="tblock">
+      <div class="tblock-head"><span class="tid">T-21</span><span class="tname">app_settings</span></div>
+      <div class="twrap"><table class="def">
+        <thead><tr><th>カラム</th><th>型</th><th>NULL</th><th>デフォルト</th><th>制約・備考</th></tr></thead>
+        <tbody class="pk">
+          <tr class="pk"><td class="mono">key</td><td class="mono">TEXT</td><td>NOT NULL</td><td>-</td><td>PRIMARY KEY（本テーブルのみidを使わない）</td></tr>
+          <tr><td class="mono">value_text</td><td class="mono">TEXT</td><td>NULL可</td><td>-</td><td>-</td></tr>
+          <tr><td class="mono">updated_by</td><td class="mono">BIGINT</td><td>NULL可</td><td>-</td><td>FK→users.id</td></tr>
+        </tbody>
+      </table></div>
+      <div class="tblock-note">created_at/updated_atのみ付与（idカラムなし）</div>
+    </div>
+    <div class="tblock">
+      <div class="tblock-head"><span class="tid">T-22</span><span class="tname">material_project_shares</span><span class="tlabel">教材のプロジェクト間共有</span></div>
+      <div class="twrap"><table class="def">
+        <thead><tr><th>カラム</th><th>型</th><th>NULL</th><th>デフォルト</th><th>制約・備考</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">material_id</td><td class="mono">BIGINT</td><td>NOT NULL</td><td>-</td><td>FK→materials.id</td></tr>
+          <tr><td class="mono">shared_to_project_id</td><td class="mono">BIGINT</td><td>NOT NULL</td><td>-</td><td>FK→projects.id</td></tr>
+          <tr><td class="mono">shared_by</td><td class="mono">BIGINT</td><td>NOT NULL</td><td>-</td><td>FK→users.id</td></tr>
+          <tr><td class="mono">shared_at</td><td class="mono">TIMESTAMPTZ</td><td>NOT NULL</td><td class="mono">now()</td><td>-</td></tr>
+        </tbody>
+      </table></div>
+      <div class="tblock-note">制約: UNIQUE(material_id, shared_to_project_id)</div>
+    </div>
+
+    <h3>1.3 JSONBカラムのスキーマ</h3>
+    <div class="twrap"><table class="def">
+      <thead><tr><th>テーブル.カラム</th><th>形</th><th>例</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">questions.options</td><td class="mono">[{id: string, label: string}]</td><td class="mono">[{"id":"a","label":"O(n)"},{"id":"b","label":"O(n^2)"}]</td></tr>
+        <tr><td class="mono">questions.correct_answer</td><td class="mono">single: {selected: id} / multi: {selected: [id]}</td><td class="mono">{"selected":"a"}</td></tr>
+        <tr><td class="mono">answers.response</td><td class="mono">single/multi: {selected}／free_text: {text}／code: {code, language}</td><td class="mono">{"code":"def f(): ...","language":"python"}</td></tr>
+        <tr><td class="mono">quiz_attempts.question_order</td><td class="mono">[question_id, ...]</td><td class="mono">[1042, 1039, 1041]</td></tr>
+        <tr><td class="mono">ai_material_reviews.findings</td><td class="mono">[{severity: 'info'|'warning'|'error', message: string, question_id?: number}]</td><td class="mono">[{"severity":"warning","message":"設問3は正答が複数解釈可能"}]</td></tr>
+        <tr><td class="mono">ai_material_insights.weak_questions</td><td class="mono">[{question_id: number, wrong_rate_pct: number}]</td><td class="mono">[{"question_id":1042,"wrong_rate_pct":63.5}]</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+
+  <!-- ============ 2. API定義書 ============ -->
+  <div class="doc-section" id="sec2">
+    <h2>2. API定義書（URL・入力・出力）</h2>
+    <p>7.1節の共通方針（ベースパス<code class="inline">/api</code>、エラー形式<code class="inline">{"detail": "..."}</code>、権限判定は全てサーバー側）を前提に、各APIの入力・出力の形を仮に定義する。<code class="inline">?</code>は任意項目、無印は必須項目。パスパラメータは<code class="inline">{id}</code>の形で示す。全APIで共通のレスポンスヘッダ・エンベロープ変更はしない（Keirekiと同方針でフラットなJSONを返す）。</p>
+
+    <h3>2.1 auth.py（認証）</h3>
+    <div class="twrap"><table class="def">
+      <thead><tr><th>ID</th><th>Method</th><th>Path</th><th>権限</th><th>リクエスト</th><th>レスポンス</th></tr></thead>
+      <tbody>
+        <tr><td>A-01</td><td><span class="badge b-get">GET</span></td><td class="mono">/api/auth/login</td><td>不要</td><td>-</td><td>302 Redirect → Google OAuth</td></tr>
+        <tr><td>A-02</td><td><span class="badge b-get">GET</span></td><td class="mono">/api/auth/callback</td><td>不要</td><td class="mono">?code, ?state</td><td>302 Redirect → / （Set-Cookie: session）</td></tr>
+        <tr><td>A-03</td><td><span class="badge b-post">POST</span></td><td class="mono">/api/auth/logout</td><td>認証済</td><td>-</td><td>204 No Content</td></tr>
+        <tr><td>A-04</td><td><span class="badge b-get">GET</span></td><td class="mono">/api/auth/me</td><td>認証済</td><td>-</td><td class="mono">{id, email, name, role, picture_url, is_active}</td></tr>
+        <tr><td>A-62</td><td><span class="badge b-get">GET</span></td><td class="mono">/api/auth/cli/login</td><td>不要</td><td>-</td><td>302 Redirect → Google OAuth（成功後localhostへCLIトークン）</td></tr>
+        <tr><td>A-63</td><td><span class="badge b-post">POST</span></td><td class="mono">/api/auth/cli/revoke</td><td>認証済(CLI)</td><td>-</td><td>204 No Content</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>2.2 organization.py（プロジェクト・メンバー・教材共有）</h3>
+    <div class="twrap"><table class="def">
+      <thead><tr><th>ID</th><th>Method</th><th>Path</th><th>権限</th><th>リクエスト</th><th>レスポンス</th></tr></thead>
+      <tbody>
+        <tr><td>A-09</td><td><span class="badge b-post">POST</span></td><td class="mono">/api/projects</td><td><span class="badge b-member">member</span></td><td class="mono">{name, description?}</td><td class="mono">201 {id, name, description, status, pm_user_id, created_by, created_at}</td></tr>
+        <tr><td>A-10</td><td><span class="badge b-put">PUT</span></td><td class="mono">/api/projects/{id}</td><td><span class="b-projrole">対象の管理者</span></td><td class="mono">{name?, description?, status?, pm_user_id?}</td><td class="mono">200 {id, name, description, status, pm_user_id}</td></tr>
+        <tr><td>A-11</td><td><span class="badge b-get">GET</span></td><td class="mono">/api/project-memberships</td><td>本人／<span class="b-projrole">対象の管理者</span></td><td class="mono">?project_id または ?user_id（いずれか必須）</td><td class="mono">200 [{project_id, user_id, role, joined_at, left_at}]</td></tr>
+        <tr><td>A-12</td><td><span class="badge b-post">POST</span></td><td class="mono">/api/projects/{id}/members</td><td><span class="b-projrole">対象の管理者</span></td><td class="mono">{user_id, role}</td><td class="mono">201 {project_id, user_id, role, joined_at}</td></tr>
+        <tr><td>A-13</td><td><span class="badge b-put">PUT</span></td><td class="mono">/api/projects/{id}/members/{user_id}</td><td><span class="b-projrole">対象の管理者</span></td><td class="mono">{role?, remove?: boolean}</td><td class="mono">200 {project_id, user_id, role, left_at}／唯一の管理者の削除・降格は400</td></tr>
+        <tr><td>A-59</td><td><span class="badge b-get">GET</span></td><td class="mono">/api/materials/{id}/shares</td><td>元プロジェクト<span class="b-projrole">管理者</span></td><td>-</td><td class="mono">200 [{id, shared_to_project_id, shared_by, shared_at}]</td></tr>
+        <tr><td>A-60</td><td><span class="badge b-post">POST</span></td><td class="mono">/api/materials/{id}/shares</td><td>元プロジェクト<span class="b-projrole">管理者</span></td><td class="mono">{shared_to_project_id}</td><td class="mono">201 {id, ...}／下書き教材は400</td></tr>
+        <tr><td>A-61</td><td><span class="badge b-delete">DELETE</span></td><td class="mono">/api/materials/{id}/shares/{share_id}</td><td>元プロジェクト<span class="b-projrole">管理者</span></td><td>-</td><td>204 No Content</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>2.3 materials.py（教材・問題・添付・AI教材機能）</h3>
+    <div class="twrap"><table class="def">
+      <thead><tr><th>ID</th><th>Method</th><th>Path</th><th>権限</th><th>リクエスト</th><th>レスポンス</th></tr></thead>
+      <tbody>
+        <tr><td>A-14</td><td><span class="badge b-get">GET</span></td><td class="mono">/api/materials</td><td>認証済</td><td class="mono">?q, ?course_id, ?project_id, ?required, ?incomplete_only, ?my_assignments_only, ?page=1, ?per_page=20</td><td class="mono">200 {items: [{id, title, project_id, project_name, course_id, status, required, updated_at}], total, page, per_page}</td></tr>
+        <tr><td>A-15</td><td><span class="badge b-get">GET</span></td><td class="mono">/api/materials/{id}</td><td>受講対象者／<span class="b-projrole">編集者以上</span></td><td>-</td><td class="mono">200 {id, title, description, format, body, project_id, course_id, status, questions: [...], created_by, created_at}</td></tr>
+        <tr><td>A-16</td><td><span class="badge b-post">POST</span></td><td class="mono">/api/materials</td><td><span class="b-projrole">対象の編集者以上</span></td><td class="mono">{title, description?, format, body?, course_id?, project_id?}</td><td class="mono">201 {id, ...}／project_id省略時は「全社公開」プロジェクトIDを既定値として補完（検討中）</td></tr>
+        <tr><td>A-17</td><td><span class="badge b-put">PUT</span></td><td class="mono">/api/materials/{id}</td><td><span class="b-projrole">対象の管理者・編集者</span></td><td class="mono">{title?, description?, status?, course_id?, project_id?}</td><td class="mono">200 {id, ...}／project_id付け替えは変更前後どちらの編集権限も必要</td></tr>
+        <tr><td>A-18</td><td><span class="badge b-delete">DELETE</span></td><td class="mono">/api/materials/{id}</td><td><span class="b-projrole">対象の管理者</span></td><td>-</td><td>204 No Content／1.1節TODO: 受講記録が残る場合の扱いは要決定</td></tr>
+        <tr><td>A-19</td><td><span class="badge b-get">GET</span></td><td class="mono">/api/materials/{id}/source</td><td><span class="b-projrole">編集者以上</span></td><td>-</td><td class="mono">200 text/plain（フロントマター＋本文）</td></tr>
+        <tr><td>A-20</td><td><span class="badge b-put">PUT</span></td><td class="mono">/api/materials/{id}/source</td><td><span class="b-projrole">編集者以上</span></td><td class="mono">text/plain（フロントマター＋本文）</td><td class="mono">200 {id, updated_at}</td></tr>
+        <tr><td>A-21</td><td><span class="badge b-get">GET</span></td><td class="mono">/api/projects/{project_id}/materials/source</td><td><span class="b-projrole">編集者以上</span></td><td>-</td><td class="mono">200 [{id, title, status}]</td></tr>
+        <tr><td>A-22</td><td><span class="badge b-get">GET</span></td><td class="mono">/api/materials/{id}/revisions</td><td><span class="b-projrole">編集者以上</span></td><td class="mono">?page, ?per_page</td><td class="mono">200 [{id, changed_by, changed_via, change_summary, created_at}]</td></tr>
+        <tr><td>A-27</td><td><span class="badge b-post">POST</span></td><td class="mono">/api/materials/{id}/attachments/upload-url</td><td><span class="b-projrole">編集者以上</span></td><td class="mono">{filename, mime_type}</td><td class="mono">200 {upload_url, storage_key}</td></tr>
+        <tr><td>A-28</td><td><span class="badge b-get">GET</span></td><td class="mono">/api/materials/{id}/attachments</td><td>受講対象者／<span class="b-projrole">編集者以上</span></td><td>-</td><td class="mono">200 [{id, kind, filename, external_url}]</td></tr>
+        <tr><td>A-29</td><td><span class="badge b-post">POST</span></td><td class="mono">/api/materials/{id}/attachments</td><td><span class="b-projrole">編集者以上</span></td><td class="mono">{kind, storage_key?, external_url?, filename, mime_type?, size_bytes?}</td><td class="mono">201 {id, ...}</td></tr>
+        <tr><td>A-30</td><td><span class="badge b-get">GET</span></td><td class="mono">/api/materials/{id}/attachments/{attachment_id}/download</td><td>受講対象者／<span class="b-projrole">編集者以上</span></td><td>-</td><td class="mono">200 {download_url}</td></tr>
+        <tr><td>A-31</td><td><span class="badge b-put">PUT</span></td><td class="mono">/api/materials/{id}/questions</td><td><span class="b-projrole">編集者以上</span></td><td class="mono">{questions: [{type, prompt, options?, correct_answer?, scoring_criteria?, code_language?, points}]}</td><td class="mono">200 {questions: [...]}（全置換）</td></tr>
+        <tr><td>A-32</td><td><span class="badge b-post">POST</span></td><td class="mono">/api/materials/{id}/ai-review</td><td><span class="b-projrole">編集者以上</span></td><td>-</td><td class="mono">200 {findings: [...]}（同期）</td></tr>
+        <tr><td>A-33</td><td><span class="badge b-get">GET</span></td><td class="mono">/api/materials/{id}/ai-review</td><td><span class="b-projrole">編集者以上</span></td><td>-</td><td class="mono">200 {findings: [...], created_at}</td></tr>
+        <tr><td>A-34</td><td><span class="badge b-post">POST</span></td><td class="mono">/api/materials/{id}/ai-insights</td><td><span class="b-projrole">編集者以上</span></td><td>-</td><td class="mono">202 {requested_at}（非同期起動）</td></tr>
+        <tr><td>A-35</td><td><span class="badge b-get">GET</span></td><td class="mono">/api/materials/{id}/ai-insights</td><td><span class="b-projrole">編集者以上</span></td><td>-</td><td class="mono">200 {weak_questions, suggestions}／未完了は404</td></tr>
+        <tr class="rev-row"><td>A-64</td><td><span class="badge b-post">POST</span></td><td class="mono">/api/materials/{id}/preview</td><td><span class="b-projrole">編集者以上</span></td><td class="mono">{body, format}</td><td class="mono">200 {html}（サニタイズ済み、保存しない）</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>2.4 assignments.py（配信設定）</h3>
+    <div class="twrap"><table class="def">
+      <thead><tr><th>ID</th><th>Method</th><th>Path</th><th>権限</th><th>リクエスト</th><th>レスポンス</th></tr></thead>
+      <tbody>
+        <tr><td>A-36</td><td><span class="badge b-get">GET</span></td><td class="mono">/api/assignments</td><td><span class="badge b-admin">admin</span>／<span class="b-projrole">対象の管理者</span></td><td class="mono">?q, ?status, ?page, ?per_page</td><td class="mono">200 {items: [...], total}</td></tr>
+        <tr><td>A-37</td><td><span class="badge b-get">GET</span></td><td class="mono">/api/materials/{id}/assignments</td><td>同上</td><td>-</td><td class="mono">200 [{id, scope_type, scope_id, required, due_at, pass_score_pct}]</td></tr>
+        <tr><td>A-38</td><td><span class="badge b-put">PUT</span></td><td class="mono">/api/materials/{id}/assignments</td><td><span class="badge b-admin">admin</span>／<span class="b-projrole">対象の管理者（一部スコープのみ）</span></td><td class="mono">{assignments: [{scope_type, scope_id?, required, due_at?, pass_score_pct?, retake_allowed?, retake_limit?}]}</td><td class="mono">200 {assignments: [...]}（全置換）</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>2.5 learning.py（受講・受験）</h3>
+    <div class="twrap"><table class="def">
+      <thead><tr><th>ID</th><th>Method</th><th>Path</th><th>権限</th><th>リクエスト</th><th>レスポンス</th></tr></thead>
+      <tbody>
+        <tr><td>A-39</td><td><span class="badge b-get">GET</span></td><td class="mono">/api/my-learning</td><td>認証済</td><td>-</td><td class="mono">200 {required: [...], optional: [...], stats: {required_rate_pct, ...}}</td></tr>
+        <tr><td>A-40</td><td><span class="badge b-post">POST</span></td><td class="mono">/api/materials/{id}/attempts</td><td>受講対象者</td><td class="mono">{mode: 'graded'|'practice'}</td><td class="mono">201 {attempt_id, questions: [...], question_order}</td></tr>
+        <tr><td>A-41</td><td><span class="badge b-put">PUT</span></td><td class="mono">/api/attempts/{attempt_id}/answers</td><td>受験者本人</td><td class="mono">{question_id, response}</td><td class="mono">200 {saved: true}</td></tr>
+        <tr><td>A-42</td><td><span class="badge b-post">POST</span></td><td class="mono">/api/attempts/{attempt_id}/submit</td><td>受験者本人</td><td>-</td><td class="mono">200 {score_pct?, passed?, ai_grading_pending: boolean}</td></tr>
+        <tr><td>A-43</td><td><span class="badge b-get">GET</span></td><td class="mono">/api/attempts/{attempt_id}</td><td>受験者本人／<span class="b-projrole">編集者以上</span></td><td>-</td><td class="mono">200 {score_pct, passed, answers: [...]}</td></tr>
+        <tr><td>A-44</td><td><span class="badge b-post">POST</span></td><td class="mono">/api/materials/{id}/wrong-questions-attempts</td><td>受講対象者</td><td class="mono">{scope: 'material'|'all'}</td><td class="mono">201 {attempt_id, questions: [...]}（mode='practice'）</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>2.6 dashboard.py／reports.py／users.py／settings.py</h3>
+    <div class="twrap"><table class="def">
+      <thead><tr><th>ID</th><th>Method</th><th>Path</th><th>権限</th><th>リクエスト</th><th>レスポンス</th></tr></thead>
+      <tbody>
+        <tr><td>A-45</td><td><span class="badge b-get">GET</span></td><td class="mono">/api/dashboard</td><td><span class="badge b-admin">admin</span>／<span class="b-projrole">対象の管理者</span></td><td class="mono">?scope=company|project, ?scope_id?</td><td class="mono">200 {required_rate_pct, overdue_count, ...}</td></tr>
+        <tr><td>A-46</td><td><span class="badge b-get">GET</span></td><td class="mono">/api/dashboard/incomplete-users</td><td>同上</td><td class="mono">?scope, ?scope_id?</td><td class="mono">200 [{user_id, name, material_id, due_at}]</td></tr>
+        <tr><td>A-47</td><td><span class="badge b-post">POST</span></td><td class="mono">/api/dashboard/remind</td><td>同上</td><td class="mono">{user_ids: [number], assignment_id}</td><td class="mono">200 {sent: number, failed: number}</td></tr>
+        <tr><td>A-48</td><td><span class="badge b-post">POST</span></td><td class="mono">/api/reports/org</td><td>同上</td><td class="mono">{scope_type, scope_id?}</td><td class="mono">202 {requested_at}（非同期）</td></tr>
+        <tr><td>A-49</td><td><span class="badge b-get">GET</span></td><td class="mono">/api/reports/org</td><td>同上</td><td class="mono">?scope_type, ?scope_id?</td><td class="mono">200 {content}／未完了404</td></tr>
+        <tr><td>A-50</td><td><span class="badge b-get">GET</span></td><td class="mono">/api/reports/personal/{user_id}</td><td>本人／対象者所属先<span class="b-projrole">管理者</span></td><td>-</td><td class="mono">200 {stats: {...}, history: [...]}</td></tr>
+        <tr><td>A-51</td><td><span class="badge b-post">POST</span></td><td class="mono">/api/reports/personal/{user_id}/ai-feedback</td><td>同上</td><td>-</td><td class="mono">202 {requested_at}</td></tr>
+        <tr><td>A-52</td><td><span class="badge b-get">GET</span></td><td class="mono">/api/reports/personal/{user_id}/ai-feedback</td><td>同上</td><td>-</td><td class="mono">200 {content}／未完了404</td></tr>
+        <tr><td>A-53</td><td><span class="badge b-get">GET</span></td><td class="mono">/api/users</td><td><span class="badge b-admin">admin</span></td><td class="mono">?q, ?role, ?page, ?per_page</td><td class="mono">200 {items: [...], total}</td></tr>
+        <tr><td>A-54</td><td><span class="badge b-put">PUT</span></td><td class="mono">/api/users/{id}</td><td><span class="badge b-admin">admin</span></td><td class="mono">{role?, is_active?}</td><td class="mono">200 {id, role, is_active}／自分自身のadmin降格・無効化は400</td></tr>
+        <tr><td>A-55</td><td><span class="badge b-get">GET</span></td><td class="mono">/api/settings</td><td><span class="badge b-admin">admin</span></td><td>-</td><td class="mono">200 {ai_model, slack_webhook_url, slack_channel, project_leave_grace_period_days}</td></tr>
+        <tr><td>A-56</td><td><span class="badge b-put">PUT</span></td><td class="mono">/api/settings</td><td><span class="badge b-admin">admin</span></td><td class="mono">{ai_model?, slack_webhook_url?, slack_channel?, project_leave_grace_period_days?}</td><td class="mono">200 {...更新後の値}</td></tr>
+        <tr><td>A-57</td><td><span class="badge b-post">POST</span></td><td class="mono">/api/settings/slack-test</td><td><span class="badge b-admin">admin</span></td><td>-</td><td class="mono">200 {ok: boolean}</td></tr>
+        <tr><td>A-58</td><td><span class="badge b-get">GET</span></td><td class="mono">/api/settings/ai-usage</td><td><span class="badge b-admin">admin</span></td><td>-</td><td class="mono">200 {month, total_input_tokens, total_output_tokens, cost_estimate}</td></tr>
+      </tbody>
+    </table></div>
+    <p style="font-size:11.5px;color:var(--text-subtle)">※ A-05〜A-08・A-23〜A-26は要件定義書v1.5対応で廃止済み（欠番）のため本表には含めない。</p>
+  </div>
+
+  <!-- ============ 3. 画面項目定義 ============ -->
+  <div class="doc-section" id="sec3">
+    <h2>3. 画面項目定義（入力欄とバリデーション）</h2>
+    <div class="callout warn">
+      <strong>画面のチェックは「親切」のためのもの:</strong> 以下の入力チェックはあくまでUX向上（誤入力の早期発見）が目的。ブラウザの外からAPIを直接呼ばれれば画面のチェックは素通りできるため、同じ規則を必ずAPI側（2章）でも再検証する。4章の権限マトリクスと合わせて「画面を隠す＝安全」ではないことに注意する。
+    </div>
+
+    <div class="twrap"><table class="def">
+      <thead><tr><th>画面</th><th>項目</th><th>型</th><th>必須</th><th>バリデーション（フロント）</th><th>対応API</th></tr></thead>
+      <tbody>
+        <tr><td rowspan="1">S-01 ログイン</td><td>（入力欄なし。「Googleでログイン」ボタンのみ）</td><td>-</td><td>-</td><td>-</td><td>A-01</td></tr>
+
+        <tr><td rowspan="5">S-03 教材一覧・検索</td><td>キーワード</td><td>text</td><td>任意</td><td>200文字以内</td><td rowspan="5">A-14</td></tr>
+        <tr><td>コース</td><td>select</td><td>任意</td><td>既存コースIDのみ</td></tr>
+        <tr><td>区分</td><td>select</td><td>任意</td><td>すべて/必修のみ/任意のみ</td></tr>
+        <tr><td>未受講のみ</td><td>checkbox</td><td>-</td><td>-</td></tr>
+        <tr><td>自分が受講対象のみ</td><td>checkbox</td><td>-</td><td>-</td></tr>
+
+        <tr><td rowspan="2">S-04 教材閲覧・受験</td><td>回答（選択式）</td><td>radio/checkbox</td><td>必須</td><td>提出時に最低1つ選択されていること</td><td rowspan="2">A-41, A-42</td></tr>
+        <tr><td>回答（記述式・コード式）</td><td>textarea</td><td>必須</td><td>1文字以上。コード式は最大文字数（案: 20,000字）</td></tr>
+
+        <tr><td rowspan="10">S-05 教材編集</td><td>タイトル</td><td>text</td><td>必須</td><td>1〜200文字</td><td rowspan="10">A-16, A-17, A-20, A-29, A-31</td></tr>
+        <tr><td>概要</td><td>text</td><td>任意</td><td>500文字以内</td></tr>
+        <tr><td>本文形式</td><td>select</td><td>必須</td><td>markdown/html</td></tr>
+        <tr><td>本文</td><td>editor</td><td>必須</td><td>空文字不可（公開時のみ必須化、下書きは空可の案）</td></tr>
+        <tr><td>コース</td><td>select</td><td>任意</td><td>既存コースIDのみ</td></tr>
+        <tr><td>プロジェクト</td><td>select</td><td>必須</td><td>自分が編集者以上のプロジェクトのみ選択可。未選択時は「全社公開」が既定選択（検討中の改善案）</td></tr>
+        <tr><td>公開状態</td><td>select</td><td>必須</td><td>draft/published</td></tr>
+        <tr><td>問題文</td><td>text</td><td>必須</td><td>1文字以上</td></tr>
+        <tr><td>配点</td><td>number</td><td>必須</td><td>1以上の整数</td></tr>
+        <tr><td>採点基準（記述式・コード式）</td><td>textarea</td><td>type=free_text/codeで必須</td><td>1文字以上</td></tr>
+
+        <tr><td rowspan="6">S-06 配信設定</td><td>対象教材</td><td>select</td><td>必須</td><td>編集権限のある教材のみ</td><td rowspan="6">A-38</td></tr>
+        <tr><td>配信範囲</td><td>select</td><td>必須</td><td>company/project/individual</td></tr>
+        <tr><td>配信先</td><td>select/user検索</td><td>project/individual選択時必須</td><td>-</td></tr>
+        <tr><td>必修/任意</td><td>toggle</td><td>必須</td><td>company必修=admin限定（4章参照）</td></tr>
+        <tr><td>期限</td><td>date</td><td>任意</td><td>本日以降の日付を推奨（過去日でも保存自体は許可、警告表示）</td></tr>
+        <tr><td>合格ライン</td><td>number</td><td>任意</td><td>0〜100の整数</td></tr>
+
+        <tr><td rowspan="4">S-10 管理画面</td><td>AIモデル</td><td>select</td><td>必須</td><td>許可リストから選択</td><td rowspan="4">A-56</td></tr>
+        <tr><td>Slack Webhook URL</td><td>text</td><td>任意</td><td>URL形式（https://hooks.slack.com/... を推奨表示）</td></tr>
+        <tr><td>猶予期間日数</td><td>number</td><td>必須</td><td>0以上の整数、既定30</td></tr>
+        <tr><td>ユーザーのロール</td><td>select</td><td>必須</td><td>member/admin。自分自身のadmin降格は選択不可（UI非活性）</td></tr>
+
+        <tr><td rowspan="2">S-11 プロジェクト作成</td><td>プロジェクト名</td><td>text</td><td>必須</td><td>1〜100文字</td><td rowspan="2">A-09</td></tr>
+        <tr><td>説明</td><td>text</td><td>任意</td><td>500文字以内</td></tr>
+
+        <tr><td rowspan="3">S-12 プロジェクト管理</td><td>メンバー追加（ユーザー）</td><td>user検索</td><td>必須</td><td>既存ユーザーのみ、重複メンバー不可</td><td rowspan="3">A-10, A-12, A-13, A-60</td></tr>
+        <tr><td>初期ロール／変更後ロール</td><td>select</td><td>必須</td><td>admin/editor/learner。唯一の管理者の降格はUI側でも警告</td></tr>
+        <tr><td>共有先プロジェクト</td><td>select</td><td>必須</td><td>自分自身のプロジェクトは選択不可</td></tr>
+      </tbody>
+    </table></div>
+    <p style="font-size:11.5px;color:var(--text-subtle)">※ S-02（マイ学習）・S-07（廃止案内）・S-08（ダッシュボード）・S-09（個人学習レポート）は主に閲覧画面で、入力欄は検索・絞り込み条件程度（必須項目なし）のため省略。</p>
+  </div>
+
+  <!-- ============ 4. 権限マトリクス ============ -->
+  <div class="doc-section" id="sec4">
+    <h2>4. 権限マトリクス（誰がどのAPIを呼べるか）</h2>
+    <div class="callout danger">
+      <strong>画面を隠すだけでは不十分:</strong> S-05（教材編集）やS-06（配信設定）のメニュー項目を非表示にしても、URLを直接知っていれば画面には遷移できてしまうし、そもそもAPIはブラウザを介さず<code class="inline">curl</code>等から直接呼び出せる。したがって権限判定は必ずAPI側（<code class="inline">auth_helpers.py</code>の依存関数）で行い、フロントの表示制御はあくまで「操作できない機能を見せない」というUXの補助でしかない、という前提を徹底する。
+    </div>
+
+    <h3>4.1 ロール一覧</h3>
+    <div class="twrap"><table class="def">
+      <thead><tr><th>区分</th><th>ロール</th><th>説明</th></tr></thead>
+      <tbody>
+        <tr><td rowspan="2">システム全体ロール（T-01 users.role）</td><td><span class="badge b-member">member</span></td><td>一般ユーザー。既定値</td></tr>
+        <tr><td><span class="badge b-admin">admin</span></td><td>システム管理者。全プロジェクトに対し常にプロジェクト管理者相当の権限を持つ</td></tr>
+        <tr><td rowspan="3">プロジェクトのローカルロール（T-04 project_memberships.role）</td><td><span class="b-projrole">learner</span></td><td>受講者。教材の受講のみ</td></tr>
+        <tr><td><span class="b-projrole">editor</span></td><td>編集者。教材の作成・編集・配信設定（自プロジェクト分）</td></tr>
+        <tr><td><span class="b-projrole">admin</span></td><td>プロジェクト管理者。editorの操作に加え、プロジェクト情報編集・メンバー管理・教材共有・削除</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>4.2 機能カテゴリ別マトリクス</h3>
+    <div class="twrap"><table class="def matrix">
+      <thead><tr><th>操作</th><th>learner</th><th>project editor</th><th>project admin</th><th>system admin</th><th>対応API</th></tr></thead>
+      <tbody>
+        <tr><td>教材を受講する（対象者のみ）</td><td class="yes">○</td><td class="yes">○</td><td class="yes">○</td><td class="yes">○</td><td>A-40〜A-44</td></tr>
+        <tr><td>教材を作成・編集する</td><td class="no">×</td><td class="yes">○</td><td class="yes">○</td><td class="yes">○</td><td>A-16, A-17, A-20, A-31</td></tr>
+        <tr><td>教材を削除する</td><td class="no">×</td><td class="no">×</td><td class="yes">○</td><td class="yes">○</td><td>A-18</td></tr>
+        <tr><td>配信設定（自プロジェクト範囲）</td><td class="no">×</td><td class="no">×</td><td class="yes">○</td><td class="yes">○</td><td>A-38</td></tr>
+        <tr><td>配信設定（全社必修配信）</td><td class="no">×</td><td class="no">×</td><td class="no">×</td><td class="yes">○</td><td>A-38</td></tr>
+        <tr><td>配信設定（全社任意公開）</td><td class="no">×</td><td class="no">×</td><td class="yes">○(自教材のみ)</td><td class="yes">○</td><td>A-38</td></tr>
+        <tr><td>プロジェクトのメンバー管理</td><td class="no">×</td><td class="no">×</td><td class="yes">○</td><td class="yes">○</td><td>A-12, A-13</td></tr>
+        <tr><td>教材のプロジェクト間共有</td><td class="no">×</td><td class="no">×</td><td class="yes">○(元プロジェクトのみ)</td><td class="yes">○</td><td>A-59〜A-61</td></tr>
+        <tr><td>ユーザーのロール変更（システム）</td><td class="no">×</td><td class="no">×</td><td class="no">×</td><td class="yes">○</td><td>A-54</td></tr>
+        <tr><td>システム設定変更</td><td class="no">×</td><td class="no">×</td><td class="no">×</td><td class="yes">○</td><td>A-55〜A-58</td></tr>
+        <tr><td>他プロジェクトのダッシュボード閲覧</td><td class="no">×</td><td class="no">×</td><td class="no">×(自プロジェクトのみ)</td><td class="yes">○(全社)</td><td>A-45〜A-49</td></tr>
+      </tbody>
+    </table></div>
+
+    <div class="callout">
+      <strong>実装上の集約方針（既存基本設計書7.3節を踏襲）:</strong> 上記の判定はAPIごとに個別実装せず、<code class="inline">auth_helpers.py</code>の<code class="inline">require_project_role(project_id, user, min_role)</code>・<code class="inline">require_material_access(material_id, user)</code>の2つの依存関数に集約する。特に「受講対象者」判定は<code class="inline">require_project_role(min_role='learner')</code>と「T-11 assignmentsで個別指定されている」のOR条件になる点は、実装時に見落としやすいので要注意（7.3節コールアウト参照）。
+    </div>
+  </div>
+
+  <!-- ============ 5. エラーハンドリング方針 ============ -->
+  <div class="doc-section" id="sec5">
+    <h2>5. エラーハンドリング方針</h2>
+
+    <h3>5.1 エラーレスポンスの形</h3>
+    <p>lcc_crm・Keirekiを踏襲し、エラー時は常に以下の形で返す。</p>
+    <div class="twrap"><table class="def">
+      <thead><tr><th>状況</th><th>HTTPステータス</th><th>ボディ</th><th>フロントの扱い</th></tr></thead>
+      <tbody>
+        <tr><td>入力形式が不正（型違反・必須項目欠落）</td><td class="mono">422</td><td class="mono">{"detail":[{"loc":[...],"msg":"...","type":"..."}]}（FastAPI既定）</td><td>該当フィールドの下にエラーメッセージを表示</td></tr>
+        <tr><td>業務ルール違反（唯一の管理者の削除等）</td><td class="mono">400</td><td class="mono">{"detail":"唯一の管理者は削除できません"}</td><td>画面上部または該当操作のそばにエラーメッセージを表示</td></tr>
+        <tr><td>未認証</td><td class="mono">401</td><td class="mono">{"detail":"認証が必要です"}</td><td>ログイン画面へリダイレクト</td></tr>
+        <tr><td>権限不足</td><td class="mono">403</td><td class="mono">{"detail":"この操作を行う権限がありません"}</td><td>汎用エラーメッセージ表示（詳細な理由は出さない、権限情報の推測を防ぐため）</td></tr>
+        <tr><td>対象が存在しない</td><td class="mono">404</td><td class="mono">{"detail":"指定されたリソースが見つかりません"}</td><td>一覧画面へ戻す導線を表示</td></tr>
+        <tr><td>非同期ジョブが未完了</td><td class="mono">404</td><td class="mono">{"detail":"pending"}</td><td>「生成中です」の表示＋一定間隔でポーリング</td></tr>
+        <tr><td>サーバー内部エラー</td><td class="mono">500</td><td class="mono">{"detail":"サーバーエラーが発生しました"}</td><td>汎用エラーメッセージ＋再試行導線。詳細はサーバーログのみに出す</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>5.2 バリデーションは二重に行う</h3>
+    <div class="callout warn">
+      画面側のチェックは「親切」のためのもの。ブラウザの外からAPIを直接呼ばれれば簡単に迂回されるため、3章の画面項目定義に挙げた全てのバリデーション規則は、フロントだけでなく必ずAPI側（Pydanticスキーマの<code class="inline">Field</code>制約・FastAPIの<code class="inline">Depends</code>によるビジネスルール検証）でも同一に実装する。フロントとバックエンドでルールが食い違うと「画面では弾かれるのにAPIでは通る／画面では通るのにAPIで422になる」という不整合が起きるため、可能な限りルールの定義（文字数上限・許容値リスト等）を1箇所（例: バックエンドのPydanticスキーマ）に置き、フロントはそれを参照する形にする。
+    </div>
+
+    <h3>5.3 ドメイン固有のエラー処理</h3>
+    <div class="twrap"><table class="def">
+      <thead><tr><th>API</th><th>状況</th><th>挙動</th></tr></thead>
+      <tbody>
+        <tr><td>A-13</td><td>プロジェクトの唯一の管理者を削除・降格しようとした</td><td>400 <code class="inline">{"detail":"プロジェクトには最低1人の管理者が必要です"}</code></td></tr>
+        <tr><td>A-42</td><td>提出期限（due_at）を過ぎてから提出</td><td>提出自体は200で受け付けるが、レスポンスに<code class="inline">is_late: true</code>を含め、ダッシュボード側で期限超過として集計する（提出をブロックしない。学習機会を奪わないため）</td></tr>
+        <tr><td>A-42</td><td>retake_limitに達している状態での再受験</td><td>400 <code class="inline">{"detail":"再受験可能回数の上限に達しています"}</code></td></tr>
+        <tr><td>A-54</td><td>自分自身をadmin以外に変更、または無効化しようとした</td><td>400 <code class="inline">{"detail":"自分自身のロール降格・無効化はできません"}</code></td></tr>
+        <tr><td>A-60</td><td>下書き（status='draft'）教材を共有しようとした</td><td>400 <code class="inline">{"detail":"下書きの教材は共有できません"}</code></td></tr>
+        <tr><td>A-32, A-34, A-51, A-48</td><td>AI呼び出し先（Claude API）がエラー・タイムアウト</td><td>502または504（詳細はサーバーログのみ）。非同期系（A-34, A-48, A-51）はジョブを失敗状態にし、次回GETで404ではなく<code class="inline">{"detail":"failed"}</code>を返す（9.2節のスタックジョブ・スイープと合わせて要設計）</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>5.4 未決事項</h3>
+    <ul>
+      <li>AI呼び出し失敗時のリトライ方針（自動リトライ回数・ユーザーへの再実行ボタン提示）は9.2節の非同期ジョブ設計と合わせて詳細化が必要。</li>
+      <li>1.1節のTODO（教材削除時のON DELETE方針）が確定していないため、A-18のエラー処理（受講記録が存在する教材の削除をブロックするか等）も未確定。</li>
+    </ul>
+  </div>
+
+  <p class="top-link" style="margin-top:30px"><a href="#sec1">↑ 目次に戻る</a></p>
+
+</div>
+
+</body>
+</html>

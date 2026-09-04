@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S-10 管理 | Manabi 画面モックアップ</title>
+<link rel="stylesheet" href="mock.css">
+</head>
+<body>
+
+<div class="app">
+
+  <!-- サイドバー（管理者: 千田 太郎） -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-mark">M</div>
+      <div>
+        <div class="brand-name">Manabi</div>
+        <div class="brand-sub">社内学習管理システム</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-label">メニュー</div>
+      <a class="nav-item" href="S-02_my-learning.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h3.5v-6h5v6H18a1 1 0 0 0 1-1V9.5"/></svg></span>
+        マイ学習
+      </a>
+      <a class="nav-item" href="S-03_materials-list.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></span>
+        教材一覧・検索
+      </a>
+      <a class="nav-item" href="S-13_material-edit-project-select.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></span>
+        教材編集
+      </a>
+      <a class="nav-item" href="S-20_grading-queue.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></span>
+        採点
+      </a>
+      <a class="nav-item" href="S-09_my-report.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
+        個人学習レポート
+      </a>
+      <a class="nav-item" href="S-11_project-create.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></span>
+        プロジェクト作成
+      </a>
+      <a class="nav-item" href="S-12_project-management.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg></span>
+        プロジェクト管理
+      </a>
+      <a class="nav-item" href="S-06_assignment-settings.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></span>
+        配信設定
+      </a>
+      <div class="nav-label">管理者メニュー</div>
+      <a class="nav-item" href="S-08_dashboard.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg></span>
+        受講状況ダッシュボード
+      </a>
+      <a class="nav-item active" href="S-10_admin.html">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
+        システム管理
+      </a>
+      <div class="nav-note">※ 「配信設定」は全社員のメニューに常に表示される（管理できる教材が無い場合も画面側で案内）。「受講状況ダッシュボード」「システム管理」は管理者メニューとして admin に表示し、受講状況ダッシュボードのみ対象プロジェクトの管理者にも自プロジェクトのスコープで表示する（サイドバー上の表示ラベルのみ「システム管理」。画面自体の名称はS-10「管理」のまま。2026-09-02、他のナビ項目と並んだときに何を管理する画面か伝わりにくいというフィードバックを受け変更）</div>
+    </nav>
+    <div class="sidebar-user">
+      <div class="sidebar-user-row">
+        <span class="avatar">千</span>
+        <div>
+          <div class="user-name">千田 太郎 <span class="badge badge-role role-admin">admin</span></div>
+          <div class="user-mail">t.chida@kogasoftware.com</div>
+        </div>
+      </div>
+      <a class="sidebar-logout" href="S-15_profile-edit.html">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        プロフィール編集
+      </a>
+      <a class="sidebar-logout" href="S-01_login.html">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        ログアウト
+      </a>
+    </div>
+  </aside>
+
+  <!-- メインエリア -->
+  <div class="main">
+    <header class="page-header">
+      <div class="page-title-group">
+        <h1>管理</h1>
+        <span class="screen-id">S-10</span>
+      </div>
+    </header>
+
+    <div class="page-body">
+
+      <!-- タブ -->
+      <div class="tabs" role="tablist">
+        <button class="tab active" id="tab-users" type="button" onclick="switchTab('users')">ユーザー管理</button>
+        <button class="tab" id="tab-settings" type="button" onclick="switchTab('settings')">システム設定</button>
+      </div>
+
+      <!-- ユーザー管理タブ -->
+      <div class="tab-panel active" id="panel-users">
+        <div class="toolbar">
+          <div class="search-box">
+            <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="search" placeholder="氏名・メールアドレスで検索">
+          </div>
+          <span class="result-count"><strong>5名</strong> 表示中</span>
+        </div>
+
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>氏名</th>
+                <th>メールアドレス</th>
+                <th style="width:140px">ロール</th>
+                <th style="width:130px">有効/無効</th>
+                <th style="width:120px">登録日</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <div style="display:flex;align-items:center;gap:9px">
+                    <span class="avatar">千</span>
+                    <span class="cell-main">千田 太郎</span>
+                  </div>
+                </td>
+                <td>t.chida@kogasoftware.com</td>
+                <td>
+                  <select disabled title="自分自身のロール変更・無効化はできません">
+                    <option>member</option>
+                    <option selected>admin</option>
+                  </select>
+                </td>
+                <td>
+                  <label class="toggle" title="自分自身のロール変更・無効化はできません">
+                    <input type="checkbox" checked disabled>
+                    <span class="track"></span>
+                    <span class="toggle-text">有効</span>
+                  </label>
+                </td>
+                <td>2026-04-01</td>
+              </tr>
+              <tr>
+                <td>
+                  <div style="display:flex;align-items:center;gap:9px">
+                    <span class="avatar">山</span>
+                    <span class="cell-main">山田 花子</span>
+                  </div>
+                </td>
+                <td>h.yamada@kogasoftware.com</td>
+                <td>
+                  <select>
+                    <option selected>member</option>
+                    <option>admin</option>
+                  </select>
+                </td>
+                <td>
+                  <label class="toggle">
+                    <input type="checkbox" checked>
+                    <span class="track"></span>
+                    <span class="toggle-text">有効</span>
+                  </label>
+                </td>
+                <td>2026-04-01</td>
+              </tr>
+              <tr>
+                <td>
+                  <div style="display:flex;align-items:center;gap:9px">
+                    <span class="avatar">佐</span>
+                    <span class="cell-main">佐藤 健一</span>
+                  </div>
+                </td>
+                <td>k.sato@kogasoftware.com</td>
+                <td>
+                  <select>
+                    <option selected>member</option>
+                    <option>admin</option>
+                  </select>
+                </td>
+                <td>
+                  <label class="toggle">
+                    <input type="checkbox" checked>
+                    <span class="track"></span>
+                    <span class="toggle-text">有効</span>
+                  </label>
+                </td>
+                <td>2026-04-02</td>
+              </tr>
+              <tr>
+                <td>
+                  <div style="display:flex;align-items:center;gap:9px">
+                    <span class="avatar">鈴</span>
+                    <span class="cell-main">鈴木 美咲</span>
+                  </div>
+                </td>
+                <td>m.suzuki@kogasoftware.com</td>
+                <td>
+                  <select>
+                    <option selected>member</option>
+                    <option>admin</option>
+                  </select>
+                </td>
+                <td>
+                  <label class="toggle">
+                    <input type="checkbox" checked>
+                    <span class="track"></span>
+                    <span class="toggle-text">有効</span>
+                  </label>
+                </td>
+                <td>2026-04-03</td>
+              </tr>
+              <tr>
+                <td>
+                  <div style="display:flex;align-items:center;gap:9px">
+                    <span class="avatar">高</span>
+                    <span class="cell-main">高橋 大輔</span>
+                  </div>
+                </td>
+                <td>d.takahashi@kogasoftware.com</td>
+                <td>
+                  <select disabled title="無効化されたユーザーはロールを変更できません">
+                    <option selected>member</option>
+                    <option>admin</option>
+                  </select>
+                </td>
+                <td>
+                  <label class="toggle">
+                    <input type="checkbox">
+                    <span class="track"></span>
+                    <span class="toggle-text">無効</span>
+                  </label>
+                </td>
+                <td>2026-04-03</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p style="margin-top:10px;font-size:11.5px;color:var(--text-subtle)">※ 自分自身（ログイン中ユーザー）の admin 降格・無効化はできません。初回ログイン時は member として自動登録されます。無効化されたユーザーはログインできません。</p>
+      </div>
+
+      <!-- システム設定タブ -->
+      <div class="tab-panel" id="panel-settings">
+
+        <div class="panel" style="max-width:720px">
+          <div class="panel-header">
+            <div class="panel-title">AI利用設定</div>
+          </div>
+          <div class="panel-body">
+            <div class="field" style="margin-bottom:0">
+              <label>利用するAIモデル（既定）</label>
+              <select style="max-width:320px">
+                <option selected>Claude Sonnet（既定）</option>
+                <option>Claude Opus（高精度・低速）</option>
+                <option>Claude Haiku（高速・低コスト）</option>
+              </select>
+              <span class="field-help">画面設定 &gt; 環境変数 &gt; 既定値 の順で優先されます。F-08・F-20〜F-23の全AI機能で共通の設定です（機能ごとに個別のモデルを割り当てる機能はありません）</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel" style="max-width:720px">
+          <div class="panel-header">
+            <div class="panel-title">今月のAI利用状況（概算）</div>
+            <span class="panel-count">2026-08-01 〜 2026-08-21</span>
+          </div>
+          <div class="panel-body">
+            <div class="table-wrap" style="box-shadow:none;border:none">
+              <table class="table">
+                <thead>
+                  <tr><th>機能</th><th style="width:90px">呼び出し件数</th><th style="width:130px">トークン数</th><th style="width:100px">概算コスト</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>F-08 教材AIレビュー</td><td class="num">32回</td><td class="num">410,000</td><td class="num">¥580</td></tr>
+                  <tr><td>F-20 AI記述式採点・講評</td><td class="num">1,240回</td><td class="num">1,850,000</td><td class="num">¥2,600</td></tr>
+                  <tr><td>F-21 AIつまずき分析</td><td class="num">18回</td><td class="num">620,000</td><td class="num">¥720</td></tr>
+                  <tr><td>F-22 AI個人フィードバック</td><td class="num">340回</td><td class="num">980,000</td><td class="num">¥1,150</td></tr>
+                  <tr><td>F-23 AI組織レポート生成</td><td class="num">6回</td><td class="num">420,000</td><td class="num">¥350</td></tr>
+                </tbody>
+                <tfoot>
+                  <tr style="font-weight:700"><td>合計</td><td class="num">1,636回</td><td class="num">4,280,000</td><td class="num">¥5,400</td></tr>
+                </tfoot>
+              </table>
+            </div>
+            <span class="field-help" style="display:block;margin-top:8px">質問・回答等の内容そのものは記録しません（呼び出し元機能・トークン数・概算コストのみ記録。9.3節）。教材の作成・修正はF-05（Claude Code CLI連携）を通じて行うため、利用者本人のClaude Code契約・APIキーで課金され、Manabiのこの集計には含まれません（Manabi側の運用コストは発生しません）。</span>
+          </div>
+        </div>
+
+        <div class="panel" style="max-width:720px">
+          <div class="panel-header">
+            <div class="panel-title">Slack通知設定</div>
+          </div>
+          <div class="panel-body">
+            <div class="field">
+              <label>Webhook URL</label>
+              <input type="url" value="https://hooks.slack.com/services/T000/B000/xxxxxxxxxxxx" style="max-width:480px">
+            </div>
+            <div class="field" style="margin-bottom:0">
+              <label>通知先チャンネル</label>
+              <input type="text" value="#elearning-通知" style="max-width:220px">
+              <div style="margin-top:8px">
+                <button class="btn btn-secondary btn-sm" type="button">テスト送信</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel" style="max-width:720px">
+          <div class="panel-header">
+            <div class="panel-title">プロジェクト所属の猶予期間</div>
+          </div>
+          <div class="panel-body">
+            <div class="field" style="margin-bottom:0">
+              <label>離任後の閲覧アクセス継続日数</label>
+              <div style="display:flex;align-items:center;gap:6px">
+                <input type="number" value="30" min="0" step="1" style="width:90px">
+                <span style="font-size:12px;color:var(--text-muted)">日</span>
+              </div>
+              <span class="field-help">プロジェクト管理者がメンバーを削除した場合も、この日数の間は旧プロジェクトの教材を閲覧できます</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="search-actions" style="max-width:720px">
+          <button class="btn btn-primary" type="button">設定を保存</button>
+          <button class="btn btn-secondary" type="button">初期状態に戻す</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="mock-note">画面モックアップ（S-10）/ 研修サンプル</div>
+
+<script>
+// タブ切替（静的モック確認用の最小限のJS）
+function switchTab(name) {
+  var tabs = ['users', 'settings'];
+  tabs.forEach(function (t) {
+    document.getElementById('tab-' + t).classList.toggle('active', t === name);
+    document.getElementById('panel-' + t).classList.toggle('active', t === name);
+  });
+}
+</script>
+
+<script src="mock-sidebar.js"></script>
+</body>
+</html>
