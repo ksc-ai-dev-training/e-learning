@@ -91,14 +91,11 @@
         </div>
         <div style="font-size:12px;color:var(--text-subtle);margin-top:2px">新人向けGit入門 ／ 第2章 ブランチとプルリクエストの基本</div>
       </div>
-      <div class="header-actions">
-        <a class="btn btn-secondary" href="S-05_material-edit.html">← 目次編集に戻る</a>
-        <button class="btn btn-secondary" type="button">プレビュー</button>
-        <button class="btn btn-primary" type="button">下書き保存</button>
-      </div>
     </header>
 
     <div class="page-body">
+
+      <p style="margin-bottom:16px"><a href="S-05_material-edit.html">← 目次編集に戻る</a></p>
 
       <div class="field" style="max-width:420px">
         <label>ページタイトル</label>
@@ -109,7 +106,7 @@
         <label>このページの構成</label>
         <div class="kind-toggle">
           <label><input type="checkbox" checked> <span>説明文を含める</span></label>
-          <label><input type="checkbox"> <span>問題を含める</span></label>
+          <label><input type="checkbox" checked> <span>問題を含める</span></label>
         </div>
         <span class="field-help">作成者の判断で自由に組み合わせられる。説明文だけの「読み物ページ」、問題だけの「演習ページ」、両方を含む「説明＋確認問題」のいずれも作れる。少なくともどちらか一方は必須。</span>
       </div>
@@ -162,12 +159,11 @@ git checkout -b feature/add-login
           <span class="panel-count">1件</span>
         </div>
         <div class="panel-body">
-          <p style="font-size:12px;color:var(--text-subtle);margin:0 0 8px">このページの説明文と一緒に受講者に表示されます（S-16）。教材全体に関わる資料（シラバス等）はS-05「ファイル・リンク」タブに登録してください。新規ページ作成中はファイル・リンクをここでいくつでも追加でき、「下書き保存」を押したときにページ本体とまとめて登録されます（保存前は一覧に「保存すると登録されます」と表示）。</p>
           <div class="attach-item">
             <span class="attach-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></span>
             <div style="flex:1;min-width:0">
               <div class="attach-name">ブランチ運用デモ動画.mp4</div>
-              <div class="attach-meta">動画 ／ 48.2MB ／ 2026-08-10 登録</div>
+              <div class="attach-meta">video/mp4 ／ 48.2MB</div>
             </div>
             <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
           </div>
@@ -181,208 +177,278 @@ git checkout -b feature/add-login
         </div>
       </section>
 
-      <section class="panel" style="opacity:0.55">
+      <section class="panel">
         <div class="panel-header">
-          <div class="panel-title">問題（このページでは未使用）</div>
+          <div class="panel-title">問題</div>
+          <span class="panel-count">4件</span>
         </div>
         <div class="panel-body">
-          <p style="font-size:12px;color:var(--text-subtle);margin:0 0 8px">「問題を含める」にチェックすると、下の例（第2章「プルリクエストを作成する」ページ）と同じ設問編集フォームがここに展開されます。</p>
-          <button class="add-row-btn" type="button" disabled>+ 設問を追加</button>
+
+          <div class="edit-card">
+            <div class="edit-card-head">
+              <span class="edit-card-title">設問1（単一選択）</span>
+              <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
+            </div>
+            <div class="field">
+              <label>種別</label>
+              <select>
+                <option selected>単一選択</option>
+                <option>複数選択</option>
+                <option>並び替え</option>
+                <option>記述式</option>
+                <option>コード記述式</option>
+                <option>スコア記録</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>設問文</label>
+              <textarea rows="2">作業ブランチを作成するコマンドとして正しいものはどれか。</textarea>
+            </div>
+            <div class="field" style="margin-bottom:0">
+              <label>選択肢（正解にチェック）</label>
+              <div style="display:flex;flex-direction:column;gap:6px">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <input type="radio" name="q1-correct">
+                  <input type="text" value="git commit -b feature/x" style="flex:1">
+                  <button class="btn btn-secondary btn-sm" type="button">削除</button>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <input type="radio" name="q1-correct" checked>
+                  <input type="text" value="git checkout -b feature/x" style="flex:1">
+                  <button class="btn btn-secondary btn-sm" type="button">削除</button>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <input type="radio" name="q1-correct">
+                  <input type="text" value="git merge -b feature/x" style="flex:1">
+                  <button class="btn btn-secondary btn-sm" type="button">削除</button>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <input type="radio" name="q1-correct">
+                  <input type="text" value="git push -b feature/x" style="flex:1">
+                  <button class="btn btn-secondary btn-sm" type="button">削除</button>
+                </div>
+              </div>
+              <button class="add-row-btn" type="button" style="margin-top:8px">+ 選択肢を追加</button>
+            </div>
+            <div class="field-row" style="margin-top:10px">
+              <div>
+                <label>回答</label>
+                <div class="radio-group">
+                  <label class="radio-line"><input type="radio" name="q1-required" checked> 必須</label>
+                  <label class="radio-line"><input type="radio" name="q1-required"> 任意（スキップ可）</label>
+                </div>
+              </div>
+              <div>
+                <label>ドボン問題</label>
+                <label class="checkbox-line"><input type="checkbox"> この設問にする</label>
+              </div>
+              <div>
+                <label>AI講評スタイル（この設問のみ上書き）</label>
+                <select>
+                  <option selected>教材既定に従う</option>
+                  <option>正解提示</option>
+                  <option>コードレビュー型</option>
+                  <option>ヒント型</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="edit-card">
+            <div class="edit-card-head">
+              <span class="edit-card-title">設問2（記述式）<span class="bomb-tag" style="display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;color:#991b1b;background:#fee2e2;border-radius:999px;padding:1px 8px;margin-left:6px">⚠ ドボン</span></span>
+              <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
+            </div>
+            <div class="field">
+              <label>種別</label>
+              <select>
+                <option>単一選択</option>
+                <option>複数選択</option>
+                <option>並び替え</option>
+                <option selected>記述式</option>
+                <option>コード記述式</option>
+                <option>スコア記録</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>設問文</label>
+              <textarea rows="2">よいプルリクエストの説明文に含めるべき情報を2つ挙げて説明してください。</textarea>
+            </div>
+            <div class="field">
+              <label>AI採点基準</label>
+              <textarea rows="3" placeholder="模範解答・採点の観点を記述してください">変更の目的（なぜその変更が必要か）と、動作確認の方法（どう確認したか）が含まれていれば正解。箇条書きでも可。</textarea>
+            </div>
+            <div class="field-row">
+              <div>
+                <label>回答</label>
+                <div class="radio-group">
+                  <label class="radio-line"><input type="radio" name="q2-required" checked> 必須</label>
+                  <label class="radio-line"><input type="radio" name="q2-required"> 任意（スキップ可）</label>
+                </div>
+              </div>
+              <div>
+                <label>ドボン問題</label>
+                <label class="checkbox-line"><input type="checkbox" checked> この設問にする</label>
+              </div>
+            </div>
+            <div class="field">
+              <label>採点方式（この設問のみ上書き）</label>
+              <select id="q2-grading-mode" onchange="document.getElementById('q2-feedback-style').style.opacity = this.selectedIndex===0 ? '1' : '0.5'">
+                <option>教材既定に従う</option>
+                <option selected>AI自動採点</option>
+                <option>手動採点</option>
+              </select>
+            </div>
+            <div class="field" id="q2-feedback-style" style="margin-bottom:0">
+              <label>AI講評スタイル（この設問のみ上書き）</label>
+              <select>
+                <option selected>教材既定に従う</option>
+                <option>正解提示</option>
+                <option>コードレビュー型</option>
+                <option>ヒント型</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="edit-card">
+            <div class="edit-card-head">
+              <span class="edit-card-title">設問3（並び替え）</span>
+              <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
+            </div>
+            <div class="field">
+              <label>種別</label>
+              <select>
+                <option>単一選択</option>
+                <option>複数選択</option>
+                <option selected>並び替え</option>
+                <option>記述式</option>
+                <option>コード記述式</option>
+                <option>スコア記録</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>設問文</label>
+              <textarea rows="2">プルリクエスト作成までの手順を正しい順番に並べ替えてください。</textarea>
+            </div>
+            <div class="field" style="margin-bottom:0">
+              <label>正しい順番（この並びが正解になります）</label>
+              <div style="display:flex;align-items:center;gap:8px;margin:3px 0">
+                <span style="width:16px;flex-shrink:0;font-size:12px;color:var(--text-subtle)">1.</span>
+                <input type="text" value="作業ブランチを作成する" style="flex:1">
+                <button class="btn btn-ghost btn-sm" type="button" disabled>↑</button>
+                <button class="btn btn-ghost btn-sm" type="button">↓</button>
+                <button class="btn btn-secondary btn-sm" type="button">削除</button>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;margin:3px 0">
+                <span style="width:16px;flex-shrink:0;font-size:12px;color:var(--text-subtle)">2.</span>
+                <input type="text" value="変更をコミットする" style="flex:1">
+                <button class="btn btn-ghost btn-sm" type="button">↑</button>
+                <button class="btn btn-ghost btn-sm" type="button">↓</button>
+                <button class="btn btn-secondary btn-sm" type="button">削除</button>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;margin:3px 0">
+                <span style="width:16px;flex-shrink:0;font-size:12px;color:var(--text-subtle)">3.</span>
+                <input type="text" value="リモートへpushする" style="flex:1">
+                <button class="btn btn-ghost btn-sm" type="button">↑</button>
+                <button class="btn btn-ghost btn-sm" type="button">↓</button>
+                <button class="btn btn-secondary btn-sm" type="button">削除</button>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;margin:3px 0">
+                <span style="width:16px;flex-shrink:0;font-size:12px;color:var(--text-subtle)">4.</span>
+                <input type="text" value="プルリクエストを作成する" style="flex:1">
+                <button class="btn btn-ghost btn-sm" type="button">↑</button>
+                <button class="btn btn-ghost btn-sm" type="button" disabled>↓</button>
+                <button class="btn btn-secondary btn-sm" type="button">削除</button>
+              </div>
+              <button class="add-row-btn" type="button" style="margin-top:6px">+ 項目を追加</button>
+              <p class="field-help" style="margin-top:6px">受講側ではこの項目がシャッフルされた状態で表示され、受講者が↑↓ボタンで並び替えて回答します（ドラッグ操作ではありません）。採点は正解の並びと回答順序の完全一致で判定し、AIは使いません。</p>
+            </div>
+            <div class="field-row" style="margin-top:10px">
+              <div>
+                <label>回答</label>
+                <div class="radio-group">
+                  <label class="radio-line"><input type="radio" name="q3-required" checked> 必須</label>
+                  <label class="radio-line"><input type="radio" name="q3-required"> 任意（スキップ可）</label>
+                </div>
+              </div>
+              <div>
+                <label>ドボン問題</label>
+                <label class="checkbox-line"><input type="checkbox"> この設問にする</label>
+              </div>
+              <div>
+                <label>AI講評スタイル（この設問のみ上書き）</label>
+                <select>
+                  <option selected>教材既定に従う</option>
+                  <option>正解提示</option>
+                  <option>コードレビュー型</option>
+                  <option>ヒント型</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="edit-card">
+            <div class="edit-card-head">
+              <span class="edit-card-title">設問4（スコア記録）</span>
+              <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
+            </div>
+            <div class="field">
+              <label>種別</label>
+              <select>
+                <option>単一選択</option>
+                <option>複数選択</option>
+                <option>並び替え</option>
+                <option>記述式</option>
+                <option>コード記述式</option>
+                <option selected>スコア記録</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>設問文</label>
+              <textarea rows="2">タイピング練習の結果（正打数）を入力してください</textarea>
+            </div>
+            <div class="field">
+              <label>スコアの単位</label>
+              <input type="text" value="WPM" style="max-width:160px">
+              <span class="field-help">正解の概念はなく、受講者が入力した値をそのまま記録します。</span>
+            </div>
+            <div class="field-row">
+              <div>
+                <label>回答</label>
+                <div class="radio-group">
+                  <label class="radio-line"><input type="radio" name="q4-required" checked> 必須</label>
+                  <label class="radio-line"><input type="radio" name="q4-required"> 任意（スキップ可）</label>
+                </div>
+              </div>
+              <div>
+                <label>ドボン問題</label>
+                <label class="checkbox-line" title="スコア記録型には設定できません" style="opacity:0.4"><input type="checkbox" disabled> この設問にする</label>
+              </div>
+              <div>
+                <label>AI講評スタイル（この設問のみ上書き）</label>
+                <select>
+                  <option selected>教材既定に従う</option>
+                  <option>正解提示</option>
+                  <option>コードレビュー型</option>
+                  <option>ヒント型</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <button class="add-row-btn" type="button">+ 設問を追加</button>
+
+          <div class="field" style="max-width:520px;margin-top:16px;border-top:1px solid var(--border);padding-top:14px">
+            <label>出題設定</label>
+            <div class="radio-group">
+              <label class="radio-line"><input type="radio" name="quiz-mode" checked> すべて出題</label>
+              <label class="radio-line"><input type="radio" name="quiz-mode"> プールからランダムに抽出</label>
+            </div>
+            <span class="field-help">「プールからランダムに抽出」を選ぶと、この設問一覧から毎回指定した数だけランダムに出題します。選ぶと下に設問一覧のチェックボックス「プールに含める設問」が表示され、チェックした設問（2問以上、かつ保存済みの設問のみ選択可）だけが抽選対象になります。チェックしなかった設問は毎回固定で出題されます。</span>
+          </div>
+
         </div>
       </section>
-
-      <div class="field" style="max-width:520px">
-        <label>出題方式</label>
-        <div class="radio-group">
-          <label class="radio-line"><input type="radio" name="quiz-mode" checked> このページの設問をすべて出題する</label>
-          <label class="radio-line"><input type="radio" name="quiz-mode"> 問題プールからランダムに出題する</label>
-        </div>
-        <span class="field-help">プールを選ぶと「1回あたりの出題数」を追加で設定できます（大きな問題バンクから毎回一部だけ出題したい場合。例: 章末に50問プールを用意し、受講のたびランダムに5問）。あわせて設問一覧にチェックボックス「プールに含める」が表示され、チェックした設問だけが抽選対象になります（チェックしなかった設問は毎回固定で出題）。1ページにつきプールは1つのみで、抽選対象にするには2問以上のチェックが必要です。未保存（新規追加直後）の設問は保存後にチェックできます。</span>
-      </div>
-
-      <div class="table-notes" style="margin:16px 0">
-        ※ 参考として、「説明＋問題」ページ（第2章「プルリクエストを作成する」）を開いた場合の問題編集フォームを以下に例示します。種別は単一選択・複数選択・並び替え・記述式・コード記述式・スコア記録から選べます。コード記述式はAIがコードを実行せず読解して採点するため、数式処理・辞書操作等、実行結果をAIが読解のみで推論しやすい教育用の課題を想定してください。
-      </div>
-
-      <div class="edit-card">
-        <div class="edit-card-head">
-          <span class="edit-card-title">設問1（単一選択）</span>
-          <div style="display:flex;gap:6px">
-            <a class="btn btn-secondary btn-sm" href="S-19_question-answers.html">回答傾向を見る</a>
-            <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
-          </div>
-        </div>
-        <div class="field">
-          <label>種別</label>
-          <select>
-            <option selected>単一選択</option>
-            <option>複数選択</option>
-            <option>並び替え</option>
-            <option>記述式</option>
-            <option>コード記述式</option>
-            <option>スコア記録</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>設問文</label>
-          <textarea rows="2">作業ブランチを作成するコマンドとして正しいものはどれか。</textarea>
-        </div>
-        <div class="field" style="margin-bottom:0">
-          <label>選択肢（正解にチェック）</label>
-          <div class="checkbox-group" style="flex-direction:column;align-items:flex-start">
-            <label class="checkbox-line"><input type="checkbox"> git commit -b feature/x</label>
-            <label class="checkbox-line"><input type="checkbox" checked> git checkout -b feature/x</label>
-            <label class="checkbox-line"><input type="checkbox"> git merge -b feature/x</label>
-            <label class="checkbox-line"><input type="checkbox"> git push -b feature/x</label>
-          </div>
-          <button class="add-row-btn" type="button" style="margin-top:8px">+ 選択肢を追加</button>
-        </div>
-        <p class="field-help" style="margin-top:6px">※ 単一選択・複数選択は「正解にチェック」した内容（<code>correct_answer</code>）と回答を直接照合するため、採点にAIは使いません。</p>
-        <div class="field-row" style="margin-top:10px">
-          <div>
-            <label>回答</label>
-            <div class="radio-group">
-              <label class="radio-line"><input type="radio" name="q1-required" checked> 必須</label>
-              <label class="radio-line"><input type="radio" name="q1-required"> 任意（スキップ可）</label>
-            </div>
-          </div>
-          <div>
-            <label>ドボン問題</label>
-            <label class="checkbox-line"><input type="checkbox"> この設問にする</label>
-            <span class="field-help">不正解だと受験単位（S-05で設定）が正答率によらず不合格になります</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="edit-card">
-        <div class="edit-card-head">
-          <span class="edit-card-title">設問2（記述式）<span class="bomb-tag" style="display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;color:#991b1b;background:#fee2e2;border-radius:999px;padding:1px 8px;margin-left:6px">⚠ ドボン</span></span>
-          <div style="display:flex;gap:6px">
-            <a class="btn btn-secondary btn-sm" href="S-19_question-answers.html">回答傾向を見る</a>
-            <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
-          </div>
-        </div>
-        <div class="field">
-          <label>種別</label>
-          <select>
-            <option>単一選択</option>
-            <option>複数選択</option>
-            <option>並び替え</option>
-            <option selected>記述式</option>
-            <option>コード記述式</option>
-            <option>スコア記録</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>設問文</label>
-          <textarea rows="2">よいプルリクエストの説明文に含めるべき情報を2つ挙げて説明してください。</textarea>
-        </div>
-        <div class="field">
-          <label>模範解答・採点基準（採点の参照用）</label>
-          <textarea rows="3">変更の目的（なぜその変更が必要か）と、動作確認の方法（どう確認したか）が含まれていれば正解。箇条書きでも可。</textarea>
-          <p class="field-help" style="margin-top:6px">※ 記述式・コード記述式は、この基準を参照して採点します。基準そのものは人が設定しますが、最終判定は下の「採点方式」でAIまたはプロジェクト担当者のどちらかに委ねられます。配点は設けず、教材全体の正答率（正解した設問数／全設問数）のみで合否を判定します。</p>
-        </div>
-        <div class="field-row">
-          <div>
-            <label>回答</label>
-            <div class="radio-group">
-              <label class="radio-line"><input type="radio" name="q2-required" checked> 必須</label>
-              <label class="radio-line"><input type="radio" name="q2-required"> 任意（スキップ可）</label>
-            </div>
-          </div>
-          <div>
-            <label>ドボン問題</label>
-            <label class="checkbox-line"><input type="checkbox" checked> この設問にする</label>
-          </div>
-        </div>
-        <div class="field">
-          <label>採点方式</label>
-          <select id="q2-grading-mode" onchange="document.getElementById('q2-feedback-style').style.opacity = this.selectedIndex===0 ? '1' : '0.5'">
-            <option>教材の既定に従う（S-05で設定）</option>
-            <option selected>AI自動採点</option>
-            <option>プロジェクト担当者（管理者・編集者）が手動採点</option>
-          </select>
-          <span class="field-help">「手動採点」を選ぶと、この設問はAIによる正誤判定を行わず、サイドバー「採点」（S-20）で担当者が採点します。AIはその結果をF-21のつまずき分析にのみ利用します。</span>
-        </div>
-        <div class="field" id="q2-feedback-style" style="margin-bottom:0">
-          <label>AI講評のスタイル</label>
-          <select>
-            <option selected>教材の既定に従う（S-05で設定）</option>
-            <option>正解提示型</option>
-            <option>コードレビュー型（間違いのみ指摘）</option>
-            <option>ヒント型（正解を見せない）</option>
-          </select>
-          <span class="field-help">採点方式が「AI自動採点」の場合のみ有効です。この設問だけ教材の既定と違うスタイルにしたい場合に選びます。</span>
-        </div>
-      </div>
-
-      <div class="edit-card">
-        <div class="edit-card-head">
-          <span class="edit-card-title">設問3（並び替え）</span>
-          <div style="display:flex;gap:6px">
-            <a class="btn btn-secondary btn-sm" href="S-19_question-answers.html">回答傾向を見る</a>
-            <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
-          </div>
-        </div>
-        <div class="field">
-          <label>種別</label>
-          <select>
-            <option>単一選択</option>
-            <option>複数選択</option>
-            <option selected>並び替え</option>
-            <option>記述式</option>
-            <option>コード記述式</option>
-            <option>スコア記録</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>設問文</label>
-          <textarea rows="2">プルリクエスト作成までの手順を正しい順番に並べ替えてください。</textarea>
-        </div>
-        <div class="field" style="margin-bottom:0">
-          <label>正しい順番（この並びが正解になります）</label>
-          <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--bg-subtle);border-radius:6px;margin:3px 0;font-size:12.5px">⠿ 1. 作業ブランチを作成する</div>
-          <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--bg-subtle);border-radius:6px;margin:3px 0;font-size:12.5px">⠿ 2. 変更をコミットする</div>
-          <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--bg-subtle);border-radius:6px;margin:3px 0;font-size:12.5px">⠿ 3. リモートへpushする</div>
-          <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--bg-subtle);border-radius:6px;margin:3px 0;font-size:12.5px">⠿ 4. プルリクエストを作成する</div>
-          <button class="add-row-btn" type="button" style="margin-top:6px">+ 項目を追加</button>
-          <p class="field-help" style="margin-top:6px">受講側ではこの項目がシャッフルされた状態で表示され、受講者がドラッグで並び替えて回答します。採点は正解の並びと回答順序の完全一致で判定し、AIは使いません。</p>
-        </div>
-      </div>
-
-      <div class="edit-card">
-        <div class="edit-card-head">
-          <span class="edit-card-title">設問4（スコア記録）</span>
-          <div style="display:flex;gap:6px">
-            <a class="btn btn-secondary btn-sm" href="S-19_question-answers.html">回答傾向を見る</a>
-            <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
-          </div>
-        </div>
-        <div class="field">
-          <label>種別</label>
-          <select>
-            <option>単一選択</option>
-            <option>複数選択</option>
-            <option>並び替え</option>
-            <option>記述式</option>
-            <option>コード記述式</option>
-            <option selected>スコア記録</option>
-          </select>
-        </div>
-        <div class="field-row">
-          <div style="grid-column:span 2">
-            <label>設問文（指示文）</label>
-            <input type="text" value="タイピング練習の結果（正打数）を入力してください">
-          </div>
-          <div>
-            <label>単位</label>
-            <input type="text" value="WPM">
-          </div>
-        </div>
-        <span class="field-help" style="display:block">正解・不正解の概念を持たない設問です。受講者が数値を自己申告で入力し、記録として積み上がります（反復演習と組み合わせて推移を追う想定）。正答率の計算には含めず、ドボン問題にも設定できません。AI個人フィードバックでスコアの推移コメントが本人に届きます。</span>
-      </div>
-
-      <button class="add-row-btn" type="button">+ 設問を追加</button>
 
       <div class="form-actions" style="margin-top:18px">
         <button class="btn btn-primary" type="button">下書き保存</button>

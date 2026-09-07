@@ -102,8 +102,9 @@
           <span class="stat-link-hint">一覧を見る <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
         </a>
         <div class="stat">
-          <div class="stat-label">平均正答率</div>
-          <div class="stat-value">74<span class="stat-unit">%</span></div>
+          <div class="stat-label">必修受講完了率</div>
+          <div class="stat-value">83<span class="stat-unit">%</span></div>
+          <div style="font-size:11px;color:var(--text-subtle);margin-top:2px">5件／6件</div>
         </div>
         <div class="stat">
           <div class="stat-label">直近の受講</div>
@@ -121,6 +122,13 @@
           <span class="panel-count">2026-08-16 21:00 生成</span>
         </div>
         <div class="panel-body">
+          <div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border)">
+            <div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:6px">教材別正答率</div>
+            <div style="display:flex;justify-content:space-between;font-size:13px;padding:2px 0"><span style="color:var(--text)">ハラスメント防止研修</span><span style="font-weight:600;color:var(--text)">95点</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:13px;padding:2px 0"><span style="color:var(--text)">新人向けGit入門</span><span style="font-weight:600;color:var(--text)">82点</span></div>
+            <div style="display:flex;justify-content:space-between;font-size:13px;padding:2px 0"><span style="color:var(--text)">ビジネスマナー研修</span><span style="font-weight:600;color:var(--text)">88点</span></div>
+            <p style="margin-top:6px;font-size:11px;color:var(--text-subtle)">設問を含む受験記録がある教材のみ表示します（説明文のみのページは対象外）。</p>
+          </div>
           <div class="ai-panel">
             <div class="ai-panel-head">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
@@ -137,74 +145,108 @@
 
           <div style="margin-top:16px">
             <div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:8px">おすすめ教材</div>
-            <div class="material-card" style="margin-bottom:8px">
-              <div class="material-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
-              </div>
-              <div class="material-body">
-                <div class="material-title">新人向けGit入門</div>
-                <div class="material-meta"><span class="badge badge-optional">任意</span><span>第2章「ブランチとプルリクエストの基本」が特におすすめ</span></div>
-              </div>
-              <div class="material-actions"><a class="btn btn-secondary btn-sm" href="S-04_material-view.html">受講する</a></div>
-            </div>
+            <a href="S-04_material-view.html" style="display:block;margin-bottom:6px;padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius);color:var(--accent-700, #1e40af);font-size:13px;text-decoration:none">新人向けGit入門</a>
           </div>
         </div>
       </section>
 
-      <!-- 学習履歴 -->
+      <!-- 学習履歴。タブは「完了」「受講中」「未受講に戻した教材」の3構成（2026-09-03）。
+           「未受講に戻した教材」は一度着手した教材を「未受講に戻す」操作で戻したものだけを表示し、
+           一度も着手していない教材は対象外（マイ学習・教材一覧側の「未受講」とは対象範囲が異なる）。 -->
       <section class="panel" id="learning-history">
         <div class="panel-header">
           <div class="panel-title">学習履歴</div>
-          <span class="panel-count">受講済み 5件</span>
         </div>
-        <div class="table-wrap" style="box-shadow:none;border:none">
-          <table class="table">
-            <thead>
-              <tr><th>教材</th><th style="width:110px">受講日</th><th style="width:90px">結果</th><th style="width:80px">スコア</th></tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td class="cell-main">AI開発研修 基礎編 — Claude Codeの使い方</td>
-                <td>2026-08-16</td>
-                <td><span class="badge">受講中</span></td>
-                <td class="num">—</td>
-              </tr>
-              <tr>
-                <td class="cell-main">ハラスメント防止研修</td>
-                <td>2026-08-05</td>
-                <td><span class="badge badge-complete">合格</span></td>
-                <td class="num">95点</td>
-              </tr>
-              <tr>
-                <td class="cell-main">新人向けGit入門</td>
-                <td>2026-07-10</td>
-                <td><span class="badge badge-complete">合格</span></td>
-                <td class="num">82点</td>
-              </tr>
-              <tr>
-                <td class="cell-main">TypeScript入門</td>
-                <td>2026-06-28</td>
-                <td><span class="badge">受講中</span></td>
-                <td class="num">—</td>
-              </tr>
-              <tr>
-                <td class="cell-main">ビジネスマナー研修</td>
-                <td>2026-05-12</td>
-                <td><span class="badge badge-complete">合格</span></td>
-                <td class="num">88点</td>
-              </tr>
-            </tbody>
-          </table>
+        <div class="panel-body" style="padding-bottom:0">
+          <div class="tabs" role="tablist" style="margin-bottom:12px">
+            <button class="tab active" id="tab-completed" type="button" onclick="switchHistoryTab('completed')">完了 (3)</button>
+            <button class="tab" id="tab-inprogress" type="button" onclick="switchHistoryTab('inprogress')">受講中 (2)</button>
+            <button class="tab" id="tab-notstarted" type="button" onclick="switchHistoryTab('notstarted')">未受講に戻した教材 (0)</button>
+          </div>
+        </div>
+
+        <div class="tab-panel active" id="panel-completed">
+          <div class="table-wrap" style="box-shadow:none;border:none">
+            <table class="table">
+              <thead>
+                <tr><th>教材</th><th style="width:110px">受講日</th><th style="width:90px">結果</th><th style="width:80px">スコア</th><th style="width:110px">操作</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="cell-main">ハラスメント防止研修</td>
+                  <td>2026-08-05</td>
+                  <td><span class="badge badge-complete">合格</span></td>
+                  <td class="num">95点</td>
+                  <td><button class="btn btn-ghost btn-sm" type="button">未受講に戻す</button></td>
+                </tr>
+                <tr>
+                  <td class="cell-main">新人向けGit入門</td>
+                  <td>2026-07-10</td>
+                  <td><span class="badge badge-complete">合格</span></td>
+                  <td class="num">82点</td>
+                  <td><button class="btn btn-ghost btn-sm" type="button">未受講に戻す</button></td>
+                </tr>
+                <tr>
+                  <td class="cell-main">ビジネスマナー研修</td>
+                  <td>2026-05-12</td>
+                  <td><span class="badge badge-complete">合格</span></td>
+                  <td class="num">88点</td>
+                  <td><button class="btn btn-ghost btn-sm" type="button">未受講に戻す</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="tab-panel" id="panel-inprogress">
+          <div class="table-wrap" style="box-shadow:none;border:none">
+            <table class="table">
+              <thead>
+                <tr><th>教材</th><th style="width:110px">受講日</th><th style="width:90px">結果</th><th style="width:80px">スコア</th><th style="width:110px">操作</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="cell-main">AI開発研修 基礎編 — Claude Codeの使い方</td>
+                  <td>—</td>
+                  <td><span class="badge">受講中</span></td>
+                  <td class="num">—</td>
+                  <td><button class="btn btn-ghost btn-sm" type="button">未受講に戻す</button></td>
+                </tr>
+                <tr>
+                  <td class="cell-main">TypeScript入門</td>
+                  <td>—</td>
+                  <td><span class="badge">受講中</span></td>
+                  <td class="num">—</td>
+                  <td><button class="btn btn-ghost btn-sm" type="button">未受講に戻す</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="tab-panel" id="panel-notstarted">
+          <p style="padding:16px 0;font-size:13px;color:var(--text-subtle)">該当する教材はありません。</p>
         </div>
       </section>
 
-      <p style="font-size:11.5px;color:var(--text-subtle)">※ 学習記録・AIフィードバックの参照範囲は、本人・対象者が所属するプロジェクトの管理者・admin に限定されます。</p>
+      <p style="font-size:11.5px;color:var(--text-subtle)">※ 学習記録は人事評価には用いません。</p>
 
     </div>
   </div>
 </div>
 
 <div class="mock-note">画面モックアップ（S-09）/ 研修サンプル</div>
+
+<script>
+// 学習履歴タブ切替（静的モック確認用の最小限のJS）
+function switchHistoryTab(name) {
+  var tabs = ['completed', 'inprogress', 'notstarted'];
+  tabs.forEach(function (t) {
+    document.getElementById('tab-' + t).classList.toggle('active', t === name);
+    document.getElementById('panel-' + t).classList.toggle('active', t === name);
+  });
+}
+</script>
 
 <script src="mock-sidebar.js"></script>
 </body>

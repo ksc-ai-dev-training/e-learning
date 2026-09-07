@@ -84,6 +84,10 @@
         <div style="font-size:12px;color:var(--text-subtle);margin-top:2px">AI開発研修 基礎編 — Claude Codeの使い方 ／ 第3章 Claude Codeとの基本的なやりとり ／ 3.2 実践編</div>
       </div>
       <div class="header-actions">
+        <button class="btn btn-ghost" type="button" style="display:inline-flex;align-items:center;gap:5px;border:1px solid var(--border-strong)" title="全社Wiki所属の任意教材のみ表示（マイ学習への追加/解除）">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21 12 16l-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+          マイ学習に追加
+        </button>
         <a class="btn btn-ghost" href="S-04_material-view.html">目次へ戻る</a>
       </div>
     </header>
@@ -103,11 +107,7 @@
         </div>
         <div class="panel-body" style="font-size:13px;line-height:1.9;color:var(--text)">
           <p style="margin-bottom:10px">Claude Codeは、ファイルの読み取り・編集・検索やコマンド実行といった操作をエージェントが代行するツールです。指示は日本語の自然文で構いませんが、変更してよい範囲や確認してほしいタイミングを具体的に伝えると、意図しない変更を防げます。</p>
-          <p style="margin-bottom:10px">特に既存ファイルを編集する際は、事前にどのファイルのどの部分を変更するかを確認し、差分（diff）を見てから反映するとよいでしょう。設定ファイルなど影響範囲の大きいものは、変更前にバックアップを取ることを習慣にしてください。</p>
-          <p style="margin-bottom:0">添付資料:
-            <a href="#" onclick="return false">Claude Code操作ガイド.pdf</a>
-            ／ <a href="#" onclick="return false">デモ動画（12分）</a>
-          </p>
+          <p style="margin-bottom:0">特に既存ファイルを編集する際は、事前にどのファイルのどの部分を変更するかを確認し、差分（diff）を見てから反映するとよいでしょう。設定ファイルなど影響範囲の大きいものは、変更前にバックアップを取ることを習慣にしてください。</p>
         </div>
       </section>
 
@@ -135,7 +135,8 @@
         <label class="option-line"><input type="checkbox"> 重要な設定ファイルの変更前にはバックアップを取る</label>
         <label class="option-line"><input type="checkbox"> レビューを省略してすぐにマージする</label>
         <label class="option-line"><input type="checkbox"> 意図しない挙動があれば作業を中断して確認する</label>
-        <p class="field-help" style="margin-top:8px">この設問は回答任意です。<a href="#" onclick="return false">スキップして次へ</a></p>
+        <p style="margin:8px 0 0"><button class="btn btn-secondary btn-sm" type="button">回答する</button></p>
+        <p class="field-help" style="margin-top:6px">この設問は回答任意です。<a href="#" onclick="return false">スキップして次へ</a></p>
       </div>
 
       <!-- 設問3（記述式・未解放） -->
@@ -146,7 +147,7 @@
         </div>
         <div class="question-text">あなたの業務でClaude Codeを活用できそうな場面を、具体的に100字程度で述べてください。</div>
         <textarea rows="3" disabled placeholder="設問2に回答すると入力できるようになります"></textarea>
-        <p class="field-help" style="margin-top:6px">※ 記述式はAIまたはプロジェクト担当者（管理者・編集者）が採点します（教材の設定による）。結果が出るまでAI採点なら数十秒〜数分、手動採点なら担当者が確認するまで時間がかかる場合がありますが、採点を待たずに次の設問へ進めます。</p>
+        <p class="field-help" style="margin-top:6px">※ 記述式はAIまたはプロジェクト担当者が採点します（教材の設定による）。結果を待たずに次の設問へ進められます。</p>
       </div>
 
       <!-- 設問4（コード記述式・未解放） -->
@@ -157,7 +158,7 @@
         </div>
         <div class="question-text">辞書 d の値をすべて合計して返す関数 sum_values(d) を書いてください。空の辞書を渡した場合は 0 を返すようにしてください。</div>
         <textarea class="code-answer" disabled placeholder="設問3に回答すると入力できるようになります&#10;&#10;def sum_values(d):&#10;    ..."></textarea>
-        <p class="field-help" style="margin-top:6px">※ コード記述式はAIまたはプロジェクト担当者が採点します（教材の設定による）。AI採点の場合はコードを実行せず読解して判定し、無駄な処理があれば簡略化の提案も講評に含まれます。結果を待たずに次の設問へ進めます。</p>
+        <p class="field-help" style="margin-top:6px">※ コード記述式はAIまたはプロジェクト担当者が採点します（教材の設定による）。結果を待たずに次の設問へ進められます。</p>
       </div>
 
       <div class="form-actions">
@@ -167,7 +168,7 @@
       </div>
 
       <div class="table-notes" style="margin-top:16px">
-        ※ 説明文のみのページ（例: 「安全に指示を出すコツ」）では設問カードは表示されず、本文と「次のページへ」ボタンのみになります。問題のみのページ（例: 「導入前チェック」）では本文パネルが表示されません。合否判定・再受験（前回の受験結果）は教材1冊分の全ページの正誤をまとめて1回の受験として集計し、目次画面（S-04）に表示します。
+        ※ 説明文のみのページ（例: 「安全に指示を出すコツ」）では設問カードは表示されず、本文と「次のページへ」ボタンのみになります。問題のみのページ（例: 「導入前チェック」）では本文パネルが表示されません。合否判定・再受験（前回の受験結果）は教材1冊分の全ページの正誤をまとめて1回の受験として集計し、目次画面（S-04）に表示します。添付ファイルはこのページでは表示されず、目次画面（S-04）にまとめて表示されます。
       </div>
       <div class="table-notes" style="margin-top:8px">
         ※ 「次のページへ」を押した先が次の章の最初のページになる場合（attempt_scope=教材/ページ単位のときのみ。章単位の場合は既存の提出結果画面が同じ役割を果たす）、無音で遷移せず「第N章『◯◯』を完了しました。次は第N+1章『△△』です」という区切りモーダル（「このページに戻る」/「次の章へ進む」の2択）を挟みます（2026-09-02追加。章をまたぐ遷移が分かりにくいというフィードバックを受けて対応）。

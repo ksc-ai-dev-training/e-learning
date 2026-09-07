@@ -87,9 +87,6 @@
 
   <!-- メインエリア -->
   <div class="main">
-    <div id="context-banner" style="display:none;background:#eff6ff;border-bottom:1px solid #bfdbfe;color:#1e3a8a;font-size:12.5px;padding:8px 20px;">
-      <a href="S-09_my-report.html" style="color:inherit;font-weight:600">← 個人学習レポート</a> から表示しています。「未受講のみ表示」「区分: 必修のみ」で絞り込み、未受講の必修教材のみを表示しています。
-    </div>
     <header class="page-header">
       <div class="page-title-group">
         <h1>教材一覧・検索</h1>
@@ -123,7 +120,7 @@
           <div class="search-grid">
             <div class="field">
               <label for="q">キーワード</label>
-              <input type="search" id="q" placeholder="教材名、見出し名、#タグ">
+              <input type="search" id="q" placeholder="教材名、見出し名">
             </div>
             <div class="field">
               <label>区分</label>
@@ -151,6 +148,7 @@
             <label class="checkbox-line"><input type="checkbox"> 自分が受講対象の教材のみ表示</label>
           </div>
 
+
           <div class="search-actions">
             <button class="btn btn-primary" type="button">
               <span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
@@ -174,7 +172,6 @@
               <th>プロジェクト</th>
               <th>タグ</th>
               <th style="width:80px">区分</th>
-              <th style="width:100px">所要時間</th>
               <th style="width:110px">更新日</th>
               <th style="width:110px">操作</th>
             </tr>
@@ -188,7 +185,6 @@
               <td><span class="chip">新人研修2026運営</span></td>
               <td><span class="tag-pill">#新人研修2026</span></td>
               <td><span class="badge badge-required">必修</span></td>
-              <td class="num">約90分</td>
               <td>2026-08-10</td>
               <td><a class="btn btn-secondary btn-sm" href="S-04_material-view.html">受講する</a></td>
             </tr>
@@ -200,7 +196,6 @@
               <td><span class="chip">新人研修2026運営</span></td>
               <td><span class="tag-pill">#新人研修2026</span></td>
               <td><span class="badge badge-required">必修</span></td>
-              <td class="num">約40分</td>
               <td>2026-07-20</td>
               <td><a class="btn btn-secondary btn-sm" href="S-04_material-view.html">受講する</a></td>
             </tr>
@@ -212,7 +207,6 @@
               <td><span class="chip">情報セキュリティ委員会</span></td>
               <td><span class="tag-pill">#セキュリティ</span></td>
               <td><span class="badge badge-required">必修</span></td>
-              <td class="num">約60分</td>
               <td>2026-08-01</td>
               <td><a class="btn btn-secondary btn-sm" href="S-04_material-view.html">受講する</a></td>
             </tr>
@@ -224,31 +218,28 @@
               <td><span class="chip">情報セキュリティ委員会</span></td>
               <td><span class="tag-pill">#セキュリティ</span></td>
               <td><span class="badge badge-required">必修</span></td>
-              <td class="num">約30分</td>
               <td>2026-06-15</td>
-              <td><a class="btn btn-ghost btn-sm" href="S-04_material-view.html">復習する</a></td>
+              <td><a class="btn btn-secondary btn-sm" href="S-04_material-view.html">復習する</a></td>
             </tr>
             <tr data-required="false" data-status="completed">
               <td>
                 <div class="cell-main">新人向けGit入門</div>
-                <div class="cell-sub">全4章・9ページ ／ 記述式 全5問 ／ 作成: 鈴木 美咲</div>
+                <div class="cell-sub">全4章・9ページ ／ 記述式 全5問</div>
               </td>
               <td><span class="chip">LCC CRM刷新</span></td>
               <td><span class="tag-pill">#エンジニア基礎</span> <span class="tag-pill">#Git</span></td>
               <td><span class="badge badge-optional">任意</span></td>
-              <td class="num">約45分</td>
               <td>2026-08-14</td>
-              <td><a class="btn btn-ghost btn-sm" href="S-04_material-view.html">反復演習</a></td>
+              <td><a class="btn btn-secondary btn-sm" href="S-04_material-view.html">反復演習</a></td>
             </tr>
             <tr data-required="false" data-status="not_started">
               <td>
                 <div class="cell-main">データベース設計入門</div>
-                <div class="cell-sub">全5章・13ページ ／ 単一選択・記述式 全9問 ／ 作成: 鈴木 美咲</div>
+                <div class="cell-sub">全5章・13ページ ／ 単一選択・記述式 全9問</div>
               </td>
               <td><span class="chip">LCC CRM刷新</span></td>
               <td><span class="tag-pill">#エンジニア基礎</span></td>
               <td><span class="badge badge-optional">任意</span></td>
-              <td class="num">約70分</td>
               <td>2026-08-12</td>
               <td><a class="btn btn-secondary btn-sm" href="S-04_material-view.html">受講する</a></td>
             </tr>
@@ -260,7 +251,6 @@
               <td><span class="chip">Manabi新規構築</span></td>
               <td><span class="tag-pill">#フロントエンド基礎</span></td>
               <td><span class="badge badge-optional">任意</span></td>
-              <td class="num">約100分</td>
               <td>2026-08-05</td>
               <td><a class="btn btn-secondary btn-sm" href="S-04_material-view.html">続きから受講</a></td>
             </tr>
@@ -272,21 +262,27 @@
               <td><span class="chip">Manabi新規構築</span></td>
               <td><span class="tag-pill">#フロントエンド基礎</span></td>
               <td><span class="badge badge-optional">任意</span></td>
-              <td class="num">約80分</td>
               <td>2026-08-05</td>
               <td><a class="btn btn-secondary btn-sm" href="S-04_material-view.html">受講する</a></td>
             </tr>
             <tr data-required="false" data-status="not_started">
               <td>
                 <div class="cell-main">Python基礎ハンズオン資料</div>
-                <div class="cell-sub">全2章・6ページ ／ 記述式・コード記述式 全5問 ／ 作成: 高橋 大輔</div>
+                <div class="cell-sub">全2章・6ページ ／ 記述式・コード記述式 全5問</div>
               </td>
               <td><span class="chip chip-proj">📌 全社Wiki</span></td>
               <td><span class="tag-pill">#Python</span></td>
               <td><span class="badge badge-optional">任意</span></td>
-              <td class="num">約30分</td>
               <td>2026-08-17</td>
-              <td><a class="btn btn-secondary btn-sm" href="S-04_material-view.html">受講する</a></td>
+              <td>
+                <div style="display:flex;flex-direction:column;align-items:flex-start;gap:6px">
+                  <a class="btn btn-secondary btn-sm" href="S-04_material-view.html">受講する</a>
+                  <button type="button" class="btn-sm" style="display:inline-flex;align-items:center;gap:5px;border:1px solid var(--border-strong);border-radius:var(--radius);background:var(--bg);color:var(--text-muted);padding:0 8px;height:26px;font-family:var(--font);cursor:pointer">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+                    マイ学習に追加
+                  </button>
+                </div>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -312,35 +308,6 @@
 </div>
 
 <div class="mock-note">画面モックアップ（S-03）/ 研修サンプル</div>
-
-<script>
-// 個人学習レポート（S-09）の統計カードから遷移してきた場合、
-// 「未受講のみ表示」「区分: 必修のみ」を適用した状態を静的モックで再現する
-// （実際にはA-14へのクエリパラメータで絞り込む。7章参照）
-function applyIncompleteRequiredFilter() {
-  var active = window.location.hash === '#incomplete-required';
-
-  document.getElementById('context-banner').style.display = active ? 'block' : 'none';
-  document.getElementById('filter-incomplete-only').checked = active;
-  document.getElementById('filter-required').value = active ? '必修のみ' : 'すべて';
-
-  var rows = document.querySelectorAll('#materials-tbody tr');
-  var visibleCount = 0;
-  rows.forEach(function (row) {
-    var matches = !active ||
-      (row.getAttribute('data-required') === 'true' && row.getAttribute('data-status') === 'not_started');
-    row.style.display = matches ? '' : 'none';
-    if (matches) visibleCount++;
-  });
-
-  var totalText = document.getElementById('total-count-text');
-  totalText.innerHTML = active
-    ? '<strong>1 - ' + visibleCount + '</strong> / ' + visibleCount + '件（未受講の必修教材のみ）'
-    : '<strong>1 - ' + rows.length + '</strong> / ' + rows.length + '件';
-}
-applyIncompleteRequiredFilter();
-window.addEventListener('hashchange', applyIncompleteRequiredFilter);
-</script>
 
 <script src="mock-sidebar.js"></script>
 </body>

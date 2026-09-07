@@ -102,12 +102,12 @@
 
       <!-- ユーザー管理タブ -->
       <div class="tab-panel active" id="panel-users">
+        <p style="margin-bottom:14px;font-size:12px;color:var(--text-muted)">全社員のロール（一般/システム管理者）と有効/無効を管理します。自分自身の降格・無効化はできません。システム管理者が最後の1人になる変更もできません。</p>
         <div class="toolbar">
           <div class="search-box">
             <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             <input type="search" placeholder="氏名・メールアドレスで検索">
           </div>
-          <span class="result-count"><strong>5名</strong> 表示中</span>
         </div>
 
         <div class="table-wrap">
@@ -223,7 +223,7 @@
                 </td>
                 <td>d.takahashi@kogasoftware.com</td>
                 <td>
-                  <select disabled title="無効化されたユーザーはロールを変更できません">
+                  <select>
                     <option selected>member</option>
                     <option>admin</option>
                   </select>
@@ -240,7 +240,6 @@
             </tbody>
           </table>
         </div>
-        <p style="margin-top:10px;font-size:11.5px;color:var(--text-subtle)">※ 自分自身（ログイン中ユーザー）の admin 降格・無効化はできません。初回ログイン時は member として自動登録されます。無効化されたユーザーはログインできません。</p>
       </div>
 
       <!-- システム設定タブ -->
@@ -253,61 +252,57 @@
           <div class="panel-body">
             <div class="field" style="margin-bottom:0">
               <label>利用するAIモデル（既定）</label>
-              <select style="max-width:320px">
-                <option selected>Claude Sonnet（既定）</option>
-                <option>Claude Opus（高精度・低速）</option>
-                <option>Claude Haiku（高速・低コスト）</option>
-              </select>
-              <span class="field-help">画面設定 &gt; 環境変数 &gt; 既定値 の順で優先されます。F-08・F-20〜F-23の全AI機能で共通の設定です（機能ごとに個別のモデルを割り当てる機能はありません）</span>
+              <input type="text" value="Claude Haiku 4.5" disabled style="max-width:320px">
+              <span class="field-help">F-08・F-20〜F-23の全AI機能で共通の設定です（機能ごとに個別のモデルを割り当てる機能はありません）。コスト管理のため最も低コストなモデルに固定しており、変更はできません。</span>
             </div>
           </div>
         </div>
 
         <div class="panel" style="max-width:720px">
           <div class="panel-header">
-            <div class="panel-title">今月のAI利用状況（概算）</div>
-            <span class="panel-count">2026-08-01 〜 2026-08-21</span>
+            <div class="panel-title">今月のAI利用状況</div>
           </div>
           <div class="panel-body">
+            <div class="field" style="max-width:160px">
+              <input type="month" value="2026-08">
+            </div>
+            <div class="stat-row">
+              <div class="stat">
+                <div class="stat-label">呼び出し件数</div>
+                <div class="stat-value">1,636</div>
+              </div>
+              <div class="stat">
+                <div class="stat-label">入力トークン</div>
+                <div class="stat-value">2,790,000</div>
+              </div>
+              <div class="stat">
+                <div class="stat-label">出力トークン</div>
+                <div class="stat-value">1,490,000</div>
+              </div>
+              <div class="stat">
+                <div class="stat-label">概算コスト</div>
+                <div class="stat-value">¥5,400</div>
+              </div>
+            </div>
             <div class="table-wrap" style="box-shadow:none;border:none">
               <table class="table">
                 <thead>
-                  <tr><th>機能</th><th style="width:90px">呼び出し件数</th><th style="width:130px">トークン数</th><th style="width:100px">概算コスト</th></tr>
+                  <tr><th>機能</th><th style="width:90px">呼び出し件数</th><th style="width:110px">入力トークン</th><th style="width:110px">出力トークン</th><th style="width:100px">概算コスト</th></tr>
                 </thead>
                 <tbody>
-                  <tr><td>F-08 教材AIレビュー</td><td class="num">32回</td><td class="num">410,000</td><td class="num">¥580</td></tr>
-                  <tr><td>F-20 AI記述式採点・講評</td><td class="num">1,240回</td><td class="num">1,850,000</td><td class="num">¥2,600</td></tr>
-                  <tr><td>F-21 AIつまずき分析</td><td class="num">18回</td><td class="num">620,000</td><td class="num">¥720</td></tr>
-                  <tr><td>F-22 AI個人フィードバック</td><td class="num">340回</td><td class="num">980,000</td><td class="num">¥1,150</td></tr>
-                  <tr><td>F-23 AI組織レポート生成</td><td class="num">6回</td><td class="num">420,000</td><td class="num">¥350</td></tr>
+                  <tr><td>教材AIレビュー（F-08）</td><td class="num">32回</td><td class="num">250,000</td><td class="num">160,000</td><td class="num">¥580</td></tr>
+                  <tr><td>AI記述式採点（F-20）</td><td class="num">1,240回</td><td class="num">1,200,000</td><td class="num">650,000</td><td class="num">¥2,600</td></tr>
+                  <tr><td>AIつまずき分析（F-21）</td><td class="num">18回</td><td class="num">400,000</td><td class="num">220,000</td><td class="num">¥720</td></tr>
+                  <tr><td>AI個人フィードバック（F-22）</td><td class="num">340回</td><td class="num">640,000</td><td class="num">340,000</td><td class="num">¥1,150</td></tr>
+                  <tr><td>AI組織レポート（F-23）</td><td class="num">6回</td><td class="num">300,000</td><td class="num">120,000</td><td class="num">¥350</td></tr>
                 </tbody>
-                <tfoot>
-                  <tr style="font-weight:700"><td>合計</td><td class="num">1,636回</td><td class="num">4,280,000</td><td class="num">¥5,400</td></tr>
-                </tfoot>
               </table>
             </div>
-            <span class="field-help" style="display:block;margin-top:8px">質問・回答等の内容そのものは記録しません（呼び出し元機能・トークン数・概算コストのみ記録。9.3節）。教材の作成・修正はF-05（Claude Code CLI連携）を通じて行うため、利用者本人のClaude Code契約・APIキーで課金され、Manabiのこの集計には含まれません（Manabi側の運用コストは発生しません）。</span>
+            <span class="field-help" style="display:block;margin-top:8px">機能別（F-08教材AIレビュー・F-20 AI記述式採点・F-21〜F-23）の呼び出し件数・トークン数・概算コストの内訳です。教材の作成・修正（F-05、Claude Code CLI連携）は利用者本人の契約で課金されるため、この集計には含まれません。</span>
           </div>
         </div>
 
-        <div class="panel" style="max-width:720px">
-          <div class="panel-header">
-            <div class="panel-title">Slack通知設定</div>
-          </div>
-          <div class="panel-body">
-            <div class="field">
-              <label>Webhook URL</label>
-              <input type="url" value="https://hooks.slack.com/services/T000/B000/xxxxxxxxxxxx" style="max-width:480px">
-            </div>
-            <div class="field" style="margin-bottom:0">
-              <label>通知先チャンネル</label>
-              <input type="text" value="#elearning-通知" style="max-width:220px">
-              <div style="margin-top:8px">
-                <button class="btn btn-secondary btn-sm" type="button">テスト送信</button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <p style="max-width:720px;margin-bottom:24px;font-size:12px;color:var(--text-muted);border:1px solid var(--border);border-radius:var(--radius-lg);background:var(--bg-subtle);padding:12px 16px">Slack通知（F-12）は、利用者本人がプロフィール編集（S-15）で個別に連携する方式に変更されました。システム設定としてのWebhook URL設定はありません。</p>
 
         <div class="panel" style="max-width:720px">
           <div class="panel-header">

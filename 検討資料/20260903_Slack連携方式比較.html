@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>【検討中】Slack連携方式の比較 | Manabi</title>
+<style>
+  :root { --border-strong:#d0d5dd; --bg-subtle:#f6f7f9; --text:#1a1d21; --text-muted:#565e6c; --text-subtle:#8a8f98; --accent-600:#2563eb; --accent-100:#dbeafe; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: -apple-system, "Segoe UI", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif; background:#f6f7f9; color:var(--text); font-size:12.5px; }
+  .status-bar { background:#fef3c7; border-bottom:1px solid #fbbf24; color:#78350f; font-size:12px; font-weight:600; text-align:center; padding:6px; }
+  .doc-wrap { max-width: 1100px; margin: 0 auto; padding: 28px 24px 100px; }
+  .doc-header h1 { font-size: 20px; margin: 0 0 6px; }
+  .doc-meta { font-size: 12px; color: var(--text-subtle); }
+  .toc { background:#fff; border:1px solid var(--border-strong); border-radius:10px; padding:14px 18px; margin-top:18px; font-size:12.5px; }
+  .toc a { color: var(--accent-600); text-decoration:none; }
+  .toc ol { margin:6px 0 0; padding-left:20px; }
+  .doc-section { margin-top: 34px; scroll-margin-top: 12px; }
+  .doc-section h2 { font-size: 16px; border-left: 4px solid var(--accent-600); padding-left: 10px; margin-bottom: 10px; }
+  .doc-section h3 { font-size: 13.5px; margin: 20px 0 8px; padding-bottom:4px; border-bottom:1px solid var(--border-strong); }
+  .doc-section p, .doc-section li { font-size: 12.5px; line-height: 1.8; }
+  .doc-section ul, .doc-section ol { padding-left: 20px; margin: 6px 0; }
+  table.def { border-collapse: collapse; width:100%; margin: 8px 0 16px; font-size: 12px; }
+  table.def th, table.def td { border: 1px solid var(--border-strong); padding: 6px 8px; text-align: left; vertical-align: top; }
+  table.def th { background: var(--bg-subtle); font-weight: 600; }
+  .callout { border:1px solid #bfdbfe; background:#eff6ff; border-radius:8px; padding:12px 14px; font-size:12.5px; line-height:1.8; margin: 10px 0; }
+  .callout.warn { border-color:#fbbf24; background:#fffbeb; }
+  .callout.danger { border-color:#fca5a5; background:#fef2f2; }
+  .callout.q { border-color:#c4b5fd; background:#f5f3ff; }
+  code.inline { background: var(--bg-subtle); padding: 1px 5px; border-radius: 4px; font-size: 11.5px; font-family: ui-monospace, Consolas, monospace; }
+  .badge { display:inline-block; padding:2px 8px; border-radius: 999px; font-size:10.5px; font-weight:700; }
+  .badge-ok { background:#dcfce7; color:#166534; }
+  .badge-ng { background:#fee2e2; color:#991b1b; }
+  .badge-warn { background:#fef3c7; color:#92400e; }
+  .badge-current { background:#dbeafe; color:#1e40af; }
+</style>
+</head>
+<body>
+
+<div class="status-bar">【検討中】Slack連携方式の比較 ／ 正式版ではありません（docs/ には未反映）</div>
+
+<div class="doc-wrap">
+  <div class="doc-header">
+    <h1>Slack連携方式の比較検討（F-12 Slack受講催促通知）</h1>
+    <div class="doc-meta">2026-09-03　検討中（Slackアプリ数の上限により、いったん現在の実装方式が使えない状態）</div>
+  </div>
+
+  <div class="toc">
+    <strong>目次</strong>
+    <ol>
+      <li><a href="#background">要件・制約</a></li>
+      <li><a href="#current">現在の実装状況</a></li>
+      <li><a href="#blocker">直面している問題（Slackアプリ数の上限）</a></li>
+      <li><a href="#compare">検討した方式の比較</a></li>
+      <li><a href="#details">各方式の詳細</a></li>
+      <li><a href="#open">未解決の論点（要判断）</a></li>
+    </ol>
+  </div>
+
+  <div class="doc-section" id="background">
+    <h2>1. 要件・制約</h2>
+    <p>要求仕様書・要件定義書の該当箇所を確認した内容：</p>
+    <table class="def">
+      <tr><th style="width:120px">REQ-F-08</th><td>必修教材の期限を設定し、未受講者を把握・催促できること。「対象者<strong>本人へ</strong>Slackで受講を促せること」</td></tr>
+      <tr><th>F-11</th><td>受講期限・未受講者管理。管理者・プロジェクト管理者が未受講者を一覧で把握できる</td></tr>
+      <tr><th>F-12</th><td>Slack受講催促通知。未受講者へ、Slackで受講を促す通知を送る</td></tr>
+      <tr><th>制約条件</th><td>利用者への通知はSlackとし、メールによる通知は行わない（誤送信時の影響が大きいため）</td></tr>
+    </table>
+    <div class="callout">
+      「本人へ」という文言は、非公開（DM限定）とまでは明記されていない。ただし「未受講である」という内容を第三者に見える形（プロジェクトの共有チャンネル等）で名指しするのは、本来の「個人への配慮ある催促」の意図から外れる可能性が高いと判断している（4章参照）。
+    </div>
+  </div>
+
+  <div class="doc-section" id="current">
+    <h2>2. 現在の実装状況</h2>
+    <p>2026-09-03時点で、以下をコードとして実装済み（<code class="inline">backend/routers/slack.py</code>・<code class="inline">slack_oauth.py</code>・<code class="inline">slack_client.py</code>、フロントエンドS-15プロフィール編集・S-12メンバー管理）。</p>
+    <ul>
+      <li>本人がS-15「プロフィール編集」で一度だけSlack OAuth連携（<code class="inline">chat:write</code>・<code class="inline">identity.basic</code>のUser Token Scopesのみ、Bot User不使用）</li>
+      <li>連携すると本人のUser Access Tokenを保存し、以後はそのトークンで本人宛てにDM送信</li>
+      <li>S-12メンバー管理から、プロジェクトadmin/システムadminが対象者の未受講必修教材を確認し、Slackでリマインドを送信</li>
+    </ul>
+    <p>この方式（個別OAuth連携）は<strong>本人だけへの非公開DM</strong>を実現でき、要件の意図に最も忠実だが、後述の理由で現状は利用できない。</p>
+  </div>
+
+  <div class="doc-section" id="blocker">
+    <h2>3. 直面している問題（Slackアプリ数の上限）</h2>
+    <p>実際にSlackアプリを新規作成しようとしたところ、御社のSlackワークスペース（無料プラン）で<strong>インストール済みカスタムアプリ数が上限に達しており、新規アプリを作成できない</strong>ことが判明した。</p>
+    <div class="callout warn">
+      個別OAuth連携・Bot＋メール検索方式のどちらも、実現には新規Slackアプリが最低1個必要。方式（Bot方式かUser Token方式か）によってアプリ枠の消費数は変わらない。つまり「アプリの種類を変える」ことでは回避できない。
+    </div>
+  </div>
+
+  <div class="doc-section" id="compare">
+    <h2>4. 検討した方式の比較</h2>
+    <table class="def">
+      <tr>
+        <th>方式</th>
+        <th>個人への非公開通知</th>
+        <th>新規アプリ必要数</th>
+        <th>アプリ数上限の影響</th>
+        <th>状態</th>
+      </tr>
+      <tr>
+        <td>A. 個別OAuth連携（現在の実装）</td>
+        <td><span class="badge badge-ok">◎ 可能</span></td>
+        <td>1個</td>
+        <td><span class="badge badge-ng">受ける</span></td>
+        <td><span class="badge badge-current">実装済み・現在利用不可</span></td>
+      </tr>
+      <tr>
+        <td>B. Bot＋メールアドレス検索（<code class="inline">users.lookupByEmail</code>）</td>
+        <td><span class="badge badge-ok">◎ 可能</span></td>
+        <td>1個</td>
+        <td><span class="badge badge-ng">受ける</span></td>
+        <td>未実装（Aより実装は単純だが、上限問題は解消しない）</td>
+      </tr>
+      <tr>
+        <td>C. プロジェクトごとのIncoming Webhook（チャンネル投稿・名指しメンション）</td>
+        <td><span class="badge badge-ng">✕ 不可（チャンネルに投稿されるため他メンバーにも見える）</span></td>
+        <td>1個（1アプリで複数チャンネル分のURLを発行可能）</td>
+        <td><span class="badge badge-ok">受けない</span></td>
+        <td>未実装。要件の「本人へ」の意図とはズレる可能性</td>
+      </tr>
+      <tr>
+        <td>D. Slack Workflow Builder（Webhookトリガー）</td>
+        <td><span class="badge badge-warn">△ プラン・設定次第で不明</span></td>
+        <td>0個（Slack標準機能、アプリとしてカウントされない想定）</td>
+        <td><span class="badge badge-ok">受けない（想定）</span></td>
+        <td>未検証。現行プランでWebhookトリガー・動的な宛先指定が可能か要確認</td>
+      </tr>
+      <tr>
+        <td>E. 既存アプリの削除・流用</td>
+        <td>方式次第（AかBを枠内で実施すれば可能）</td>
+        <td>0個（既存の枠を再利用）</td>
+        <td><span class="badge badge-ok">受けない</span></td>
+        <td>未確認。既存アプリが御社製で削除・再設定可能か要確認</td>
+      </tr>
+      <tr>
+        <td>F. Slack有料プランへのアップグレード</td>
+        <td>A・Bと同様に可能</td>
+        <td>制限なし</td>
+        <td><span class="badge badge-ok">解消</span></td>
+        <td>費用判断が必要</td>
+      </tr>
+      <tr>
+        <td>G. 機能を見送り、未受講者一覧の把握（F-11）のみ実装</td>
+        <td>該当なし（通知自体を行わない）</td>
+        <td>0個</td>
+        <td><span class="badge badge-ok">受けない</span></td>
+        <td>F-11（一覧把握）部分は実装済み・利用可能</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="doc-section" id="details">
+    <h2>5. 各方式の詳細</h2>
+
+    <h3>A. 個別OAuth連携（実装済み）</h3>
+    <p>本人がS-15で「Slack連携する」を押し、Slack側の認可画面で<code class="inline">chat:write</code>（User Token Scope）を許可する。以後、Manabiは本人のUser Access Tokenを使い、本人とのDMチャンネル（<code class="inline">conversations.open</code>）へ<code class="inline">chat.postMessage</code>で投稿する。Bot Userを一切使わない。要件の「本人へ・非公開」を最も忠実に満たすが、新規Slackアプリが1個必要。</p>
+
+    <h3>B. Bot＋メールアドレス検索</h3>
+    <p>共有のBot Token（<code class="inline">chat:write</code>・<code class="inline">users:read.email</code>のBot Token Scope）を持つSlackアプリを1個作成する。送信時に対象者のメールアドレスで<code class="inline">users.lookupByEmail</code>を呼びSlackユーザーIDを特定し、Botとして本人へDMを送る。本人ごとのOAuth操作が不要になる分、利用者の手間は減るが、アプリが1個必要な点はAと同じ。</p>
+
+    <h3>C. プロジェクトごとのIncoming Webhook</h3>
+    <p>1つのSlackアプリで「Incoming Webhooks」機能を有効化すると、チャンネルを指定して複数のWebhook URLを発行できる（1チャンネル1URL）。プロジェクトごとに専用チャンネルを用意し、そのURLをManabi側でプロジェクトに紐づけて保存すれば、アプリは1個のままプロジェクトの数だけ送信先を持てる。ただし投稿はチャンネル向けであり、対象者以外にも内容が見える。メッセージ本文で対象者を名指し（メンション）すれば本人への通知（Slack上の個人宛て通知バッジ）は発生するが、「非公開」ではない。</p>
+
+    <h3>D. Slack Workflow Builder</h3>
+    <p>Slack標準のノーコード自動化機能。プランによってはWebhookで外部からトリガーできるワークフローを作成できる。ワークフロー内で特定の相手にDMを送るステップを組める可能性があるが、（1）Webhookトリガーが現行プランで使えるか、（2）外部から動的に「誰に送るか」を指定できるか、の2点が未確認。Slack標準機能のためアプリ数の上限に影響しないと考えられる点が利点。</p>
+
+    <h3>E. 既存アプリの削除・流用</h3>
+    <p>ワークスペースの「アプリ管理」に表示されている、御社が独自に作成・設定変更できるアプリがあれば、それを削除して枠を空ける、あるいはそのアプリに直接OAuthスコープを追加してA/Bの実装先として流用する。外部の既製アプリ（公式のGoogle Drive連携等）は設定変更・削除の対象にならない。</p>
+  </div>
+
+  <div class="doc-section" id="open">
+    <h2>6. 未解決の論点（要判断）</h2>
+    <ul>
+      <li>Slack管理画面で、既存インストール済みアプリのうち削除・流用できるものがあるか（方式E）</li>
+      <li>現行プランでWorkflow Builderのwebhookトリガー・動的宛先指定が使えるか（方式D）</li>
+      <li>上記がいずれも不可の場合、有料プランへのアップグレード（方式F）を検討するか、チャンネル投稿方式（方式C、非公開性を犠牲にする）で妥協するか、Slack通知機能自体を一旦見送るか（方式G、F-11の一覧把握のみで運用）</li>
+    </ul>
+  </div>
+
+</div>
+</body>
+</html>

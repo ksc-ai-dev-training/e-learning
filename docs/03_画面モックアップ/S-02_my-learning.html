@@ -7,8 +7,7 @@
 <link rel="stylesheet" href="mock.css">
 <style>
   .tag-pill-sm {
-    display:inline-block; font-size:11px; font-weight:600; color: var(--accent-600);
-    background: var(--accent-100); border-radius:999px; padding:1px 7px;
+    font-size:11px; color:#4f46e5;
   }
 </style>
 </head>
@@ -106,17 +105,26 @@
         <button class="proj-tab" type="button">Manabi新規構築 <span class="proj-count">1件</span></button>
       </div>
 
+      <!-- 表示タブ（必修・任意 / 学習履歴） -->
+      <div class="tabs" role="tablist">
+        <button class="tab active" id="tab-assigned" type="button" onclick="switchViewTab('assigned')">必修・任意</button>
+        <button class="tab" id="tab-history" type="button" onclick="switchViewTab('history')">学習履歴</button>
+      </div>
+
+      <div class="tab-panel active" id="panel-assigned">
+
       <div class="stat-row">
         <div class="stat">
-          <div class="stat-label">必修教材 受講率</div>
+          <div class="stat-label">必修受講完了率</div>
           <div class="stat-value">67<span class="stat-unit">%</span></div>
+          <div style="font-size:11px;color:var(--text-subtle);margin-top:2px">1件／3件</div>
         </div>
         <a class="stat stat-warn stat-link" href="#urgent-materials" title="期限が近い必修教材の一覧へ">
           <div class="stat-label">期限が近い必修教材</div>
           <div class="stat-value">1<span class="stat-unit">件</span></div>
           <span class="stat-link-hint">一覧を見る <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
         </a>
-        <a class="stat stat-link" href="#optional-materials-completed" title="受講済みの任意教材の一覧へ">
+        <a class="stat stat-link" href="#optional-materials" title="受講済みの任意教材の一覧へ" onclick="setOptionalFilter('completed');return true;">
           <div class="stat-label">任意教材 受講済み</div>
           <div class="stat-value">2<span class="stat-unit">件</span></div>
           <span class="stat-link-hint">一覧を見る <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
@@ -147,7 +155,6 @@
                 <span class="badge badge-required">必修</span>
                 <span class="badge badge-overdue">期限まであと2日（2026-08-20）</span>
                 <span class="chip">新人研修2026運営</span>
-                <span>6/9 ページ完了</span>
               </div>
             </div>
             <div class="material-progress">
@@ -164,13 +171,22 @@
       </section>
 
       <!-- 必修教材 一覧 -->
-      <section class="panel">
+      <section class="panel" id="required-materials">
         <div class="panel-header">
           <div class="panel-title">必修教材</div>
-          <span class="panel-count">3件中 2件 未完了</span>
+          <span class="panel-count" id="required-panel-count">3件中 2件 未受講</span>
         </div>
-        <div class="panel-body">
-          <div class="material-card">
+        <div class="panel-body" style="padding:10px 16px 0">
+          <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
+            <div class="segmented" role="tablist" aria-label="必修教材の絞り込み">
+              <button type="button" onclick="setRequiredFilter('incomplete')">未受講</button>
+              <button type="button" onclick="setRequiredFilter('completed')">受講済み</button>
+              <button type="button" class="active" onclick="setRequiredFilter('all')">すべて</button>
+            </div>
+          </div>
+        </div>
+        <div class="panel-body" style="padding-top:0" id="required-materials-body">
+          <div class="material-card" data-status="in_progress">
             <div class="material-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
             </div>
@@ -194,7 +210,7 @@
             </div>
           </div>
 
-          <div class="material-card">
+          <div class="material-card" data-status="in_progress">
             <div class="material-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
             </div>
@@ -218,7 +234,7 @@
             </div>
           </div>
 
-          <div class="material-card">
+          <div class="material-card" data-status="completed">
             <div class="material-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
             </div>
@@ -245,15 +261,21 @@
       </section>
 
       <!-- 任意教材 一覧 -->
-      <section class="panel" id="optional-materials-completed">
+      <section class="panel" id="optional-materials">
         <div class="panel-header">
           <div class="panel-title">任意教材</div>
-          <span class="panel-count" id="optional-panel-count">おすすめ・自由選択の教材</span>
+          <span class="panel-count" id="optional-panel-count">3件中 2件 受講済み</span>
         </div>
-        <div id="optional-filter-banner" class="table-notes" style="display:none;margin:0;border-radius:0;background:var(--accent-50);color:var(--accent-700)">
-          受講済みの任意教材のみ表示しています。<a href="#optional-materials-completed" onclick="clearOptionalFilter();return false;">すべて表示</a>
+        <div class="panel-body" style="padding:10px 16px 0">
+          <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
+            <div class="segmented" role="tablist" aria-label="任意教材の絞り込み" id="optional-segmented">
+              <button type="button" onclick="setOptionalFilter('incomplete')">未受講</button>
+              <button type="button" onclick="setOptionalFilter('completed')">受講済み</button>
+              <button type="button" class="active" onclick="setOptionalFilter('all')">すべて</button>
+            </div>
+          </div>
         </div>
-        <div class="panel-body" id="optional-materials-body">
+        <div class="panel-body" style="padding-top:0" id="optional-materials-body">
           <div class="material-card" data-status="in_progress">
             <div class="material-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
@@ -328,7 +350,111 @@
       </section>
 
       <div class="table-notes" style="margin-top:8px">
-        ※ 「全社Wiki」タブは常に先頭に固定表示されます（個人がプロジェクトを指定せず作成した教材は、既定でこのプロジェクトに属します）。
+        ※ 「全社Wiki」タブは常に先頭に固定表示されます（個人がプロジェクトを指定せず作成した教材は、既定でこのプロジェクトに属します）。全社Wiki所属の任意教材は、S-03「教材一覧・検索」から「マイ学習に追加」しない限りここには表示されません。
+      </div>
+
+      </div>
+
+      <!-- 学習履歴タブ（マイ学習への登録有無・現在の受講対象かどうかを問わず、着手済みの教材を表示） -->
+      <div class="tab-panel" id="panel-history">
+        <p class="tab-note">マイ学習への登録有無や現在の受講対象かどうかを問わず、一度でも着手した教材を確認できます。</p>
+        <section class="panel">
+          <div class="panel-header">
+            <div class="panel-title">学習履歴</div>
+            <span class="panel-count">4件</span>
+          </div>
+          <div class="panel-body">
+            <div class="material-card">
+              <div class="material-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+              </div>
+              <div class="material-body">
+                <div class="material-title">AI開発研修 基礎編 — Claude Codeの使い方</div>
+                <div class="material-meta">
+                  <span class="badge badge-required">必修</span>
+                  <span>期限: 2026-08-20</span>
+                  <span class="chip">新人研修2026運営</span>
+                </div>
+              </div>
+              <div class="material-progress">
+                <div class="progress">
+                  <div class="progress-track"><div class="progress-fill warn" style="width:60%"></div></div>
+                  <span class="progress-label">60%</span>
+                </div>
+              </div>
+              <div class="material-actions">
+                <a class="btn btn-secondary btn-sm" href="S-04_material-view.html">続きから受講</a>
+              </div>
+            </div>
+            <div class="material-card">
+              <div class="material-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+              </div>
+              <div class="material-body">
+                <div class="material-title">ハラスメント防止研修</div>
+                <div class="material-meta">
+                  <span class="badge badge-required">必修</span>
+                  <span class="badge badge-complete">合格済み（2026-08-05）</span>
+                  <span class="chip">情報セキュリティ委員会</span>
+                </div>
+              </div>
+              <div class="material-progress">
+                <div class="progress">
+                  <div class="progress-track"><div class="progress-fill complete" style="width:100%"></div></div>
+                  <span class="progress-label">100%</span>
+                </div>
+              </div>
+              <div class="material-actions">
+                <a class="btn btn-ghost btn-sm" href="S-04_material-view.html">復習する</a>
+              </div>
+            </div>
+            <div class="material-card">
+              <div class="material-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+              </div>
+              <div class="material-body">
+                <div class="material-title">TypeScript入門</div>
+                <div class="material-meta">
+                  <span class="badge badge-optional">任意</span>
+                  <span class="chip">Manabi新規構築</span>
+                  <span class="tag-pill-sm">#フロントエンド基礎</span>
+                </div>
+              </div>
+              <div class="material-progress">
+                <div class="progress">
+                  <div class="progress-track"><div class="progress-fill" style="width:30%"></div></div>
+                  <span class="progress-label">30%</span>
+                </div>
+              </div>
+              <div class="material-actions">
+                <a class="btn btn-secondary btn-sm" href="S-04_material-view.html">続きから受講</a>
+              </div>
+            </div>
+            <div class="material-card">
+              <div class="material-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+              </div>
+              <div class="material-body">
+                <div class="material-title">新人向けGit入門</div>
+                <div class="material-meta">
+                  <span class="badge badge-optional">任意</span>
+                  <span class="badge badge-complete">合格済み（2026-07-10）</span>
+                  <span class="chip">LCC CRM刷新</span>
+                  <span class="tag-pill-sm">#エンジニア基礎</span> <span class="tag-pill-sm">#Git</span>
+                </div>
+              </div>
+              <div class="material-progress">
+                <div class="progress">
+                  <div class="progress-track"><div class="progress-fill complete" style="width:100%"></div></div>
+                  <span class="progress-label">100%</span>
+                </div>
+              </div>
+              <div class="material-actions">
+                <a class="btn btn-ghost btn-sm" href="S-04_material-view.html">反復演習する</a>
+              </div>
+            </div>
+          </div>
+        </section>
       </div>
 
     </div>
@@ -338,30 +464,34 @@
 <div class="mock-note">画面モックアップ（S-02）/ 研修サンプル</div>
 
 <script>
-// サマリーの「任意教材 受講済み」カードから遷移した場合、任意教材一覧を受講済みのみに絞り込む
-// （実際にはA-39のレスポンスをクライアント側でフィルタする。7章参照）
-function applyOptionalCompletedFilter() {
-  var active = window.location.hash === '#optional-materials-completed';
-  document.getElementById('optional-filter-banner').style.display = active ? 'block' : 'none';
-
-  var cards = document.querySelectorAll('#optional-materials-body .material-card');
-  var visibleCount = 0;
-  cards.forEach(function (card) {
-    var matches = !active || card.getAttribute('data-status') === 'completed';
-    card.style.display = matches ? '' : 'none';
-    if (matches) visibleCount++;
+// タブ切替（必修・任意 / 学習履歴。静的モック確認用の最小限のJS）
+function switchViewTab(name) {
+  var tabs = ['assigned', 'history'];
+  tabs.forEach(function (t) {
+    document.getElementById('tab-' + t).classList.toggle('active', t === name);
+    document.getElementById('panel-' + t).classList.toggle('active', t === name);
   });
+}
 
-  document.getElementById('optional-panel-count').textContent = active
-    ? '受講済み ' + visibleCount + '件'
-    : 'おすすめ・自由選択の教材';
+// 必修教材・任意教材、それぞれ独立に「未受講／受講済み／すべて」で絞り込む
+// （2026-09-03、両パネルとも対称な3択に統一）
+function applyFilter(prefix, filter) {
+  var buttons = document.querySelectorAll('#' + prefix + '-materials .segmented button');
+  buttons.forEach(function (btn, i) {
+    var order = ['incomplete', 'completed', 'all'];
+    btn.classList.toggle('active', order[i] === filter);
+  });
+  var cards = document.querySelectorAll('#' + prefix + '-materials-body .material-card');
+  cards.forEach(function (card) {
+    var status = card.getAttribute('data-status');
+    var matches = filter === 'all'
+      || (filter === 'completed' && status === 'completed')
+      || (filter === 'incomplete' && status !== 'completed');
+    card.style.display = matches ? '' : 'none';
+  });
 }
-function clearOptionalFilter() {
-  history.replaceState(null, '', window.location.pathname + window.location.search);
-  applyOptionalCompletedFilter();
-}
-applyOptionalCompletedFilter();
-window.addEventListener('hashchange', applyOptionalCompletedFilter);
+function setRequiredFilter(filter) { applyFilter('required', filter); }
+function setOptionalFilter(filter) { applyFilter('optional', filter); }
 </script>
 
 <script src="mock-sidebar.js"></script>

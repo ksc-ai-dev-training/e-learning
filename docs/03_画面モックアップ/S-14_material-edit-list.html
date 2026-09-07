@@ -132,7 +132,7 @@
 
       <div class="branch-actions">
         <a class="btn btn-primary" href="S-05_material-edit.html#new">＋ このプロジェクトに新規教材を作成</a>
-        <span style="font-size:12px;color:var(--text-subtle)">または、下の一覧から既存の教材を編集・複製</span>
+        <span style="font-size:12px;color:var(--text-subtle)">または、下の一覧から既存の教材を編集</span>
       </div>
 
       <div class="table-wrap">
@@ -143,40 +143,56 @@
               <th style="width:90px">状態</th>
               <th style="width:110px">構成</th>
               <th style="width:110px">更新日</th>
-              <th style="width:160px">操作</th>
             </tr>
           </thead>
           <tbody>
             <tr>
               <td>
                 <a class="cell-main" href="S-05_material-edit.html" style="text-decoration:none;color:inherit;display:block">新人向けGit入門</a>
-                <div class="cell-sub">記述式 全5問 ／ 作成: 鈴木 美咲（あなた）</div>
+                <div class="cell-sub">#git #入門</div>
               </td>
               <td><span class="badge badge-status-on">公開中</span></td>
               <td class="num">4章・12ページ</td>
               <td>2026-08-14</td>
-              <td>
-                <a class="btn btn-secondary btn-sm" href="S-05_material-edit.html">編集する</a>
-                <a class="btn btn-ghost btn-sm" href="S-05_material-edit.html#duplicated" title="この教材の内容をコピーして新しい下書きを作成">複製</a>
-              </td>
             </tr>
             <tr>
               <td>
                 <a class="cell-main" href="S-05_material-edit.html" style="text-decoration:none;color:inherit;display:block">データベース設計入門 v2（改訂中）</a>
-                <div class="cell-sub">単一選択・記述式 全9問 ／ 作成: 鈴木 美咲（あなた）</div>
+                <div class="cell-sub">#DB設計</div>
               </td>
               <td><span class="badge badge-status-off">下書き</span></td>
               <td class="num">3章・7ページ</td>
               <td>2026-08-18</td>
-              <td>
-                <a class="btn btn-secondary btn-sm" href="S-05_material-edit.html">編集する</a>
-                <a class="btn btn-ghost btn-sm" href="S-05_material-edit.html#duplicated" title="この教材の内容をコピーして新しい下書きを作成">複製</a>
-              </td>
             </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="table-notes" style="margin-top:10px">
+        ※ タイトル下の「#タグ」はキーワード絞り込みの対象になります（タグが無い教材は表示されません）。
+      </div>
+      <div class="table-notes" style="margin-top:10px">
+        ※ 「複製」は本一覧ではなく教材編集画面（S-05）のヘッダーから行います。教材1冊分（目次構造〔章・小見出し・ページ〕と各ページの説明文・問題）をそのままコピーした新しい下書きが作成され、目次編集画面が開きます。年度更新など、既存教材をベースに作り直したい場合に使います（例: 「新人研修2026」を複製して「新人研修2027」の下書きを作る）。複製元の公開状態・改訂履歴は引き継がず、複製後の教材は常に下書きから始まります。
+      </div>
+      <div class="table-notes" style="margin-top:4px">
+        ※ 「状態」で「アーカイブ済み」を選ぶと、下の一覧はアーカイブ済み教材のみに切り替わり、「操作」列が追加されて「復元」のみ行えます。アーカイブ済み教材（S-05の「アーカイブ」ボタンから設定）は教材一覧・検索から非表示になりますが、内容・受験記録・アンケート回答は削除されずそのまま保持されます。以下はその表示例です。
+      </div>
+
+      <div class="table-wrap" style="margin-top:8px">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>教材</th>
+              <th style="width:90px">状態</th>
+              <th style="width:110px">構成</th>
+              <th style="width:110px">更新日</th>
+              <th style="width:100px">操作</th>
+            </tr>
+          </thead>
+          <tbody>
             <tr>
               <td>
                 <span class="cell-main" style="display:block;color:var(--text-subtle)">旧研修（2024年度版）</span>
-                <div class="cell-sub">単一選択 全6問 ／ 作成: 高橋 大輔</div>
               </td>
               <td><span class="badge badge-status-archived">アーカイブ済み</span></td>
               <td class="num">2章・5ページ</td>
@@ -187,13 +203,6 @@
             </tr>
           </tbody>
         </table>
-      </div>
-
-      <div class="table-notes" style="margin-top:10px">
-        ※ 「複製」を押すと、教材1冊分（目次構造〔章・小見出し・ページ〕と各ページの説明文・問題）をそのままコピーした新しい下書きが作成され、目次編集画面が開きます。年度更新など、既存教材をベースに作り直したい場合に使います（例: 「新人研修2026」を複製して「新人研修2027」の下書きを作る）。複製元の公開状態・改訂履歴は引き継がず、複製後の教材は常に下書きから始まります。
-      </div>
-      <div class="table-notes" style="margin-top:4px">
-        ※ 「アーカイブ済み」（S-05の「アーカイブ」ボタンから設定）は教材一覧・検索から非表示になり、内容・受験記録・アンケート回答は削除されずそのまま保持されます。「状態」の既定値はアーカイブ済みを含まないため、通常の一覧には出てきません。上の行は「アーカイブ済み」を選んだ場合の表示例で、タイトルは編集画面へのリンクにならず（先に復元が必要なため）、操作は「復元」のみになります。
       </div>
 
     </div>

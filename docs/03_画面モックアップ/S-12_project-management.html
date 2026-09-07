@@ -85,21 +85,56 @@
       <div>
         <div class="page-title-group">
           <h1>プロジェクト管理 — LCC CRM刷新</h1>
-          <span class="badge badge-projrole projrole-admin">あなたはこのプロジェクトの管理者</span>
+          <span class="badge badge-projrole projrole-admin">管理者</span>
           <span class="screen-id">S-12</span>
         </div>
       </div>
       <div class="header-actions">
-        <span class="filter-label">管理するプロジェクト</span>
-        <select style="width:190px">
-          <option selected>LCC CRM刷新（管理者）</option>
-        </select>
+        <a href="#" style="font-size:12px;font-weight:600">← プロジェクト一覧に戻る</a>
       </div>
     </header>
 
     <div class="page-body">
 
-      <p class="tab-note">※ この画面はそのプロジェクトの管理者、または admin がアクセスできます（7.3参照）。あなたは member ロールですが、これはシステム全体のロールとは別の軸である、プロジェクト「LCC CRM刷新」内のローカルロール（管理者）に基づくアクセスです。メニュー自体は誰でも常時表示され（v1.9）、あなたが管理者であるプロジェクトが1件もない場合は「管理するプロジェクトがありません。プロジェクトを作成すると、作成者は自動的にそのプロジェクトの管理者になります」という案内とS-11（プロジェクト作成）への導線を表示します。</p>
+      <!-- projectId未指定でこの画面を開いたときの既定表示（S-11下部と共通のコンポーネント）。
+           自分が参加している全プロジェクト（停止中も含む）を一覧し、管理者ロールの行のみ状態変更・
+           管理画面への遷移ができる。管理対象が1件でも、ここを経由せず自動遷移することはしない
+           （2026-09-01、ユーザーフィードバックにより「1件なら自動遷移」の仕様を撤回）。上の
+           「LCC CRM刷新」の管理画面は、下の一覧から「管理する」を押した後に表示される別状態。 -->
+      <section class="panel" style="max-width:680px;margin-bottom:24px">
+        <div class="panel-header">
+          <div class="panel-title">プロジェクト管理（projectId未指定時の既定表示）</div>
+        </div>
+        <div class="panel-body">
+          <p class="field-help" style="margin-bottom:10px">自分が参加している全プロジェクト（停止中も含む）を一覧できます。管理者ロールの行のみ、状態の変更と管理画面への遷移ができます。 <a href="S-11_project-create.html">新しいプロジェクトを作成する</a></p>
+          <div class="table-wrap" style="box-shadow:none">
+            <table class="table">
+              <thead>
+                <tr><th>プロジェクト名</th><th style="width:120px">あなたのロール</th><th style="width:110px">状態</th><th style="width:90px">操作</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="cell-main">LCC CRM刷新</td>
+                  <td><span class="badge badge-projrole projrole-admin">管理者</span></td>
+                  <td style="display:flex;align-items:center;gap:6px">
+                    <select style="width:100px"><option selected>進行中</option><option>停止</option></select>
+                    <span class="badge badge-status-on">進行中</span>
+                  </td>
+                  <td><button class="btn btn-ghost btn-sm" type="button">管理する</button></td>
+                </tr>
+                <tr>
+                  <td class="cell-main">介護クラウド保守</td>
+                  <td><span class="badge badge-projrole projrole-member">受講者</span></td>
+                  <td><span class="badge badge-status-on">進行中</span></td>
+                  <td><button class="btn btn-ghost btn-sm" type="button" disabled title="管理者ではないため管理画面は開けません">-</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <p class="tab-note">※ 以下は上の一覧で「管理する」を押した後の、個別プロジェクト（LCC CRM刷新）の管理画面です。この画面はそのプロジェクトの管理者、または admin がアクセスできます（7.3参照）。あなたは member ロールですが、これはシステム全体のロールとは別の軸である、プロジェクト「LCC CRM刷新」内のローカルロール（管理者）に基づくアクセスです。</p>
 
       <!-- タブ -->
       <div class="tabs" role="tablist">
@@ -133,13 +168,13 @@
               </div>
               <div class="field">
                 <label>作成日</label>
-                <input type="text" value="2026-03-01" disabled>
+                <div style="display:flex;align-items:center;height:36px;font-size:13px;color:var(--text-subtle)">2026-03-01</div>
               </div>
             </div>
             <div class="field" style="margin-bottom:0">
               <label>作成者</label>
-              <div style="display:flex;align-items:center;gap:8px;font-size:13px">
-                <span class="avatar" style="width:22px;height:22px;font-size:10.5px">山</span> 山田 花子
+              <div style="font-size:13px">
+                山田 花子
                 <span class="field-help" style="margin:0">（作成者は自動的に管理者になります）</span>
               </div>
             </div>
@@ -147,12 +182,36 @@
         </div>
         <div class="form-actions" style="position:static;background:none;border-top:none;padding-top:0;max-width:680px">
           <button class="btn btn-primary" type="button">保存する</button>
+          <span style="color:#15803d;font-size:12.5px;font-weight:600">保存しました</span>
+        </div>
+
+        <div style="max-width:680px;margin-top:22px;padding-top:16px;border-top:1px solid var(--border-strong)">
+          <button class="btn btn-danger-ghost" type="button" disabled title="下書き以外の教材、または他のメンバーが所属しているため削除できません">プロジェクトを削除</button>
+          <p style="margin-top:6px;font-size:11.5px;color:var(--text-subtle)">下書き以外の教材、または他のメンバーが所属しているため削除できません</p>
+        </div>
+      </div>
+
+      <!-- プロジェクト削除確認モーダル（「プロジェクトを削除」押下時に表示。実装時はモーダルで完結する） -->
+      <div class="modal-overlay" id="delete-project-modal">
+        <div class="modal" style="width:440px">
+          <div class="modal-header">
+            <span class="modal-title">プロジェクトを削除しますか？</span>
+            <button class="modal-close" type="button" onclick="document.getElementById('delete-project-modal').classList.remove('open')">×</button>
+          </div>
+          <div class="modal-body">
+            <p style="margin:0 0 12px;font-size:13px;line-height:1.6">「LCC CRM刷新」を完全に削除します。含まれる下書き教材があればすべて一緒に削除され、<strong>元に戻せません</strong>。</p>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" type="button">キャンセル</button>
+            <button class="btn btn-danger-ghost" type="button">削除する</button>
+          </div>
         </div>
       </div>
 
       <!-- メンバー管理タブ -->
       <div class="tab-panel" id="panel-members">
         <p class="tab-note">メンバーの招待・削除、ロール（管理者/編集者/受講者）の設定は、このプロジェクトの管理者が行います。ただし追加は<strong>招待制</strong>です。招待した時点ではまだ権限は発生せず、招待された本人が承諾（S-15）して初めてメンバーとして有効になります。プロジェクトのローカルロールは、システム全体のロール（member/admin）とは別の軸です。</p>
+        <p class="tab-note">「受験状況」「未受講の必修教材」の2ボタンは、このプロジェクトのadmin、またはシステムadminにのみ表示されます（参加済みメンバーが対象。招待中は対象外）。</p>
 
         <div class="table-wrap">
           <table class="table">
@@ -172,7 +231,13 @@
                 </td>
                 <td><span class="badge badge-status-on">参加済み</span></td>
                 <td>2026-03-01</td>
-                <td><button class="btn btn-ghost btn-sm" type="button" disabled title="唯一の管理者は削除できません">-</button></td>
+                <td>
+                  <div style="display:flex;align-items:center;gap:6px">
+                    <button class="btn btn-ghost btn-sm" type="button">受験状況</button>
+                    <button class="btn btn-ghost btn-sm" type="button">未受講の必修教材</button>
+                    <span style="color:var(--text-subtle);font-size:12px" title="自分自身は削除できません">-</span>
+                  </div>
+                </td>
               </tr>
               <tr>
                 <td><div style="display:flex;align-items:center;gap:9px"><span class="avatar">鈴</span><span class="cell-main">鈴木 美咲</span></div></td>
@@ -186,7 +251,13 @@
                 </td>
                 <td><span class="badge badge-status-on">参加済み</span></td>
                 <td>2026-06-12</td>
-                <td><button class="btn btn-danger-ghost btn-sm" type="button">削除</button></td>
+                <td>
+                  <div style="display:flex;align-items:center;gap:6px">
+                    <button class="btn btn-ghost btn-sm" type="button">受験状況</button>
+                    <button class="btn btn-ghost btn-sm" type="button">未受講の必修教材</button>
+                    <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
+                  </div>
+                </td>
               </tr>
               <tr>
                 <td><div style="display:flex;align-items:center;gap:9px"><span class="avatar">高</span><span class="cell-main">高橋 大輔</span></div></td>
@@ -200,7 +271,13 @@
                 </td>
                 <td><span class="badge badge-status-on">参加済み</span></td>
                 <td>2026-06-12</td>
-                <td><button class="btn btn-danger-ghost btn-sm" type="button">削除</button></td>
+                <td>
+                  <div style="display:flex;align-items:center;gap:6px">
+                    <button class="btn btn-ghost btn-sm" type="button">受験状況</button>
+                    <button class="btn btn-ghost btn-sm" type="button">未受講の必修教材</button>
+                    <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
+                  </div>
+                </td>
               </tr>
               <tr>
                 <td><div style="display:flex;align-items:center;gap:9px"><span class="avatar">佐</span><span class="cell-main">佐藤 健一</span></div></td>
@@ -214,7 +291,13 @@
                 </td>
                 <td><span class="badge badge-status-on">参加済み</span></td>
                 <td>2026-07-20</td>
-                <td><button class="btn btn-danger-ghost btn-sm" type="button">削除</button></td>
+                <td>
+                  <div style="display:flex;align-items:center;gap:6px">
+                    <button class="btn btn-ghost btn-sm" type="button">受験状況</button>
+                    <button class="btn btn-ghost btn-sm" type="button">未受講の必修教材</button>
+                    <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
+                  </div>
+                </td>
               </tr>
               <tr>
                 <td><div style="display:flex;align-items:center;gap:9px"><span class="avatar">村</span><span class="cell-main">村田 亮</span></div></td>
@@ -228,7 +311,13 @@
                 </td>
                 <td><span class="badge badge-status-on">参加済み</span></td>
                 <td>2026-08-01</td>
-                <td><button class="btn btn-danger-ghost btn-sm" type="button">削除</button></td>
+                <td>
+                  <div style="display:flex;align-items:center;gap:6px">
+                    <button class="btn btn-ghost btn-sm" type="button">受験状況</button>
+                    <button class="btn btn-ghost btn-sm" type="button">未受講の必修教材</button>
+                    <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
+                  </div>
+                </td>
               </tr>
               <tr style="color:var(--text-subtle)">
                 <td><div style="display:flex;align-items:center;gap:9px"><span class="avatar">田</span><span class="cell-main">田中 悠斗</span></div></td>
@@ -263,66 +352,104 @@
         </div>
         <p style="margin-top:8px;font-size:11.5px;color:var(--text-subtle)">※ 招待した時点ではまだ権限は発生しません。招待された本人が承諾（S-15プロフィール編集）して初めて、実際にメンバーとして教材の受講・編集ができるようになります。本人の同意なしに一方的にメンバーへ追加することはできません。</p>
         <p style="margin-top:6px;font-size:11.5px;color:var(--text-subtle)">※ 参加済みのメンバーを削除、またはロールを「受講者」以外から変更した場合も、猶予期間中は旧プロジェクトの教材への閲覧アクセスを継続します（9.2参照）。</p>
+
+        <!-- 「受験状況」押下時に表示するパネルの例（REQ-F-09、新設2026-09-03） -->
+        <div class="modal-overlay" id="attempt-status-modal">
+          <div class="modal" style="width:600px">
+            <div class="modal-header">
+              <span class="modal-title">佐藤 健一 さんの受験状況（このプロジェクトの教材）</span>
+              <button class="modal-close" type="button" onclick="document.getElementById('attempt-status-modal').classList.remove('open')">×</button>
+            </div>
+            <div class="modal-body">
+              <p style="margin:0 0 12px;font-size:11.5px;color:var(--text-subtle);background:var(--bg-subtle,#f8fafc);border:1px solid var(--border-strong);border-radius:6px;padding:8px 10px">提出済みの受験記録（回答内容・スコア・合否）自体は削除されません。ここでリセットするのは「あと何回まで解き直せるか」の残り回数だけです。学習記録は引き続き学習履歴・個人学習レポートに残ります。</p>
+              <div class="table-wrap" style="box-shadow:none;margin:0 0 8px">
+                <table class="table">
+                  <thead><tr><th>教材 / 受験単位</th><th style="width:90px">状態</th><th style="width:90px">提出回数</th><th style="width:110px">操作</th></tr></thead>
+                  <tbody>
+                    <tr>
+                      <td>新人向けGit入門 <span style="color:var(--text-subtle)">（教材全体）</span></td>
+                      <td><span class="badge badge-status-off">不合格（直近62%）</span></td>
+                      <td style="font-weight:700;color:#b91c1c">3 / 3回</td>
+                      <td><button class="btn btn-primary btn-sm" type="button">回数をリセット</button></td>
+                    </tr>
+                    <tr>
+                      <td>TypeScript入門 <span style="color:var(--text-subtle)">（教材全体）</span></td>
+                      <td><span class="badge badge-status-on">合格（88%）</span></td>
+                      <td>1 / 無制限</td>
+                      <td><button class="btn btn-secondary btn-sm" type="button" disabled>回数をリセット</button></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p style="margin-top:8px;font-size:11px;color:var(--text-subtle)">※ 表示対象は、このプロジェクトに属する教材のうち本人が一度でも受験した記録があるものです。上限が無制限、または未提出のスコープはリセット不要のため操作できません。</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 「未受講の必修教材」押下時に表示するパネルの例（F-11・F-12、REQ-F-08、新設） -->
+        <div class="modal-overlay" id="overdue-required-modal">
+          <div class="modal" style="width:520px">
+            <div class="modal-header">
+              <span class="modal-title">佐藤 健一 さんの未受講の必修教材（このプロジェクト）</span>
+              <button class="modal-close" type="button" onclick="document.getElementById('overdue-required-modal').classList.remove('open')">×</button>
+            </div>
+            <div class="modal-body">
+              <div style="display:flex;justify-content:space-between;border-bottom:1px solid var(--border-strong);padding:8px 0">
+                <span style="font-size:13px">新人向けGit入門</span>
+                <span style="font-size:12px;color:var(--text-subtle)">期限: 2026-09-15</span>
+              </div>
+              <button class="btn btn-primary" type="button" style="width:100%;margin-top:14px">Slackでリマインドする</button>
+              <p style="margin-top:8px;font-size:11px;color:var(--text-subtle)">対象者がSlack未連携の場合は「対象者はSlack未連携のため、リマインドを送信できません。」と表示され、この操作はできません。</p>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <!-- 教材の共有タブ -->
+      <!-- 教材の共有タブ（F-26、複製モデル）。共有先の追加は教材1件につき1プロジェクトずつ、
+           「共有を申請」押下でその場にプロジェクト選択と送信ボタンが現れる方式。複数の共有先を
+           まとめて編集する専用パネルはなく、承認済みの共有を解除する操作もない（不要になったら
+           複製先で直接アーカイブ・削除する）。 -->
       <div class="tab-panel" id="panel-sharing">
-        <p class="tab-note">このプロジェクトに紐づく教材を、他のプロジェクトへ<strong>共有申請</strong>できます。相手プロジェクトの管理者が承認すると、<strong>その教材の複製が共有先プロジェクトに新規作成されます</strong>（既存の「複製」機能〔A-19取得→A-16新規作成→A-20書き戻し〕と同じ仕組みを、承認をトリガーに実行するイメージ）。複製後は共有先プロジェクトの独立した教材として扱われ、内容編集・配信設定・公開/アーカイブは共有先プロジェクトの管理者・編集者が行います（元の教材を後から更新しても複製には反映されません）。承認するまでは何も作成されないため、一方的に押し付けることはできません（F-26）。</p>
 
         <h3 style="font-size:13px;margin:16px 0 8px">このプロジェクトから申請した共有</h3>
+        <p class="field-help" style="margin:0 0 10px">申請しただけでは何も起きません。共有先プロジェクトの管理者が承認すると、その時点の教材内容（目次・全ページ・問題・添付ファイル）で複製が共有先プロジェクトに新規作成されます。複製後は共有先プロジェクトの独立した教材として、内容編集・配信設定・公開状態はすべて共有先プロジェクトの管理者・編集者が管理します（元教材を更新しても複製には反映されません）。下書きの教材は共有申請できません。</p>
         <div class="table-wrap">
           <table class="table">
             <thead>
-              <tr><th>教材名</th><th style="width:100px">状態</th><th>共有先プロジェクト</th><th style="width:130px">操作</th></tr>
+              <tr><th>教材名</th><th style="width:100px">状態</th><th>共有先プロジェクト</th><th style="width:170px">操作</th></tr>
             </thead>
             <tbody>
               <tr>
-                <td class="cell-main"><a href="S-05_material-edit.html">新システム操作ガイド</a></td>
+                <td class="cell-main">新システム操作ガイド</td>
                 <td><span class="badge badge-status-on">公開中</span></td>
-                <td><span id="shares-新システム操作ガイド"><span class="chip" style="border-style:dashed">Manabi新規構築 <span style="color:#b45309;font-size:10.5px">承認待ち</span></span></span></td>
-                <td><button class="btn btn-secondary btn-sm" type="button" onclick="editShare('新システム操作ガイド', ['Manabi新規構築'])">共有を申請</button></td>
+                <td><span class="chip" style="border-style:dashed">Manabi新規構築 <span style="color:#b45309;font-size:10.5px">承認待ち</span> <span style="font-weight:700;margin-left:2px" title="申請を取り下げる">×</span></span></td>
+                <td><button class="btn btn-ghost btn-sm" type="button">共有を申請</button></td>
               </tr>
               <tr>
                 <td class="cell-main">セキュアコーディング入門</td>
                 <td><span class="badge badge-status-on">公開中</span></td>
-                <td><span id="shares-セキュアコーディング入門"><span class="chip">情報セキュリティ委員会 <span style="color:#15803d;font-size:10.5px">複製済み</span></span></span></td>
-                <td><button class="btn btn-secondary btn-sm" type="button" onclick="editShare('セキュアコーディング入門', ['情報セキュリティ委員会'])">共有を申請</button></td>
+                <td><span class="chip">情報セキュリティ委員会 <span style="color:#15803d;font-size:10.5px">複製済み</span></span></td>
+                <td>
+                  <!-- 「共有を申請」押下後の状態の例。既に承認済みの共有先とは別に、もう1件追加申請できる
+                       （承認済みの共有を編集・解除する操作はなく、追加のみ可能） -->
+                  <div style="display:flex;flex-direction:column;gap:4px">
+                    <select style="min-width:190px"><option selected disabled>共有先プロジェクトを選択...</option><option>全社Wiki</option><option>新人研修2026運営</option><option>Manabi新規構築</option></select>
+                    <div style="display:flex;gap:6px"><button class="btn btn-secondary btn-sm" type="button">申請を送る</button><button class="btn btn-ghost btn-sm" type="button">キャンセル</button></div>
+                  </div>
+                </td>
               </tr>
               <tr>
                 <td class="cell-main" style="color:var(--text-subtle)">DB移行手順（下書き）</td>
                 <td><span class="badge badge-status-off">下書き</span></td>
-                <td><span style="color:var(--text-subtle);font-size:12px">下書きのため共有申請不可</span></td>
-                <td><button class="btn btn-ghost btn-sm" type="button" disabled>-</button></td>
+                <td><span style="color:var(--text-subtle);font-size:12px">—</span></td>
+                <td><span style="color:var(--text-subtle);font-size:12px" title="下書きのため共有申請できません">共有を申請</span></td>
               </tr>
             </tbody>
           </table>
         </div>
 
-        <div class="panel" id="share-edit-panel" style="margin-top:16px;max-width:520px">
-          <div class="panel-header">
-            <div class="panel-title" id="share-edit-title">「セキュアコーディング入門」の共有先を編集</div>
-          </div>
-          <div class="panel-body">
-            <div id="share-edit-chips" class="badge-group" style="margin-bottom:10px">
-              <span class="chip" data-proj="情報セキュリティ委員会">情報セキュリティ委員会 <span onclick="removeShareChip(this)" style="cursor:pointer;font-weight:700">×</span></span>
-            </div>
-            <div class="field" style="margin-bottom:10px">
-              <label>共有先プロジェクトを検索して追加</label>
-              <select id="share-edit-select" onchange="addShareChip(this)">
-                <option selected disabled>プロジェクト名で検索...</option>
-                <option>全社Wiki</option>
-                <option>新人研修2026運営</option>
-                <option>情報セキュリティ委員会</option>
-                <option>Manabi新規構築</option>
-              </select>
-              <span class="field-help">一覧には、あなたが所属している、または直近やり取りのあるプロジェクトが候補として出ます。全プロジェクトを常に列挙するのではなく検索で絞り込みます（プロジェクトは誰でも作成できるため件数が増え続けるため）。ここで追加した相手には「共有申請」が送られるだけで、相手が承認するまで何も作成されません。承認されると、その時点の内容で教材の複製が共有先プロジェクトに作成されます。</span>
-            </div>
-            <button class="btn btn-primary btn-sm" type="button" onclick="saveShare()">申請を送る</button>
-          </div>
-        </div>
-        <p style="margin-top:12px;font-size:11.5px;color:var(--text-subtle)">※ 承認されると、共有先プロジェクトに教材の複製が新規作成されます。複製後は共有先プロジェクトの独立した教材として扱われ、内容編集・配信設定・公開/アーカイブ/削除は共有先プロジェクトの管理者・編集者が行います（元の教材をその後更新しても複製には反映されません。複製後に最新内容を反映したい場合は、共有先プロジェクトの管理者が改めて共有申請を承認するか、複製先で直接編集してください）。承認前の申請の取り下げは、共有元・共有先どちらの管理者からも行えます（未承認の間は複製が存在しないため、取り下げても失うものはありません）。</p>
-
         <h3 style="font-size:13px;margin:24px 0 8px">他プロジェクトからの共有リクエスト（このプロジェクト宛て）</h3>
+        <p class="field-help" style="margin:0 0 10px">承認すると、その時点の教材内容（目次・全ページ・問題・添付ファイル）でこのプロジェクトに複製が新規作成されます。却下すると何も作成されません。承認後は複製が独立した教材になるため専用の「共有解除」操作はなく、不要になった場合は複製先の教材を通常どおりアーカイブ・削除してください。</p>
         <div class="table-wrap" id="incoming-shares-wrap">
           <table class="table">
             <thead>
@@ -359,67 +486,6 @@ function switchTab(name) {
     document.getElementById('tab-' + t).classList.toggle('active', t === name);
     document.getElementById('panel-' + t).classList.toggle('active', t === name);
   });
-}
-
-// 「共有先を追加」: 対象教材向けに編集パネルを切り替える（静的モック確認用の最小限のJS）
-// 共有先は全プロジェクトを列挙せず、検索して追加したものだけをチップとして積み上げる方式
-var currentShareMaterial = 'セキュアコーディング入門';
-var originalShareProjects = ['情報セキュリティ委員会']; // 編集開始時点で既に承認済みだったプロジェクト
-
-function renderShareChips(projects) {
-  var box = document.getElementById('share-edit-chips');
-  box.innerHTML = '';
-  projects.forEach(function (p) {
-    var chip = document.createElement('span');
-    chip.className = 'chip';
-    chip.setAttribute('data-proj', p);
-    chip.innerHTML = p + ' <span onclick="removeShareChip(this)" style="cursor:pointer;font-weight:700">×</span>';
-    box.appendChild(chip);
-  });
-}
-
-function editShare(materialName, checkedProjects) {
-  currentShareMaterial = materialName;
-  originalShareProjects = checkedProjects.slice();
-  document.getElementById('share-edit-title').textContent = '「' + materialName + '」の共有先を編集';
-  renderShareChips(checkedProjects);
-  document.getElementById('share-edit-select').selectedIndex = 0;
-  document.getElementById('share-edit-panel').scrollIntoView({ behavior: 'smooth', block: 'center' });
-}
-
-function addShareChip(selectEl) {
-  var value = selectEl.value;
-  var box = document.getElementById('share-edit-chips');
-  if (box.querySelector('[data-proj="' + value + '"]')) {
-    selectEl.selectedIndex = 0;
-    return;
-  }
-  var current = Array.prototype.map.call(box.querySelectorAll('[data-proj]'), function (c) { return c.getAttribute('data-proj'); });
-  current.push(value);
-  renderShareChips(current);
-  selectEl.selectedIndex = 0;
-}
-
-function removeShareChip(xEl) {
-  xEl.parentElement.remove();
-}
-
-function saveShare() {
-  var box = document.getElementById('share-edit-chips');
-  var checked = Array.prototype.map.call(box.querySelectorAll('[data-proj]'), function (c) { return c.getAttribute('data-proj'); });
-  var cell = document.getElementById('shares-' + currentShareMaterial);
-  if (!cell) return;
-  if (checked.length === 0) {
-    cell.innerHTML = '<span style="color:var(--text-subtle);font-size:12px">共有先なし</span>';
-  } else {
-    cell.innerHTML = checked.map(function (p) {
-      var isNew = originalShareProjects.indexOf(p) === -1;
-      if (isNew) {
-        return '<span class="chip" style="border-style:dashed">' + p + ' <span style="color:#b45309;font-size:10.5px">承認待ち</span></span>';
-      }
-      return '<span class="chip">' + p + ' <span style="color:#15803d;font-size:10.5px">承認済み</span></span>';
-    }).join(' ');
-  }
 }
 
 // 他プロジェクトからの共有リクエストへの応答（静的モック確認用）

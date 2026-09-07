@@ -205,15 +205,15 @@
         <div class="panel-body">
 
           <div class="field">
-            <label>配信対象（プロジェクト全体）</label>
-            <div style="display:flex;align-items:center;gap:8px;height:36px">
+            <div class="checkbox-line"><input type="checkbox" checked id="project-enabled-1"> <label for="project-enabled-1" style="margin:0">プロジェクト全体に配信する</label></div>
+            <div style="display:flex;align-items:center;gap:8px;height:36px;padding-left:20px">
               <span class="chip">LCC CRM刷新</span>
               <span class="field-help" style="margin:0">この教材が属するプロジェクトです（変更不可）</span>
             </div>
-            <span class="field-help"><strong>配信対象のプロジェクトは、教材自身が属するプロジェクトに固定されており、選択はできません</strong>（教材は必ずいずれかのプロジェクトに属するというF-25の原則どおり。他プロジェクトを配信対象に選べてしまうと、その教材が元のプロジェクトに残ったまま他プロジェクトにも“複製”されたのと同じ状態になり、F-26（教材共有）と役割が重複してしまうため。他プロジェクトへ配信したい場合はF-26で共有し、共有先プロジェクトの管理者が自分の複製に対してこの画面から改めて配信設定を行う）。</span>
+            <span class="field-help" style="padding-left:20px"><strong>配信対象のプロジェクトは、教材自身が属するプロジェクトに固定されており、選択はできません</strong>（教材は必ずいずれかのプロジェクトに属するというF-25の原則どおり。他プロジェクトを配信対象に選べてしまうと、その教材が元のプロジェクトに残ったまま他プロジェクトにも“複製”されたのと同じ状態になり、F-26（教材共有）と役割が重複してしまうため。他プロジェクトへ配信したい場合はF-26で共有し、共有先プロジェクトの管理者が自分の複製に対してこの画面から改めて配信設定を行う）。</span>
           </div>
 
-          <div class="field">
+          <div class="field" style="padding-left:20px">
             <label>必修・任意</label>
             <div class="radio-group">
               <label class="radio-line"><input type="radio" name="required" checked> 必修</label>
@@ -222,13 +222,13 @@
             <span class="field-help">このプロジェクト（LCC CRM刷新）の現役メンバー全員に対する必修・任意を設定します。</span>
           </div>
 
-          <div class="field" style="max-width:220px">
+          <div class="field" style="max-width:220px;padding-left:20px">
             <label>受講期限（必修の場合のみ）</label>
             <input type="date" value="2026-09-15">
             <span class="field-help">「任意」の場合は期限を設定できません</span>
           </div>
 
-          <div class="field">
+          <div class="field" style="border-top:1px solid var(--border-strong);padding-top:12px">
             <label>個人を追加指定（任意）</label>
             <select style="max-width:280px">
               <option selected disabled>プロジェクトメンバーから選択…</option>
@@ -254,14 +254,14 @@
         <div class="panel-body">
 
           <div class="field">
-            <label>配信対象</label>
-            <div class="radio-group">
-              <label class="radio-line"><input type="radio" name="target-scope-2" checked> プロジェクト（全社Wiki）</label>
-              <label class="radio-line"><input type="radio" name="target-scope-2"> 個人</label>
+            <div class="checkbox-line"><input type="checkbox" checked id="project-enabled-2"> <label for="project-enabled-2" style="margin:0">プロジェクト全体に配信する</label></div>
+            <div style="display:flex;align-items:center;gap:8px;height:36px;padding-left:20px">
+              <span class="chip chip-proj">📌 全社Wiki</span>
+              <span class="field-help" style="margin:0">この教材が属するプロジェクトです（変更不可）</span>
             </div>
           </div>
 
-          <div class="field">
+          <div class="field" style="padding-left:20px">
             <label>必修・任意</label>
             <div class="radio-group">
               <label class="radio-line"><input type="radio" name="required-2" disabled title="全社Wikiの教材は必修にできません"> 必修</label>
@@ -270,7 +270,7 @@
             <span class="field-help"><strong>全社Wikiに属する教材は「必修」を選択できません</strong>（グレーアウト表示、ホバーで理由をツールチップ表示）。全社員に必修配信したい教材がある場合は、対象者を招待する専用プロジェクトを別途作成し、そちらで配信設定してください。</span>
           </div>
 
-          <div class="field" style="max-width:220px">
+          <div class="field" style="max-width:220px;padding-left:20px">
             <label>受講期限</label>
             <input type="date" disabled>
           </div>
