@@ -5,11 +5,11 @@ import asyncio
 import database
 
 USERS = [
-    # (email, name, role)
-    ("kimura@kogasoftware.com", "木村 拓也", "admin"),
-    ("sato@kogasoftware.com", "佐藤 健一", "member"),
-    ("suzuki@kogasoftware.com", "鈴木 一郎", "member"),
-    ("tanaka@kogasoftware.com", "田中 美咲", "member"),
+    # (email, name, role) — 実在の社員と紛らわしくならないよう、開発用の架空アカウントにする
+    ("admin@example.com", "テスト管理者", "admin"),
+    ("member1@example.com", "テストメンバー1", "member"),
+    ("member2@example.com", "テストメンバー2", "member"),
+    ("member3@example.com", "テストメンバー3", "member"),
 ]
 
 
