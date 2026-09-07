@@ -61,12 +61,14 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
--- F-12（Slack受講催促通知）: 個人ごとのSlack連携（本人がS-15で一度OAuth連携し、以後は
--- 本人のUser Access Tokenで本人宛てに投稿する方式。Bot User・Bot Token Scopeは使わない。
--- slack_access_tokenは機密情報のため、APIレスポンスに含めてはならない（routers側で除外する）。
-ALTER TABLE users ADD COLUMN IF NOT EXISTS slack_user_id TEXT;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS slack_access_token TEXT;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS slack_connected_at TIMESTAMPTZ;
+-- F-12（Slack受講催促通知）: 当初は個人ごとのOAuth連携（本人宛てDM）を実装したが、社内Slack
+-- ワークスペースのカスタムアプリ数上限により新規アプリを作成できず利用できなかった（検討資料/
+-- 20260903_Slack連携方式比較.html参照）。既存のIncoming Webhook（新規アプリ作成不要）を使い、
+-- プロジェクト単位でチャンネルへ通知する方式（下記 projects.slack_webhook_url）に置き換えた
+-- ため、個人連携用のカラムは撤去する（2026-09-04）。
+ALTER TABLE users DROP COLUMN IF EXISTS slack_user_id;
+ALTER TABLE users DROP COLUMN IF EXISTS slack_access_token;
+ALTER TABLE users DROP COLUMN IF EXISTS slack_connected_at;
 
 -- T-03 projects
 CREATE TABLE IF NOT EXISTS projects (
@@ -82,6 +84,9 @@ CREATE TABLE IF NOT EXISTS projects (
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
+-- F-12: このプロジェクトの必修教材リマインドを送信するIncoming Webhook URL（プロジェクト単位で
+-- 1本。Slack側でチャンネルを指定して発行したURLを、S-12プロジェクト管理から貼り付けて使う）。
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS slack_webhook_url TEXT;
 
 -- T-04 project_memberships
 CREATE TABLE IF NOT EXISTS project_memberships (

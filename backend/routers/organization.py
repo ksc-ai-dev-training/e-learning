@@ -139,7 +139,7 @@ async def get_project(id: int, user: CurrentUser = Depends(require_auth)):
     pool = get_pool()
     await check_project_role(user, id, min_role="admin")
     row = await pool.fetchrow(
-        """SELECT p.id, p.name, p.description, p.status, p.is_company_wide,
+        """SELECT p.id, p.name, p.description, p.status, p.is_company_wide, p.slack_webhook_url,
                   p.created_by, u.name AS created_by_name, p.created_at, p.updated_at
            FROM projects p JOIN users u ON u.id = p.created_by
            WHERE p.id = $1""",
@@ -180,6 +180,7 @@ class ProjectUpdate(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     description: str | None = None
     status: Literal["active", "completed"]
+    slack_webhook_url: str | None = None
 
 
 @router.put("/{id}")
@@ -200,10 +201,12 @@ async def update_project(id: int, body: ProjectUpdate, user: CurrentUser = Depen
     if row is None:
         raise HTTPException(404, detail="プロジェクトが見つかりません")
     updated = await pool.fetchrow(
-        """UPDATE projects SET name = $1, description = $2, status = $3, updated_at = now()
-           WHERE id = $4
-           RETURNING id, name, description, status, is_company_wide, created_by, created_at, updated_at""",
-        body.name, body.description, body.status, id,
+        """UPDATE projects SET name = $1, description = $2, status = $3, slack_webhook_url = $4,
+                  updated_at = now()
+           WHERE id = $5
+           RETURNING id, name, description, status, is_company_wide, slack_webhook_url,
+                     created_by, created_at, updated_at""",
+        body.name, body.description, body.status, body.slack_webhook_url, id,
     )
     return dict(updated)
 

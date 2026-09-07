@@ -6,10 +6,15 @@ export function createProject(body: { name: string; description: string | null }
   return apiFetch('/api/projects', { method: 'POST', body: JSON.stringify(body) })
 }
 
-// A-10: プロジェクト情報（名称・説明・状態）更新
+// A-10: プロジェクト情報（名称・説明・状態・Slack Webhook URL）更新
 export function updateProject(
   projectId: number,
-  body: { name: string; description: string | null; status: 'active' | 'completed' },
+  body: {
+    name: string
+    description: string | null
+    status: 'active' | 'completed'
+    slack_webhook_url: string | null
+  },
 ): Promise<ProjectDetail> {
   return apiFetch(`/api/projects/${projectId}`, { method: 'PUT', body: JSON.stringify(body) })
 }
@@ -89,7 +94,8 @@ export function getMemberOverdueRequired(
   return apiFetch(`/api/projects/${projectId}/members/${userId}/overdue-required`)
 }
 
-// 新設（F-12）: Slackで受講催促のリマインドを送る
-export function sendSlackReminder(projectId: number, userId: number): Promise<{ detail: string }> {
-  return apiFetch(`/api/projects/${projectId}/members/${userId}/slack-remind`, { method: 'POST' })
+// 新設（F-12）: プロジェクトの必修教材の未受講状況（教材単位の集計）を、登録済みのSlack
+// Webhook URL宛てに送る（個人ごとの催促は運用でカバーする方針、2026-09-04）
+export function sendProjectSlackReminder(projectId: number): Promise<{ detail: string }> {
+  return apiFetch(`/api/projects/${projectId}/slack-remind`, { method: 'POST' })
 }

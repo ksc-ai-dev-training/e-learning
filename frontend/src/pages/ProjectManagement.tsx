@@ -26,7 +26,7 @@ import {
   inviteMember,
   removeMember,
   resetAttemptLimit,
-  sendSlackReminder,
+  sendProjectSlackReminder,
   updateProject,
 } from '../lib/projectActions'
 import { createMaterialShare, deleteMaterialShare, respondMaterialShare } from '../lib/shareActions'
@@ -132,16 +132,29 @@ function ProjectManagementBody({
   } = useProjectMemberships(projectId)
 
   const navigate = useNavigate()
-  const [form, setForm] = useState({ name: '', description: '', status: 'active' as 'active' | 'completed' })
+  const [form, setForm] = useState({
+    name: '',
+    description: '',
+    status: 'active' as 'active' | 'completed',
+    slackWebhookUrl: '',
+  })
   const [saveError, setSaveError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [reminding, setReminding] = useState(false)
+  const [remindResult, setRemindResult] = useState<string | null>(null)
+  const [remindError, setRemindError] = useState<string | null>(null)
 
   useEffect(() => {
     if (project) {
-      setForm({ name: project.name, description: project.description ?? '', status: project.status })
+      setForm({
+        name: project.name,
+        description: project.description ?? '',
+        status: project.status,
+        slackWebhookUrl: project.slack_webhook_url ?? '',
+      })
       setSaved(false)
     }
   }, [project])
@@ -154,12 +167,28 @@ function ProjectManagementBody({
         name: form.name,
         description: form.description || null,
         status: form.status,
+        slack_webhook_url: form.slackWebhookUrl || null,
       })
       await mutateProject()
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
     } catch (e) {
       setSaveError(e instanceof ApiError ? e.message : '保存に失敗しました')
+    }
+  }
+
+  const handleRemind = async () => {
+    if (!project) return
+    setRemindError(null)
+    setRemindResult(null)
+    setReminding(true)
+    try {
+      await sendProjectSlackReminder(project.id)
+      setRemindResult('Slackに送信しました。')
+    } catch (e) {
+      setRemindError(e instanceof ApiError ? e.message : '送信に失敗しました')
+    } finally {
+      setReminding(false)
     }
   }
 
@@ -257,11 +286,40 @@ function ProjectManagementBody({
                   <span className="ml-2 text-xs text-slate-400">（作成者は自動的に管理者になります）</span>
                 </div>
               </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-semibold text-slate-500">Slack Webhook URL</label>
+                <TextInput
+                  value={form.slackWebhookUrl}
+                  onChange={(e) => setForm({ ...form, slackWebhookUrl: e.target.value })}
+                  placeholder="https://hooks.slack.com/services/..."
+                />
+                <p className="text-[11px] text-slate-400">
+                  必修教材の未受講リマインドを送るSlackチャンネルのIncoming Webhook URL（任意）。
+                  個人ごとの催促は行わず、教材単位の未受講人数のみを通知します。
+                </p>
+              </div>
             </div>
             <div className="mt-3 flex items-center gap-3">
               <Button onClick={handleSave}>保存する</Button>
               {saved && <span className="text-sm text-green-700">保存しました</span>}
               {saveError && <span className="text-sm text-red-600">{saveError}</span>}
+            </div>
+
+            <div className="mt-4 flex flex-col gap-2 rounded-md border border-slate-200 p-4">
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="secondary"
+                  onClick={handleRemind}
+                  disabled={reminding || !project.slack_webhook_url}
+                >
+                  {reminding ? '送信中...' : '必修教材のリマインドをSlackに送信'}
+                </Button>
+                {!project.slack_webhook_url && (
+                  <span className="text-xs text-slate-400">Webhook URLを保存すると送信できます</span>
+                )}
+              </div>
+              {remindResult && <span className="text-sm text-green-700">{remindResult}</span>}
+              {remindError && <span className="text-sm text-red-600">{remindError}</span>}
             </div>
 
             <div className="mt-6 border-t border-slate-200 pt-4">
@@ -560,9 +618,11 @@ function MembersTab({
   )
 }
 
-// 新設（F-11・F-12、REQ-F-08）: S-12「メンバー管理」の未受講の必修教材パネル。表示・操作可能
-// なのはこのプロジェクトのadmin、またはシステムadminのみ（呼び出し元のcanManageAttemptsで
-// 既にガード済みだが、APIエンドポイント側でも同じ権限判定を必須にしている）。
+// 新設（F-11、REQ-F-08）: S-12「メンバー管理」の未受講の必修教材パネル。表示可能なのはこの
+// プロジェクトのadmin、またはシステムadminのみ（呼び出し元のcanManageAttemptsで既にガード済み
+// だが、APIエンドポイント側でも同じ権限判定を必須にしている）。個人ごとのSlack催促は行わず、
+// ここで対象者の未受講状況を確認した管理者が運用で直接連絡する方針（2026-09-04。プロジェクト
+// 全体への教材単位のSlackリマインドは「プロジェクト情報」タブから送信できる）。
 function OverdueRequiredPanel({
   projectId,
   userId,
@@ -574,24 +634,7 @@ function OverdueRequiredPanel({
   userName: string
   onClose: () => void
 }) {
-  const { items, slackConnected, isLoading } = useMemberOverdueRequired(projectId, userId)
-  const [sending, setSending] = useState(false)
-  const [result, setResult] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
-
-  const handleRemind = async () => {
-    setError(null)
-    setResult(null)
-    setSending(true)
-    try {
-      await sendSlackReminder(projectId, userId)
-      setResult('Slackで送信しました。')
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : '送信に失敗しました')
-    } finally {
-      setSending(false)
-    }
-  }
+  const { items, isLoading } = useMemberOverdueRequired(projectId, userId)
 
   return (
     <div
@@ -623,20 +666,6 @@ function OverdueRequiredPanel({
                 </div>
               ))}
             </div>
-          )}
-
-          {!slackConnected ? (
-            <p className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500">
-              対象者はSlack未連携のため、リマインドを送信できません。
-            </p>
-          ) : (
-            <>
-              {result && <p className="mb-2 text-sm text-green-700">{result}</p>}
-              {error && <p className="mb-2 text-sm text-red-600">{error}</p>}
-              <Button onClick={handleRemind} disabled={sending || items.length === 0} className="w-full">
-                {sending ? '送信中...' : 'Slackでリマインドする'}
-              </Button>
-            </>
           )}
         </div>
       </div>

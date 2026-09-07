@@ -35,8 +35,6 @@ const VARIANT_CLASSES: Record<string, string> = {
   failed: 'bg-red-50 text-red-700 border-red-200',
   'in-progress': 'bg-slate-100 text-slate-500 border-slate-300',
   'not-started': 'bg-slate-50 text-slate-400 border-slate-200',
-  connected: 'bg-green-50 text-green-700 border-green-200',
-  'not-connected': 'bg-slate-100 text-slate-500 border-slate-300',
 }
 
 const VARIANT_LABELS: Record<string, string> = {
@@ -63,8 +61,6 @@ const VARIANT_LABELS: Record<string, string> = {
   failed: '不合格',
   'in-progress': '受講中',
   'not-started': '未受講',
-  connected: '連携済み',
-  'not-connected': '未連携',
 }
 
 export default function Badge({

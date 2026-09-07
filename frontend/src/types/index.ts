@@ -9,13 +9,6 @@ export interface Me {
   picture_url: string | null
 }
 
-// 新設: S-15プロフィール編集のSlack連携状態（F-12、GET /api/slack/status）
-export interface SlackStatus {
-  connected: boolean
-  connected_at: string | null
-  configured: boolean
-}
-
 // A-50 GET /api/reports/personal/{user_id} のレスポンス（S-09 個人学習レポート）
 export interface PersonalReportHistoryItem {
   material_id: number
@@ -344,7 +337,6 @@ export interface OverdueRequiredItem {
 }
 export interface MemberOverdueRequired {
   items: OverdueRequiredItem[]
-  slack_connected: boolean
 }
 
 // 新設: S-12「メンバー管理」の受験状況パネル（REQ-F-09、GET /api/projects/{id}/members/{id}/attempts）
@@ -368,6 +360,8 @@ export interface ProjectDetail {
   description: string | null
   status: 'active' | 'completed'
   is_company_wide: boolean
+  // F-12: このプロジェクトの必修教材リマインドを送信するIncoming Webhook URL（未設定ならnull）
+  slack_webhook_url: string | null
   created_by: number
   created_by_name: string
   created_at: string

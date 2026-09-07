@@ -9,7 +9,7 @@ from fastapi.staticfiles import StaticFiles
 
 import database
 import job_sweep
-from routers import assignments, auth, learning, materials, organization, reports, settings, slack, uploads, users
+from routers import assignments, auth, learning, materials, organization, reports, settings, uploads, users
 
 
 @asynccontextmanager
@@ -34,7 +34,6 @@ app.include_router(assignments.router)
 app.include_router(users.router)
 app.include_router(settings.router)
 app.include_router(reports.router)
-app.include_router(slack.router)
 
 
 @app.get("/healthz", include_in_schema=False)

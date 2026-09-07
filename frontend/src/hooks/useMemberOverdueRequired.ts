@@ -10,7 +10,6 @@ export function useMemberOverdueRequired(projectId: number, userId: number | nul
   )
   return {
     items: data?.items ?? [],
-    slackConnected: data?.slack_connected ?? false,
     error,
     isLoading,
     mutate,

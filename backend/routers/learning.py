@@ -949,50 +949,71 @@ async def get_member_overdue_required(
     project_id: int, user_id: int, user: CurrentUser = Depends(require_auth)
 ):
     """新設（F-11）: S-12「メンバー管理」向け。対象メンバーの、このプロジェクトの必修教材のうち
-    期限が近い・超過していて未完了のものを一覧する（2026-09-03、REQ-F-08対応）。"""
+    期限が近い・超過していて未完了のものを一覧する（2026-09-03、REQ-F-08対応）。個別の催促は
+    Manabiでは自動化せず、この一覧を見た管理者が運用で直接連絡する方針（2026-09-04）。"""
     await _require_project_admin(project_id, user)
     pool = get_pool()
     items = await _fetch_overdue_required(pool, project_id, user_id)
-    target = await pool.fetchrow("SELECT slack_user_id, slack_access_token FROM users WHERE id = $1", user_id)
-    return {
-        "items": items,
-        "slack_connected": bool(target and target["slack_user_id"] and target["slack_access_token"]),
-    }
+    return {"items": items}
 
 
-@router.post("/projects/{project_id}/members/{user_id}/slack-remind")
-async def send_slack_reminder(
-    project_id: int, user_id: int, user: CurrentUser = Depends(require_auth)
-):
-    """新設（F-12）: 未受講の必修教材について、対象メンバー本人へSlack DMでリマインドする。
-    対象者が未連携、または送るべき教材が無い場合は400を返す（2026-09-03）。"""
+async def _fetch_project_overdue_required_summary(pool, project_id: int) -> list[dict]:
+    """F-12（プロジェクト単位のSlackリマインド用）: このプロジェクトの必修教材のうち、期限が
+    近い（7日以内）または超過していて未完了のメンバーが1人以上いるものを、教材ごとに未完了人数を
+    集計して列挙する（個人名は含めない。個人単位の状況は_fetch_overdue_required〔S-12メンバー
+    管理〕で確認する）。scope_type='individual'の個別期限は対象外（プロジェクト全体向けの概況
+    通知のため、プロジェクトスコープの期限のみを見る。2026-09-04）。"""
+    rows = await pool.fetch(
+        """SELECT m.id AS material_id, m.title AS material_title, a.due_at,
+                  COUNT(*) FILTER (
+                      WHERE COALESCE(ep.status, 'not_started') != 'completed'
+                  ) AS incomplete_count
+           FROM materials m
+           JOIN assignments a ON a.material_id = m.id AND a.required = true
+                AND a.scope_type = 'project' AND a.scope_id = m.project_id
+           JOIN project_memberships pm ON pm.project_id = m.project_id
+                AND pm.status = 'active' AND pm.left_at IS NULL
+           LEFT JOIN enrollment_progress ep ON ep.material_id = m.id AND ep.user_id = pm.user_id
+           WHERE m.project_id = $1 AND m.status = 'published' AND m.is_archived = false
+             AND a.due_at IS NOT NULL AND a.due_at <= now() + interval '7 days'
+           GROUP BY m.id, m.title, a.due_at
+           HAVING COUNT(*) FILTER (WHERE COALESCE(ep.status, 'not_started') != 'completed') > 0
+           ORDER BY a.due_at ASC""",
+        project_id,
+    )
+    return [dict(r) for r in rows]
+
+
+@router.post("/projects/{project_id}/slack-remind")
+async def send_project_slack_reminder(project_id: int, user: CurrentUser = Depends(require_auth)):
+    """新設（F-12）: プロジェクトの必修教材について、未受講者数を教材単位で集計し、このプロジェクト
+    に登録されたSlack Webhook URL（projects.slack_webhook_url）宛てにまとめて通知する。個人名は
+    含めず、個人ごとの催促は運用（担当者が直接連絡）でカバーする方針（2026-09-04、検討資料/
+    20260903_Slack連携方式比較.html参照）。"""
     await _require_project_admin(project_id, user)
     pool = get_pool()
-    target = await pool.fetchrow("SELECT slack_user_id, slack_access_token FROM users WHERE id = $1", user_id)
-    if target is None:
-        raise HTTPException(404, detail="対象のユーザーが見つかりません")
-    if not target["slack_user_id"] or not target["slack_access_token"]:
-        raise HTTPException(400, detail="対象者はSlack連携をしていないため送信できません")
+    project_row = await pool.fetchrow("SELECT name, slack_webhook_url FROM projects WHERE id = $1", project_id)
+    if project_row is None:
+        raise HTTPException(404, detail="プロジェクトが見つかりません")
+    if not project_row["slack_webhook_url"]:
+        raise HTTPException(400, detail="このプロジェクトにはSlack Webhook URLが設定されていません")
 
-    items = await _fetch_overdue_required(pool, project_id, user_id)
+    items = await _fetch_project_overdue_required_summary(pool, project_id)
     if not items:
         raise HTTPException(400, detail="リマインド対象の未受講の必修教材がありません")
 
-    project_name = await pool.fetchval("SELECT name FROM projects WHERE id = $1", project_id)
-    lines = [f"「{project_name}」の必修教材で、受講期限が近い・過ぎているものがあります。"]
+    lines = [f"「{project_row['name']}」の必修教材で、受講期限が近い・過ぎているものがあります。"]
     for it in items:
         due_label = it["due_at"].strftime("%Y-%m-%d") if it["due_at"] else "期限未設定"
-        lines.append(f"・{it['material_title']}（期限: {due_label}）")
+        lines.append(f"・{it['material_title']}（期限: {due_label}、未受講 {it['incomplete_count']}名）")
     frontend_url = os.environ.get("FRONTEND_URL", "").rstrip("/")
     lines.append(f"{frontend_url}/ からマイ学習を確認してください。" if frontend_url else "Manabiのマイ学習から確認してください。")
 
     try:
-        await slack_client.send_reminder_dm(
-            target["slack_access_token"], target["slack_user_id"], "\n".join(lines)
-        )
+        await slack_client.send_webhook_message(project_row["slack_webhook_url"], "\n".join(lines))
     except Exception:
-        logger.exception("event=slack_remind_failed target_user_id=%s", user_id)
-        raise HTTPException(502, detail="Slackへの送信に失敗しました（連携が解除されている可能性があります）")
+        logger.exception("event=slack_remind_failed project_id=%s", project_id)
+        raise HTTPException(502, detail="Slackへの送信に失敗しました（Webhook URLが無効な可能性があります）")
     return {"detail": "送信しました"}
 
 
