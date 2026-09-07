@@ -23,7 +23,7 @@ def load_root_env() -> dict[str, str]:
 ROOT_ENV = load_root_env()
 # ルート.envの値をプロセス環境変数へ反映する（既に実OS環境変数が設定されている場合はそちらを優先、
 # setdefaultのため上書きしない）。これが無いと、database.py以外のモジュール（ai_client.pyの
-# ANTHROPIC_API_KEY、auth_helpers.pyのJWT_SECRET、google_auth.pyのGOOGLE_CLIENT_ID等）が素の
+# OPENAI_API_KEY、auth_helpers.pyのJWT_SECRET、google_auth.pyのGOOGLE_CLIENT_ID等）が素の
 # os.environ.get()で読んでいるため、.envに値を書いても一切反映されない不具合になっていた
 # （Google OAuth実装時に発見。start.bat未整備でこれまで顕在化していなかった）。
 for _k, _v in ROOT_ENV.items():

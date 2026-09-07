@@ -1,46 +1,49 @@
-# Anthropic Claude呼び出しの共通クライアント（F-08/F-20〜F-23共通、詳細設計書08_AI機能実装詳細.html）。
+# OpenAI呼び出しの共通クライアント（F-08/F-20〜F-23共通、詳細設計書08_AI機能実装詳細.html）。
 # 呼び出し元（learning.py等）はモデル選択・T-19ログ記録を直接扱わず、必ず本モジュール経由で呼ぶ。
+#
+# 2026-09-07: AnthropicからOpenAIへ切り替えた（ユーザー指示、最安モデルを使いたいとのこと）。
+# ツール呼び出し（構造化出力）には、推論系モデル（GPT-5系）向けにOpenAIが推奨するResponses API
+# （client.responses.create）を使う。Chat Completions APIは推論系モデルとの組み合わせでツール
+# 呼び出しが不安定になる場合があるとされているため採用しなかった。
 import asyncio
+import json
 import logging
 import os
 
-import anthropic
+import openai
 
 from database import get_pool
 
 logger = logging.getLogger("manabi.ai_client")
 
-# モデル解決: コスト管理のため、常に最も低コストなモデル（Haiku）に固定する
-# （ユーザー指示、2026-09-03。以前はS-10のシステム設定でsonnet-5/opus-5/haiku-4-5から
-# 選べたが、選択の余地自体を無くすためS-10側のUIも廃止した。設定値やANTHROPIC_MODEL
-# 環境変数の値によらず、本モデルのみを使う）。
-DEFAULT_MODEL = "claude-haiku-4-5"
-ALLOWED_MODELS = {"claude-haiku-4-5"}
+# モデル解決: コスト管理のため、常に最も低コストなモデルに固定する（ユーザー指示、2026-09-07。
+# gpt-5-nanoは本書作成時点でOpenAIの汎用モデルの中で最安〔入力$0.05/出力$0.40 per 1M tokens〕。
+# S-10のシステム設定UIは廃止済みで、選択の余地自体を持たせない）。
+DEFAULT_MODEL = "gpt-5-nano"
+ALLOWED_MODELS = {"gpt-5-nano"}
 
 
 async def resolve_model() -> str:
     return DEFAULT_MODEL
 
 
-# 概算コスト計算用の単価（プレースホルダー。Anthropicの実際の料金表と照合してから本番運用すること）。
-# 1トークンあたりのUSD単価、USD→JPYは固定150円で概算する。
+# 概算コスト計算用の単価（1トークンあたりのUSD単価、USD→JPYは固定150円で概算する。
+# 料金はOpenAIの公表単価と照合済み〔2026-09-07時点〕だが、値下げ等があれば見直すこと）。
 MODEL_COSTS = {
-    "claude-sonnet-5": {"input": 0.000003, "output": 0.000015},
-    "claude-opus-5": {"input": 0.000015, "output": 0.000075},
-    "claude-haiku-4-5": {"input": 0.0000008, "output": 0.000004},
+    "gpt-5-nano": {"input": 0.00000005, "output": 0.0000004},
 }
 USD_TO_JPY = 150
 
-_client: anthropic.AsyncAnthropic | None = None
+_client: openai.AsyncOpenAI | None = None
 
 
-def _get_client() -> anthropic.AsyncAnthropic:
+def _get_client() -> openai.AsyncOpenAI:
     global _client
     if _client is None:
-        api_key = os.environ.get("ANTHROPIC_API_KEY")
+        api_key = os.environ.get("OPENAI_API_KEY")
         if not api_key:
-            raise RuntimeError("ANTHROPIC_API_KEYが設定されていないためAI機能を利用できません")
-        _client = anthropic.AsyncAnthropic(api_key=api_key, timeout=60.0)
+            raise RuntimeError("OPENAI_API_KEYが設定されていないためAI機能を利用できません")
+        _client = openai.AsyncOpenAI(api_key=api_key, timeout=60.0)
     return _client
 
 
@@ -53,6 +56,48 @@ async def log_usage(user_id: int | None, feature: str, model: str, input_tokens:
            VALUES ($1, $2, $3, $4, $5, $6)""",
         user_id, feature, model, input_tokens, output_tokens, cost_estimate,
     )
+
+
+async def _call_tool(
+    *, instructions: str, user_message: str, tool_schema: dict, tool_name: str,
+    max_output_tokens: int, feature: str, user_id: int | None,
+) -> dict:
+    """Responses APIでツール（構造化出力）呼び出しを行う共通処理（F-08/F-20/F-22共通）。
+    3回までリトライし（1s/2s/4s）、全て失敗した場合は例外を送出する。tool_schemaは
+    {"description": ..., "input_schema": {...}}の形（Anthropic時代のツール定義をそのまま流用し、
+    ここでResponses APIが要求するフラットな関数定義に組み替える）。"""
+    model = await resolve_model()
+    tool_def = {
+        "type": "function",
+        "name": tool_name,
+        "description": tool_schema["description"],
+        "parameters": tool_schema["input_schema"],
+    }
+
+    last_error: Exception | None = None
+    for attempt in range(3):
+        try:
+            client = _get_client()
+            response = await client.responses.create(
+                model=model,
+                instructions=instructions,
+                input=user_message,
+                max_output_tokens=max_output_tokens,
+                tools=[tool_def],
+                tool_choice={"type": "function", "name": tool_name},
+            )
+            call_item = next(item for item in response.output if item.type == "function_call")
+            result = json.loads(call_item.arguments)
+            await log_usage(
+                user_id, feature, model, response.usage.input_tokens, response.usage.output_tokens
+            )
+            return result
+        except Exception as exc:  # noqa: BLE001 — AI呼び出しの失敗要因は多岐にわたるため一括で捕捉しリトライする
+            last_error = exc
+            logger.exception("AI呼び出しに失敗しました（%s、%d回目）", feature, attempt + 1)
+            if attempt < 2:
+                await asyncio.sleep(2 ** attempt)
+    raise last_error  # type: ignore[misc]
 
 
 GRADING_TOOL = {
@@ -129,34 +174,17 @@ _REVIEW_SYSTEM_PROMPT = (
 
 
 async def review_material(*, material_text: str, user_id: int | None) -> list[dict]:
-    """教材本文・問題定義をAIレビューする（F-08）。3回までリトライし（1s/2s/4s）、全て失敗した場合は
-    例外を送出する（同期呼び出しのため、呼び出し元のA-32はこれを502として利用者に返す）。"""
-    model = await resolve_model()
-
-    last_error: Exception | None = None
-    for attempt in range(3):
-        try:
-            client = _get_client()
-            message = await client.messages.create(
-                model=model,
-                max_tokens=4096,
-                system=_REVIEW_SYSTEM_PROMPT,
-                messages=[{"role": "user", "content": material_text}],
-                tools=[REVIEW_TOOL],
-                tool_choice={"type": "tool", "name": "submit_review"},
-            )
-            tool_use = next(block for block in message.content if block.type == "tool_use")
-            findings = list(tool_use.input.get("findings", []))
-            await log_usage(
-                user_id, "material_review", model, message.usage.input_tokens, message.usage.output_tokens
-            )
-            return findings
-        except Exception as exc:  # noqa: BLE001 — AI呼び出しの失敗要因は多岐にわたるため一括で捕捉しリトライする
-            last_error = exc
-            logger.exception("AI教材レビュー呼び出しに失敗しました（%d回目）", attempt + 1)
-            if attempt < 2:
-                await asyncio.sleep(2 ** attempt)
-    raise last_error  # type: ignore[misc]
+    """教材本文・問題定義をAIレビューする（F-08）。"""
+    result = await _call_tool(
+        instructions=_REVIEW_SYSTEM_PROMPT,
+        user_message=material_text,
+        tool_schema=REVIEW_TOOL,
+        tool_name="submit_review",
+        max_output_tokens=4096,
+        feature="material_review",
+        user_id=user_id,
+    )
+    return list(result.get("findings", []))
 
 
 async def grade_answer(
@@ -170,34 +198,18 @@ async def grade_answer(
     code_language: str | None,
     user_id: int | None,
 ) -> dict:
-    """記述式・コード記述式の回答をAIで採点する（F-20）。3回までリトライ（1s/2s/4s）し、
-    全て失敗した場合は例外を送出する（呼び出し元でDBをNULLのまま残しログを記録する）。"""
-    model = await resolve_model()
+    """記述式・コード記述式の回答をAIで採点する（F-20）。"""
     system_prompt = _build_system_prompt(scoring_criteria, feedback_style, ai_context, is_code, code_language)
     user_message = f"設問: {prompt}\n\n回答:\n{response_text}"
-
-    last_error: Exception | None = None
-    for attempt in range(3):
-        try:
-            client = _get_client()
-            message = await client.messages.create(
-                model=model,
-                max_tokens=1024,
-                system=system_prompt,
-                messages=[{"role": "user", "content": user_message}],
-                tools=[GRADING_TOOL],
-                tool_choice={"type": "tool", "name": "submit_grading"},
-            )
-            tool_use = next(block for block in message.content if block.type == "tool_use")
-            result = dict(tool_use.input)
-            await log_usage(user_id, "grading", model, message.usage.input_tokens, message.usage.output_tokens)
-            return result
-        except Exception as exc:  # noqa: BLE001 — AI呼び出しの失敗要因は多岐にわたるため一括で捕捉しリトライする
-            last_error = exc
-            logger.exception("AI採点呼び出しに失敗しました（%d回目）", attempt + 1)
-            if attempt < 2:
-                await asyncio.sleep(2 ** attempt)
-    raise last_error  # type: ignore[misc]
+    return await _call_tool(
+        instructions=system_prompt,
+        user_message=user_message,
+        tool_schema=GRADING_TOOL,
+        tool_name="submit_grading",
+        max_output_tokens=2048,
+        feature="grading",
+        user_id=user_id,
+    )
 
 
 PERSONAL_FEEDBACK_TOOL = {
@@ -241,37 +253,19 @@ async def generate_personal_feedback(
     candidate_materials: list[dict],
     user_id: int,
 ) -> dict:
-    """受講傾向データを基にAI個人フィードバックを生成する（F-22）。3回までリトライ（1s/2s/4s）し、
-    全て失敗した場合は例外を送出する（呼び出し元の非同期ジョブがcontentをNULLのまま残す）。"""
-    model = await resolve_model()
+    """受講傾向データを基にAI個人フィードバックを生成する（F-22）。"""
     user_message = (
         "summary_stats:\n" + str(summary_stats) + "\n\n"
         "tag_stats（分野タグ別の正答率集計）:\n" + str(tag_stats) + "\n\n"
         "candidate_materials（未受講、または過去に不合格だった反復推奨の候補教材。id/title/tagsのみ）:\n"
         + str(candidate_materials)
     )
-
-    last_error: Exception | None = None
-    for attempt in range(3):
-        try:
-            client = _get_client()
-            message = await client.messages.create(
-                model=model,
-                max_tokens=1024,
-                system=_PERSONAL_FEEDBACK_SYSTEM_PROMPT,
-                messages=[{"role": "user", "content": user_message}],
-                tools=[PERSONAL_FEEDBACK_TOOL],
-                tool_choice={"type": "tool", "name": "submit_personal_feedback"},
-            )
-            tool_use = next(block for block in message.content if block.type == "tool_use")
-            result = dict(tool_use.input)
-            await log_usage(
-                user_id, "personal_feedback", model, message.usage.input_tokens, message.usage.output_tokens
-            )
-            return result
-        except Exception as exc:  # noqa: BLE001 — AI呼び出しの失敗要因は多岐にわたるため一括で捕捉しリトライする
-            last_error = exc
-            logger.exception("AI個人フィードバック呼び出しに失敗しました（%d回目）", attempt + 1)
-            if attempt < 2:
-                await asyncio.sleep(2 ** attempt)
-    raise last_error  # type: ignore[misc]
+    return await _call_tool(
+        instructions=_PERSONAL_FEEDBACK_SYSTEM_PROMPT,
+        user_message=user_message,
+        tool_schema=PERSONAL_FEEDBACK_TOOL,
+        tool_name="submit_personal_feedback",
+        max_output_tokens=2048,
+        feature="personal_feedback",
+        user_id=user_id,
+    )
