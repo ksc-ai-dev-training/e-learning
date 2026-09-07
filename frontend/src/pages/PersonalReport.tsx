@@ -37,7 +37,7 @@ export default function PersonalReport() {
 
   const { report, error, isLoading, mutate: mutateReport } = usePersonalReport(targetUserId)
   const [generating, setGenerating] = useState(false)
-  const { feedback, mutate: mutateFeedback } = usePersonalAiFeedback(targetUserId, generating)
+  const { feedback, isLoading: feedbackLoading, mutate: mutateFeedback } = usePersonalAiFeedback(targetUserId, generating)
   const [generateError, setGenerateError] = useState<string | null>(null)
   const [slowWarning, setSlowWarning] = useState(false)
   const [confirmingResetId, setConfirmingResetId] = useState<number | null>(null)
@@ -209,6 +209,8 @@ export default function PersonalReport() {
                 このフィードバックは学習支援を目的としたものであり、人事評価には使用されません。
               </p>
             </>
+          ) : feedbackLoading ? (
+            <div className="text-sm text-slate-400">読み込み中...</div>
           ) : generating ? (
             <div className="text-sm text-slate-500">
               作成中...
