@@ -459,7 +459,7 @@ async def get_material(id: int, user: CurrentUser = Depends(require_auth)):
 
     # S-04向け: 自分の受講進捗（enrollment_progress未作成の間は未受講扱い）
     progress_row = await pool.fetchrow(
-        """SELECT status, current_node_id, completed_node_ids
+        """SELECT status, current_node_id, completed_node_ids, visited_node_ids
            FROM enrollment_progress WHERE user_id = $1 AND material_id = $2""",
         user.id, id,
     )
@@ -468,9 +468,10 @@ async def get_material(id: int, user: CurrentUser = Depends(require_auth)):
             "status": progress_row["status"],
             "current_node_id": progress_row["current_node_id"],
             "completed_node_ids": json.loads(progress_row["completed_node_ids"]),
+            "visited_node_ids": json.loads(progress_row["visited_node_ids"]),
         }
         if progress_row
-        else {"status": "not_started", "current_node_id": None, "completed_node_ids": []}
+        else {"status": "not_started", "current_node_id": None, "completed_node_ids": [], "visited_node_ids": []}
     )
 
     # S-04/S-16向け: マイ学習登録有無（F-31）。全社Wiki所属の任意教材でのみボタンを表示する判定に使う
@@ -583,6 +584,28 @@ async def delete_material(id: int, user: CurrentUser = Depends(require_material_
     await pool.execute("DELETE FROM materials WHERE id = $1", id)
 
 
+@detail_router.delete("/{id}/progress", status_code=204)
+async def reset_material_progress(id: int, user: CurrentUser = Depends(require_auth)):
+    """A-95: 自分の受講進捗を未受講に戻す（S-09学習履歴の「未受講に戻す」ボタン）。本人の
+    enrollment_progressの位置情報（status・current_node_id・completed_node_ids・visited_node_ids・
+    started_at・completed_at）のみをリセットし、quiz_attempts・answers等の受験記録は削除しない
+    （学習記録は失われないという一貫方針。S-04の前回の受験結果パネル等には引き続き過去の記録が
+    表示される）。本人の行のみを対象とするため、対象教材への現在のアクセス権限は問わない
+    （過去に受講対象だった教材の進捗を後から自分でリセットすることも許容する）。"""
+    pool = get_pool()
+    material = await pool.fetchval("SELECT 1 FROM materials WHERE id = $1", id)
+    if material is None:
+        raise HTTPException(404, detail="教材が見つかりません")
+    await pool.execute(
+        """UPDATE enrollment_progress
+              SET status = 'not_started', current_node_id = NULL, completed_node_ids = '[]',
+                  visited_node_ids = '[]', reset_at = now(),
+                  started_at = NULL, completed_at = NULL, updated_at = now()
+            WHERE user_id = $1 AND material_id = $2""",
+        user.id, id,
+    )
+
+
 def _page_path(chapter_label: str, section_title: str | None, page_title: str) -> str:
     parts = [chapter_label]
     if section_title:
@@ -595,10 +618,8 @@ def _page_path(chapter_label: str, section_title: str | None, page_title: str) -
 async def get_questions_summary(
     id: int, user: CurrentUser = Depends(require_material_role(min_role="editor"))
 ):
-    """新設: S-05「問題一覧」タブ用に、教材内の全設問をページ横断でフラットに集計する
-    （詳細設計書10.5節）。正答率・採点待ち件数はT-13 quiz_attempts/T-14 answersを参照するが、
-    S-04/S-16（受講・受験API、A-39〜A-44）が未実装のため、現状は常に「回答なし」になる
-    （配線のみ先行実装。v1.26）。"""
+    """S-05「問題一覧」タブ用に、教材内の全設問をページ横断でフラットに集計する
+    （詳細設計書10.5節）。正答率・採点待ち件数はT-14 answersを実際に集計して返す。"""
     pool = get_pool()
     material_row = await pool.fetchrow("SELECT id FROM materials WHERE id = $1", id)
     if material_row is None:

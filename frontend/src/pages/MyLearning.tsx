@@ -1,14 +1,33 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router'
 import PageHeader from '../components/layout/PageHeader'
 import MaterialCard from '../components/ui/MaterialCard'
 import Panel from '../components/ui/Panel'
+import SegmentedFilter from '../components/ui/SegmentedFilter'
 import StatCard from '../components/ui/StatCard'
 import { useMyLearning, useMyLearningHistory } from '../hooks/useMyLearning'
 import { formatDateJst } from '../lib/datetime'
+import { scrollToAndHighlight } from '../lib/scrollHighlight'
 import type { MyLearningItem } from '../types'
 
 type ViewTab = 'assigned' | 'history'
+
+// 必修教材・任意教材で共通の絞り込み（2026-09-03、ユーザー要望で両パネルとも
+// 未受講／受講済み／すべての3択に統一。以前は必修=未完了のみ、任意=受講済みのみという
+// 非対称な絞り込みしかできず、使い勝手にばらつきがあった）。
+type StatusFilter = 'incomplete' | 'completed' | 'all'
+
+const STATUS_FILTER_OPTIONS: { value: StatusFilter; label: string }[] = [
+  { value: 'incomplete', label: '未受講' },
+  { value: 'completed', label: '受講済み' },
+  { value: 'all', label: 'すべて' },
+]
+
+function applyStatusFilter(items: MyLearningItem[], filter: StatusFilter): MyLearningItem[] {
+  if (filter === 'incomplete') return items.filter((i) => i.progress_status !== 'completed')
+  if (filter === 'completed') return items.filter((i) => i.progress_status === 'completed')
+  return items
+}
 
 function isUrgent(item: MyLearningItem): boolean {
   if (!item.required || !item.due_at || item.progress_status === 'completed') return false
@@ -35,7 +54,8 @@ export default function MyLearning() {
   const [viewTab, setViewTab] = useState<ViewTab>('assigned')
   const { items: historyItems, isLoading: historyLoading } = useMyLearningHistory(viewTab === 'history')
   const [activeProjectId, setActiveProjectId] = useState<number | null>(null)
-  const [optionalCompletedOnly, setOptionalCompletedOnly] = useState(false)
+  const [optionalFilter, setOptionalFilter] = useState<StatusFilter>('all')
+  const [requiredFilter, setRequiredFilter] = useState<StatusFilter>('all')
 
   const allItems = useMemo(() => [...required, ...optional], [required, optional])
 
@@ -64,10 +84,24 @@ export default function MyLearning() {
 
   const filteredRequired = filterByProject(required)
   const urgentRequired = filteredRequired.filter(isUrgent)
-  const filteredOptional = filterByProject(optional).filter(
-    (i) => !optionalCompletedOnly || i.progress_status === 'completed',
-  )
+  const visibleRequired = applyStatusFilter(filteredRequired, requiredFilter)
+  const filteredOptional = filterByProject(optional)
+  const visibleOptional = applyStatusFilter(filteredOptional, optionalFilter)
   const filteredHistory = filterByProject(historyItems)
+
+  // S-09個人学習レポートの「未受講の必修教材」カードから#required-materialsハッシュ付きで
+  // 遷移してきた場合、react-router のクライアントサイド遷移ではブラウザ標準のハッシュスクロールが
+  // 効かないため、データ読み込み完了後に手動でスクロール・ハイライトする（2026-09-03）。
+  useEffect(() => {
+    if (isLoading) return
+    const hash = window.location.hash
+    if (!hash) return
+    const id = hash.slice(1)
+    // S-09「未受講の必修教材」カードからの遷移は、件数と表示内容を一致させるため
+    // 未受講のみ表示に絞り込む（2026-09-03、ユーザー指摘）
+    if (id === 'required-materials') setRequiredFilter('incomplete')
+    scrollToAndHighlight(id)
+  }, [isLoading])
 
   if (isLoading) {
     return <div className="p-8 text-sm text-slate-400">読み込み中...</div>
@@ -128,7 +162,14 @@ export default function MyLearning() {
         {viewTab === 'assigned' ? (
           <>
             <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <StatCard label="必修教材 受講率" value={stats?.required_completion_pct ?? 0} unit="%" />
+              <StatCard
+                label="必修受講完了率"
+                value={stats?.required_completion_pct ?? 0}
+                unit="%"
+                detail={
+                  stats ? `${stats.completed_required_count}件／${stats.total_required_count}件` : undefined
+                }
+              />
               <StatCard
                 label="期限が近い必修教材"
                 value={stats?.urgent_required_count ?? 0}
@@ -141,8 +182,8 @@ export default function MyLearning() {
                 value={stats?.optional_completed_count ?? 0}
                 unit="件"
                 onClick={() => {
-                  setOptionalCompletedOnly(true)
-                  document.getElementById('optional-materials')?.scrollIntoView({ behavior: 'smooth' })
+                  setOptionalFilter('completed')
+                  scrollToAndHighlight('optional-materials')
                 }}
               />
               <StatCard
@@ -167,52 +208,65 @@ export default function MyLearning() {
               </div>
             )}
 
-            <Panel
-              title="必修教材"
-              count={`${filteredRequired.length}件中 ${
-                filteredRequired.filter((i) => i.progress_status !== 'completed').length
-              }件 未完了`}
-            >
-              {filteredRequired.length === 0 ? (
-                <p className="px-4 py-6 text-center text-sm text-slate-400">対象の必修教材はありません。</p>
-              ) : (
-                filteredRequired.map((item) => (
-                  <MaterialCard
-                    key={item.id}
-                    item={item}
-                    actionLabel={actionLabelFor(item)}
-                    to={`/materials/${item.id}?from=my-learning`}
-                  />
-                ))
-              )}
-            </Panel>
-
-            <div id="optional-materials">
-              <Panel
-                title="任意教材"
-                count={
-                  optionalCompletedOnly ? (
-                    <>
-                      受講済み {filteredOptional.length}件{' '}
-                      <button
-                        type="button"
-                        onClick={() => setOptionalCompletedOnly(false)}
-                        className="text-blue-700 underline"
-                      >
-                        すべて表示
-                      </button>
-                    </>
-                  ) : (
-                    'おすすめ・自由選択の教材'
-                  )
-                }
-              >
-                {filteredOptional.length === 0 ? (
+            <div id="required-materials">
+              <div className="mb-1.5 flex items-center justify-between">
+                <span className="text-xs text-slate-400">
+                  {filteredRequired.length}件中{' '}
+                  {filteredRequired.filter((i) => i.progress_status !== 'completed').length}件 未受講
+                </span>
+                <SegmentedFilter
+                  value={requiredFilter}
+                  onChange={setRequiredFilter}
+                  options={STATUS_FILTER_OPTIONS}
+                  ariaLabel="必修教材の絞り込み"
+                />
+              </div>
+              <Panel title="必修教材">
+                {visibleRequired.length === 0 ? (
                   <p className="px-4 py-6 text-center text-sm text-slate-400">
-                    {optionalCompletedOnly ? '受講済みの任意教材はありません。' : '対象の任意教材はありません。'}
+                    {requiredFilter === 'incomplete'
+                      ? '未受講の必修教材はありません。'
+                      : requiredFilter === 'completed'
+                        ? '受講済みの必修教材はありません。'
+                        : '対象の必修教材はありません。'}
                   </p>
                 ) : (
-                  filteredOptional.map((item) => (
+                  visibleRequired.map((item) => (
+                    <MaterialCard
+                      key={item.id}
+                      item={item}
+                      actionLabel={actionLabelFor(item)}
+                      to={`/materials/${item.id}?from=my-learning`}
+                    />
+                  ))
+                )}
+              </Panel>
+            </div>
+
+            <div id="optional-materials">
+              <div className="mb-1.5 flex items-center justify-between">
+                <span className="text-xs text-slate-400">
+                  {filteredOptional.length}件中{' '}
+                  {filteredOptional.filter((i) => i.progress_status === 'completed').length}件 受講済み
+                </span>
+                <SegmentedFilter
+                  value={optionalFilter}
+                  onChange={setOptionalFilter}
+                  options={STATUS_FILTER_OPTIONS}
+                  ariaLabel="任意教材の絞り込み"
+                />
+              </div>
+              <Panel title="任意教材">
+                {visibleOptional.length === 0 ? (
+                  <p className="px-4 py-6 text-center text-sm text-slate-400">
+                    {optionalFilter === 'incomplete'
+                      ? '未受講の任意教材はありません。'
+                      : optionalFilter === 'completed'
+                        ? '受講済みの任意教材はありません。'
+                        : '対象の任意教材はありません。'}
+                  </p>
+                ) : (
+                  visibleOptional.map((item) => (
                     <MaterialCard
                       key={item.id}
                       item={item}

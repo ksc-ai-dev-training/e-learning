@@ -61,6 +61,12 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+-- F-12（Slack受講催促通知）: 個人ごとのSlack連携（本人がS-15で一度OAuth連携し、以後は
+-- 本人のUser Access Tokenで本人宛てに投稿する方式。Bot User・Bot Token Scopeは使わない。
+-- slack_access_tokenは機密情報のため、APIレスポンスに含めてはならない（routers側で除外する）。
+ALTER TABLE users ADD COLUMN IF NOT EXISTS slack_user_id TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS slack_access_token TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS slack_connected_at TIMESTAMPTZ;
 
 -- T-03 projects
 CREATE TABLE IF NOT EXISTS projects (
@@ -172,8 +178,8 @@ CREATE INDEX IF NOT EXISTS idx_questions_node_sort ON questions (node_id, sort_o
 CREATE INDEX IF NOT EXISTS idx_questions_pool_group_id ON questions (pool_group_id);
 ALTER TABLE questions ENABLE ROW LEVEL SECURITY;
 
--- T-11 assignments（配信設定）。S-06（配信設定画面、A-36〜A-38）は本書の時点では未実装だが、
--- S-03「区分」バッジ・「未受講のみ」等のフィルタが参照する土台としてテーブルのみ先行して用意する。
+-- T-11 assignments（配信設定）。S-06（配信設定画面、A-36〜A-38）で実際に作成・編集される他、
+-- S-03「区分」バッジ・「未受講のみ」等のフィルタも参照する。
 -- scope_typeは当初'company'/'project'/'individual'の3種だったが、'company'（全社スコープ）はプロジェクト
 -- 管理者が実質的な全社必修を作れてしまう抜け道があったため2026-08-28に廃止し、'project'/'individual'の
 -- 2種に簡素化した（プロジェクトスコープは常にmaterials.project_idと同値に固定。基本設計書5.9節参照）。
@@ -194,8 +200,8 @@ CREATE TABLE IF NOT EXISTS assignments (
 CREATE INDEX IF NOT EXISTS idx_assignments_material_id ON assignments (material_id);
 ALTER TABLE assignments ENABLE ROW LEVEL SECURITY;
 
--- T-12 enrollment_progress（受講進捗）。S-16（受講API、A-39〜A-44）は本書の時点では未実装だが、
--- S-03「未受講のみ表示」フィルタ・一覧の受講状況表示が参照する土台としてテーブルのみ先行して用意する
+-- T-12 enrollment_progress（受講進捗）。S-16（受講API、A-39〜A-44）で実際に更新される他、
+-- S-03「未受講のみ表示」フィルタ・一覧の受講状況表示も参照する
 CREATE TABLE IF NOT EXISTS enrollment_progress (
     id                  BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     user_id             BIGINT NOT NULL REFERENCES users(id),
@@ -204,6 +210,8 @@ CREATE TABLE IF NOT EXISTS enrollment_progress (
                         CHECK (status IN ('not_started', 'in_progress', 'completed')),
     current_node_id     BIGINT REFERENCES material_nodes(id) ON DELETE SET NULL,
     completed_node_ids  JSONB NOT NULL DEFAULT '[]',
+    visited_node_ids    JSONB NOT NULL DEFAULT '[]',
+    reset_at            TIMESTAMPTZ,
     started_at          TIMESTAMPTZ,
     completed_at        TIMESTAMPTZ,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -211,6 +219,13 @@ CREATE TABLE IF NOT EXISTS enrollment_progress (
     UNIQUE (user_id, material_id)
 );
 ALTER TABLE enrollment_progress ENABLE ROW LEVEL SECURITY;
+-- visited_node_ids: 目次の✓マーク用「閲覧済み」記録（合否判定用のcompleted_node_idsとは別物。
+-- 「次のページへ」を押して読み進めた時点で追加され、合否・完了率の集計には使わない。2026-09-03追加）
+ALTER TABLE enrollment_progress ADD COLUMN IF NOT EXISTS visited_node_ids JSONB NOT NULL DEFAULT '[]';
+-- reset_at: A-95「未受講に戻す」が押された時刻。quiz_attempts/answersは消さない方針
+-- （学習記録は失われない）のため、A-40が「合格済みスコープは閲覧専用で再利用する」際に
+-- リセット前の古い合格記録を再利用してしまわないよう判定に使う（2026-09-03追加）。
+ALTER TABLE enrollment_progress ADD COLUMN IF NOT EXISTS reset_at TIMESTAMPTZ;
 
 -- T-30 my_learning_registrations（マイ学習登録、F-31）。全社Wiki所属の任意教材は、本人がここに
 -- 登録しない限りA-39（マイ学習一覧）に表示しない（招待制プロジェクトの任意教材・必修教材は対象外）
@@ -223,8 +238,8 @@ CREATE TABLE IF NOT EXISTS my_learning_registrations (
 );
 ALTER TABLE my_learning_registrations ENABLE ROW LEVEL SECURITY;
 
--- T-13 quiz_attempts（受験記録）。S-04/S-16（受講・受験API、A-39〜A-44）は本書の時点では未実装だが、
--- S-05「問題一覧」タブ・S-19・S-20が参照する集計の土台としてテーブルのみ先行して用意する
+-- T-13 quiz_attempts（受験記録）。S-04/S-16（受講・受験API、A-39〜A-44）で実際に記録される他、
+-- S-05「問題一覧」タブ・S-19・S-20も集計に参照する
 CREATE TABLE IF NOT EXISTS quiz_attempts (
     id                        BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     user_id                   BIGINT NOT NULL REFERENCES users(id),
@@ -255,6 +270,23 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_quiz_attempts_active
 CREATE INDEX IF NOT EXISTS idx_quiz_attempts_material_id ON quiz_attempts (material_id);
 CREATE INDEX IF NOT EXISTS idx_quiz_attempts_user_id ON quiz_attempts (user_id);
 ALTER TABLE quiz_attempts ENABLE ROW LEVEL SECURITY;
+
+-- T-32 attempt_limit_resets（REQ-F-09/F-14: 再受験回数上限のリセット）。quiz_attemptsは
+-- 学習記録として削除しないため（学習記録は失われない、という一貫方針）、上限に達した後に
+-- 「あと何回まで解き直せるか」を回復させる手段として、このテーブルに記録した時刻より後の
+-- 提出済み受験記録のみを回数カウントの対象にする。対象プロジェクトのadmin、またはシステムadmin
+-- のみが操作できる（プロジェクト管理S-12「メンバー管理」タブから、2026-09-03検討）。
+CREATE TABLE IF NOT EXISTS attempt_limit_resets (
+    id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    user_id       BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    material_id   BIGINT NOT NULL REFERENCES materials(id) ON DELETE CASCADE,
+    scope_node_id BIGINT REFERENCES material_nodes(id) ON DELETE SET NULL,
+    reset_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    reset_by      BIGINT NOT NULL REFERENCES users(id)
+);
+CREATE INDEX IF NOT EXISTS idx_attempt_limit_resets_lookup
+    ON attempt_limit_resets (user_id, material_id, scope_node_id);
+ALTER TABLE attempt_limit_resets ENABLE ROW LEVEL SECURITY;
 
 -- T-14 answers（回答）。grading_mode='manual'の設問はis_correct・ai_score_pct・ai_feedbackが
 -- reviewed_by設定（S-20の採点操作）まで常にNULLのまま（「未採点」、5.20節）

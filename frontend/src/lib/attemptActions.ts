@@ -12,6 +12,12 @@ export function startAttempt(
   })
 }
 
+// A-96: 目次の✓マーク用「閲覧済み」記録。ページの「次へ」を押して読み進めた時点でのみ呼ぶ
+// （開いた時点では呼ばない）。合否判定・完了率の集計には使わない、ナビゲーション上の目印専用
+export function markPageVisited(materialId: number, nodeId: number): Promise<void> {
+  return apiFetch(`/api/materials/${materialId}/pages/${nodeId}/visit`, { method: 'POST' })
+}
+
 // A-41: 回答保存（都度呼び出しで中断・再開を実現する）
 export function saveAnswer(attemptId: number, questionId: number, response: unknown): Promise<Answer> {
   return apiFetch(`/api/attempts/${attemptId}/answers`, {

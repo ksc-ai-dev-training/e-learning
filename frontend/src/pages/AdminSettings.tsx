@@ -10,24 +10,9 @@ import { useSettings } from '../hooks/useSettings'
 import { useUsers } from '../hooks/useUsers'
 import { formatDateJst } from '../lib/datetime'
 import { ApiError } from '../lib/api'
-import { resetSettings, sendSlackTest, updateSettings } from '../lib/settingsActions'
+import { resetSettings, updateSettings } from '../lib/settingsActions'
 import { updateUser } from '../lib/userActions'
-import type { AiModel, AiUsageByFeature, Role } from '../types'
-
-const AI_MODEL_OPTIONS: { value: AiModel; label: string }[] = [
-  { value: 'claude-sonnet-5', label: 'Claude Sonnet 5（既定）' },
-  { value: 'claude-opus-5', label: 'Claude Opus 5（高精度・低速）' },
-  { value: 'claude-haiku-4-5', label: 'Claude Haiku 4.5（高速・低コスト）' },
-]
-
-function isValidHttpUrl(value: string): boolean {
-  try {
-    const url = new URL(value)
-    return url.protocol === 'http:' || url.protocol === 'https:'
-  } catch {
-    return false
-  }
-}
+import type { AiUsageByFeature, Role } from '../types'
 
 const AI_FEATURE_LABELS: Record<AiUsageByFeature['feature'], string> = {
   material_review: '教材AIレビュー（F-08）',
@@ -220,46 +205,23 @@ function UsersTab({ myUserId }: { myUserId: number }) {
 function SystemSettingsTab() {
   const [month, setMonth] = useState(currentYearMonth())
   const { usage, isLoading, error } = useAiUsage(month)
-  const { settings, isLoading: settingsLoading, mutate: mutateSettings } = useSettings()
+  const { settings, mutate: mutateSettings } = useSettings()
 
-  const [form, setForm] = useState({ slack_webhook_url: '', slack_channel: '', project_leave_grace_period_days: 30 })
+  const [form, setForm] = useState({ project_leave_grace_period_days: 30 })
   useEffect(() => {
     if (settings) {
       setForm({
-        slack_webhook_url: settings.slack_webhook_url,
-        slack_channel: settings.slack_channel,
         project_leave_grace_period_days: settings.project_leave_grace_period_days,
       })
     }
   }, [settings])
 
-  const [modelSaving, setModelSaving] = useState(false)
-  const [modelError, setModelError] = useState<string | null>(null)
-  const handleModelChange = async (value: string) => {
-    setModelError(null)
-    setModelSaving(true)
-    try {
-      await updateSettings({ ai_model: value as AiModel })
-      await mutateSettings()
-    } catch (e) {
-      setModelError(e instanceof ApiError ? e.message : 'AIモデルの保存に失敗しました')
-    } finally {
-      setModelSaving(false)
-    }
-  }
-
-  const [urlError, setUrlError] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [saveMessage, setSaveMessage] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const handleSave = async () => {
     setSaveError(null)
     setSaveMessage(null)
-    setUrlError(null)
-    if (form.slack_webhook_url && !isValidHttpUrl(form.slack_webhook_url)) {
-      setUrlError('Webhook URLの形式が正しくありません')
-      return
-    }
     setSaving(true)
     try {
       await updateSettings(form)
@@ -269,23 +231,6 @@ function SystemSettingsTab() {
       setSaveError(e instanceof ApiError ? e.message : '設定の保存に失敗しました')
     } finally {
       setSaving(false)
-    }
-  }
-
-  const [testSending, setTestSending] = useState(false)
-  const [testMessage, setTestMessage] = useState<string | null>(null)
-  const [testError, setTestError] = useState<string | null>(null)
-  const handleSlackTest = async () => {
-    setTestMessage(null)
-    setTestError(null)
-    setTestSending(true)
-    try {
-      const res = await sendSlackTest()
-      setTestMessage(res.detail)
-    } catch (e) {
-      setTestError(e instanceof ApiError ? e.message : 'テスト送信に失敗しました')
-    } finally {
-      setTestSending(false)
     }
   }
 
@@ -311,17 +256,12 @@ function SystemSettingsTab() {
       <h3 className="mb-2 text-sm font-semibold text-slate-700">AI利用設定</h3>
       <div className="mb-6 max-w-2xl rounded-md border border-slate-200 p-4">
         <label className="mb-1 block text-xs font-semibold text-slate-600">利用するAIモデル（既定）</label>
-        <Select
-          value={settings?.ai_model ?? 'claude-sonnet-5'}
-          onChange={handleModelChange}
-          disabled={settingsLoading || modelSaving}
-          options={AI_MODEL_OPTIONS}
-          className="max-w-xs"
-        />
+        <div className="flex max-w-xs items-center rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+          Claude Haiku 4.5
+        </div>
         <p className="mt-2 text-xs text-slate-500">
-          F-08・F-20〜F-23の全AI機能で共通の設定です（機能ごとに個別のモデルを割り当てる機能はありません）。選択すると即座に保存されます。
+          F-08・F-20〜F-23の全AI機能で共通の設定です（機能ごとに個別のモデルを割り当てる機能はありません）。コスト管理のため最も低コストなモデルに固定しており、変更はできません。
         </p>
-        {modelError && <p className="mt-2 text-sm text-red-600">{modelError}</p>}
       </div>
 
       <h3 className="mb-2 text-sm font-semibold text-slate-700">今月のAI利用状況</h3>
@@ -389,42 +329,9 @@ function SystemSettingsTab() {
         </>
       ) : null}
 
-      <h3 className="mb-2 mt-6 text-sm font-semibold text-slate-700">Slack通知設定</h3>
-      <div className="mb-6 max-w-2xl rounded-md border border-slate-200 p-4">
-        <div className="mb-3">
-          <label className="mb-1 block text-xs font-semibold text-slate-600">Webhook URL</label>
-          <TextInput
-            type="url"
-            className="w-full max-w-md"
-            placeholder="https://hooks.slack.com/services/..."
-            value={form.slack_webhook_url}
-            onChange={(e) => setForm((f) => ({ ...f, slack_webhook_url: e.target.value }))}
-          />
-          {urlError && <p className="mt-1 text-sm text-red-600">{urlError}</p>}
-        </div>
-        <div>
-          <label className="mb-1 block text-xs font-semibold text-slate-600">通知先チャンネル</label>
-          <TextInput
-            type="text"
-            className="max-w-[220px]"
-            placeholder="#elearning-通知"
-            value={form.slack_channel}
-            onChange={(e) => setForm((f) => ({ ...f, slack_channel: e.target.value }))}
-          />
-          <div className="mt-3">
-            <Button
-              type="button"
-              variant="secondary"
-              disabled={testSending || !form.slack_webhook_url}
-              onClick={handleSlackTest}
-            >
-              {testSending ? '送信中...' : 'テスト送信'}
-            </Button>
-            {testMessage && <span className="ml-3 text-sm text-green-700">{testMessage}</span>}
-            {testError && <span className="ml-3 text-sm text-red-600">{testError}</span>}
-          </div>
-        </div>
-      </div>
+      <p className="mb-6 max-w-2xl rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-500">
+        Slack通知（F-12）は、利用者本人がプロフィール編集（S-15）で個別に連携する方式に変更されました。システム設定としてのWebhook URL設定はありません。
+      </p>
 
       <h3 className="mb-2 text-sm font-semibold text-slate-700">プロジェクト所属の猶予期間</h3>
       <div className="mb-6 max-w-2xl rounded-md border border-slate-200 p-4">

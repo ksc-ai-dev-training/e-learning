@@ -23,3 +23,9 @@ export function publishMaterial(id: number): Promise<Material> {
     body: JSON.stringify({ status: 'published' }),
   })
 }
+
+// 新規（A-95）: 自分の受講進捗を未受講に戻す（S-09学習履歴）。受験記録（quiz_attempts等）は
+// 削除しない
+export function resetMaterialProgress(id: number): Promise<void> {
+  return apiFetch<void>(`/api/materials/${id}/progress`, { method: 'DELETE' })
+}

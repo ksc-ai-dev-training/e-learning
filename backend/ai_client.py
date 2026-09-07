@@ -7,22 +7,18 @@ import os
 import anthropic
 
 from database import get_pool
-from settings_store import get_ai_model
 
 logger = logging.getLogger("manabi.ai_client")
 
-# モデル解決: S-10システム設定（app_settings.value_text WHERE key='ai_model'） → 環境変数
-# ANTHROPIC_MODEL → 既定claude-sonnet-5（settings_store.get_ai_model参照）。
-DEFAULT_MODEL = "claude-sonnet-5"
-ALLOWED_MODELS = {"claude-sonnet-5", "claude-opus-5", "claude-haiku-4-5"}
+# モデル解決: コスト管理のため、常に最も低コストなモデル（Haiku）に固定する
+# （ユーザー指示、2026-09-03。以前はS-10のシステム設定でsonnet-5/opus-5/haiku-4-5から
+# 選べたが、選択の余地自体を無くすためS-10側のUIも廃止した。設定値やANTHROPIC_MODEL
+# 環境変数の値によらず、本モデルのみを使う）。
+DEFAULT_MODEL = "claude-haiku-4-5"
+ALLOWED_MODELS = {"claude-haiku-4-5"}
 
 
 async def resolve_model() -> str:
-    model = (await get_ai_model()).strip()
-    if model and model in ALLOWED_MODELS:
-        return model
-    if model:
-        logger.warning("未知のAIモデル=%sを無視し既定値を使用します", model)
     return DEFAULT_MODEL
 
 

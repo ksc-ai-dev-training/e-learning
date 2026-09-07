@@ -4,11 +4,11 @@ import type { PersonalAiFeedback, PersonalReport } from '../types'
 
 // A-50: 個人学習レポート（サマリー・学習履歴）
 export function usePersonalReport(userId: number | null) {
-  const { data, error, isLoading } = useSWR<PersonalReport>(
+  const { data, error, isLoading, mutate } = useSWR<PersonalReport>(
     userId != null ? `/api/reports/personal/${userId}` : null,
     apiFetch,
   )
-  return { report: data, error, isLoading }
+  return { report: data, error, isLoading, mutate }
 }
 
 // A-52: AI個人フィードバック。生成中（404）はnullを返し、SWRの再検証間隔でポーリングする

@@ -369,11 +369,18 @@ function AssignmentEditPanel({
               </div>
             )}
 
+            {(!isCompanyWide || individuals.length > 0) && (
             <div className="flex flex-col gap-2 border-t border-slate-100 pt-3">
               <label className="text-xs font-semibold text-slate-500">個人を追加指定（任意）</label>
-              <p className="text-xs text-slate-400">
-                プロジェクト全体の設定とは別に、このプロジェクトの特定メンバーだけ個別の必修・期限を上書きしたい場合に使います。選択肢はこのプロジェクトの現役メンバーに限られます。
-              </p>
+              {isCompanyWide ? (
+                <p className="text-xs text-amber-700">
+                  全社Wikiは全員が自動的に対象になるため、個人指定には効果がありません。以下は過去に設定された行です。不要であれば削除してください（新規追加はできません）。
+                </p>
+              ) : (
+                <p className="text-xs text-slate-400">
+                  プロジェクト全体の設定とは別に、このプロジェクトの特定メンバーだけ個別の必修・期限を上書きしたい場合に使います。選択肢はこのプロジェクトの現役メンバーに限られます。
+                </p>
+              )}
               {individuals.length > 0 && (
                 <div className="flex flex-col gap-2">
                   {individuals.map((i) => (
@@ -426,21 +433,24 @@ function AssignmentEditPanel({
                   ))}
                 </div>
               )}
-              <div className="flex items-center gap-2">
-                <Select
-                  value={addingUserId}
-                  onChange={setAddingUserId}
-                  options={[
-                    { value: '', label: 'プロジェクトメンバーから選択…' },
-                    ...candidateOptions.map((m) => ({ value: String(m.user_id), label: m.user_name })),
-                  ]}
-                  className="max-w-[280px]"
-                />
-                <Button variant="secondary" disabled={!addingUserId} onClick={addIndividual}>
-                  追加
-                </Button>
-              </div>
+              {!isCompanyWide && (
+                <div className="flex items-center gap-2">
+                  <Select
+                    value={addingUserId}
+                    onChange={setAddingUserId}
+                    options={[
+                      { value: '', label: 'プロジェクトメンバーから選択…' },
+                      ...candidateOptions.map((m) => ({ value: String(m.user_id), label: m.user_name })),
+                    ]}
+                    className="max-w-[280px]"
+                  />
+                  <Button variant="secondary" disabled={!addingUserId} onClick={addIndividual}>
+                    追加
+                  </Button>
+                </div>
+              )}
             </div>
+            )}
 
             {saveError && <p className="text-sm text-red-600">{saveError}</p>}
 

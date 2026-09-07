@@ -67,7 +67,7 @@ async def _aggregate_personal_report(user_id: int) -> dict:
     )
 
     history_rows = await pool.fetch(
-        """SELECT m.id AS material_id, m.title AS material_title, ep.completed_at,
+        """SELECT m.id AS material_id, m.title AS material_title, ep.status, ep.completed_at,
                   latest.score_pct, latest.passed
            FROM enrollment_progress ep
            JOIN materials m ON m.id = ep.material_id
@@ -89,12 +89,15 @@ async def _aggregate_personal_report(user_id: int) -> dict:
             "completed_material_count": completed_count,
             "incomplete_required_count": incomplete_required_count,
             "required_completion_pct": required_completion_pct,
+            "completed_required_count": required_counts["completed_required"],
+            "total_required_count": total_required,
             "last_activity_at": last_activity_at,
         },
         "history": [
             {
                 "material_id": r["material_id"],
                 "material_title": r["material_title"],
+                "status": r["status"],
                 "completed_at": r["completed_at"],
                 "score_pct": float(r["score_pct"]) if r["score_pct"] is not None else None,
                 "passed": r["passed"],

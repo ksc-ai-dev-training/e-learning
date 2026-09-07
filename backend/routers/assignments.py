@@ -108,7 +108,9 @@ async def update_material_assignments(
     """A-38: 教材の配信設定を全置換する（A-31と同じ全置換セマンティクス）。プロジェクトスコープの
     scope_idは教材自身のproject_idに固定、個人スコープのscope_idはそのプロジェクトの現役メンバーに
     限る（他プロジェクトへの一方的な配信を防ぐ、基本設計書5.9節）。全社Wikiに属する教材は
-    required=trueの行を1つでも含めば拒否する（常に任意固定、5.9節「設計判断」参照）。
+    required=trueの行を1つでも含めば拒否する（常に任意固定、5.9節「設計判断」参照）。同様に
+    scope_type='individual'の行も拒否する（全員がeditorとして自動参加済みのため個人指定が
+    無意味なことが判明したため、2026-09-03追加）。
     pass_score_pct・retake_allowed・retake_limitはこのAPIでは扱わない（画面モックアップ
     S-06_assignment-settings.htmlに該当UIが無く、未設定時はNULLのままlearning.py側の
     既定値〔DEFAULT_PASS_SCORE_PCT等〕にフォールバックする設計のため。2026-09-01時点で整理）。"""
@@ -123,6 +125,12 @@ async def update_material_assignments(
 
     if material["is_company_wide"] and any(a.required for a in body.assignments):
         raise HTTPException(400, detail="全社Wikiの教材は必修に設定できません（常に任意です）")
+    if material["is_company_wide"] and any(a.scope_type == "individual" for a in body.assignments):
+        # 全社Wikiは初回ログイン時に全員がeditorとして自動参加する（project_membershipsが
+        # 必ず存在する）ため、個人指定は「プロジェクト全体配信」に対して何の効果も持たない
+        # （対象判定・必修上書き・F-31登録ゲートのいずれも個人指定の有無を見ていない）。
+        # 意味の無い設定を保存させないため拒否する（2026-09-03、ユーザー指摘で調査の上判明）。
+        raise HTTPException(400, detail="全社Wikiの教材は個人指定できません（プロジェクト全体の設定のみです）")
 
     for a in body.assignments:
         if a.required and not a.due_at:

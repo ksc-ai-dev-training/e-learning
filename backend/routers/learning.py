@@ -2,6 +2,7 @@
 import asyncio
 import json
 import logging
+import os
 import random
 from datetime import datetime, timedelta, timezone
 from typing import Literal
@@ -10,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 import ai_client
+import slack_client
 from auth_helpers import CurrentUser, has_active_project_role, require_auth
 from database import get_pool
 from routers.materials import _count_pages, _fetch_tree, _material_dict, _require_view_access
@@ -19,9 +21,9 @@ router = APIRouter(prefix="/api", tags=["learning"])
 
 logger = logging.getLogger("manabi.learning")
 
-# 配信設定（T-11 assignments.pass_score_pct等）は本来教材ごとに1つに定めるが、S-06（配信設定画面）が
-# 未実装でassignments行が作られる経路が無いため、該当行が無い場合の暫定既定値として使う
-# （S-06実装時にassignments行が存在するようになれば、そちらの値を優先する）。
+# 配信設定（T-11 assignments.pass_score_pct等）は本来教材ごとに1つに定めるが、S-06（配信設定画面）で
+# 明示的に設定されるまではassignments行が存在しないため、該当行が無い場合の既定値として使う
+# （assignments行が存在する場合は常にそちらの値を優先する）。
 DEFAULT_PASS_SCORE_PCT = 70.0
 DEFAULT_RETAKE_ALLOWED = True
 DEFAULT_RETAKE_LIMIT = None
@@ -115,8 +117,8 @@ def _draw_question_order(pages: list[dict]) -> dict:
 
 async def _resolve_assignment_settings(pool, material_id: int, project_id: int, user_id: int) -> dict:
     """配信設定（T-11 assignments）からpass_score_pct・retake_allowed・retake_limitを取得する。
-    自分に適用される行（プロジェクトスコープまたは個人指定）を1件取得し、無ければ暫定既定値を使う
-    （S-06未実装のためassignments行が存在しない運用が当面続くことを踏まえた措置）。"""
+    自分に適用される行（プロジェクトスコープまたは個人指定）を1件取得し、無ければ既定値を使う
+    （S-06で配信設定が未作成の教材ではassignments行が存在しないため）。"""
     row = await pool.fetchrow(
         """SELECT pass_score_pct, retake_allowed, retake_limit FROM assignments
             WHERE material_id = $1
@@ -152,7 +154,9 @@ class StartAttemptIn(BaseModel):
 
 @router.post("/materials/{id}/attempts", status_code=201)
 async def start_attempt(id: int, body: StartAttemptIn, user: CurrentUser = Depends(require_auth)):
-    """A-40: 受験開始。未提出の試行があれば再開し、無ければ新規作成する。
+    """A-40: 受験開始。未提出の試行があれば再開し、無ければ新規作成する。ただしmode='graded'で
+    そのスコープの直近提出済み記録が合格済みの場合は、新規作成せずその記録を閲覧専用で返す
+    （2026-09-03、詳細はpassed_attempt周りのコメント参照）。
     (user_id, material_id, mode, scope_node_id)の組でsubmitted_at IS NULLな行を高々1件に保つ
     部分ユニークインデックス（uq_quiz_attempts_active）を使い、INSERT ... ON CONFLICT DO UPDATEで
     「無ければ作る・あれば取得する」を1クエリでアトミックに行う。S-16実装時、Reactの開発時
@@ -161,7 +165,7 @@ async def start_attempt(id: int, body: StartAttemptIn, user: CurrentUser = Depen
     pool = get_pool()
     perm_row = await _require_view_access(pool, id, user)
     material_row = await pool.fetchrow(
-        "SELECT id, project_id, attempt_scope FROM materials WHERE id = $1", id
+        "SELECT id, project_id, attempt_scope, updated_at FROM materials WHERE id = $1", id
     )
     tree = await _fetch_tree(pool, id, strip_answers=True)
     attempt_scope = material_row["attempt_scope"]
@@ -178,24 +182,103 @@ async def start_attempt(id: int, body: StartAttemptIn, user: CurrentUser = Depen
     # （A-44）はpractice_kind='wrong_only'で別途記録するため、両者はmode/scope_node_idが同じでも
     # 部分ユニークインデックス上で衝突しない。
     practice_kind = "repeat" if body.mode == "practice" else None
-    attempt_no = await pool.fetchval(
-        """SELECT COUNT(*) FROM quiz_attempts
-            WHERE user_id = $1 AND material_id = $2 AND mode = $3
-              AND scope_node_id IS NOT DISTINCT FROM $4 AND practice_kind IS NOT DISTINCT FROM $5""",
-        user.id, id, body.mode, scope_node_id, practice_kind,
-    ) + 1
-    question_order = _draw_question_order(pages)
-    row = await pool.fetchrow(
-        """INSERT INTO quiz_attempts
-               (user_id, material_id, scope_node_id, mode, attempt_no, question_order, practice_kind)
-           VALUES ($1, $2, $3, $4, $5, $6, $7)
-           ON CONFLICT (user_id, material_id, mode, scope_node_id, practice_kind) WHERE submitted_at IS NULL
-           DO UPDATE SET attempt_no = quiz_attempts.attempt_no
-           RETURNING *, (xmax = 0) AS inserted""",
-        user.id, id, scope_node_id, body.mode, attempt_no, json.dumps(question_order), practice_kind,
-    )
-    attempt = dict(row)
-    is_new = attempt.pop("inserted")
+
+    # 合格済みスコープを開き直しても新規受験記録を作らず、直近の合格記録を閲覧専用で返す
+    # （2026-09-03、ユーザー指摘）。quiz_attemptsの部分ユニークインデックスはsubmitted_at IS NULLの
+    # 行にしか効かないため、提出済みスコープを再訪すると素朴には毎回新規の未提出試行が作られてしまい、
+    # 再受験回数（retake_limit、スコープ単位でカウント）の意図しない消費や、タグ別正答率平均
+    # （_aggregate_tag_stats）の水増しにつながっていた。このアプリには専用の「再受験する」ボタンが
+    # 無く「開き直す」ことそのものが唯一の再受験手段のため、不合格スコープは今まで通り新規受験記録を
+    # 作って解き直せるようにし、合格済みスコープだけをこの対象から除外する（スコープ単位判定なので、
+    # 章単位・小見出し単位の教材で一部合格・一部不合格が混在していても、それぞれ独立して正しく扱える）。
+    # submitted_at >= materials.updated_atも必須条件にする。教材編集（A-20）でページが追加/変更
+    # された後は、編集前の古い合格記録をそのまま再利用してはいけない（新しいページを最後まで読んでも
+    # 一切提出されず、completed_node_idsが古いまま固定されて進捗が停滞するバグになっていた。
+    # 2026-09-03、開発テスト用教材で発見）。
+    # 同様に、A-95「未受講に戻す」はquiz_attempts/answersを消さない方針（学習記録は失われない）
+    # のため、リセット後に再受講しても、リセット前の古い合格記録がそのまま再利用されてしまい
+    # current_node_idが二度と更新されない（＝「続きから受講」が常に先頭に戻る）不具合があった。
+    # enrollment_progress.reset_atより後に提出されたものだけを有効とする（2026-09-03発見）。
+    passed_attempt = None
+    if body.mode == "graded":
+        reset_at = await pool.fetchval(
+            "SELECT reset_at FROM enrollment_progress WHERE user_id = $1 AND material_id = $2",
+            user.id, id,
+        )
+        passed_attempt = await pool.fetchrow(
+            """SELECT * FROM quiz_attempts
+                WHERE user_id = $1 AND material_id = $2 AND mode = 'graded'
+                  AND scope_node_id IS NOT DISTINCT FROM $3
+                  AND submitted_at IS NOT NULL AND passed = true
+                  AND submitted_at >= $4
+                  AND ($5::timestamptz IS NULL OR submitted_at >= $5)
+                ORDER BY attempt_no DESC LIMIT 1""",
+            user.id, id, scope_node_id, material_row["updated_at"], reset_at,
+        )
+
+    if passed_attempt is not None:
+        attempt = dict(passed_attempt)
+        is_new = False
+    else:
+        # REQ-F-09/F-14: 再受験の可否・回数を教材ごとに定められる、という要求に対し、以前は
+        # A-40（本エンドポイント）に一切enforceする処理が無く、実質無制限に解き直せてしまっていた
+        # （A-71 /attempts/{id}/retake にはチェックがあったが、フロントエンドから一度も呼ばれない
+        # 未使用コードだったため、実際のユーザー導線には反映されていなかった）。ここで実際に
+        # チェックする（2026-09-03）。
+        # 既に未提出（進行中）の受験記録がある場合は、それを再開するだけ（ON CONFLICTがヒットし
+        # 新規行は作られない）なので、再受験回数のチェック対象にしない。新規に行を作る＝実際に
+        # 新しい受験（1回目、または不合格後の解き直し）を始める場合のみチェックする。
+        if body.mode == "graded":
+            has_unsubmitted = await pool.fetchval(
+                """SELECT 1 FROM quiz_attempts
+                    WHERE user_id = $1 AND material_id = $2 AND mode = 'graded'
+                      AND scope_node_id IS NOT DISTINCT FROM $3 AND submitted_at IS NULL""",
+                user.id, id, scope_node_id,
+            )
+            if has_unsubmitted is None:
+                settings = await _resolve_assignment_settings(pool, id, material_row["project_id"], user.id)
+                # attempt_limit_resets: プロジェクトadmin・システムadminがS-12「メンバー管理」から
+                # 回数をリセットした時刻。この時刻より後に提出された回数だけを数える
+                # （2026-09-03、REQ-F-09対応と合わせて新設）。
+                last_reset = await pool.fetchval(
+                    """SELECT MAX(reset_at) FROM attempt_limit_resets
+                        WHERE user_id = $1 AND material_id = $2 AND scope_node_id IS NOT DISTINCT FROM $3""",
+                    user.id, id, scope_node_id,
+                )
+                submitted_count = await pool.fetchval(
+                    """SELECT COUNT(*) FROM quiz_attempts
+                        WHERE user_id = $1 AND material_id = $2 AND mode = 'graded'
+                          AND scope_node_id IS NOT DISTINCT FROM $3 AND submitted_at IS NOT NULL
+                          AND ($4::timestamptz IS NULL OR started_at > $4)""",
+                    user.id, id, scope_node_id, last_reset,
+                )
+                if submitted_count > 0:
+                    if not settings["retake_allowed"]:
+                        raise HTTPException(400, detail="この教材は再受験できません")
+                    if settings["retake_limit"] is not None and submitted_count >= settings["retake_limit"]:
+                        raise HTTPException(
+                            400,
+                            detail="再受験回数の上限に達しています。上限の解除はプロジェクト管理者にご相談ください",
+                        )
+
+        attempt_no = await pool.fetchval(
+            """SELECT COUNT(*) FROM quiz_attempts
+                WHERE user_id = $1 AND material_id = $2 AND mode = $3
+                  AND scope_node_id IS NOT DISTINCT FROM $4 AND practice_kind IS NOT DISTINCT FROM $5""",
+            user.id, id, body.mode, scope_node_id, practice_kind,
+        ) + 1
+        question_order = _draw_question_order(pages)
+        row = await pool.fetchrow(
+            """INSERT INTO quiz_attempts
+                   (user_id, material_id, scope_node_id, mode, attempt_no, question_order, practice_kind)
+               VALUES ($1, $2, $3, $4, $5, $6, $7)
+               ON CONFLICT (user_id, material_id, mode, scope_node_id, practice_kind) WHERE submitted_at IS NULL
+               DO UPDATE SET attempt_no = quiz_attempts.attempt_no
+               RETURNING *, (xmax = 0) AS inserted""",
+            user.id, id, scope_node_id, body.mode, attempt_no, json.dumps(question_order), practice_kind,
+        )
+        attempt = dict(row)
+        is_new = attempt.pop("inserted")
     attempt["question_order"] = json.loads(attempt["question_order"]) if attempt["question_order"] else {}
     attempt["carried_over_question_ids"] = (
         json.loads(attempt["carried_over_question_ids"]) if attempt["carried_over_question_ids"] else []
@@ -227,6 +310,14 @@ async def start_attempt(id: int, body: StartAttemptIn, user: CurrentUser = Depen
     # 新しいattempt_no・submitted_at=NULLの行が作られてしまい、単純にsubmitted_atだけで
     # 判定すると「提出済み教材の以前のページを読み返す」操作でも真になり巻き戻ってしまう不具合が
     # あったため、completed_node_idsによる判定に変更した（2026-09-02）。
+    #
+    # 一時visited_node_idsもここで除外していたが、これは誤りだった（2026-09-03に追加→撤回）。
+    # 「次へ」を押して閲覧済みになっただけのページは提出済み（completed）ではないため、続きから
+    # 受講で自然にそこへ戻ってくること自体は正常な前進であり、current_node_idを更新すべきだった。
+    # 除外してしまうと、一度でも閲覧済みになったページには二度とcurrent_node_idが更新されなくなり、
+    # 「続きから受講」が古い位置に固定されてしまう不具合になった。目次の✓マークと現在地の青丸が
+    # 同じ行で重なる見た目上の問題は、フロントエンド側（MaterialView.tsxのisCurrent算出）で
+    # 個別に対処済みのため、バックエンド側でvisited_node_idsを見る必要は無い。
     if body.mode == "graded" and body.viewing_node_id is not None and attempt["submitted_at"] is None:
         progress_row = await pool.fetchrow(
             "SELECT completed_node_ids FROM enrollment_progress WHERE user_id = $1 AND material_id = $2",
@@ -244,6 +335,39 @@ async def start_attempt(id: int, body: StartAttemptIn, user: CurrentUser = Depen
             )
 
     return {"attempt": attempt, "toc": tree, "answers": answers_out}
+
+
+@router.post("/materials/{id}/pages/{node_id}/visit", status_code=204)
+async def mark_page_visited(id: int, node_id: int, user: CurrentUser = Depends(require_auth)):
+    """A-96: 目次の✓マーク用「閲覧済み」記録。合否判定に使うcompleted_node_idsとは別物で、
+    ページの「次へ」を押して読み進めた時点でのみクライアントから呼ばれる（開いた時点では呼ばない）。
+    完了率・合否判定の集計には一切使わない、ナビゲーション上の目印専用（2026-09-03、ユーザー要望）。"""
+    pool = get_pool()
+    await _require_view_access(pool, id, user)
+    node_exists = await pool.fetchval(
+        "SELECT 1 FROM material_nodes WHERE id = $1 AND material_id = $2", node_id, id
+    )
+    if node_exists is None:
+        raise HTTPException(404, detail="ページが見つかりません")
+
+    row = await pool.fetchrow(
+        "SELECT visited_node_ids FROM enrollment_progress WHERE user_id = $1 AND material_id = $2",
+        user.id, id,
+    )
+    existing = set(json.loads(row["visited_node_ids"])) if row and row["visited_node_ids"] else set()
+    existing.add(node_id)
+
+    await pool.execute(
+        """INSERT INTO enrollment_progress (user_id, material_id, status, visited_node_ids, started_at)
+           VALUES ($1, $2, 'in_progress', $3, now())
+           ON CONFLICT (user_id, material_id) DO UPDATE
+             SET visited_node_ids = $3,
+                 status = CASE WHEN enrollment_progress.status = 'not_started' THEN 'in_progress'
+                                ELSE enrollment_progress.status END,
+                 started_at = COALESCE(enrollment_progress.started_at, now()),
+                 updated_at = now()""",
+        user.id, id, json.dumps(sorted(existing)),
+    )
 
 
 class SaveAnswerIn(BaseModel):
@@ -695,6 +819,183 @@ async def get_attempt_summary(id: int, user: CurrentUser = Depends(require_auth)
     return {"items": entries}
 
 
+async def _require_project_admin(project_id: int, user: CurrentUser) -> None:
+    """このプロジェクトのadmin、またはシステムadminのみ許可する（個人学習レポートの管理者判定
+    〔is_manager_of_target_user〕と同じ基準）。全社Wikiは構造上adminロールを誰にも付与できない
+    ため、editorには決して以下の受験状況・回数リセットを見せない（2026-09-03、ユーザー指摘）。"""
+    if user.role == "admin":
+        return
+    if not await has_active_project_role(project_id, user.id, min_role="admin"):
+        raise HTTPException(403, detail="この操作を行う権限がありません")
+
+
+@router.get("/projects/{project_id}/members/{user_id}/attempts")
+async def get_member_attempt_status(
+    project_id: int, user_id: int, user: CurrentUser = Depends(require_auth)
+):
+    """新設: S-12「メンバー管理」タブの「受験状況」パネル向け。対象メンバーがこのプロジェクトの
+    教材で行ったgraded受験を、スコープ（教材全体/章/小見出し/ページ）単位で一覧表示する
+    （REQ-F-09の再受験回数上限・リセットの前提情報。2026-09-03新設）。"""
+    await _require_project_admin(project_id, user)
+    pool = get_pool()
+    rows = await pool.fetch(
+        """SELECT DISTINCT qa.material_id, qa.scope_node_id, m.title AS material_title, m.attempt_scope
+           FROM quiz_attempts qa
+           JOIN materials m ON m.id = qa.material_id
+           WHERE m.project_id = $1 AND qa.user_id = $2 AND qa.mode = 'graded'
+           ORDER BY qa.material_id, qa.scope_node_id""",
+        project_id, user_id,
+    )
+    items = []
+    tree_cache: dict[int, list[dict]] = {}
+    for r in rows:
+        material_id = r["material_id"]
+        if material_id not in tree_cache:
+            tree_cache[material_id] = await _fetch_tree(pool, material_id, strip_answers=True)
+        groups = _scope_groups(tree_cache[material_id], r["attempt_scope"])
+        matching_group = next((g for g in groups if g["scope_node_id"] == r["scope_node_id"]), None)
+        if matching_group is None:
+            # 過去に受験単位（attempt_scope）の設定が変更された場合、古い設定の下で作られた
+            # quiz_attempts.scope_node_idが現在の設定に対応するスコープ群のどれとも一致しなく
+            # なることがある（例: 章単位→教材全体に変更した後も、章単位時代のnode_idが残る）。
+            # そうした孤立データは現在の受験状況としては無効なので一覧から除外する（回数制限の
+            # 判定自体はA-40側で現在のscope_node_idのみを見ているため、これは表示上の問題であり
+            # 回数の水増しにはならない。2026-09-03、ユーザー指摘で発見）。
+            continue
+        label = matching_group["label"]
+        latest = await pool.fetchrow(
+            """SELECT score_pct, passed FROM quiz_attempts
+                WHERE user_id = $1 AND material_id = $2 AND mode = 'graded'
+                  AND scope_node_id IS NOT DISTINCT FROM $3 AND submitted_at IS NOT NULL
+                ORDER BY attempt_no DESC LIMIT 1""",
+            user_id, material_id, r["scope_node_id"],
+        )
+        last_reset = await pool.fetchval(
+            """SELECT MAX(reset_at) FROM attempt_limit_resets
+                WHERE user_id = $1 AND material_id = $2 AND scope_node_id IS NOT DISTINCT FROM $3""",
+            user_id, material_id, r["scope_node_id"],
+        )
+        submitted_count = await pool.fetchval(
+            """SELECT COUNT(*) FROM quiz_attempts
+                WHERE user_id = $1 AND material_id = $2 AND mode = 'graded'
+                  AND scope_node_id IS NOT DISTINCT FROM $3 AND submitted_at IS NOT NULL
+                  AND ($4::timestamptz IS NULL OR started_at > $4)""",
+            user_id, material_id, r["scope_node_id"], last_reset,
+        )
+        settings = await _resolve_assignment_settings(pool, material_id, project_id, user_id)
+        items.append({
+            "material_id": material_id,
+            "material_title": r["material_title"],
+            "scope_node_id": r["scope_node_id"],
+            "scope_label": label,
+            "score_pct": float(latest["score_pct"]) if latest and latest["score_pct"] is not None else None,
+            "passed": latest["passed"] if latest else None,
+            "submitted_count": submitted_count,
+            "retake_allowed": settings["retake_allowed"],
+            "retake_limit": settings["retake_limit"],
+            "last_reset_at": last_reset,
+        })
+    return {"items": items}
+
+
+class AttemptResetIn(BaseModel):
+    material_id: int
+    scope_node_id: int | None = None
+
+
+@router.post("/projects/{project_id}/members/{user_id}/attempts/reset", status_code=204)
+async def reset_attempt_limit(
+    project_id: int, user_id: int, body: AttemptResetIn, user: CurrentUser = Depends(require_auth)
+):
+    """新設: 再受験回数の上限リセット。quiz_attempts/answers（学習記録）自体は削除せず、以後の
+    回数カウントをこの時刻より後の提出のみに限定する（2026-09-03、S-12「メンバー管理」向け）。"""
+    await _require_project_admin(project_id, user)
+    pool = get_pool()
+    material_row = await pool.fetchrow("SELECT project_id FROM materials WHERE id = $1", body.material_id)
+    if material_row is None or material_row["project_id"] != project_id:
+        raise HTTPException(404, detail="教材が見つかりません")
+    await pool.execute(
+        """INSERT INTO attempt_limit_resets (user_id, material_id, scope_node_id, reset_by)
+           VALUES ($1, $2, $3, $4)""",
+        user_id, body.material_id, body.scope_node_id, user.id,
+    )
+
+
+async def _fetch_overdue_required(pool, project_id: int, user_id: int) -> list[dict]:
+    """F-11: 対象ユーザーの、このプロジェクトの必修教材のうち期限が近い（7日以内）または
+    超過していて未完了のものを列挙する（A-39の urgent_required_count と同じ「7日以内」基準）。"""
+    rows = await pool.fetch(
+        """SELECT m.id AS material_id, m.title AS material_title, asg.due_at
+           FROM materials m
+           JOIN LATERAL (
+               SELECT due_at FROM assignments a
+                WHERE a.material_id = m.id AND a.required = true
+                  AND ((a.scope_type = 'project' AND a.scope_id = m.project_id)
+                       OR (a.scope_type = 'individual' AND a.scope_id = $2))
+                ORDER BY due_at ASC NULLS LAST LIMIT 1
+           ) asg ON true
+           LEFT JOIN enrollment_progress ep ON ep.material_id = m.id AND ep.user_id = $2
+           WHERE m.project_id = $1 AND m.status = 'published' AND m.is_archived = false
+             AND asg.due_at IS NOT NULL AND asg.due_at <= now() + interval '7 days'
+             AND COALESCE(ep.status, 'not_started') != 'completed'
+           ORDER BY asg.due_at ASC""",
+        project_id, user_id,
+    )
+    return [dict(r) for r in rows]
+
+
+@router.get("/projects/{project_id}/members/{user_id}/overdue-required")
+async def get_member_overdue_required(
+    project_id: int, user_id: int, user: CurrentUser = Depends(require_auth)
+):
+    """新設（F-11）: S-12「メンバー管理」向け。対象メンバーの、このプロジェクトの必修教材のうち
+    期限が近い・超過していて未完了のものを一覧する（2026-09-03、REQ-F-08対応）。"""
+    await _require_project_admin(project_id, user)
+    pool = get_pool()
+    items = await _fetch_overdue_required(pool, project_id, user_id)
+    target = await pool.fetchrow("SELECT slack_user_id, slack_access_token FROM users WHERE id = $1", user_id)
+    return {
+        "items": items,
+        "slack_connected": bool(target and target["slack_user_id"] and target["slack_access_token"]),
+    }
+
+
+@router.post("/projects/{project_id}/members/{user_id}/slack-remind")
+async def send_slack_reminder(
+    project_id: int, user_id: int, user: CurrentUser = Depends(require_auth)
+):
+    """新設（F-12）: 未受講の必修教材について、対象メンバー本人へSlack DMでリマインドする。
+    対象者が未連携、または送るべき教材が無い場合は400を返す（2026-09-03）。"""
+    await _require_project_admin(project_id, user)
+    pool = get_pool()
+    target = await pool.fetchrow("SELECT slack_user_id, slack_access_token FROM users WHERE id = $1", user_id)
+    if target is None:
+        raise HTTPException(404, detail="対象のユーザーが見つかりません")
+    if not target["slack_user_id"] or not target["slack_access_token"]:
+        raise HTTPException(400, detail="対象者はSlack連携をしていないため送信できません")
+
+    items = await _fetch_overdue_required(pool, project_id, user_id)
+    if not items:
+        raise HTTPException(400, detail="リマインド対象の未受講の必修教材がありません")
+
+    project_name = await pool.fetchval("SELECT name FROM projects WHERE id = $1", project_id)
+    lines = [f"「{project_name}」の必修教材で、受講期限が近い・過ぎているものがあります。"]
+    for it in items:
+        due_label = it["due_at"].strftime("%Y-%m-%d") if it["due_at"] else "期限未設定"
+        lines.append(f"・{it['material_title']}（期限: {due_label}）")
+    frontend_url = os.environ.get("FRONTEND_URL", "").rstrip("/")
+    lines.append(f"{frontend_url}/ からマイ学習を確認してください。" if frontend_url else "Manabiのマイ学習から確認してください。")
+
+    try:
+        await slack_client.send_reminder_dm(
+            target["slack_access_token"], target["slack_user_id"], "\n".join(lines)
+        )
+    except Exception:
+        logger.exception("event=slack_remind_failed target_user_id=%s", user_id)
+        raise HTTPException(502, detail="Slackへの送信に失敗しました（連携が解除されている可能性があります）")
+    return {"detail": "送信しました"}
+
+
 @router.get("/materials/{id}/practice-attempts")
 async def list_practice_attempts(id: int, user: CurrentUser = Depends(require_auth)):
     """A-87: 反復演習タブの実施履歴。自分のmode='practice', practice_kind='repeat'な
@@ -766,7 +1067,7 @@ async def get_my_learning(history: bool = False, user: CurrentUser = Depends(req
             """SELECT m.id, m.title, m.tags, m.project_id, p.name AS project_name, p.is_company_wide,
                       COALESCE(nc.page_count, 0) AS page_count,
                       COALESCE(asg.required, false) AS required, asg.due_at,
-                      ep.status AS progress_status, ep.completed_node_ids, ep.completed_at,
+                      ep.status AS progress_status, ep.completed_node_ids, ep.visited_node_ids, ep.completed_at,
                       ep.updated_at AS progress_updated_at
                FROM materials m
                JOIN projects p ON p.id = m.project_id
@@ -794,7 +1095,7 @@ async def get_my_learning(history: bool = False, user: CurrentUser = Depends(req
         """SELECT m.id, m.title, m.tags, m.project_id, p.name AS project_name, p.is_company_wide,
                   COALESCE(nc.page_count, 0) AS page_count,
                   COALESCE(asg.required, false) AS required, asg.due_at,
-                  ep.status AS progress_status, ep.completed_node_ids, ep.completed_at,
+                  ep.status AS progress_status, ep.completed_node_ids, ep.visited_node_ids, ep.completed_at,
                   ep.updated_at AS progress_updated_at, m.updated_at
            FROM materials m
            JOIN projects p ON p.id = m.project_id
@@ -857,6 +1158,8 @@ async def get_my_learning(history: bool = False, user: CurrentUser = Depends(req
         "optional": optional_items,
         "stats": {
             "required_completion_pct": required_completion_pct,
+            "completed_required_count": completed_required,
+            "total_required_count": total_required,
             "urgent_required_count": urgent_required_count,
             "optional_completed_count": optional_completed_count,
             "last_activity_at": last_activity_at,
@@ -866,6 +1169,13 @@ async def get_my_learning(history: bool = False, user: CurrentUser = Depends(req
 
 def _my_learning_item(r) -> dict:
     completed_ids = json.loads(r["completed_node_ids"]) if r["completed_node_ids"] else []
+    # 進捗率（progress_pct）は「進んだページ」ベースで出す。attempt_scope='material'等の
+    # 教材はcompleted_node_idsが最後まで提出するまで一切増えず0%→100%の一足飛びになって
+    # しまうため、visited_node_ids（A-96、「次へ」を押して読み進めた実績）も合わせて分母に
+    # 数える（2026-09-03、ユーザー要望）。completed_page_count自体は引き続き提出済み数のみ
+    # を表す別指標として残す。
+    visited_ids = json.loads(r["visited_node_ids"]) if r["visited_node_ids"] else []
+    reached_ids = set(completed_ids) | set(visited_ids)
     status = r["progress_status"] or "not_started"
     page_count = r["page_count"] or 0
     return {
@@ -880,7 +1190,7 @@ def _my_learning_item(r) -> dict:
         "due_at": r["due_at"],
         "progress_status": status,
         "completed_page_count": len(completed_ids),
-        "progress_pct": round(100 * len(completed_ids) / page_count) if page_count else 0,
+        "progress_pct": round(100 * len(reached_ids) / page_count) if page_count else 0,
         "next_action": _next_action(status),
         "completed_at": r["completed_at"],
         "updated_at": r["updated_at"] if "updated_at" in r.keys() else r["progress_updated_at"],

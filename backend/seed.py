@@ -30,8 +30,8 @@ async def main():
 
         # 全社公開プロジェクト（T-03.is_company_wide）。表示名は「全社Wiki」（v1.42、社内ナレッジベースと
         # しての位置づけを明確にするため改名。全社員が自動editorになる全社公開の仕組み自体は変更なし）。
-        # 本来はA-02（Googleログイン、未実装）の初回登録時にDB起動時マイグレーションで用意される想定だが
-        # created_byがNOT NULLのため、開発環境ではユーザー投入後のここで作成する（先頭ユーザーを作成者とする）。
+        # 本番ではA-02（Googleログイン）の初回登録時に用意される想定だが、created_byがNOT NULLのため、
+        # 開発環境ではユーザー投入後のここで作成する（先頭ユーザーを作成者とする）。
         company_wide = await conn.fetchrow(
             "INSERT INTO projects (name, created_by, is_company_wide) VALUES ($1, $2, true) RETURNING id",
             "全社Wiki", user_ids[0])

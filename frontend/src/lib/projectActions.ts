@@ -1,5 +1,5 @@
 import { apiFetch } from './api'
-import type { ProjectDetail, ProjectMembership, ProjectRole } from '../types'
+import type { MemberAttemptItem, MemberOverdueRequired, ProjectDetail, ProjectMembership, ProjectRole } from '../types'
 
 // A-09: プロジェクト作成。作成者は自動的にそのプロジェクトの管理者になる
 export function createProject(body: { name: string; description: string | null }): Promise<ProjectDetail> {
@@ -57,4 +57,39 @@ export function removeMember(projectId: number, userId: number): Promise<Project
     method: 'PUT',
     body: JSON.stringify({ action: 'remove' }),
   })
+}
+
+// 新設: S-12「メンバー管理」タブの受験状況パネル（REQ-F-09）。このプロジェクトのadmin、
+// またはシステムadminのみ取得できる
+export function getMemberAttemptStatus(
+  projectId: number,
+  userId: number,
+): Promise<{ items: MemberAttemptItem[] }> {
+  return apiFetch(`/api/projects/${projectId}/members/${userId}/attempts`)
+}
+
+// 新設: 再受験回数の上限リセット（学習記録自体は削除しない）
+export function resetAttemptLimit(
+  projectId: number,
+  userId: number,
+  materialId: number,
+  scopeNodeId: number | null,
+): Promise<void> {
+  return apiFetch(`/api/projects/${projectId}/members/${userId}/attempts/reset`, {
+    method: 'POST',
+    body: JSON.stringify({ material_id: materialId, scope_node_id: scopeNodeId }),
+  })
+}
+
+// 新設（F-11）: S-12「メンバー管理」タブの未受講の必修教材パネル
+export function getMemberOverdueRequired(
+  projectId: number,
+  userId: number,
+): Promise<MemberOverdueRequired> {
+  return apiFetch(`/api/projects/${projectId}/members/${userId}/overdue-required`)
+}
+
+// 新設（F-12）: Slackで受講催促のリマインドを送る
+export function sendSlackReminder(projectId: number, userId: number): Promise<{ detail: string }> {
+  return apiFetch(`/api/projects/${projectId}/members/${userId}/slack-remind`, { method: 'POST' })
 }

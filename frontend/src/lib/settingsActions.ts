@@ -6,11 +6,6 @@ export function updateSettings(body: Partial<SystemSettings>): Promise<SystemSet
   return apiFetch('/api/settings', { method: 'PUT', body: JSON.stringify(body) })
 }
 
-// A-57: Slack Webhookへのテスト送信
-export function sendSlackTest(): Promise<{ detail: string }> {
-  return apiFetch('/api/settings/slack-test', { method: 'POST' })
-}
-
 // A-80: システム設定を初期状態に戻す
 export function resetSettings(): Promise<void> {
   return apiFetch('/api/settings', { method: 'DELETE' })

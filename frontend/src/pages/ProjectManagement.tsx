@@ -11,14 +11,24 @@ import { useIncomingShares } from '../hooks/useIncomingShares'
 import { useMaterials } from '../hooks/useMaterials'
 import { useMaterialShares } from '../hooks/useMaterialShares'
 import { useMe } from '../hooks/useMe'
+import { useMemberAttemptStatus } from '../hooks/useMemberAttemptStatus'
 import { useMemberCandidates } from '../hooks/useMemberCandidates'
+import { useMemberOverdueRequired } from '../hooks/useMemberOverdueRequired'
 import { useMyMemberships } from '../hooks/useMyMemberships'
 import { useProjectDetail } from '../hooks/useProjectDetail'
 import { useProjectMemberships } from '../hooks/useProjectMemberships'
 import { useProjects } from '../hooks/useProjects'
 import { ApiError } from '../lib/api'
 import { formatDateJst } from '../lib/datetime'
-import { changeMemberRole, deleteProject, inviteMember, removeMember, updateProject } from '../lib/projectActions'
+import {
+  changeMemberRole,
+  deleteProject,
+  inviteMember,
+  removeMember,
+  resetAttemptLimit,
+  sendSlackReminder,
+  updateProject,
+} from '../lib/projectActions'
 import { createMaterialShare, deleteMaterialShare, respondMaterialShare } from '../lib/shareActions'
 import type { MaterialSource, ProjectRole } from '../types'
 
@@ -337,6 +347,15 @@ function MembersTab({
   const [inviteRole, setInviteRole] = useState<ProjectRole>('learner')
   const [selectedCandidateId, setSelectedCandidateId] = useState<number | null>(null)
   const { candidates } = useMemberCandidates(projectId, inviteQuery)
+  const [attemptPanelUser, setAttemptPanelUser] = useState<{ userId: number; name: string } | null>(null)
+  const [remindPanelUser, setRemindPanelUser] = useState<{ userId: number; name: string } | null>(null)
+
+  // 受験状況・回数リセットは、このプロジェクトのadmin、またはシステムadminにのみ見せる
+  // （個人学習レポートの管理者判定と同じ基準。全社Wikiはadminロールを誰も持てないため、
+  // 全社員が擬似的にeditorになる場合でもこのボタン自体が見えない。2026-09-03）。
+  const { me } = useMe()
+  const myMembership = memberships.find((m) => m.user_id === myUserId)
+  const canManageAttempts = me?.role === 'admin' || myMembership?.role === 'admin'
 
   const handleRoleChange = async (userId: number, role: ProjectRole) => {
     setRowError(null)
@@ -426,6 +445,25 @@ function MembersTab({
                         {m.joined_at ? formatDateJst(m.joined_at) : '—'}
                       </td>
                       <td className="px-3 py-2">
+                        <div className="flex items-center gap-2">
+                        {canManageAttempts && m.status === 'active' && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => setAttemptPanelUser({ userId: m.user_id, name: m.user_name })}
+                              className="rounded border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                            >
+                              受験状況
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setRemindPanelUser({ userId: m.user_id, name: m.user_name })}
+                              className="rounded border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                            >
+                              未受講の必修教材
+                            </button>
+                          </>
+                        )}
                         {isSelf ? (
                           <span className="text-xs text-slate-400">—</span>
                         ) : pendingRemove === m.user_id ? (
@@ -455,6 +493,7 @@ function MembersTab({
                             {m.status === 'invited' ? '招待を取消' : '削除'}
                           </button>
                         )}
+                        </div>
                       </td>
                     </tr>
                   )
@@ -499,6 +538,234 @@ function MembersTab({
       <p className="mt-2 text-[11px] text-slate-400">
         招待した時点ではまだ権限は発生しません。招待された本人が承諾して初めて、実際にメンバーとして教材の受講・編集ができるようになります。
       </p>
+
+      {attemptPanelUser && (
+        <AttemptStatusPanel
+          projectId={projectId}
+          userId={attemptPanelUser.userId}
+          userName={attemptPanelUser.name}
+          onClose={() => setAttemptPanelUser(null)}
+        />
+      )}
+
+      {remindPanelUser && (
+        <OverdueRequiredPanel
+          projectId={projectId}
+          userId={remindPanelUser.userId}
+          userName={remindPanelUser.name}
+          onClose={() => setRemindPanelUser(null)}
+        />
+      )}
+    </div>
+  )
+}
+
+// 新設（F-11・F-12、REQ-F-08）: S-12「メンバー管理」の未受講の必修教材パネル。表示・操作可能
+// なのはこのプロジェクトのadmin、またはシステムadminのみ（呼び出し元のcanManageAttemptsで
+// 既にガード済みだが、APIエンドポイント側でも同じ権限判定を必須にしている）。
+function OverdueRequiredPanel({
+  projectId,
+  userId,
+  userName,
+  onClose,
+}: {
+  projectId: number
+  userId: number
+  userName: string
+  onClose: () => void
+}) {
+  const { items, slackConnected, isLoading } = useMemberOverdueRequired(projectId, userId)
+  const [sending, setSending] = useState(false)
+  const [result, setResult] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  const handleRemind = async () => {
+    setError(null)
+    setResult(null)
+    setSending(true)
+    try {
+      await sendSlackReminder(projectId, userId)
+      setResult('Slackで送信しました。')
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : '送信に失敗しました')
+    } finally {
+      setSending(false)
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center bg-slate-900/35 p-6 pt-16"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose()
+      }}
+    >
+      <div className="max-h-[calc(100vh-8rem)] w-full max-w-lg overflow-y-auto rounded-lg bg-white shadow-xl">
+        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3.5">
+          <h3 className="text-sm font-semibold text-slate-800">{userName} さんの未受講の必修教材（このプロジェクト）</h3>
+          <button type="button" onClick={onClose} className="text-lg leading-none text-slate-400 hover:text-slate-600">
+            ×
+          </button>
+        </div>
+        <div className="p-5">
+          {isLoading ? (
+            <p className="text-sm text-slate-400">読み込み中...</p>
+          ) : items.length === 0 ? (
+            <p className="py-6 text-center text-sm text-slate-400">期限が近い・超過している未受講の必修教材はありません。</p>
+          ) : (
+            <div className="mb-4 flex flex-col">
+              {items.map((it) => (
+                <div key={it.material_id} className="flex items-center justify-between border-b border-slate-100 py-2.5 last:border-0">
+                  <span className="text-sm text-slate-800">{it.material_title}</span>
+                  <span className="flex-shrink-0 text-xs text-slate-500">
+                    期限: {it.due_at ? formatDateJst(it.due_at) : '—'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {!slackConnected ? (
+            <p className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500">
+              対象者はSlack未連携のため、リマインドを送信できません。
+            </p>
+          ) : (
+            <>
+              {result && <p className="mb-2 text-sm text-green-700">{result}</p>}
+              {error && <p className="mb-2 text-sm text-red-600">{error}</p>}
+              <Button onClick={handleRemind} disabled={sending || items.length === 0} className="w-full">
+                {sending ? '送信中...' : 'Slackでリマインドする'}
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// 新設: S-12「メンバー管理」の受験状況パネル（REQ-F-09、検討資料/画面モック/
+// 20260903_S-12改善案_メンバー受験回数リセット.htmlで承認済みの方針）。表示・操作可能なのは
+// このプロジェクトのadmin、またはシステムadminのみ（呼び出し元のcanManageAttemptsで既に
+// ガード済みだが、APIエンドポイント側でも同じ権限判定を必須にしている）。
+function AttemptStatusPanel({
+  projectId,
+  userId,
+  userName,
+  onClose,
+}: {
+  projectId: number
+  userId: number
+  userName: string
+  onClose: () => void
+}) {
+  const { items, isLoading, mutate } = useMemberAttemptStatus(projectId, userId)
+  const [resettingKey, setResettingKey] = useState<string | null>(null)
+  const [confirmingKey, setConfirmingKey] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  const keyOf = (materialId: number, scopeNodeId: number | null) => `${materialId}:${scopeNodeId ?? 'material'}`
+
+  const handleReset = async (materialId: number, scopeNodeId: number | null) => {
+    const key = keyOf(materialId, scopeNodeId)
+    setError(null)
+    setResettingKey(key)
+    try {
+      await resetAttemptLimit(projectId, userId, materialId, scopeNodeId)
+      await mutate()
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'リセットに失敗しました')
+    } finally {
+      setResettingKey(null)
+      setConfirmingKey(null)
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center bg-slate-900/35 p-6 pt-16"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose()
+      }}
+    >
+      <div className="max-h-[calc(100vh-8rem)] w-full max-w-2xl overflow-y-auto rounded-lg bg-white shadow-xl">
+        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3.5">
+          <h3 className="text-sm font-semibold text-slate-800">{userName} さんの受験状況（このプロジェクトの教材）</h3>
+          <button type="button" onClick={onClose} className="text-lg leading-none text-slate-400 hover:text-slate-600">
+            ×
+          </button>
+        </div>
+        <div className="p-5">
+          <div className="mb-4 rounded-md border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs text-slate-600">
+            提出済みの受験記録（回答内容・スコア・合否）自体は削除されません。ここでリセットするのは「あと何回まで解き直せるか」の残り回数だけです。学習記録は引き続き学習履歴・個人学習レポートに残ります。
+          </div>
+
+          {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
+
+          {isLoading ? (
+            <p className="text-sm text-slate-400">読み込み中...</p>
+          ) : items.length === 0 ? (
+            <p className="py-6 text-center text-sm text-slate-400">このプロジェクトの教材で受験した記録はまだありません。</p>
+          ) : (
+            <div className="flex flex-col">
+              {items.map((it) => {
+                const key = keyOf(it.material_id, it.scope_node_id)
+                const overLimit = it.retake_limit !== null && it.submitted_count >= it.retake_limit
+                const canReset = it.retake_limit !== null && it.submitted_count > 0
+                return (
+                  <div key={key} className="flex items-center gap-3 border-b border-slate-100 py-3 last:border-0">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-semibold text-slate-800">{it.material_title}</div>
+                      <div className="mt-0.5 text-xs text-slate-500">
+                        受験単位: {it.scope_node_id === null ? '教材全体' : it.scope_label} ／ 状態:{' '}
+                        {it.passed === true ? `合格（スコア${Math.round(it.score_pct ?? 0)}%）`
+                          : it.passed === false ? `不合格（直近スコア${Math.round(it.score_pct ?? 0)}%）`
+                          : '未提出'}
+                      </div>
+                    </div>
+                    <div className={`w-28 flex-shrink-0 text-right text-xs ${overLimit ? 'font-bold text-red-700' : 'text-slate-500'}`}>
+                      {it.submitted_count} / {it.retake_limit === null ? '無制限' : `${it.retake_limit}回`}
+                    </div>
+                    {confirmingKey === key ? (
+                      <span className="flex flex-shrink-0 items-center gap-1.5 text-xs">
+                        本当に戻しますか？
+                        <button
+                          type="button"
+                          disabled={resettingKey === key}
+                          onClick={() => handleReset(it.material_id, it.scope_node_id)}
+                          className="rounded bg-blue-700 px-2.5 py-1.5 font-semibold text-white hover:bg-blue-800"
+                        >
+                          {resettingKey === key ? '処理中...' : 'リセットする'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmingKey(null)}
+                          className="rounded border border-slate-300 px-2.5 py-1.5 text-slate-500 hover:bg-slate-100"
+                        >
+                          キャンセル
+                        </button>
+                      </span>
+                    ) : (
+                      <Button
+                        variant={canReset ? 'primary' : 'secondary'}
+                        disabled={!canReset}
+                        onClick={() => setConfirmingKey(key)}
+                        className="flex-shrink-0"
+                      >
+                        回数をリセット
+                      </Button>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          <p className="mt-4 text-[11px] text-slate-400">
+            ※ 表示対象は、このプロジェクトに属する教材のうち本人が一度でも受験した記録があるものです。上限が無制限、または未提出のスコープはリセット不要のため操作できません。
+          </p>
+        </div>
+      </div>
     </div>
   )
 }

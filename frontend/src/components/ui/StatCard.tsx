@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router'
+import { scrollToAndHighlight } from '../../lib/scrollHighlight'
 
 const TONE_CLASSES: Record<string, string> = {
   default: 'border-slate-200',
@@ -12,6 +13,7 @@ interface StatCardProps {
   label: string
   value: ReactNode
   unit?: string
+  detail?: ReactNode
   tone?: 'default' | 'warn' | 'danger' | 'good'
   linkTo?: string
   onClick?: () => void
@@ -20,8 +22,8 @@ interface StatCardProps {
 // 件数・数値の統計カード（詳細設計書2.1.2節）。S-02マイ学習・S-09個人学習レポートで共通。
 // linkTo指定時はクリックで対象一覧へ遷移する（同一画面内アンカー、または他画面へのクエリ付きリンク）。
 // onClick指定時は画面内の状態を変える用途（S-02「任意教材 受講済み」→受講済みのみの絞り込み表示）に使う。
-// リンク先／挙動の決め方は同節のcallout参照。
-export default function StatCard({ label, value, unit, tone = 'default', linkTo, onClick }: StatCardProps) {
+// detailはvalueの下に添える補足（例:「12件/15件」）。リンク先／挙動の決め方は同節のcallout参照。
+export default function StatCard({ label, value, unit, detail, tone = 'default', linkTo, onClick }: StatCardProps) {
   const interactive = Boolean(linkTo || onClick)
   const content = (
     <>
@@ -30,6 +32,7 @@ export default function StatCard({ label, value, unit, tone = 'default', linkTo,
         {value}
         {unit && <span className="ml-0.5 text-sm font-normal text-slate-500">{unit}</span>}
       </div>
+      {detail && <div className="mt-0.5 text-xs text-slate-400">{detail}</div>}
       {interactive && (
         <span className="mt-1 flex items-center gap-0.5 text-[11px] font-semibold text-blue-700">
           一覧を見る
@@ -53,10 +56,19 @@ export default function StatCard({ label, value, unit, tone = 'default', linkTo,
     return <div className={className}>{content}</div>
   }
   if (linkTo.startsWith('#')) {
+    // 同一画面内のアンカーはネイティブのハッシュ遷移に任せない（入れ子のoverflow-y-auto
+    // コンテナに対する挙動がブラウザによって不安定なため）。scrollIntoViewで明示的に
+    // スクロールし、対象箇所を一瞬ハイライトして「反応した」ことを常に視覚的に伝える
+    // （データが少なくスクロール自体が不要なケースでも手応えが分かるように。2026-09-03）。
+    const id = linkTo.slice(1)
     return (
-      <a href={linkTo} className={className}>
+      <button
+        type="button"
+        onClick={() => scrollToAndHighlight(id)}
+        className={`w-full ${className}`}
+      >
         {content}
-      </a>
+      </button>
     )
   }
   return (
