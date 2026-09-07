@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import PageHeader from '../components/layout/PageHeader'
 import AnswerQuestionCard from '../components/material/AnswerQuestionCard'
+import PageAttachments from '../components/material/PageAttachments'
 import PageBody from '../components/material/PageBody'
 import SurveyModal from '../components/material/SurveyModal'
 import Button from '../components/ui/Button'
@@ -352,6 +353,7 @@ export default function MaterialPageView() {
         </div>
 
         {node.body && <PageBody materialId={id} body={node.body} format={node.format ?? 'markdown'} />}
+        {node && <PageAttachments materialId={id} nodeId={node.id} />}
 
         {submittedResult ? (
           <>
