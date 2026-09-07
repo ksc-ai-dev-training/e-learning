@@ -16,7 +16,7 @@
     <p class="subtitle">社内学習管理システム（Manabi）— 開発環境のセットアップと起動方法</p>
     <div class="meta">
       <span>作成日: 2026-08-25</span>
-      <span>版数: 1.3</span>
+      <span>版数: 1.4</span>
       <span>作成: コガソフトウェア株式会社</span>
     </div>
     <p class="note">
@@ -34,6 +34,7 @@
       <tr><td>1.1</td><td>2026-08-26</td><td>6.2節「ログイン（開発用ログイン）」の冒頭にアクセスURL（<code>http://localhost:5180/login</code>）を明記した。これまでは6.1節の疎通確認表にしか記載が無く、開発用ログイン画面を開く手順として見つけにくかったため追記した。</td></tr>
       <tr><td>1.2</td><td>2026-08-31</td><td>Googleログイン（A-01/A-02）・Claude Code CLI連携（A-62/A-63, F-05）を実装したことに伴い改訂。Google Cloud Consoleの登録済みリダイレクトURI（<code>http://localhost:5177/api/auth/callback</code>）に合わせ<code>BACKEND_PORT</code>の既定値を<code>8020</code>から<code>5177</code>に変更した（本書内の全ポート表記を追随）。5章にGoogle OAuth関連の環境変数（<code>GOOGLE_CLIENT_ID</code>/<code>GOOGLE_CLIENT_SECRET</code>/<code>GOOGLE_REDIRECT_URI</code>/<code>ALLOWED_DOMAINS</code>/<code>FRONTEND_URL</code>）を追加した。6.3節としてClaude Code CLI連携（<code>cli/manabi_login.py</code>等）の使い方を新設し、8章の制約事項表からGoogleログインの行を「実装済み」に更新した。</td></tr>
       <tr><td>1.3</td><td>2026-09-01</td><td>「Claude CodeからManabiのAPIを使って教材を作成するにはどうすればよいか」という質問を受け、6.3節を手順1〜4の順序立てた説明に書き直した。あわせてスキル（<code>SKILL.md</code>）にA-16（教材の新規作成）の呼び方を追記し、Claude Codeへの自然な依頼だけで新規教材の作成も完結するようにした（従来はA-19/A-20〔既存教材の取得・保存〕のみ記載されていた）。</td></tr>
+      <tr><td>1.4</td><td>2026-09-07</td><td>6.3節の「別環境（本番デプロイ後など）で使う場合」のコールアウトに、<code>MANABI_URL</code>を指定してCLIログインを実行する具体的なコマンド例（本番環境向け）を追記した。詳しい本番運用の手順は<a href="参考資料_本番環境運用手順.html">参考資料_本番環境運用手順.html</a>に切り出した。</td></tr>
     </tbody>
   </table>
 
@@ -226,7 +227,12 @@ npm run dev                       # http://localhost:5180</code></pre>
   </p>
   <div class="callout">
     別環境（本番デプロイ後など）で使う場合は、<code>MANABI_URL</code>環境変数でバックエンドのURLを
-    指定してから手順2を実行する（既定は<code>http://localhost:5177</code>）。
+    指定してから手順2を実行する（既定は<code>http://localhost:5177</code>）。<strong>リポジトリ
+    ルート</strong>（<code>cli/manabi_login.py</code>から見える場所）で実行すること。例（本番環境向け）:
+    <pre><code>cd c:\Users\pc-000683\ai-dev-training\e-learning\e-learning
+$env:MANABI_URL="https://manabi-elearning.fly.dev"
+python cli/manabi_login.py</code></pre>
+    本番向けの詳しい手順は<a href="参考資料_本番環境運用手順.html#cli">参考資料_本番環境運用手順.html</a>を参照。
   </div>
 
   <h2 id="trouble">7. トラブルシューティング</h2>
@@ -276,7 +282,7 @@ npm run dev                       # http://localhost:5180</code></pre>
 
   <footer class="doc-footer">
     <span>社内学習管理システム（Manabi）</span>
-    <span>Ver 1.3 / 2026-09-01</span>
+    <span>Ver 1.4 / 2026-09-07</span>
   </footer>
 
 </div>

@@ -16,7 +16,7 @@
     <p class="subtitle">社内学習管理システム（Manabi）— 本番環境（Fly.io / Supabase）のデプロイ・DB変更反映・Slack連携設定</p>
     <div class="meta">
       <span>作成日: 2026-09-07</span>
-      <span>版数: 1.0</span>
+      <span>版数: 1.1</span>
       <span>作成: コガソフトウェア株式会社</span>
     </div>
     <p class="note">
@@ -32,6 +32,7 @@
     <thead><tr><th>版数</th><th>日付</th><th>改訂内容</th></tr></thead>
     <tbody>
       <tr><td>1.0</td><td>2026-09-07</td><td>初版。Fly.ioへのデプロイ作業中に判明した運用上の注意点（手動デプロイの必要性、GitHub Actions自動デプロイが未稼働であること、本番DBスキーマ変更の手動反映）と、Slack連携（F-12）のWebhook URL発行手順を整理した。</td></tr>
+      <tr><td>1.1</td><td>2026-09-07</td><td>6章としてClaude Code CLI連携（F-05）を本番環境向けに使う手順（<code>MANABI_URL</code>指定でのCLIログイン・ログアウト・下書き状態による事故時の復旧容易性）を新設した。</td></tr>
     </tbody>
   </table>
 
@@ -43,6 +44,7 @@
       <li><a href="#deploy">デプロイ手順（手動）</a></li>
       <li><a href="#schema">DBスキーマ変更の反映</a></li>
       <li><a href="#slack">Slack連携（F-12）の設定手順</a></li>
+      <li><a href="#cli">Claude Code CLI連携（F-05）を本番環境で使う</a></li>
       <li><a href="#issues">既知の課題</a></li>
     </ol>
   </nav>
@@ -156,7 +158,46 @@ docker run --rm -it -e FLY_API_TOKEN="（実際のデプロイ用トークン）
     自動送信の仕組みは無く、都度このボタンを押して送信する。
   </p>
 
-  <h2 id="issues">6. 既知の課題</h2>
+  <h2 id="cli">6. Claude Code CLI連携（F-05）を本番環境で使う</h2>
+  <p>
+    Claude Codeに教材の作成・編集を頼む際（<code>.claude/skills/manabi-material/SKILL.md</code>）、
+    既定ではローカル環境（<code>http://localhost:5177</code>）を対象にするが、<code>MANABI_URL</code>を
+    指定してCLIログインすれば、本番環境（<code>https://manabi-elearning.fly.dev</code>）に対して
+    直接、実際の教材を作成・編集できる。
+  </p>
+  <h3>6.1 本番向けCLIログイン</h3>
+  <p>リポジトリルート（<code>cli/manabi_login.py</code>から見える場所）で実行する。</p>
+  <pre><code>cd c:\Users\pc-000683\ai-dev-training\e-learning\e-learning
+$env:MANABI_URL="https://manabi-elearning.fly.dev"
+python cli/manabi_login.py</code></pre>
+  <p>
+    ブラウザが自動で開き、Googleアカウント（<code>kogasoftware.com</code>）でのログインを求められる。
+    成功すると<code>~/.config/Manabi/credentials</code>に、本番向けのCLIトークン（<code>manabi_url</code>と
+    <code>token</code>を含むJSON、有効期限90日）が保存される。以後、Claude Codeはこのファイルを読んで、
+    本番環境のAPI（A-16教材作成・A-19取得・A-20保存）を直接呼び出す。
+  </p>
+  <div class="callout">
+    <strong>ローカル環境用のトークンは上書きされる。</strong> 認証情報の保存先は環境によらず
+    <code>~/.config/Manabi/credentials</code>の1箇所のみのため、本番向けにログインし直すと、
+    それまで使っていたローカル環境向けのトークンは上書きされて使えなくなる。再度ローカルで
+    使いたい場合は、<code>MANABI_URL</code>を指定せず（またはローカルのURLを指定して）手順6.1を
+    やり直す。
+  </div>
+  <h3>6.2 ログアウト・失効</h3>
+  <pre><code>python cli/manabi_logout.py</code></pre>
+  <p>
+    保存済みの認証情報ファイル（<code>manabi_url</code>を含む）を読んで、その環境に対して失効
+    リクエストを送るため、<code>MANABI_URL</code>の指定は不要（ログイン時に使った環境がそのまま
+    対象になる）。
+  </p>
+  <div class="callout">
+    <strong>操作ミスをしても復旧しやすい。</strong> A-16で新規作成した教材は既定で下書き
+    （<code>status: draft</code>）状態であり、公開操作をしない限り受講者には一切表示されない。
+    そのため、本番環境に対して試しに教材を作成してみて内容に問題があった場合も、Manabi画面
+    （教材編集一覧）またはAPIから該当教材を削除するだけでよい。
+  </div>
+
+  <h2 id="issues">7. 既知の課題</h2>
   <table>
     <thead><tr><th>課題</th><th>内容</th></tr></thead>
     <tbody>
@@ -174,7 +215,7 @@ docker run --rm -it -e FLY_API_TOKEN="（実際のデプロイ用トークン）
 
   <footer class="doc-footer">
     <span>社内学習管理システム（Manabi）</span>
-    <span>Ver 1.0 / 2026-09-07</span>
+    <span>Ver 1.1 / 2026-09-07</span>
   </footer>
 
 </div>
