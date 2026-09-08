@@ -913,7 +913,7 @@ async def preview_material_body(
     受講対象者は元々_fetch_tree経由でbody原文を取得できるため、そのサニタイズ結果を見られる
     ようにするのはセキュリティ上問題ない（S-16着手時にeditor専用から拡張、_require_view_access）。"""
     await _require_view_access(get_pool(), id, user)
-    return {"html": render_material_body(body.body, body.format)}
+    return {"html": await render_material_body(body.body, body.format, id, get_pool())}
 
 
 def _review_row_dict(row) -> dict:

@@ -101,8 +101,12 @@ Manabi画面のA-17を使う）。省略した場合は元のプロジェクト�
 `<!-- pool_draw_count:N -->` を付けられる。
 
 ページの本文は説明文（Markdown/HTML）と、それに続く```question```フェンスブロック（0個以上）を
-自由に組み合わせられる。本文が`#`〜`###`で始まる行を含んでいても、そのまま書いてよい
-（章・小見出し・ページの区切りとは自動的に区別される）。
+自由に組み合わせられる。**本文中に`#`〜`###`で始まる行（コードブロック内のシェルコメント`# ...`
+なども含む）を書く場合は、行頭に`\`を付けてエスケープすること**（例: `\# コメント`）。エスケープせず
+そのまま書くと、その行が実際の章・小見出し・ページの区切りと誤認識され、意図しない場所で
+ページが分割されてしまう（A-19で既存教材を取得した場合の本文には、システムが書き出し時に
+自動でこのエスケープを済ませてあるため気にする必要はないが、新規に本文を書き起こす場合は
+自分でエスケープが必要）。
 
 例:
 
@@ -141,6 +145,36 @@ correct_answer: "abc_1 = 1"
 だと以降のページに進めない「ドボン問題」）, `feedback_style`（省略時はページ・教材の既定値を継承）,
 `pool_group`（quiz_mode:poolのページでの出題グループ番号）, `grading_mode`（`free_text`/`code`のみ、
 `ai`または`manual`）。
+
+## 画像の埋め込み
+
+本文に画像を貼りたい場合は、`![説明](attachment:123)`という記法を使う（123は下記手順で
+アップロードした添付ファイルのID）。表示のたびにその時点で有効なURLへ自動的に解決されるため、
+Base64化して直接貼り付ける必要はない。
+
+1. アップロード先URLを発行する（A-27。`{id}`は教材ID）:
+   ```bash
+   curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+     -d '{"filename": "screenshot.png", "mime_type": "image/png", "size_bytes": 12345}' \
+     "$URL/api/materials/{id}/attachments/upload-url"
+   ```
+   レスポンスの`upload_url`・`storage_key`を控える。
+2. 発行されたURLへ画像本体をアップロードする:
+   ```bash
+   curl -s -X PUT --data-binary @screenshot.png "$UPLOAD_URL"
+   ```
+   （本番はSupabase StorageのURLがそのまま返るため`$URL`を付けず`$UPLOAD_URL`だけで叩く。
+   ローカル開発では`$URL`＋`upload_url`〔`/api/uploads/...`〕の組み合わせになる）
+3. 添付として登録し、IDを取得する（A-29。`node_id`は画像を貼りたいページのノードID）:
+   ```bash
+   curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+     -d '{"node_id": 456, "kind": "file", "storage_key": "'"$STORAGE_KEY"'", "filename": "screenshot.png", "mime_type": "image/png", "size_bytes": 12345}' \
+     "$URL/api/materials/{id}/attachments"
+   ```
+   レスポンスの`id`を使い、本文に`![説明](attachment:{id})`と書いてA-20で保存する。
+
+外部サイトへのリンクを貼りたいだけの場合（画像でなく参照用リンク）は、この手順は不要で、通常の
+Markdownリンク`[表示文言](https://...)`をそのまま本文に書けばよい。
 
 ## 注意
 
