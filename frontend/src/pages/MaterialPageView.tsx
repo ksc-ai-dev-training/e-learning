@@ -242,7 +242,17 @@ export default function MaterialPageView() {
     // 合格済みスコープを閲覧専用で開いている場合（A-40が既存の合格済み受験記録を返す。
     // 2026-09-03）、この受験記録は既に提出済みのためsubmitAttemptを呼ばず、既知の結果を
     // そのまま使う（呼ぶと「既に提出済みです」エラーになる）。
+    // ただし、この分岐は「合格済みスコープを再度最後まで見た」タイミングそのものなので、
+    // repeat_mode='every_time'のアンケートはここでも表示する。以前はこの早期returnにより
+    // 下のsubmitAttempt成功時のみアンケート判定が走っていたため、2回目以降の閲覧では
+    // 「毎回」設定でも一切表示されなくなっていた（2026-09-07、ユーザー報告により修正）。
     if (attempt.submitted_at !== null) {
+      if (mode === 'graded') {
+        const survey = surveys.find(
+          (s) => s.node_id === scopeNodeId && s.is_active && s.repeat_mode === 'every_time',
+        )
+        if (survey) setSurveyToShow(survey)
+      }
       setSubmittedResult(attempt)
       return
     }
