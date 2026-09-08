@@ -62,12 +62,19 @@ export default function PersonalReport() {
     if (targetUserId == null) return
     setGenerateError(null)
     setSlowWarning(false)
+    // generatingを先に立てることで、ヘッダーの「再生成する」ボタン（generating||feedbackで
+    // 表示）が、直後にfeedbackをクリアする一瞬の間も消えずに残る（2026-09-07、再生成ボタン新設）。
+    setGenerating(true)
     try {
+      // 既存のフィードバックがある状態からの再生成時、SWRのキャッシュにデータが残ったままだと
+      // ポーリング条件（!data）を満たさずポーリングが再開しない。ここで一旦クリアしてから
+      // ポーリングを開始する。
+      await mutateFeedback(null, false)
       await requestPersonalAiFeedback(targetUserId)
-      setGenerating(true)
       await mutateFeedback()
     } catch (e) {
       setGenerateError(e instanceof ApiError ? e.message : 'フィードバックの生成開始に失敗しました')
+      setGenerating(false)
     }
   }
 
@@ -156,7 +163,21 @@ export default function PersonalReport() {
 
         <div className="mb-2 flex items-baseline justify-between">
           <h3 className="text-sm font-semibold text-slate-700">AIによる個人フィードバック</h3>
-          {feedback && <span className="text-xs text-slate-400">{formatDateTimeJst(feedback.generated_at)} 生成</span>}
+          {(feedback || generating) && (
+            <span className="flex items-center gap-3 text-xs text-slate-500">
+              {feedback && !generating && (
+                <span className="text-slate-400">{formatDateTimeJst(feedback.generated_at)} 生成</span>
+              )}
+              <button
+                type="button"
+                onClick={handleGenerate}
+                disabled={generating}
+                className="font-semibold text-blue-700 hover:underline disabled:text-slate-400 disabled:no-underline"
+              >
+                {generating ? '再生成中...' : '再生成する'}
+              </button>
+            </span>
+          )}
         </div>
         <div className="mb-6 max-w-3xl rounded-md border border-slate-200 p-4">
           {scoredHistory.length > 0 && (
