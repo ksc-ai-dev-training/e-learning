@@ -161,24 +161,7 @@ export default function PersonalReport() {
           />
         </div>
 
-        <div className="mb-2 flex items-baseline justify-between">
-          <h3 className="text-sm font-semibold text-slate-700">AIによる個人フィードバック</h3>
-          {(feedback || generating) && (
-            <span className="flex items-center gap-3 text-xs text-slate-500">
-              {feedback && !generating && (
-                <span className="text-slate-400">{formatDateTimeJst(feedback.generated_at)} 生成</span>
-              )}
-              <button
-                type="button"
-                onClick={handleGenerate}
-                disabled={generating}
-                className="font-semibold text-blue-700 hover:underline disabled:text-slate-400 disabled:no-underline"
-              >
-                {generating ? '再生成中...' : '再生成する'}
-              </button>
-            </span>
-          )}
-        </div>
+        <h3 className="mb-2 text-sm font-semibold text-slate-700">AIによる個人フィードバック</h3>
         <div className="mb-6 max-w-3xl rounded-md border border-slate-200 p-4">
           {scoredHistory.length > 0 && (
             <div className="mb-4 border-b border-slate-100 pb-4">
@@ -229,6 +212,17 @@ export default function PersonalReport() {
               <p className="mt-3 text-xs text-slate-400">
                 このフィードバックは学習支援を目的としたものであり、人事評価には使用されません。
               </p>
+              <div className="mt-3 flex items-center gap-3 border-t border-slate-100 pt-3 text-xs">
+                <span className="text-slate-400">{formatDateTimeJst(feedback.generated_at)} 生成</span>
+                <button
+                  type="button"
+                  onClick={handleGenerate}
+                  disabled={generating}
+                  className="font-semibold text-blue-700 hover:underline disabled:text-slate-400 disabled:no-underline"
+                >
+                  {generating ? '再生成中...' : '再生成する'}
+                </button>
+              </div>
             </>
           ) : feedbackLoading ? (
             <div className="text-sm text-slate-400">読み込み中...</div>
