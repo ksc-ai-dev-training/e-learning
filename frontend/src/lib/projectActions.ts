@@ -1,6 +1,14 @@
 import { apiFetch } from './api'
 import type { MemberAttemptItem, MemberOverdueRequired, ProjectDetail, ProjectMembership, ProjectRole } from '../types'
 
+// A-67: 招待への応答（S-15プロフィール編集「招待されているプロジェクト」）。本人のみ実行できる
+export function respondToInvite(membershipId: number, status: 'active' | 'declined'): Promise<ProjectMembership> {
+  return apiFetch(`/api/project-memberships/${membershipId}/respond`, {
+    method: 'PUT',
+    body: JSON.stringify({ status }),
+  })
+}
+
 // A-09: プロジェクト作成。作成者は自動的にそのプロジェクトの管理者になる
 export function createProject(body: { name: string; description: string | null }): Promise<ProjectDetail> {
   return apiFetch('/api/projects', { method: 'POST', body: JSON.stringify(body) })

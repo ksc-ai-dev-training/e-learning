@@ -125,7 +125,7 @@ function ProjectManagementBody({
   myUserId: number | null
   onDeleted: () => void | Promise<unknown>
 }) {
-  const { project, isLoading: projectLoading, mutate: mutateProject } = useProjectDetail(projectId)
+  const { project, error: projectError, isLoading: projectLoading, mutate: mutateProject } = useProjectDetail(projectId)
   const {
     memberships,
     isLoading: membershipsLoading,
@@ -208,8 +208,29 @@ function ProjectManagementBody({
     }
   }
 
-  if (projectLoading || !project) {
+  if (projectLoading) {
     return <div className="p-8 text-sm text-slate-400">読み込み中...</div>
+  }
+
+  if (projectError || !project) {
+    // URL直打ちで権限外のプロジェクトIDにアクセスした場合、以前はerrorを見ておらず
+    // 「読み込み中...」のまま止まっていた（データは漏れないがUXとして分かりにくかった）。
+    // MaterialEdit.tsx/MaterialView.tsxと同じ、403を明示するパターンに揃えた（2026-09-08）。
+    const message =
+      projectError instanceof ApiError && projectError.status === 403
+        ? 'このプロジェクトを管理する権限がありません。'
+        : 'プロジェクトを取得できませんでした。'
+    return (
+      <div className="flex flex-1 flex-col">
+        <PageHeader title="プロジェクト管理" />
+        <div className="px-8 py-6">
+          <Link to="/projects/manage" className="text-blue-800 hover:underline">
+            ← プロジェクト一覧に戻る
+          </Link>
+          <p className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{message}</p>
+        </div>
+      </div>
+    )
   }
 
   return (

@@ -1,4 +1,4 @@
-# A-01〜A-04, A-62〜A-63 認証系API。
+# A-01〜A-04, A-62〜A-63, A-75〜A-77 認証系API。
 import hmac
 import logging
 import os
@@ -6,9 +6,10 @@ import secrets
 from urllib.parse import urlencode
 
 import google_auth
+import storage
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import RedirectResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from auth_helpers import (
     CLI_TOKEN_EXPIRES_SECONDS,
@@ -206,10 +207,97 @@ async def logout(response: Response, user: CurrentUser = Depends(require_auth)):
     return {"detail": "ログアウトしました"}
 
 
+async def _resolve_picture_url(user_id: int, fallback_picture_url: str | None) -> str | None:
+    """S-15プロフィール編集で独自アップロードしたアイコン（users.custom_picture_key）があれば
+    署名付きURLを解決して返す。無ければGoogleプロフィール画像（users.picture_url）のまま返す。
+    毎リクエストではなく/me（A-04）呼び出し時のみ解決する（require_authで毎回呼ぶとSupabase
+    Storageへの署名リクエストが全APIコールに乗ってしまうため、2026-09-08）。"""
+    key = await get_pool().fetchval("SELECT custom_picture_key FROM users WHERE id = $1", user_id)
+    if not key:
+        return fallback_picture_url
+    download_url, _ = await storage.create_download_url(key)
+    return download_url
+
+
 @router.get("/me")
 async def me(user: CurrentUser = Depends(require_auth)):
     # A-04: ログイン中ユーザー情報
+    picture_url = await _resolve_picture_url(user.id, user.picture_url)
     return {
         "id": user.id, "email": user.email, "name": user.name,
-        "role": user.role, "picture_url": user.picture_url,
+        "role": user.role, "picture_url": picture_url,
     }
+
+
+class ProfileUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+    custom_picture_key: str | None = None
+
+
+@router.put("/me")
+async def update_me(body: ProfileUpdate, user: CurrentUser = Depends(require_auth)):
+    """A-75: 表示名の変更、およびA-76でアップロード済みのアイコンの確定（S-15）。
+    custom_picture_keyを新しい値に差し替える場合、古いアップロード実体をストレージから削除する
+    （A-27〜A-29と同型のアップロード方式で、確定APIが実体の後始末まで行う設計は本APIが初出のため
+    ここで方針を決めた。孤立ファイルの蓄積を防ぐ）。"""
+    if body.name is None and body.custom_picture_key is None:
+        picture_url = await _resolve_picture_url(user.id, user.picture_url)
+        return {"id": user.id, "email": user.email, "name": user.name, "role": user.role, "picture_url": picture_url}
+
+    pool = get_pool()
+    old_key = None
+    if body.custom_picture_key is not None:
+        old_key = await pool.fetchval("SELECT custom_picture_key FROM users WHERE id = $1", user.id)
+
+    row = await pool.fetchrow(
+        """UPDATE users SET name = COALESCE($1, name), custom_picture_key = COALESCE($2, custom_picture_key),
+               updated_at = now()
+           WHERE id = $3
+           RETURNING id, email, name, role, picture_url""",
+        body.name, body.custom_picture_key, user.id,
+    )
+    if old_key and old_key != body.custom_picture_key:
+        await storage.delete_object(old_key)
+
+    picture_url = await _resolve_picture_url(user.id, row["picture_url"])
+    return {
+        "id": row["id"], "email": row["email"], "name": row["name"],
+        "role": row["role"], "picture_url": picture_url,
+    }
+
+
+class IconUploadRequest(BaseModel):
+    filename: str = Field(min_length=1)
+    mime_type: str
+    size_bytes: int
+
+
+@router.post("/me/icon/upload-url")
+async def request_icon_upload_url(body: IconUploadRequest, user: CurrentUser = Depends(require_auth)):
+    """A-76: アイコン画像アップロード用の署名付きURLを発行する（A-27と同じ方式）。
+    PNG/JPEGのみ、MAX_ICON_SIZE_MB（既定2MB）まで（詳細設計書4.14a節）。"""
+    if body.mime_type not in ("image/png", "image/jpeg"):
+        raise HTTPException(422, detail="PNG またはJPEG画像のみアップロードできます")
+    max_mb = int(os.environ.get("MAX_ICON_SIZE_MB", "2"))
+    if body.size_bytes > max_mb * 1024 * 1024:
+        raise HTTPException(413, detail=f"アイコン画像は{max_mb}MB以内にしてください")
+    storage_key, upload_url = await storage.create_upload_target(
+        prefix=f"users/{user.id}/icon", filename=body.filename, mime_type=body.mime_type,
+    )
+    return {"upload_url": upload_url, "storage_key": storage_key}
+
+
+@router.delete("/me/icon")
+async def reset_icon(user: CurrentUser = Depends(require_auth)):
+    """A-77: 独自アイコンを削除しGoogleプロフィール画像に戻す（custom_picture_keyをNULLに更新）。"""
+    pool = get_pool()
+    old_key = await pool.fetchval("SELECT custom_picture_key FROM users WHERE id = $1", user.id)
+    row = await pool.fetchrow(
+        """UPDATE users SET custom_picture_key = NULL, updated_at = now()
+           WHERE id = $1
+           RETURNING id, email, name, role, picture_url""",
+        user.id,
+    )
+    if old_key:
+        await storage.delete_object(old_key)
+    return dict(row)
