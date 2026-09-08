@@ -143,7 +143,14 @@ export default function ProfileEdit() {
 
             <div className="flex items-center gap-3">
               <span className="w-20 flex-shrink-0 text-xs font-semibold text-slate-500">表示名</span>
-              <TextInput value={name} onChange={(e) => setName(e.target.value)} className="max-w-xs" />
+              <TextInput
+                value={name}
+                onChange={(e) => {
+                  setName(e.target.value)
+                  setNameSavedMessage(null)
+                }}
+                className="max-w-xs"
+              />
               <Button variant="secondary" onClick={handleSaveName} disabled={savingName}>
                 {savingName ? '保存中...' : '保存'}
               </Button>

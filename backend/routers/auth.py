@@ -9,7 +9,7 @@ import google_auth
 import storage
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import RedirectResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from auth_helpers import (
     CLI_TOKEN_EXPIRES_SECONDS,
@@ -231,7 +231,19 @@ async def me(user: CurrentUser = Depends(require_auth)):
 
 class ProfileUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=100)
-    custom_picture_key: str | None = None
+    custom_picture_key: str | None = Field(default=None, min_length=1)
+
+    @field_validator("name")
+    @classmethod
+    def _strip_and_validate_name(cls, v: str | None) -> str | None:
+        # min_length=1はSQLの空白のみの文字列（例:"   "）を弾けないため、trim後に再検証する
+        # （フロントエンドはtrim済みの値を送るが、API直叩き対策として2026-09-08追加）。
+        if v is None:
+            return v
+        stripped = v.strip()
+        if not stripped:
+            raise ValueError("表示名は空白のみにはできません")
+        return stripped
 
 
 @router.put("/me")
