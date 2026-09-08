@@ -38,7 +38,14 @@ export default function MaterialView() {
   const returnQuery = fromQuery(from)
   const { material, error, isLoading, mutate: mutateMaterial } = useMaterial(id)
   const { attachments } = useMaterialAttachments(id)
-  const [activeTab, setActiveTab] = useState<TabKey>('toc')
+  // ?tab=practice で「反復演習」タブを開いた状態で表示する（マイ学習の「反復演習する」導線用。
+  // 以前は常に「目次」タブで開き、合格済み教材の「再度受講」ボタンが合否判定不要のgradedモード
+  // （合格済みスコープは閲覧専用で問題が出ない）に繋がっていたため、反復演習タブへ辿り着けず
+  // 問題が出ないように見える不具合になっていた。2026-09-07、ユーザー報告により修正）。
+  const initialTab = searchParams.get('tab')
+  const [activeTab, setActiveTab] = useState<TabKey>(
+    TABS.some((t) => t.key === initialTab) ? (initialTab as TabKey) : 'toc',
+  )
   const [downloadError, setDownloadError] = useState<string | null>(null)
 
   const { items: attemptSummary } = useAttemptSummary(activeTab === 'toc' ? id : null)

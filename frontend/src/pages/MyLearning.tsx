@@ -41,6 +41,15 @@ function actionLabelFor(item: MyLearningItem): string {
   return item.required ? '復習する' : '反復演習する'
 }
 
+// 「反復演習する」（完了済みの任意教材）の遷移先には、S-04の「反復演習」タブを直接開く
+// ?tab=practiceを付ける。付けないと既定の「目次」タブが開き、そこの「再度受講」ボタンは
+// 合格済みスコープを閲覧専用で開くだけ（問題が出ない）ため、反復演習タブへ辿り着けなかった
+// （2026-09-07、ユーザー報告により修正）。
+function materialLinkFor(item: MyLearningItem): string {
+  const tabQuery = actionLabelFor(item) === '反復演習する' ? '&tab=practice' : ''
+  return `/materials/${item.id}?from=my-learning${tabQuery}`
+}
+
 interface ProjectTab {
   id: number | null
   name: string
@@ -200,7 +209,7 @@ export default function MyLearning() {
                       key={item.id}
                       item={item}
                       actionLabel={actionLabelFor(item)}
-                      to={`/materials/${item.id}?from=my-learning`}
+                      to={materialLinkFor(item)}
                       urgent
                     />
                   ))}
@@ -236,7 +245,7 @@ export default function MyLearning() {
                       key={item.id}
                       item={item}
                       actionLabel={actionLabelFor(item)}
-                      to={`/materials/${item.id}?from=my-learning`}
+                      to={materialLinkFor(item)}
                     />
                   ))
                 )}
@@ -271,7 +280,7 @@ export default function MyLearning() {
                       key={item.id}
                       item={item}
                       actionLabel={actionLabelFor(item)}
-                      to={`/materials/${item.id}?from=my-learning`}
+                      to={materialLinkFor(item)}
                     />
                   ))
                 )}
@@ -299,7 +308,7 @@ export default function MyLearning() {
                     key={item.id}
                     item={item}
                     actionLabel={actionLabelFor(item)}
-                    to={`/materials/${item.id}?from=my-learning`}
+                    to={materialLinkFor(item)}
                   />
                 ))
               )}
