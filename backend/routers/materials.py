@@ -923,8 +923,8 @@ def _review_row_dict(row) -> dict:
 @detail_router.post("/{id}/ai-review")
 async def run_ai_review(id: int, user: CurrentUser = Depends(require_material_role(min_role="editor"))):
     """A-32: 教材AIレビューを実行する（F-08、8.6節）。同期呼び出し。教材本文（サニタイズ前の原文）・
-    問題定義をAnthropic Claude APIへ送り、結果をT-15へ保存して返す。AI呼び出しが最終的に失敗した場合は
-    502を返す（APIキー未設定・Anthropic側障害等を利用者に詳細を見せず伝える、8.7節）。"""
+    問題定義をOpenAI APIへ送り、結果をT-15へ保存して返す。AI呼び出しが最終的に失敗した場合は
+    502を返す（APIキー未設定・OpenAI側障害等を利用者に詳細を見せず伝える、8.7節）。"""
     pool = get_pool()
     source_text = await _rebuild_source(pool, id)
     try:
