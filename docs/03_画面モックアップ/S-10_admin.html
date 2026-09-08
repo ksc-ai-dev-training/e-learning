@@ -250,11 +250,23 @@
             <div class="panel-title">AI利用設定</div>
           </div>
           <div class="panel-body">
-            <div class="field" style="margin-bottom:0">
-              <label>利用するAIモデル（既定）</label>
-              <input type="text" value="Claude Haiku 4.5" disabled style="max-width:320px">
-              <span class="field-help">F-08・F-20〜F-23の全AI機能で共通の設定です（機能ごとに個別のモデルを割り当てる機能はありません）。コスト管理のため最も低コストなモデルに固定しており、変更はできません。</span>
+            <div class="field" style="margin-bottom:8px">
+              <label>機能別の使用モデル</label>
             </div>
+            <div class="table-wrap" style="box-shadow:none;border:1px solid #e2e5ea;max-width:560px">
+              <table class="table">
+                <thead>
+                  <tr><th>機能</th><th>使用モデル</th><th>reasoning effort</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>教材AIレビュー（F-08）</td><td>gpt-5-nano</td><td>minimal</td></tr>
+                  <tr><td>AI記述式採点（F-20）</td><td>gpt-4o-mini</td><td>（既定）</td></tr>
+                  <tr><td>AI個人フィードバック（F-22）</td><td>gpt-5-nano</td><td>minimal</td></tr>
+                  <tr><td>AI組織レポート（F-23）</td><td>gpt-5-nano</td><td>minimal</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <span class="field-help">機能ごとに固定しており、変更はできません。AI採点（F-20）は学習者の合否に直結するため正確性を優先してgpt-4o-miniを、それ以外の要約・所見系の機能はコスト最優先でgpt-5-nano（reasoning effortを絞って安定化）を使用しています。</span>
           </div>
         </div>
 

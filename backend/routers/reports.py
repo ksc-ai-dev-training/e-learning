@@ -1,15 +1,20 @@
 # 個人学習レポートAPI（A-50〜A-52。S-09、F-22 AI個人フィードバック）。
+# AI組織レポートAPI（A-48/A-49。S-08、F-23）もパスを/api/reports配下に揃えるためここに置く
+# （集計本体はdashboard.pyのA-45と共有、ロジックはdashboard.py側で一元管理する）。
 import asyncio
 import json
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 
 import ai_client
 from auth_helpers import CurrentUser, is_manager_of_target_user, require_auth
 from database import get_pool
+from routers.dashboard import _aggregate_dashboard_stats, _parse_scope, require_dashboard_scope
 
 router = APIRouter(prefix="/api/reports/personal", tags=["reports"])
+org_router = APIRouter(prefix="/api/reports/org", tags=["reports"])
 logger = logging.getLogger("manabi.reports")
 
 
@@ -252,5 +257,73 @@ async def get_personal_ai_feedback(user_id: int, user: CurrentUser = Depends(req
         "comment": content.get("comment", ""),
         "weak_areas": content.get("weak_areas", []),
         "recommended_materials": materials,
+        "generated_at": row["requested_at"],
+    }
+
+
+async def run_ai_org_report_job(
+    report_id: int, scope_type: str, scope_id: int | None, scope_label: str, requested_by: int
+) -> None:
+    """A-48の非同期ジョブ本体（run_ai_personal_feedback_jobと同型、F-23）。"""
+    pool = get_pool()
+    try:
+        stats = await _aggregate_dashboard_stats(scope_type, scope_id)
+        by_material = stats.pop("by_material")
+        result = await ai_client.generate_org_report(
+            scope_label=scope_label, stats=stats, by_material=by_material, user_id=requested_by
+        )
+        content = {
+            "summary": result.get("summary", ""),
+            "insight_tags": list(result.get("insight_tags", [])),
+        }
+        await pool.execute(
+            "UPDATE ai_org_reports SET content = $1 WHERE id = $2 AND content IS NULL",
+            json.dumps(content), report_id,
+        )
+    except Exception:
+        logger.exception("AI組織レポートのジョブに失敗しました（report_id=%s）", report_id)
+
+
+class OrgReportRequest(BaseModel):
+    scope_type: str
+    scope_id: int | None = None
+
+
+@org_router.post("", status_code=202)
+async def request_org_report(body: OrgReportRequest, user: CurrentUser = Depends(require_auth)):
+    """A-48: AI組織レポートの生成をリクエストする（非同期。S-08「レポートを再生成」ボタン）。"""
+    if body.scope_type not in ("company", "project"):
+        raise HTTPException(422, detail="scope_typeが不正です")
+    await require_dashboard_scope(body.scope_type, body.scope_id, user)
+    scope_label = "全社" if body.scope_type == "company" else f"project:{body.scope_id}"
+    row = await get_pool().fetchrow(
+        """INSERT INTO ai_org_reports (scope_type, scope_id, requested_by) VALUES ($1, $2, $3)
+           RETURNING id""",
+        body.scope_type, body.scope_id, user.id,
+    )
+    asyncio.create_task(run_ai_org_report_job(row["id"], body.scope_type, body.scope_id, scope_label, user.id))
+    return {"status": "pending", "job_id": row["id"]}
+
+
+@org_router.get("")
+async def get_org_report(scope: str, user: CurrentUser = Depends(require_auth)):
+    """A-49: 直近のAI組織レポートを取得する。未完了・未リクエストは404（A-52と同方針）。"""
+    scope_type, scope_id = _parse_scope(scope)
+    await require_dashboard_scope(scope_type, scope_id, user)
+    query = (
+        "SELECT content, requested_at FROM ai_org_reports WHERE scope_type = $1 AND scope_id IS NULL "
+        "ORDER BY created_at DESC LIMIT 1"
+        if scope_type == "company"
+        else "SELECT content, requested_at FROM ai_org_reports WHERE scope_type = $1 AND scope_id = $2 "
+        "ORDER BY created_at DESC LIMIT 1"
+    )
+    args = [scope_type] if scope_type == "company" else [scope_type, scope_id]
+    row = await get_pool().fetchrow(query, *args)
+    if row is None or row["content"] is None:
+        raise HTTPException(404, detail="AI組織レポートはまだ生成されていません")
+    content = json.loads(row["content"])
+    return {
+        "summary": content.get("summary", ""),
+        "insight_tags": content.get("insight_tags", []),
         "generated_at": row["requested_at"],
     }

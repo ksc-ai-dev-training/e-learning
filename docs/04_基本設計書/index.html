@@ -82,6 +82,8 @@
       <tr class="rev-row"><td>1.51</td><td>2026-09-02</td><td><strong>S-10「システム設定」タブの残り一式（AIモデル選択・Slack通知設定・プロジェクト所属の猶予期間、A-55〜A-57・A-80）をまとめて実装した</strong>。T-21 <code>app_settings</code>を新設し、<code>backend/settings_store.py</code>（設定値の読み取りヘルパー）・<code>backend/slack_client.py</code>（Incoming Webhook送信）を新設した。<code>ai_client.py</code>の<code>resolve_model()</code>を非同期化しT-21を優先参照するようにした。<strong>あわせて5.25節の猶予期間ロジックを実装した</strong>。<code>auth_helpers.py</code>に<code>has_active_project_role</code>を新設し、退任済みメンバーでも猶予日数以内はlearner相当のアクセスのみ継続するようにした。実装にあたり、同等の「現役プロジェクトメンバーか」判定が4箇所（<code>check_project_role</code>・<code>routers/materials.py</code>の2関数・<code>routers/learning.py</code>の<code>get_attempt</code>）に重複していたことが判明し、猶予期間の挙動が箇所ごとに食い違わないよう新設の共通関数へ統合した（一覧・検索系のA-14/A-39はSQLの直接組み立てのため関数呼び出しではなく同一条件のSQLへ置き換えて挙動を一致させた）。curlでの実機検証（設定のCRUD・バリデーション・Slack送信の成否両パターン）と、一時的なプロジェクト・ユーザー・メンバーシップ行を用いた猶予期間判定5パターンの検証、ヘッドレスEdgeでの画面確認、<code>tsc --noEmit</code>を実施した（検証用データは確認後削除、本番データは変更していない）。4.12・5.25節、詳細設計書4・5・6・10章を更新した。</td></tr>
       <tr class="rev-row"><td>1.52</td><td>2026-09-02</td><td><strong>S-09 個人学習レポート（A-50〜A-52、F-22 AI個人フィードバック）を実装した</strong>。T-17 <code>ai_personal_feedback</code>を新設し、新規<code>backend/routers/reports.py</code>にA-50（対象者情報・サマリー・学習履歴）・A-51（AI個人フィードバック生成リクエスト、非同期）・A-52（取得）を実装した。「対象者が所属するプロジェクトの管理者」判定（詳細設計書5.4節）を<code>auth_helpers.py</code>の<code>is_manager_of_target_user</code>として実装し、本人・対象者所属プロジェクトの管理者・システムadminのみに閲覧を限定した。<strong>AI個人フィードバックの生成トリガーを設計から変更した（9.1節）</strong>: 元の仕様「S-09を開いたとき自動リクエスト」は、開くたびに課金が発生する（複数人のレポートを見て回る管理者は特に影響が大きい）ため、S-09に新設した「生成する」ボタンによる手動トリガーに変更した（ユーザー判断）。<code>ai_client.py</code>に<code>generate_personal_feedback</code>を追加し、<code>job_sweep.py</code>にT-17の滞留ジョブ再実行を追加した。フロントエンドは新規<code>usePersonalReport</code>・<code>usePersonalAiFeedback</code>フック・<code>reportActions.ts</code>・<code>PersonalReport.tsx</code>を実装し、Sidebarの「個人学習レポート」ナビ項目を有効化した。curlでA-50の集計値・権限境界（本人／管理者／無関係な第三者の403）を実機検証した（検証用データ・ユーザーは確認後削除）。<strong>AI呼び出しを伴うA-51は、開発段階での従量課金を避けるためユーザーの指示により実際のClaude API呼び出しを伴う実機検証を行っていない</strong>（コードレビュー・型チェック・AI非依存のSQL集計部分の単体確認のみ）。ヘッドレスEdgeで画面表示（未生成状態）を確認し、画面モックアップ<code>S-09_my-report.html</code>に手動トリガーの注記を追加した。基本設計書4.12・9.1節、詳細設計書4.7・5.4・8.1・10.8節を更新した（基本設計書v1.52、詳細設計書v1.73）。</td></tr>
       <tr class="rev-row"><td>1.53</td><td>2026-09-03</td><td><strong>S-09学習履歴に「未受講に戻す」操作を追加した</strong>。「受講途中の教材一覧」「未受講に戻すボタン」が欲しいというユーザー提案を受け検討し、新しい一覧画面は作らず既存の学習履歴テーブルに「操作」列を追加する方式にした。リセット範囲は(a)進捗の位置情報のみ／(b)受験記録も削除、の2案のうちユーザーが(a)を選択したため、新規A-95（<code>DELETE /api/materials/{id}/progress</code>）で本人の<code>enrollment_progress</code>のみを<code>not_started</code>相当に戻し、<code>quiz_attempts</code>・<code>answers</code>等の受験記録は削除しない設計にした。本人以外（管理者が他者のレポートを閲覧中）には操作自体を表示しない。一時的な教材・受験記録で検証した（検証用データは確認後削除。検証中に誤って実アカウントの進捗を一度リセットしてしまったが、直後に元の状態へ正確に復元した）。4.11節を更新した。詳細設計書4.3・10.8節を更新した（詳細設計書v1.78）。</td></tr>
+      <tr class="rev-row"><td>1.54</td><td>2026-09-08</td><td><strong>AI連携のモデル選択方式を、単一の共有設定から機能（<code>feature</code>）ごとの固定設定へ変更した（9.4節）。</strong>2026-09-07にAnthropic Claude APIからOpenAI API（Responses API）へ切り替えた際（コスト最優先のためユーザー指示）、当初は全AI機能（F-08, F-20〜F-23）でgpt-5-nano（推論系モデル）を共有する構成にしたが、F-23（AI組織レポート）で「reasoningトークンだけでmax_output_tokensを使い切り、応答にfunction_callが1件も含まれない」実障害が発生した。原因調査の結果、Responses APIの<code>reasoning.effort</code>を"minimal"に固定するとreasoning_tokensが常に0になり障害クラス自体を回避できることを確認したが、F-20（AI採点）で同設定を検証したところ、8件のテストケース（明確な正解/不正解4件＋言い換え等の意味判定を要する4件）中1件で、意味は合っているが言い回しが異なる回答を誤って不正解と判定した（同条件のgpt-4o-mini・gpt-5-nano既定設定はいずれも8/8正解）。学習者の合否に直結するF-20の正確性を優先すべきと判断し、<strong>F-20のみgpt-4o-mini、F-08・F-22・F-23はgpt-5-nano + reasoning effort="minimal"（4機能中最安）</strong>とする機能単位の固定設定に変更した（ユーザー承認）。v1.51で実装したT-21 <code>app_settings</code>（<code>key='ai_model'</code>）によるS-10プルダウンからの変更機能は、機能ごとに固定するこの方式と両立しないため廃止した（<code>ai_model</code>キー自体は元々システムadminの操作でも変更されていなかった）。<code>ai_client.py</code>に<code>FEATURE_MODEL_CONFIG</code>辞書を新設し、A-55（GET /api/settings）のレスポンスを単一の<code>ai_model</code>文字列から機能別の<code>ai_models</code>配列に変更、S-10システム設定タブに機能別の使用モデル・reasoning effortを一覧表示するテーブルを新設した（4.12節）。実際のAPI呼び出し・DB確認・ヘッドレスブラウザでの画面確認により動作を検証した。9.1・9.3・9.4・9.6節、4.12節、画面モックアップ<code>S-10_admin.html</code>を更新した。</td></tr>
+      <tr class="rev-row"><td>1.55</td><td>2026-09-08</td><td><strong>S-08受講状況ダッシュボード（A-45・A-46・A-48・A-49、F-11集計・F-23 AI組織レポート）を実装した。</strong>閲覧権限はadmin（全社スコープ）と対象プロジェクトの管理者（自プロジェクトのスコープ）のみで、editorは対象外（S-12と同じ権限モデル、4.10節）。<strong>A-47（個人向けSlack催促送信）は実装しないことを決定した</strong>: Slack連携が個人OAuth DM方式からプロジェクト単位Incoming Webhook（チャンネル投稿のみ）方式へ既に変更されており個人名を指定した送信ができないため、代替として「チャンネルに個人名を出す」案も検討したがユーザー判断（「チャンネルで個人名を出したくない」）で不採用とし、未受講者一覧のSlack催促ボタン自体を削除した（S-12「メンバー管理」の未受講者一覧と同じく、運用担当者が直接連絡する方針で統一）。これに伴いA-47専用のT-20 <code>slack_notification_logs</code>も未作成のまま。あわせて2件の既存の不具合を発見・修正した。<strong>(1)</strong> A-81（<code>GET /api/projects</code>）の<code>min_role='admin'</code>指定時、システムadminであっても自分のローカルメンバーシップが実際に`admin`ロールのプロジェクトしか返らず、S-08担当範囲セレクトでシステムadminが未参加のプロジェクトを選べない不具合を修正した（システムadmin呼び出し時のみメンバーシップ行の有無を問わず全プロジェクトを返すよう変更、7.2.2節）。<strong>(2)</strong> S-11・S-12共通の「自分の全プロジェクト一覧」（<code>MyProjectsPanel</code>）が、システムadminであっても自分のローカルロールでしか管理操作の表示可否を判定しておらず、システムadminのアカウントで自分がローカル管理者でないプロジェクトの「管理する」導線が一切表示されない不具合を修正した（4.13・4.14節）。いずれもシステムadminのアカウントで実機確認した（Playwright、実際のプロジェクト作成・削除を含む）。4.10・4.12・4.13・4.14・7.2.2・7.2.6節、画面モックアップ<code>S-08_dashboard.html</code>を更新した（詳細設計書v1.80）。</td></tr>
     </tbody>
   </table>
 
@@ -257,7 +259,7 @@
       <tr><td>Backend</td><td>FastAPI (Python 3.10+) + Uvicorn + asyncpg</td></tr>
       <tr><td>Database</td><td>PostgreSQL (Supabase)、全テーブルRLS有効</td></tr>
       <tr><td>認証</td><td>Google OAuth 2.0 + セッションJWT（HttpOnly Cookie）、ALLOWED_DOMAINS による制限</td></tr>
-      <tr><td>AI連携</td><td>Anthropic Claude API（Messages API）。既定モデルは Claude Sonnet 5（<code>claude-sonnet-5</code>）。管理画面から Claude Opus 5（<code>claude-opus-5</code>）・Claude Haiku 4.5（<code>claude-haiku-4-5</code>）に切替可（9章）</td></tr>
+      <tr><td>AI連携</td><td><span class="rev-old">Anthropic Claude API（Messages API）。既定モデルは Claude Sonnet 5（<code>claude-sonnet-5</code>）。管理画面から Claude Opus 5（<code>claude-opus-5</code>）・Claude Haiku 4.5（<code>claude-haiku-4-5</code>）に切替可</span><span class="rev-new">OpenAI API（Responses API）。2026-09-07にAnthropic Claude APIから切り替えた（コスト最優先のためユーザー指示）。機能ごとにモデルを固定し、管理画面からの切替は無い（F-20はgpt-4o-mini、それ以外はgpt-5-nano + reasoning effort="minimal"。2026-09-08）</span>（9章）</td></tr>
       <tr><td>通知</td><td>Slack Incoming Webhook（HTTPS POSTによるメッセージ送信）</td></tr>
       <tr><td>ファイルストレージ</td><td>Supabase Storage（S3互換オブジェクトストレージ）。教材添付ファイル（動画・スライド・PDF）を保存</td></tr>
       <tr><td>ホスティング</td><td>Koyeb（main=本番 / staging=ステージング）。本番はフロントをビルドしFastAPIが静的配信するSPA構成</td></tr>
@@ -266,6 +268,10 @@
   </table>
   <div class="callout">
     <strong>AI連携先の選定（なぜ Claude API か）:</strong> 要求定義書9.1は「外部AI API（Chat Completions相当。Keirekiと同一方式）」とのみ規定し、具体的な連携先はAPI設計フェーズ（本書）で定めるとしていた。画面モックアップ（S-10 管理画面）で利用モデル選択肢を「Claude Sonnet／Claude Opus／Claude Haiku」として先行して具体化していたため、本書ではこれを正式に採用し、Anthropic Claude API（Messages API）による連携として設計する。Keirekiの「AIサポート」機能はOpenAI APIを採用しているが、本システムは開発チームがすでにClaude Code運用に習熟していること、8章のClaude Code連携（教材の取得・書き戻し）とAI機能（9章）を同一ベンダーのSDKで統一できることを踏まえ、Claude APIを選定した。
+  </div>
+  <div class="callout rev-new">
+    <strong>2026-09-07 AI連携先の変更（Anthropic→OpenAI）:</strong> 上記の選定理由（Claude Code運用との親和性・SDK統一）は実装フェーズ以前の判断だったが、実装段階でユーザーからコストを最優先したいという指示があり、OpenAI API（Responses API）へ切り替えた。8章のClaude Code連携（教材編集、A-19/A-20のCLIトークン認証等）はAnthropic製ツールそのものであり本変更の対象外（引き続きClaude Codeを使用）。9章のAI機能（F-08, F-20〜F-23）のみがOpenAI APIに置き換わった。2026-09-08には機能ごとに使用モデル・reasoning
+    effortを分ける方式に変更した（9.4節）。8章とAI機能の連携先がAnthropic/OpenAIで分かれる非対称な構成になったが、8章はClaude Code CLI自体を連携先とする性質上OpenAIへの切替対象にならないため、意図的な設計として維持する。
   </div>
 
   <h3>2.3 開発時と本番時の構成差</h3>
@@ -292,8 +298,8 @@
   </table>
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）基本設計書 v1.53</span>
-    <span>コガソフトウェア株式会社 / 2026-08-24</span>
+    <span>社内学習管理システム（Manabi）基本設計書 v1.55</span>
+    <span>コガソフトウェア株式会社 / 2026-09-08</span>
   </footer>
 
 </div>

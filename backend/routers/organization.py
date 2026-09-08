@@ -44,24 +44,38 @@ async def create_project(body: ProjectCreate, user: CurrentUser = Depends(requir
 async def list_projects(min_role: str = "editor", user: CurrentUser = Depends(require_auth)):
     """A-81: 自分がmin_role以上のプロジェクト一覧（教材件数・メンバー数つき）。全社公開を先頭固定。
     既定はeditor（S-13教材編集：プロジェクト選択と同じ、従来どおり）。S-03（教材一覧・検索）は
-    min_role='learner'を指定し、学習者としてのみ参加しているプロジェクトも含める（新規、2026-08-28）。"""
+    min_role='learner'を指定し、学習者としてのみ参加しているプロジェクトも含める（新規、2026-08-28）。
+
+    min_role='admin'をシステムadminが呼んだ場合は、自分のメンバーシップ行の有無に関わらず全プロジェクト
+    を返す（システムadminは`check_project_role`等の判定で常にローカル管理者と同等に扱われるため、
+    このAPIも同じ基準に揃えた。2026-09-08、S-08受講状況ダッシュボードの担当範囲セレクトがシステム
+    adminのローカル未参加プロジェクトを選べない不具合の修正）。それ以外のmin_role（editor/learner）は
+    従来どおり実際のメンバーシップに基づく一覧のまま変更しない。"""
     if min_role not in ROLE_RANK:
         raise HTTPException(422, detail="min_roleが不正です")
     allowed_roles = [r for r, rank in ROLE_RANK.items() if rank >= ROLE_RANK[min_role]]
+    system_admin_sees_all = user.role == "admin" and min_role == "admin"
+    membership_join = (
+        "LEFT JOIN project_memberships pm ON pm.project_id = p.id AND pm.user_id = $1"
+        if system_admin_sees_all
+        else """JOIN project_memberships pm
+            ON pm.project_id = p.id AND pm.user_id = $1
+            AND pm.status = 'active' AND pm.role = ANY($2::text[])"""
+    )
+    role_column = "COALESCE(pm.role, 'admin') AS role" if system_admin_sees_all else "pm.role"
+    args = [user.id] if system_admin_sees_all else [user.id, allowed_roles]
     rows = await get_pool().fetch(
-        """
+        f"""
         SELECT
             p.id,
             p.name,
             p.is_company_wide,
-            pm.role,
+            {role_column},
             COALESCE(mc.published_count, 0) AS material_published_count,
             COALESCE(mc.draft_count, 0) AS material_draft_count,
             COALESCE(memc.member_count, 0) AS member_count
         FROM projects p
-        JOIN project_memberships pm
-            ON pm.project_id = p.id AND pm.user_id = $1
-            AND pm.status = 'active' AND pm.role = ANY($2::text[])
+        {membership_join}
         LEFT JOIN (
             SELECT project_id,
                 COUNT(*) FILTER (WHERE status = 'published') AS published_count,
@@ -79,7 +93,7 @@ async def list_projects(min_role: str = "editor", user: CurrentUser = Depends(re
         WHERE p.status = 'active'
         ORDER BY p.is_company_wide DESC, p.name ASC
         """,
-        user.id, allowed_roles,
+        *args,
     )
     return {"items": [dict(r) for r in rows]}
 

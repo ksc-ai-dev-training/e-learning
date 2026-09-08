@@ -240,7 +240,7 @@
       <tr><td>T-18</td><td><code>ai_org_reports</code></td><td>AI組織レポート</td><td>scope_type、scope_id（nullable）、<span class="rev-new">requested_by（FK→users）、requested_at（TIMESTAMPTZ NOT NULL。9.2節のスタックジョブ検出に使用）、</span>content（text<span class="rev-new">、nullable。完了時に設定</span>）。F-23</td></tr>
       <tr><td>T-19</td><td><code>ai_usage_logs</code></td><td>AI利用ログ</td><td>user_id（FK、nullable）、feature、model、input_tokens、output_tokens、cost_estimate。Keireki T-09と同方針（質問・回答の内容は保存しない）。9.3節</td></tr>
       <tr><td>T-20</td><td><code>slack_notification_logs</code></td><td>Slack送信ログ</td><td>user_id（FK）、assignment_id（FK→assignments）、sent_at、status。F-12</td></tr>
-      <tr><td>T-21</td><td><code>app_settings</code></td><td>システム設定</td><td>key（PK）、value_text、updated_by（FK→users、nullable）。AIモデル選択（<code>key='ai_model'</code>）、Slack Webhook URL（<code>key='slack_webhook_url'</code>）・通知先チャンネル（<code>key='slack_channel'</code>）、プロジェクト離任猶予期間日数（<code>key='project_leave_grace_period_days'</code>）等をkey-valueで保持。Keireki T-08と同方針</td></tr>
+      <tr><td>T-21</td><td><code>app_settings</code></td><td>システム設定</td><td>key（PK）、value_text、updated_by（FK→users、nullable）。<span class="rev-old">AIモデル選択（<code>key='ai_model'</code>）、</span>Slack Webhook URL（<code>key='slack_webhook_url'</code>）・通知先チャンネル（<code>key='slack_channel'</code>）、プロジェクト離任猶予期間日数（<code>key='project_leave_grace_period_days'</code>）等をkey-valueで保持。<span class="rev-new">AIモデルは機能ごとの固定値のためT-21には保存しない（9.4節、2026-09-08）。</span>Keireki T-08と同方針</td></tr>
       <tr class="rev-row"><td>T-22</td><td><code>material_project_shares</code></td><td>教材のプロジェクト間共有</td><td>material_id（FK→materials）、shared_to_project_id（FK→projects）、shared_by（FK→users。共有を申請した共有元プロジェクト管理者）、shared_at（TIMESTAMPTZ NOT NULL DEFAULT now()）、<strong class="rev-new">status</strong><span class="rev-new">（'pending'/'accepted'/'rejected'、DEFAULT 'pending'。受講対象に反映されるのはacceptedのみ）、<strong>responded_by</strong>（FK→users、nullable。承認・却下した共有先プロジェクト管理者）、<strong>responded_at</strong>（TIMESTAMPTZ、nullable）</span>。UNIQUE(material_id, shared_to_project_id)。F-26（5.27節）</td></tr>
       <tr class="rev-row"><td>T-23</td><td><code>material_nodes</code></td><td>教材の目次ノード（章・小見出し・ページ）</td><td>material_id（FK→materials）、<strong>parent_node_id</strong>（FK→material_nodes、nullable。NULLはルート直下＝章）、title、<strong>kind</strong>（'chapter'/'section'/'page'。章・小見出し・ページの種別）、sort_order（同じparent_node_id内での並び順）、<strong>content_kind</strong>（'explanation'/'quiz'/'mixed'/NULL。kind='page'のときのみ設定。説明文のみ／問題のみ／両方）、<strong>format</strong>（'markdown'/'html'、nullable。kind='page'かつ説明文を含む場合のみ）、<strong>body</strong>（text、nullable。kind='page'かつ説明文を含む場合の本文）。葉ノード（kind='page'）だけが実際のコンテンツ（body・T-10 questions経由の問題）を持つ。章・小見出しはタイトルとツリー構造のみを持つ入れ物。CHECK制約でkind='chapter'の行はparent_node_idがNULLであることを保証する。v1.11新設（6.2節冒頭の設計判断コールアウト参照）。<span class="rev-new">章・ページとも自由にタイトルを付けられる汎用構造のため、特定の内容単元に属さない記録（例: 日々のタイピング練習）も、日付や活動名を章・ページのタイトルにするだけで表現でき、追加のカラム・制約緩和は不要（v1.17、5.13節参照）。</span><span class="rev-new"><strong>quiz_mode</strong>（'all'/'pool'、DEFAULT 'all'。kind='page'のときのみ意味を持つ。'pool'の場合、このページの問題はT-10のpool_group_idで束ねた設問群からランダム抽出する）、<strong>pool_draw_count</strong>（int、nullable。quiz_mode='pool'のときの1回あたり出題数）を追加（v1.17）。</span></td></tr>
       <tr class="rev-row"><td>T-24</td><td><span class="rev-old"><code>ai_draft_sessions</code></span></td><td><span class="rev-old">Claude Code下書きセッション（F-27）</span></td><td><span class="rev-old">廃止（v1.20）。F-27（AI教材作成アシスト）の廃止に伴い不要になった。IDは欠番として保持する。</span></td></tr>
@@ -274,8 +274,8 @@
   <!-- ============ 7. API設計 ============ -->
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）基本設計書 v1.53</span>
-    <span>コガソフトウェア株式会社 / 2026-08-24</span>
+    <span>社内学習管理システム（Manabi）基本設計書 v1.55</span>
+    <span>コガソフトウェア株式会社 / 2026-09-08</span>
   </footer>
 
 </div>

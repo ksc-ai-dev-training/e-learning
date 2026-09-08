@@ -191,16 +191,13 @@
   <table>
     <thead><tr><th>API</th><th>メソッド／パス</th><th>権限</th><th>リクエスト</th><th>レスポンス</th></tr></thead>
     <tbody>
-      <tr><td>A-45</td><td>GET <code>/api/dashboard</code></td><td>admin（全社）、対象プロジェクトの管理者（自プロジェクト）</td><td>クエリ <code>scope</code>（"company"|"project:{id}"）</td><td>200 <code>{"target_material_count", "required_completion_rate", "pass_rate", "incomplete_count", "by_material": [...]}</code></td></tr>
-      <tr><td>A-46</td><td>GET <code>/api/dashboard/incomplete-users</code></td><td>同上</td><td>クエリ <code>scope</code>, <code>material_id</code>（任意）</td><td>200 <code>{"items": [{"user_id", "user_name", "material_id", "material_title", "due_at"}]}</code></td></tr>
-      <tr><td>A-47</td><td>POST <code>/api/dashboard/remind</code></td><td>同上</td><td><code>{"assignment_id": int, "user_ids": int[]}</code></td><td>200 <code>{"sent": int, "skipped": int}</code>。下記callout参照</td></tr>
-      <tr><td>A-48</td><td>POST <code>/api/reports/org</code></td><td>同上</td><td><code>{"scope_type": "company"|"project", "scope_id": int|null}</code></td><td>202。非同期（8.2節）</td></tr>
-      <tr><td>A-49</td><td>GET <code>/api/reports/org</code></td><td>同上</td><td>クエリ <code>scope_type</code>, <code>scope_id</code></td><td>200（完了）／404（処理中）</td></tr>
+      <tr><td>A-45</td><td>GET <code>/api/dashboard</code></td><td>admin（全社）、対象プロジェクトの管理者（自プロジェクト）</td><td>クエリ <code>scope</code>（"company"|"project:{id}"）</td><td>200 <code>{"target_material_count", "required_completion_rate", "pass_rate", "incomplete_count", "by_material": [...]}</code>。<strong>実装済み（2026-09-08、<code>backend/routers/dashboard.py</code>）</strong></td></tr>
+      <tr><td>A-46</td><td>GET <code>/api/dashboard/incomplete-users</code></td><td>同上</td><td>クエリ <code>scope</code>, <code>material_id</code>（任意）</td><td>200 <code>{"items": [{"user_id", "user_name", "material_id", "material_title", "due_at"}]}</code>。「7日以内」等の期限フィルタは持たず、未完了の必修assignment全件を返す。<strong>実装済み（2026-09-08）</strong></td></tr>
+      <tr><td>A-47</td><td colspan="4"><strong>実装しないことを決定した（2026-09-08）。</strong>Slack連携が個人OAuth DM方式からプロジェクト単位Incoming Webhook（チャンネル投稿のみ）方式へ変更済みのため、未受講者一覧の行ごとに個人名を指定して送信するA-47はそのままでは実現できない。チャンネル投稿に個人名を含める代替案も検討したが、ユーザー判断で「チャンネルに個人名を出したくない」との方針が確定し、S-08の未受講者一覧からはSlack催促ボタン自体を削除した（画面モックアップ<code>S-08_dashboard.html</code>も合わせて修正）。個別の催促はS-12「メンバー管理」の未受講者一覧（A-33 <code>get_member_overdue_required</code>）と同じ方針で、この一覧を見た管理者が運用で直接連絡する。下記T-20 <code>slack_notification_logs</code>もA-47専用のテーブルのため未作成のまま。</td></tr>
+      <tr><td>A-48</td><td>POST <code>/api/reports/org</code></td><td>同上</td><td><code>{"scope_type": "company"|"project", "scope_id": int|null}</code></td><td>202。非同期（8.2節）。<strong>実装済み（2026-09-08）</strong></td></tr>
+      <tr><td>A-49</td><td>GET <code>/api/reports/org</code></td><td>同上</td><td>クエリ <span class="rev-old">scope_type, scope_id</span><span class="rev-new">scope（"company"|"project:{id}"。A-45/A-46と同じ形式に揃えた）</span></td><td>200（完了）／404（処理中）。<strong>実装済み（2026-09-08）</strong></td></tr>
     </tbody>
   </table>
-  <div class="callout">
-    <strong>A-47の重複催促抑止:</strong> T-20 slack_notification_logsを参照し、同一<code>(user_id, assignment_id)</code>で<code>sent_at</code>が24時間以内の行が既に存在する対象者は送信せず<code>skipped</code>にカウントする（誤操作による連続送信を防ぐ）。Webhook送信が失敗した場合も<code>status='failed'</code>でT-20に記録し、<code>skipped</code>には含めない（次回は再送対象とする）。
-  </div>
 
   <h3>4.7 reports.py（個人学習レポート・AI個人フィードバック、A-50〜A-52）</h3>
   <table>
@@ -225,18 +222,18 @@
   <table>
     <thead><tr><th>API</th><th>メソッド／パス</th><th>権限</th><th>リクエスト</th><th>レスポンス</th></tr></thead>
     <tbody>
-      <tr><td>A-55</td><td>GET <code>/api/settings</code></td><td>admin</td><td>—</td><td>200 <code>{"ai_model", "slack_webhook_url", "slack_channel", "project_leave_grace_period_days"}</code>（T-21の全キーをまとめて返す、行が無いキーは既定値へフォールバック）。<strong>実装済み（2026-09-02）</strong></td></tr>
-      <tr><td>A-56</td><td>PUT <code>/api/settings</code></td><td>admin</td><td>上記の部分集合（変更したいキーのみ）</td><td>200。キーごとに<code>ON CONFLICT (key) DO UPDATE</code>でupsert。<code>ai_model</code>は許可された3値以外・<code>project_leave_grace_period_days</code>は0〜365以外は422。<strong>実装済み（2026-09-02）</strong></td></tr>
+      <tr><td>A-55</td><td>GET <code>/api/settings</code></td><td>admin</td><td>—</td><td>200 <code>{"ai_models": [{"feature","model","reasoning_effort"}, ...], "project_leave_grace_period_days"}</code>。<code>ai_models</code>は<code>ai_client.FEATURE_MODEL_CONFIG</code>由来の固定値（T-21には保存しない、8.4節）。<code>project_leave_grace_period_days</code>はT-21、行が無ければ既定値へフォールバック。<strong>実装済み（2026-09-02、<code>ai_models</code>は2026-09-08にv1.51時点の単一<code>ai_model</code>文字列から変更）</strong></td></tr>
+      <tr><td>A-56</td><td>PUT <code>/api/settings</code></td><td>admin</td><td><code>{"project_leave_grace_period_days"}</code>（変更可能なキーはこれのみ。AIモデルは機能ごとの固定値のため変更不可、8.4節）</td><td>200。<code>ON CONFLICT (key) DO UPDATE</code>でupsert。0〜365以外は422。<strong>実装済み（2026-09-02）</strong></td></tr>
       <tr><td>A-57</td><td>POST <code>/api/settings/slack-test</code></td><td>admin</td><td>ボディなし</td><td>200 <code>{"detail": "テスト送信しました"}</code>／502（Webhook URL未設定または送信失敗）。<strong>実装済み（2026-09-02、新規<code>backend/slack_client.py</code>）</strong></td></tr>
       <tr><td>A-58</td><td>GET <code>/api/settings/ai-usage</code></td><td>admin</td><td>クエリ <code>month</code>（YYYY-MM、既定は当月）</td><td>200 <code>{"month", "total": {"count","input_tokens","output_tokens","cost_jpy"}, "by_feature": [{"feature","count","input_tokens","output_tokens","cost_jpy"}]}</code>。<code>by_feature</code>はT-19を<code>feature</code>でgroup by（基本設計書v1.21・7.2.9節）。<strong>実装済み（2026-09-02、S-10、新規<code>backend/routers/settings.py</code>）。</strong><code>month</code>不正形式（YYYY-MM以外）は422</td></tr>
-      <tr><td>A-80</td><td>DELETE <code>/api/settings</code></td><td>admin</td><td>ボディなし</td><td>204。T-21の対象4キー（<code>ai_model</code>, <code>slack_webhook_url</code>, <code>slack_channel</code>, <code>project_leave_grace_period_days</code>）を<code>DELETE FROM app_settings WHERE key IN (...)</code>で一括削除する。S-10「初期状態に戻す」ボタンに対応（基本設計書v1.25・7.2.9節）。<strong>実装済み（2026-09-02）</strong></td></tr>
+      <tr><td>A-80</td><td>DELETE <code>/api/settings</code></td><td>admin</td><td>ボディなし</td><td>204。T-21の対象キー（<code>project_leave_grace_period_days</code>）を<code>DELETE FROM app_settings WHERE key IN (...)</code>で削除する。S-10「初期状態に戻す」ボタンに対応（基本設計書v1.25・7.2.9節）。AIモデルは元々T-21に保存しない固定値のため対象外（8.4節）。<strong>実装済み（2026-09-02）</strong></td></tr>
     </tbody>
   </table>
 
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）詳細設計書 v1.78</span>
-    <span>コガソフトウェア株式会社 / 2026-08-24</span>
+    <span>社内学習管理システム（Manabi）詳細設計書 v1.80</span>
+    <span>コガソフトウェア株式会社 / 2026-09-08</span>
   </footer>
 
 </div>

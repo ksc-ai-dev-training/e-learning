@@ -53,10 +53,15 @@ export interface AiUsageSummary {
   by_feature: AiUsageByFeature[]
 }
 
-// A-55 GET /api/settings のレスポンス（S-10 管理：システム設定タブ）
-export type AiModel = 'claude-sonnet-5' | 'claude-opus-5' | 'claude-haiku-4-5'
+// A-55 GET /api/settings のレスポンス（S-10 管理：システム設定タブ）。ai_modelsは機能ごとに
+// 固定（変更不可）で、どの機能がどのモデル・reasoning effortを使うかを一覧表示する（2026-09-08）
+export interface AiFeatureModel {
+  feature: AiUsageByFeature['feature']
+  model: string
+  reasoning_effort: string | null
+}
 export interface SystemSettings {
-  ai_model: AiModel
+  ai_models: AiFeatureModel[]
   project_leave_grace_period_days: number
 }
 
@@ -488,6 +493,37 @@ export interface SurveyQuestion {
   type: SurveyQuestionType
   prompt: string
   options: string[] | null
+}
+
+// A-45 GET /api/dashboard のレスポンス（S-08受講状況ダッシュボード）
+export interface DashboardStats {
+  target_material_count: number
+  required_completion_rate: number
+  pass_rate: number
+  incomplete_count: number
+  by_material: {
+    material_id: number
+    material_title: string
+    member_count: number
+    completed_count: number
+    completion_rate: number
+  }[]
+}
+
+// A-46 GET /api/dashboard/incomplete-users のitems（S-08未受講者一覧）
+export interface IncompleteUser {
+  user_id: number
+  user_name: string
+  material_id: number
+  material_title: string
+  due_at: string | null
+}
+
+// A-49 GET /api/reports/org のレスポンス（S-08 AI組織レポート、F-23）
+export interface OrgReport {
+  summary: string
+  insight_tags: string[]
+  generated_at: string
 }
 
 // A-78/A-79 GET/PUT /api/materials/{id}/surveys のitems（S-05受験後アンケート設置）。

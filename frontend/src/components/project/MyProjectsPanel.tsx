@@ -17,11 +17,17 @@ import type { ProjectMembership } from '../../types'
 export default function MyProjectsPanel({
   memberships,
   isLoading,
+  isSystemAdmin = false,
   onOpenManage,
   onStatusChanged,
 }: {
   memberships: ProjectMembership[]
   isLoading: boolean
+  // システムadminは自分のローカルロールに関わらず全プロジェクトを管理できる
+  // （バックエンドの_require_project_adminと同じ基準）。一覧側の表示もこれに合わせる
+  // （2026-09-08、ユーザー報告により修正: 一覧がこのバイパスを反映しておらず、システムadminの
+  // アカウントでもローカルadminでないプロジェクトの「管理する」導線が一切出ない不具合があった）。
+  isSystemAdmin?: boolean
   onOpenManage: (projectId: number) => void
   onStatusChanged: () => void | Promise<unknown>
 }) {
@@ -85,7 +91,7 @@ export default function MyProjectsPanel({
           </thead>
           <tbody>
             {rows.map((m) => {
-              const canManage = m.role === 'admin' && m.status === 'active'
+              const canManage = (isSystemAdmin || m.role === 'admin') && m.status === 'active'
               const stopped = m.project_status === 'completed'
               return (
                 <tr

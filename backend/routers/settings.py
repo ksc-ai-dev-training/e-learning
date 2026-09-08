@@ -15,17 +15,21 @@ router = APIRouter(prefix="/api/settings", tags=["settings"])
 
 
 class SettingsUpdate(BaseModel):
-    """A-56: 送られてきたキーのみ更新する（部分更新）。ai_modelはコスト管理のため常に最安モデル
-    （Haiku）に固定し、変更操作自体を受け付けない（ユーザー指示、2026-09-03。ai_client.py参照）。"""
+    """A-56: 送られてきたキーのみ更新する（部分更新）。ai_modelsは機能ごとに固定し、変更操作自体を
+    受け付けない（ユーザー指示、2026-09-08。ai_client.FEATURE_MODEL_CONFIG参照）。"""
     project_leave_grace_period_days: int | None = Field(default=None, ge=0, le=365)
 
 
 @router.get("")
 async def get_settings(user: CurrentUser = Depends(require_roles("admin"))):
     """A-55: システム設定の現在値を取得する（T-21に行が無いキーは環境変数・既定値へフォールバック）。
-    ai_modelは常に固定値を返す（設定不可、ai_client.DEFAULT_MODEL参照）。"""
+    ai_modelsは機能ごとの現在の使用モデル・reasoning effortを常に固定値で返す（設定不可、
+    ai_client.FEATURE_MODEL_CONFIG参照。S-10システム設定タブ「AI利用設定」表示用、2026-09-08）。"""
     return {
-        "ai_model": ai_client.DEFAULT_MODEL,
+        "ai_models": [
+            {"feature": feature, "model": cfg["model"], "reasoning_effort": cfg["reasoning_effort"]}
+            for feature, cfg in ai_client.FEATURE_MODEL_CONFIG.items()
+        ],
         "project_leave_grace_period_days": await get_setting_int(
             "project_leave_grace_period_days", DEFAULT_GRACE_PERIOD_DAYS
         ),

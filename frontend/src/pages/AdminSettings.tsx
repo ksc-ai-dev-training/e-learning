@@ -255,12 +255,34 @@ function SystemSettingsTab() {
     <div>
       <h3 className="mb-2 text-sm font-semibold text-slate-700">AI利用設定</h3>
       <div className="mb-6 max-w-2xl rounded-md border border-slate-200 p-4">
-        <label className="mb-1 block text-xs font-semibold text-slate-600">利用するAIモデル（既定）</label>
-        <div className="flex max-w-xs items-center rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
-          Claude Haiku 4.5
-        </div>
+        <label className="mb-1 block text-xs font-semibold text-slate-600">機能別の使用モデル</label>
+        {settings ? (
+          <div className="overflow-x-auto rounded-md border border-slate-200">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-100 bg-slate-50 text-left text-xs text-slate-500">
+                  <th className="px-3 py-2 font-normal">機能</th>
+                  <th className="px-3 py-2 font-normal">使用モデル</th>
+                  <th className="px-3 py-2 font-normal">reasoning effort</th>
+                </tr>
+              </thead>
+              <tbody>
+                {settings.ai_models.map((m) => (
+                  <tr key={m.feature} className="border-b border-slate-50 last:border-0">
+                    <td className="px-3 py-2 text-slate-800">{AI_FEATURE_LABELS[m.feature]}</td>
+                    <td className="px-3 py-2 text-slate-700">{m.model}</td>
+                    <td className="px-3 py-2 text-slate-500">{m.reasoning_effort ?? '（既定）'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="text-sm text-slate-400">読み込み中...</p>
+        )}
         <p className="mt-2 text-xs text-slate-500">
-          F-08・F-20〜F-23の全AI機能で共通の設定です（機能ごとに個別のモデルを割り当てる機能はありません）。コスト管理のため最も低コストなモデルに固定しており、変更はできません。
+          機能ごとに固定しており、変更はできません。AI採点（F-20）は学習者の合否に直結するため正確性を優先してgpt-4o-miniを、それ以外の要約・所見系の機能はコスト最優先でgpt-5-nano（reasoning
+          effortを絞って安定化）を使用しています。
         </p>
       </div>
 

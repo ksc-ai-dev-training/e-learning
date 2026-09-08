@@ -6,6 +6,7 @@ import {
   Pencil,
   CircleCheckBig,
   BarChart3,
+  LayoutDashboard,
   Plus,
   LayoutGrid,
   Send,
@@ -83,6 +84,16 @@ const NAV_ITEMS = [
     icon: Send,
     implemented: true,
     match: (p: string) => p === '/assignments',
+  },
+  {
+    href: '/dashboard',
+    label: '受講状況ダッシュボード',
+    icon: LayoutDashboard,
+    implemented: true,
+    // S-08はadmin（全社スコープ）とプロジェクト管理者（自プロジェクトのスコープ）のみ閲覧できるが、
+    // 「教材編集」等と同様ナビ項目自体は全員に表示し、担当プロジェクトが無い場合は画面側の
+    // 空状態で案内する（2026-09-08）。配信設定の下に配置（ユーザー指定）。
+    match: (p: string) => p === '/dashboard',
   },
   {
     href: '/admin/settings',

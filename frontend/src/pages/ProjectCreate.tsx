@@ -99,6 +99,7 @@ export default function ProjectCreate() {
           <MyProjectsPanel
             memberships={memberships}
             isLoading={membershipsLoading}
+            isSystemAdmin={me?.role === 'admin'}
             onOpenManage={(projectId) => navigate(`/projects/${projectId}/manage`)}
             onStatusChanged={mutateMemberships}
           />

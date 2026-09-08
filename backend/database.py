@@ -470,6 +470,22 @@ CREATE TABLE IF NOT EXISTS ai_personal_feedback (
 );
 CREATE INDEX IF NOT EXISTS idx_ai_personal_feedback_user_id ON ai_personal_feedback (user_id, created_at DESC);
 ALTER TABLE ai_personal_feedback ENABLE ROW LEVEL SECURITY;
+
+-- T-18 ai_org_reports（F-23 AI組織レポート。S-08受講状況ダッシュボード、A-48/A-49）。
+-- ai_personal_feedbackと同じ非同期ジョブ方式（8.2節）。scope_type='company'の全社スコープは
+-- scope_id無し、'project'はscope_idにprojects.idを持つ（詳細設計書T-18）。
+CREATE TABLE IF NOT EXISTS ai_org_reports (
+    id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    scope_type    TEXT NOT NULL CHECK (scope_type IN ('company', 'project')),
+    scope_id      BIGINT REFERENCES projects(id) ON DELETE CASCADE,
+    requested_by  BIGINT NOT NULL REFERENCES users(id),
+    requested_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    content       TEXT,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CHECK (scope_type = 'company' OR scope_id IS NOT NULL)
+);
+CREATE INDEX IF NOT EXISTS idx_ai_org_reports_scope ON ai_org_reports (scope_type, scope_id, created_at DESC);
+ALTER TABLE ai_org_reports ENABLE ROW LEVEL SECURITY;
 """
 
 

@@ -1,10 +1,19 @@
 # OpenAI呼び出しの共通クライアント（F-08/F-20〜F-23共通、詳細設計書08_AI機能実装詳細.html）。
 # 呼び出し元（learning.py等）はモデル選択・T-19ログ記録を直接扱わず、必ず本モジュール経由で呼ぶ。
 #
-# 2026-09-07: AnthropicからOpenAIへ切り替えた（ユーザー指示、最安モデルを使いたいとのこと）。
-# ツール呼び出し（構造化出力）には、推論系モデル（GPT-5系）向けにOpenAIが推奨するResponses API
-# （client.responses.create）を使う。Chat Completions APIは推論系モデルとの組み合わせでツール
-# 呼び出しが不安定になる場合があるとされているため採用しなかった。
+# 2026-09-07: AnthropicからOpenAIへ切り替えた（ユーザー指示、最安モデルを使いたいとのこと。
+# 当初は全機能共通でgpt-5-nanoを採用）。
+# 2026-09-08: gpt-5-nano（推論系モデル）はF-23で「reasoningトークンだけでmax_output_tokensを
+# 使い切り、function_callが1件も出力されない」実障害が発生した（推論量が入力内容によって
+# 大きく変動するため）。調査の結果、Responses APIの`reasoning.effort`を"minimal"に指定すると
+# reasoning_tokensが常に0になり、この障害クラス自体が起きなくなることを確認した。ただしF-20
+# （AI採点）で"minimal"を検証したところ、意味は合っているが言い回しが異なる回答（「成功」という
+# 単語を使わない言い換え）を誤って不正解と判定するケース（8件中1件）が見つかり、採点の正確性が
+# 学習者の合否に直結することから、F-20だけはeffort調整では対応せずgpt-4o-mini（非推論系、
+# 検証で8/8正解）に固定した。他機能（要約・所見系のタスクで、検証範囲では取りこぼしなし）は
+# gpt-5-nano + reasoning effort="minimal"のまま、最安構成を維持する（ユーザー承認、2026-09-08。
+# 検証の詳細は下記FEATURE_MODEL_CONFIGコメント参照）。
+# ツール呼び出し（構造化出力）にはResponses API（client.responses.create）を使う。
 import asyncio
 import json
 import logging
@@ -16,20 +25,31 @@ from database import get_pool
 
 logger = logging.getLogger("manabi.ai_client")
 
-# モデル解決: コスト管理のため、常に最も低コストなモデルに固定する（ユーザー指示、2026-09-07。
-# gpt-5-nanoは本書作成時点でOpenAIの汎用モデルの中で最安〔入力$0.05/出力$0.40 per 1M tokens〕。
-# S-10のシステム設定UIは廃止済みで、選択の余地自体を持たせない）。
-DEFAULT_MODEL = "gpt-5-nano"
-ALLOWED_MODELS = {"gpt-5-nano"}
+# 機能ごとのモデル・reasoning effort設定（2026-09-08。featureはT-19 ai_usage_logs.featureと
+# 同じ値。S-10システム設定タブがこの辞書をそのまま表示する、routers/settings.py参照）。
+#
+# - grading（F-20 AI採点）: gpt-4o-mini。学習者の合否に直結するため正確性を優先。8件のテスト
+#   ケース（明確な正解/不正解4件＋言い換え等の意味判定を要する4件）で8/8正解を確認した一方、
+#   gpt-5-nano+reasoning="minimal"は同条件で7/8（意味は合っているが「成功」という単語を使わない
+#   言い換え回答を誤って不正解と判定）だったため採用しなかった。
+# - material_review（F-08）/ personal_feedback（F-22）/ org_report（F-23）: gpt-5-nano +
+#   reasoning effort="minimal"。集計・要約が中心のタスクで、検証範囲では取りこぼしが無く、
+#   4機能中最安（1回あたりの概算コストはgpt-4o-miniの半分以下）。reasoning="minimal"を指定しない
+#   場合、reasoningトークンの消費量が入力内容によって大きく変動し（実測でreasoningだけ832〜1792
+#   トークン）、max_output_tokensを使い切ってfunction_callが出力されない障害が起きていた。
+FEATURE_MODEL_CONFIG: dict[str, dict] = {
+    "material_review": {"model": "gpt-5-nano", "reasoning_effort": "minimal"},
+    "grading": {"model": "gpt-4o-mini", "reasoning_effort": None},
+    "personal_feedback": {"model": "gpt-5-nano", "reasoning_effort": "minimal"},
+    "org_report": {"model": "gpt-5-nano", "reasoning_effort": "minimal"},
+}
+_FALLBACK_MODEL = "gpt-5-nano"
 
-
-async def resolve_model() -> str:
-    return DEFAULT_MODEL
-
-
-# 概算コスト計算用の単価（1トークンあたりのUSD単価、USD→JPYは固定150円で概算する。
-# 料金はOpenAIの公表単価と照合済み〔2026-09-07時点〕だが、値下げ等があれば見直すこと）。
+# 概算コスト計算用の単価（1トークンあたりのUSD単価、USD→JPYは固定150円で概算する。単価は
+# 2024年の公表値を基にしており、本セッションの知識カットオフ（2026年1月）以降に値下げ・改定が
+# あった場合は要確認・要更新）。
 MODEL_COSTS = {
+    "gpt-4o-mini": {"input": 0.00000015, "output": 0.0000006},
     "gpt-5-nano": {"input": 0.00000005, "output": 0.0000004},
 }
 USD_TO_JPY = 150
@@ -49,7 +69,7 @@ def _get_client() -> openai.AsyncOpenAI:
 
 async def log_usage(user_id: int | None, feature: str, model: str, input_tokens: int, output_tokens: int) -> None:
     """T-19 ai_usage_logsへ1行記録する。呼び出しが成功した場合のみ呼ぶ（失敗はログしない、詳細設計書参照）。"""
-    costs = MODEL_COSTS.get(model, MODEL_COSTS[DEFAULT_MODEL])
+    costs = MODEL_COSTS.get(model, MODEL_COSTS[_FALLBACK_MODEL])
     cost_estimate = (input_tokens * costs["input"] + output_tokens * costs["output"]) * USD_TO_JPY
     await get_pool().execute(
         """INSERT INTO ai_usage_logs (user_id, feature, model, input_tokens, output_tokens, cost_estimate)
@@ -62,11 +82,14 @@ async def _call_tool(
     *, instructions: str, user_message: str, tool_schema: dict, tool_name: str,
     max_output_tokens: int, feature: str, user_id: int | None,
 ) -> dict:
-    """Responses APIでツール（構造化出力）呼び出しを行う共通処理（F-08/F-20/F-22共通）。
+    """Responses APIでツール（構造化出力）呼び出しを行う共通処理（F-08/F-20/F-22/F-23共通）。
     3回までリトライし（1s/2s/4s）、全て失敗した場合は例外を送出する。tool_schemaは
     {"description": ..., "input_schema": {...}}の形（Anthropic時代のツール定義をそのまま流用し、
-    ここでResponses APIが要求するフラットな関数定義に組み替える）。"""
-    model = await resolve_model()
+    ここでResponses APIが要求するフラットな関数定義に組み替える）。モデル・reasoning effortは
+    FEATURE_MODEL_CONFIGからfeature単位で解決する（2026-09-08、機能ごとに分離）。"""
+    config = FEATURE_MODEL_CONFIG.get(feature, {"model": _FALLBACK_MODEL, "reasoning_effort": None})
+    model = config["model"]
+    reasoning_effort = config["reasoning_effort"]
     tool_def = {
         "type": "function",
         "name": tool_name,
@@ -78,7 +101,7 @@ async def _call_tool(
     for attempt in range(3):
         try:
             client = _get_client()
-            response = await client.responses.create(
+            create_kwargs = dict(
                 model=model,
                 instructions=instructions,
                 input=user_message,
@@ -86,7 +109,19 @@ async def _call_tool(
                 tools=[tool_def],
                 tool_choice={"type": "function", "name": tool_name},
             )
-            call_item = next(item for item in response.output if item.type == "function_call")
+            if reasoning_effort:
+                create_kwargs["reasoning"] = {"effort": reasoning_effort}
+            response = await client.responses.create(**create_kwargs)
+            call_item = next((item for item in response.output if item.type == "function_call"), None)
+            if call_item is None:
+                # 推論トークンだけでmax_output_tokensを使い切り、function_callが1件も出力されない
+                # ことがある（gpt-5-nanoの推論量は入力内容によって大きく変動する。2026-09-08、
+                # F-23で確認）。次のリトライで直る場合もあるが、直らない場合は呼び出し元で
+                # max_output_tokensを見直すこと。
+                raise RuntimeError(
+                    f"AIの応答にfunction_callが含まれていません（{feature}、status={response.status}、"
+                    f"output_tokens={response.usage.output_tokens}）"
+                )
             result = json.loads(call_item.arguments)
             await log_usage(
                 user_id, feature, model, response.usage.input_tokens, response.usage.output_tokens
@@ -267,5 +302,60 @@ async def generate_personal_feedback(
         tool_name="submit_personal_feedback",
         max_output_tokens=2048,
         feature="personal_feedback",
+        user_id=user_id,
+    )
+
+
+ORG_REPORT_TOOL = {
+    "name": "submit_org_report",
+    "description": "組織向けAI受講状況レポートを提出する",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "summary": {"type": "string", "description": "受講状況全体の要約・所見"},
+            "insight_tags": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "注目すべき点を短いタグ形式で（最大5件、無ければ空配列）",
+            },
+        },
+        "required": ["summary", "insight_tags"],
+    },
+}
+
+_ORG_REPORT_SYSTEM_PROMPT = (
+    "あなたは社内学習管理システムの受講状況分析AIです。プロジェクト・組織単位の受講状況の集計データを"
+    "基に、管理者向けの所見をまとめてください。氏名・メールアドレス等の個人が特定できる情報は一切"
+    "与えられていません（常に集計後の数値のみです）。特定の個人に言及したり、個人を推測したりしないで"
+    "ください。insight_tagsは、受講率が低い教材や合格率が低い分野など、管理者が次にとるべきアクションに"
+    "つながる短い気づきを優先し、目立った懸念点が無ければ空配列にしてください。summaryは前向きかつ具体的に、"
+    "教材別の数値に触れながら記述してください。submit_org_reportツールで結果を提出してください。"
+)
+
+
+async def generate_org_report(
+    *,
+    scope_label: str,
+    stats: dict,
+    by_material: list[dict],
+    user_id: int,
+) -> dict:
+    """プロジェクト・全社単位の受講状況集計データを基にAI組織レポートを生成する（F-23）。"""
+    user_message = (
+        f"scope: {scope_label}\n\n"
+        "stats（対象教材数・必修受講率・合格率・未受講者数）:\n" + str(stats) + "\n\n"
+        "by_material（教材別の受講率。氏名等は含まない）:\n" + str(by_material)
+    )
+    return await _call_tool(
+        instructions=_ORG_REPORT_SYSTEM_PROMPT,
+        user_message=user_message,
+        tool_schema=ORG_REPORT_TOOL,
+        tool_name="submit_org_report",
+        # 集計データ全体（複数教材分）を渡した上で所見を書かせるため、grading/personal_feedback
+        # （2048）より推論トークンの消費が大きく、2048では推論だけで使い切りfunction_callが
+        # 出力されない（=StopIteration）ことが確認された（2026-09-08）。review_materialと同じ
+        # 4096に引き上げる。
+        max_output_tokens=4096,
+        feature="org_report",
         user_id=user_id,
     )

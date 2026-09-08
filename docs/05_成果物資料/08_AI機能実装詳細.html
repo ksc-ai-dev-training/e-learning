@@ -13,7 +13,7 @@
 <p class="chapter-nav" style="display:flex;justify-content:space-between;font-size:13px;margin:0 0 16px"><a href="07_教材連携詳細.html">← 7. 教材連携詳細（Claude Code連携）</a><a href="index.html">目次</a><a href="09_エラーハンドリングログ設計.html">9. エラーハンドリング・ログ設計 →</a></p>
 
   <h2 id="sec8">8. AI機能実装詳細</h2>
-  <p>基本設計書9章（AI機能設計）を実装レベルへ詳細化する。5機能（F-08教材AIレビュー、F-20 AI記述式採点・講評、F-21 AIつまずき分析、F-22 AI個人フィードバック、F-23 AI組織レポート）はいずれもAnthropic Claude API（Messages API）を<code>backend/ai_client.py</code>経由で呼び出す。</p>
+  <p>基本設計書9章（AI機能設計）を実装レベルへ詳細化する。5機能（F-08教材AIレビュー、F-20 AI記述式採点・講評、F-21 AIつまずき分析、F-22 AI個人フィードバック、F-23 AI組織レポート）はいずれも<span class="rev-old">Anthropic Claude API（Messages API）</span><span class="rev-new">OpenAI API（Responses API。2026-09-07にAnthropicから切り替え、2026-09-08に機能ごとのモデル固定に変更。8.4節）</span>を<code>backend/ai_client.py</code>経由で呼び出す。</p>
 
   <h3>8.1 AI機能ごとの処理方式（概要）</h3>
   <table>
@@ -114,42 +114,53 @@ async def lifespan(app: FastAPI):
     <strong>再実行の重複起動に対する耐性:</strong> スイープが再スケジュールしたジョブと、たまたま同時に処理が続行していた元のジョブが両方完了すると、同じ行へ2回<code>UPDATE</code>が走る可能性がある。内容カラムへの書き込みは<code>UPDATE ... WHERE id = ? AND (対応する内容カラム) IS NULL</code>という条件を必ず付けることで、後勝ちではなく<strong>先着1回のみ反映</strong>させ、2重実行によるAPIコストの記録漏れ・不整合を防ぐ（2回目のUPDATEは0件更新で終わるが、T-19へのログ記録自体は2回分行われうる点は許容する。学習記録の欠落より二重課金の可能性の方が実害が小さいため）。
   </div>
 
-  <h3>8.4 モデル選択の実現方式</h3>
-  <p>「画面設定 &gt; 環境変数 &gt; 既定値」の優先順位で解決する（基本設計書9.4節）。</p>
-  <pre><code>DEFAULT_MODEL = "claude-sonnet-5"
-AVAILABLE_MODELS = ["claude-sonnet-5", "claude-opus-5", "claude-haiku-4-5"]
+  <h3 class="rev-new">8.4 モデル選択の実現方式</h3>
+  <p class="rev-new">
+    2026-09-07にAnthropic Claude APIからOpenAI API（Responses API）へ切り替え、2026-09-08に機能（<code>feature</code>）ごとにモデル・reasoning
+    effortを固定する方式に変更した（基本設計書9.4節）。画面設定・環境変数による変更は提供しない。
+  </p>
+  <pre class="rev-new"><code># backend/ai_client.py
+FEATURE_MODEL_CONFIG: dict[str, dict] = {
+    "material_review":   {"model": "gpt-5-nano",  "reasoning_effort": "minimal"},  # F-08
+    "grading":           {"model": "gpt-4o-mini", "reasoning_effort": None},       # F-20
+    "personal_feedback": {"model": "gpt-5-nano",  "reasoning_effort": "minimal"},  # F-22
+    "org_report":        {"model": "gpt-5-nano",  "reasoning_effort": "minimal"},  # F-23
+}
+_FALLBACK_MODEL = "gpt-5-nano"
 
-async def get_model() -&gt; str:
-    row = await conn.fetchrow("SELECT value_text FROM app_settings WHERE key = 'ai_model'")
-    if row is not None and row["value_text"] in AVAILABLE_MODELS:
-        return row["value_text"]
-    env_model = os.environ.get("ANTHROPIC_MODEL")
-    if env_model in AVAILABLE_MODELS:
-        return env_model
-    return DEFAULT_MODEL</code></pre>
-  <p>全5機能（F-08, F-20〜F-23）で同一のモデル設定を共有し、機能ごとの個別設定は持たない（S-10の画面が単一のプルダウンであるため）。</p>
+async def call_tool(*, feature: str, ...):
+    config = FEATURE_MODEL_CONFIG.get(feature, {"model": _FALLBACK_MODEL, "reasoning_effort": None})
+    kwargs = {"model": config["model"], ...}
+    if config["reasoning_effort"]:
+        kwargs["reasoning"] = {"effort": config["reasoning_effort"]}
+    response = await client.responses.create(**kwargs)</code></pre>
+  <p class="rev-new">
+    F-20（AI採点）のみgpt-4o-mini（非推論系）を使い、それ以外（F-08・F-22・F-23）はgpt-5-nano（推論系、コスト最安）を
+    reasoning effort="minimal"で使う。選定理由・検証結果は基本設計書9.4節参照。<code>grading</code>以外は本来
+    <code>reasoning_effort</code>を省略しても動作するが（gpt-4o-miniはreasoning非対応のため無視される）、
+    誤って別モデルへ差し替えた際に既定のreasoning挙動へ戻らないよう明示的に<code>None</code>を設定している。
+  </p>
 
   <h3>8.5 AI利用ログ・コスト計算</h3>
   <p><code>ai_client.py</code>は呼び出し完了時（成功・失敗いずれも）にT-19へ1行記録する。</p>
-  <pre><code># 単価表（USD / 1Mトークン）。Anthropicの公開単価改定時に更新する。
-# 下表の数値はプレースホルダであり、実装時にAnthropic公式の最新料金表で確認・置き換えること。
+  <pre><code># 単価表（USD / 1トークン）。<span class="rev-new">OpenAI</span>の公開単価改定時に更新する。
+<span class="rev-new"># 2024年の公表値を基にしており、値下げ・改定があれば要確認・要更新。</span>
 MODEL_COSTS = {
-    "claude-sonnet-5": {"input": 3.00, "output": 15.00},
-    "claude-opus-5":   {"input": 15.00, "output": 75.00},
-    "claude-haiku-4-5": {"input": 0.80, "output": 4.00},
+    <span class="rev-new">"gpt-4o-mini": {"input": 0.00000015, "output": 0.0000006},
+    "gpt-5-nano":  {"input": 0.00000005, "output": 0.0000004},</span>
 }
 USD_TO_JPY = 150  # 固定レート。概算表示のための定数（Keirekiと同方針）
 
 def estimate_cost_jpy(model: str, input_tokens: int, output_tokens: int) -&gt; float:
-    costs = MODEL_COSTS.get(model, MODEL_COSTS[DEFAULT_MODEL])  # 未知モデルは既定モデル単価で概算
-    usd = (input_tokens * costs["input"] + output_tokens * costs["output"]) / 1_000_000
+    costs = MODEL_COSTS.get(model, MODEL_COSTS[<span class="rev-new">_FALLBACK_MODEL</span>])  # 未知モデルは既定単価で概算
+    usd = input_tokens * costs["input"] + output_tokens * costs["output"]
     return round(usd * USD_TO_JPY, 6)</code></pre>
   <p><strong>記録タイミング:</strong> 呼び出し完了直前にT-19へINSERTする。失敗（3回リトライ後も失敗）した場合は記録しない（実施できた利用の傾向把握を主目的とするため）。</p>
 
   <h3>8.6 構造化出力スキーマ・プロンプト設計（機能別）</h3>
 
   <h4>F-08 教材AIレビュー（A-32）</h4>
-  <p>Claude APIのツール呼び出し（tool use）で構造化されたJSONを受け取る。送信データは教材本文（サニタイズ前の原文でよい。AIへの送信はXSS対策の対象外）・問題定義（基本設計書9.5節「送信データ範囲」に対応）。</p>
+  <p>OpenAI Responses APIのツール呼び出し（function calling）で構造化されたJSONを受け取る。送信データは教材本文（サニタイズ前の原文でよい。AIへの送信はXSS対策の対象外）・問題定義（基本設計書9.5節「送信データ範囲」に対応）。</p>
   <pre><code>review_tool_schema = {
     "name": "submit_review",
     "input_schema": {
@@ -232,16 +243,16 @@ def estimate_cost_jpy(model: str, input_tokens: int, output_tokens: int) -&gt; f
 
   <h3>8.7 ai_client.py 共通呼び出し設計</h3>
   <ul>
-    <li><strong>構造化出力:</strong> F-08・F-21はツール呼び出しで構造化JSONを受け取り、パース失敗時のフォールバック処理は挟まない（Claude APIのtool useは指定スキーマへの準拠が保証されるため）。F-20は同様にツール呼び出しを用いる。F-22・F-23は自由記述テキストで受け取る。</li>
-    <li><strong>タイムアウト・リトライ:</strong> 1回の呼び出しにつきタイムアウト60秒、指数バックオフで最大3回リトライする（8.2節）。</li>
-    <li><strong>モデル解決・ログ記録:</strong> 8.4節のモデル解決、8.5節のT-19記録は<code>ai_client.py</code>内で一元的に行い、各機能の呼び出し元（materials.py, learning.py, dashboard.py, reports.py）はモデル名やログ記録を意識しない。</li>
-    <li><strong>例外処理:</strong> Claude API呼び出しの例外は<code>logger.exception</code>でサーバーログに記録し、利用者にはAPIキーやエラー詳細を含まない汎用メッセージのみ返す（同期呼び出しのF-08は502、非同期呼び出しは8.2節のとおり内容カラムをNULLのまま残す）。</li>
+    <li><strong>構造化出力:</strong> F-08・F-21はツール呼び出しで構造化JSONを受け取り、パース失敗時のフォールバック処理は挟まない（Responses APIの<code>tool_choice</code>で対象ツールを強制するため）。F-20は同様にツール呼び出しを用いる。<span class="rev-new">F-22・F-23も実装時に構造化出力（ツール呼び出し）へ変更した（それぞれ<code>submit_personal_feedback</code>・<code>submit_org_report</code>）。</span></li>
+    <li><strong>タイムアウト・リトライ:</strong> 1回の呼び出しにつきタイムアウト60秒、指数バックオフで最大3回リトライする（8.2節）。<span class="rev-new">応答に<code>function_call</code>が1件も含まれない場合（gpt-5-nanoがreasoningトークンだけで上限を使い切った場合等）もリトライ対象の失敗として扱う（8.4節）。</span></li>
+    <li><strong>モデル解決・ログ記録:</strong> 8.4節のモデル解決（<span class="rev-new">機能ごとの<code>FEATURE_MODEL_CONFIG</code></span>）、8.5節のT-19記録は<code>ai_client.py</code>内で一元的に行い、各機能の呼び出し元（materials.py, learning.py, dashboard.py, reports.py）はモデル名やログ記録を意識しない。</li>
+    <li><strong>例外処理:</strong> AI API呼び出しの例外は<code>logger.exception</code>でサーバーログに記録し、利用者にはAPIキーやエラー詳細を含まない汎用メッセージのみ返す（同期呼び出しのF-08は502、非同期呼び出しは8.2節のとおり内容カラムをNULLのまま残す）。</li>
   </ul>
 
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）詳細設計書 v1.78</span>
-    <span>コガソフトウェア株式会社 / 2026-08-24</span>
+    <span>社内学習管理システム（Manabi）詳細設計書 v1.80</span>
+    <span>コガソフトウェア株式会社 / 2026-09-08</span>
   </footer>
 
 </div>

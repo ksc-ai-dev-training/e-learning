@@ -15,6 +15,7 @@ import ProjectManagement from './pages/ProjectManagement'
 import AssignmentSettings from './pages/AssignmentSettings'
 import AdminSettings from './pages/AdminSettings'
 import PersonalReport from './pages/PersonalReport'
+import Dashboard from './pages/Dashboard'
 import ProfileEdit from './pages/ProfileEdit'
 import AppShell from './components/layout/AppShell'
 
@@ -57,6 +58,7 @@ export default function App() {
         <Route path="/assignments" element={<AssignmentSettings />} />
         <Route path="/admin/settings" element={<AdminSettings />} />
         <Route path="/reports/:userId" element={<PersonalReport />} />
+        <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/profile" element={<ProfileEdit />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

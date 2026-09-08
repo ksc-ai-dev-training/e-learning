@@ -314,7 +314,7 @@
       <tr><td>created_at</td><td>TIMESTAMPTZ</td><td>NO</td><td>now()</td><td></td></tr>
     </tbody>
   </table>
-  <p><strong>制約:</strong> PK(id)、FK(requested_by→users.id)、CHECK(scope_type IN ('company','project'))、CHECK(scope_type = 'company' OR scope_id IS NOT NULL)。<strong>インデックス:</strong> <code>(scope_type, scope_id, created_at DESC)</code>。</p>
+  <p><strong>制約:</strong> PK(id)、FK(requested_by→users.id)、CHECK(scope_type IN ('company','project'))、CHECK(scope_type = 'company' OR scope_id IS NOT NULL)。<strong>インデックス:</strong> <code>(scope_type, scope_id, created_at DESC)</code>。<strong>実装済み（2026-09-08、S-08 AI組織レポート）</strong></p>
 
   <h4>T-19 ai_usage_logs（AI利用ログ）</h4>
   <table>
@@ -335,6 +335,9 @@
   <h3>3.5 配信・通知・設定・共有</h3>
 
   <h4>T-20 slack_notification_logs（Slack送信ログ）</h4>
+  <div class="callout rev-new">
+    <strong>未実装（2026-09-08時点でA-47ごと実装しないことを決定）:</strong> A-47（個人向けSlack催促）専用のテーブルのため、A-47を実装しない方針にしたことに伴い作成していない。4.6節の該当行参照。
+  </div>
   <table>
     <thead><tr><th>カラム</th><th>型</th><th>NULL</th><th>デフォルト</th><th>説明</th></tr></thead>
     <tbody>
@@ -361,7 +364,6 @@
   <table>
     <thead><tr><th>key</th><th>内容</th><th>既定値（行が無い場合）</th><th>参照API</th></tr></thead>
     <tbody>
-      <tr><td><code>ai_model</code></td><td>AI機能（F-08, F-20〜F-23）が使用するモデルID</td><td>環境変数<code>ANTHROPIC_MODEL</code>、無ければ<code>claude-sonnet-5</code>（8.4節）</td><td>A-55, A-56, A-80</td></tr>
       <tr><td><code>slack_webhook_url</code></td><td>Slack Incoming Webhook URL</td><td>環境変数<code>SLACK_WEBHOOK_URL</code></td><td>A-55〜A-57, A-80</td></tr>
       <tr><td><code>slack_channel</code></td><td>通知先チャンネル表示名（Webhook自体は登録時のチャンネル固定のため表示用）</td><td>—</td><td>A-55, A-56, A-80</td></tr>
       <tr><td><code>project_leave_grace_period_days</code></td><td>プロジェクト離任後の猶予期間日数</td><td>30</td><td>A-55, A-56（6.3節で参照）, A-80</td></tr>
@@ -877,8 +879,8 @@ ALTER TABLE surveys ENABLE ROW LEVEL SECURITY;</code></pre>
 
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）詳細設計書 v1.78</span>
-    <span>コガソフトウェア株式会社 / 2026-08-24</span>
+    <span>社内学習管理システム（Manabi）詳細設計書 v1.80</span>
+    <span>コガソフトウェア株式会社 / 2026-09-08</span>
   </footer>
 
 </div>

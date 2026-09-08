@@ -15,7 +15,7 @@
   <h2 id="sec9">9. AI機能設計</h2>
 
   <h3>9.1 AI機能ごとの処理方式（概要）</h3>
-  <p>要件定義書6章が定める<span class="rev-old">5つ</span><span class="rev-old">5つ（F-08, F-20〜F-23）に加え、5章のF-27（AI教材作成アシスト）を実質的に同種のAI連携機能として本章に含める。あわせて6つ</span><span class="rev-new">5つ（F-08, F-20〜F-23。F-27は本章の対象だったが、v1.20で廃止した）</span>のAI機能を、2章で選定したAnthropic Claude API（Messages API）を用いて実装する。</p>
+  <p>要件定義書6章が定める<span class="rev-old">5つ</span><span class="rev-old">5つ（F-08, F-20〜F-23）に加え、5章のF-27（AI教材作成アシスト）を実質的に同種のAI連携機能として本章に含める。あわせて6つ</span><span class="rev-new">5つ（F-08, F-20〜F-23。F-27は本章の対象だったが、v1.20で廃止した）</span>のAI機能を、<span class="rev-old">2章で選定したAnthropic Claude API（Messages API）</span><span class="rev-new">OpenAI API（Responses API。2026-09-07にAnthropic Claude APIから切り替えた〔ユーザー指示、コスト最優先のため〕。機能ごとに使用モデルが異なる、9.4節参照）</span>を用いて実装する。</p>
   <table>
     <thead><tr><th>機能</th><th>呼び出しタイミング</th><th>処理方式</th><th>関連API</th></tr></thead>
     <tbody>
@@ -90,25 +90,40 @@
   </div>
 
   <h3>9.3 AI利用ログ（T-19 ai_usage_logs）の記録方式</h3>
-  <p>Claude APIの呼び出しは、必ず共通クライアント（<code>ai_client.py</code>）を経由させる。<code>ai_client.py</code>は呼び出しの成否によらず、呼び出し完了時にT-19へ1行記録する。</p>
+  <p>AI APIの呼び出しは、必ず共通クライアント（<code>ai_client.py</code>）を経由させる。<code>ai_client.py</code>は呼び出しの成否によらず、呼び出し完了時にT-19へ1行記録する。</p>
   <ul>
     <li><strong><code>feature</code>:</strong> 呼び出し元機能を識別する固定値（<code>material_review</code> / <code>grading</code> / <code>insight_analysis</code> / <code>personal_feedback</code> / <code>org_report</code><span class="rev-old"> / <code>draft_assist</code>（F-27、A-69。F-27はv1.20で廃止したため今後この値が記録されることはない）</span>）。</li>
-    <li><strong><code>model</code>:</strong> 実際に呼び出されたモデルID（9.4節の優先順位で解決された値）。</li>
-    <li><strong><code>input_tokens</code>・<code>output_tokens</code>:</strong> Messages APIのレスポンスに含まれるトークン数をそのまま記録する。</li>
-    <li><strong><code>cost_estimate</code>:</strong> <code>input_tokens × 単価_in + output_tokens × 単価_out</code>で概算する。モデルごとの単価は<code>ai_client.py</code>内の定数テーブルとして保持し、Anthropicの価格改定時にはこの定数を更新する（本書では具体的な単価は定めない）。通貨は画面モックアップ（S-10）に合わせ円（JPY）で表示する。</li>
+    <li><strong><code>model</code>:</strong> 実際に呼び出されたモデルID（<span class="rev-new">9.4節のFEATURE_MODEL_CONFIGでfeature単位に固定された値</span>）。</li>
+    <li><strong><code>input_tokens</code>・<code>output_tokens</code>:</strong> <span class="rev-new">Responses API</span>のレスポンスに含まれるトークン数をそのまま記録する。</li>
+    <li><strong><code>cost_estimate</code>:</strong> <code>input_tokens × 単価_in + output_tokens × 単価_out</code>で概算する。モデルごとの単価は<code>ai_client.py</code>内の定数テーブル（<code>MODEL_COSTS</code>）として保持し、<span class="rev-new">OpenAIの</span>価格改定時にはこの定数を更新する（本書では具体的な単価は定めない）。通貨は画面モックアップ（S-10）に合わせ円（JPY）で表示する。</li>
     <li><strong>内容そのものは記録しない:</strong> 要件定義書6.2節・Keirekiのai_usage_logsと同方針で、プロンプト・レスポンスの本文は保存しない。</li>
   </ul>
   <div class="callout">
     <strong>AI利用費用の管理方法（要件定義書9.2節「別途整理する」の対応）:</strong> S-10のシステム設定タブは、当月のトークン数・概算コストの表示（既に画面モックアップで確定済み）のみを持つ。本設計ではこれに加え、環境変数<code>AI_MONTHLY_BUDGET_ALERT_JPY</code>（任意設定、既定は未設定＝アラートなし）を導入する。<code>ai_client.py</code>はAPI呼び出し完了時に当月の<code>cost_estimate</code>合計を集計し、閾値を超えた場合は10.4節の構造化ログに警告レベルで記録する。画面上の新たな設定項目を追加すると4章（画面設計）の確定済み内容に踏み込むため、本フェーズでは環境変数による運用者向けの目安機能に留め、S-10でのUI化（閾値入力欄・Slackアラート連携等）は将来の拡張として詳細設計以降で検討する。</div>
 
-  <h3>9.4 モデル選択の実現方式</h3>
-  <p>利用するモデルは、要件定義書6.2節・2.2節の方針どおり「画面設定 &gt; 環境変数 &gt; 既定値」の優先順位で解決する。</p>
-  <ol>
-    <li><strong>画面設定:</strong> T-21 <code>app_settings</code>（<code>key='ai_model'</code>）に値があればそれを使う（S-10「利用するAIモデル」プルダウン、A-56で更新）。</li>
-    <li><strong>環境変数:</strong> 画面設定が未設定の場合、環境変数<code>ANTHROPIC_MODEL</code>を使う（2.3節）。</li>
-    <li><strong>既定値:</strong> いずれも未設定の場合、<code>claude-sonnet-5</code>を使う（2.2節）。</li>
-  </ol>
-  <p>選択可能な値は<code>claude-sonnet-5</code> / <code>claude-opus-5</code> / <code>claude-haiku-4-5</code>の3種に限定し（S-10プルダウンの選択肢、2.2節）、<code>ai_client.py</code>はこれ以外の値が設定されていた場合は既定値にフォールバックしたうえで警告ログを出す。全AI機能（F-08, F-20〜F-23）で同一のモデル設定を共有し、機能ごとの個別設定は持たない（S-10の画面が単一のプルダウンであるため、5機能を横断する単一の設定として扱う）。</p>
+  <h3 class="rev-new">9.4 モデル選択の実現方式</h3>
+  <p class="rev-new">
+    2026-09-07にAnthropic Claude APIからOpenAI API（Responses API）へ切り替えた（ユーザー指示、コスト最優先のため）。当初は全AI機能（F-08, F-20〜F-23）で単一モデル（S-10のプルダウンで選択、画面設定 &gt; 環境変数 &gt; 既定値の優先順位で解決）を共有する設計だったが、機能ごとに要求される正確性・出力の複雑さが異なることが実運用の検証で判明したため、<strong>2026-09-08に機能（<code>feature</code>）単位でモデル・reasoning
+    effortを固定する方式へ変更した</strong>。画面設定・環境変数による変更は提供せず、<code>ai_client.py</code>の<code>FEATURE_MODEL_CONFIG</code>辞書で一元管理する（S-10のシステム設定タブは現在値の一覧表示のみ、9.6節）。
+  </p>
+  <table class="rev-new">
+    <thead><tr><th>機能</th><th>モデル</th><th>reasoning effort</th><th>選定理由</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>F-20 AI記述式採点</td><td>gpt-4o-mini</td><td>（既定、非推論系モデルのため設定不要）</td>
+        <td>学習者の合否に直結するため正確性を優先。gpt-5-nano + reasoning effort="minimal"で検証したところ、8ケース中7ケース正解にとどまり、意味は合っているが言い回しが異なる回答（模範解答の単語をそのまま使わない言い換え）を誤って不正解と判定するケースが見つかったため不採用とした</td>
+      </tr>
+      <tr>
+        <td>F-08 教材AIレビュー<br>F-22 AI個人フィードバック<br>F-23 AI組織レポート</td>
+        <td>gpt-5-nano</td><td>minimal</td>
+        <td>集計・要約が中心のタスクで、上記と同じ検証観点では取りこぼしが確認されず、4機能中最安（コスト最優先）</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="callout rev-new">
+    <strong>reasoning effortを指定する理由（2026-09-08の障害調査より）:</strong> gpt-5-nanoはOpenAIの推論系モデルで、応答を組み立てる前に内部で「reasoningトークン」を消費する。この消費量は入力内容によって大きく変動し（実測でreasoningトークンのみ832〜1792、上限2048に対しほぼ使い切ることもあった）、reasoning
+    effortを既定のままにすると、<code>max_output_tokens</code>の上限をreasoningだけで使い切り、肝心の結果（<code>function_call</code>）が1件も出力されずに応答が失敗する障害（F-23で発見）が起きていた。reasoning effortを"minimal"に固定するとreasoning_tokensが常に0になり、この障害クラス自体が起きなくなることを検証で確認した。ただしF-20（採点）では上記のとおりこの設定でニュアンス判定の精度が落ちるケースが見つかったため、F-20だけは非推論系モデル（gpt-4o-mini）を使う。
+  </div>
 
   <h3>9.5 送信データ範囲の実装方針</h3>
   <p>要件定義書6.2節「送信データの範囲」を、機能ごとに具体化する。個人が特定される情報（氏名・メールアドレス等）は、AIの応答生成に必須でない限りプロンプトに含めない（REQ-N-03）。</p>
@@ -124,18 +139,18 @@
     </tbody>
   </table>
 
-  <h3>9.6 Claude API共通呼び出し設計（ai_client.py）</h3>
+  <h3><span class="rev-old">Claude API共通呼び出し設計</span><span class="rev-new">OpenAI API共通呼び出し設計</span>（ai_client.py）</h3>
   <ul>
-    <li><strong>構造化出力:</strong> 教材レビュー（F-08）・つまずき分析（F-21）のように「指摘事項のリスト」「分析結果＋提案」を返す機能は、Claude APIのツール呼び出し（tool use）を用いて構造化されたJSONで応答を受け取り、パース失敗時のフォールバック処理を挟まない設計とする。</li>
-    <li><strong>タイムアウト・リトライ:</strong> 1回の呼び出しにつきタイムアウトを設定し（詳細設計で定める）、9.2節のリトライ方針（指数バックオフ最大3回）を共通実装する。</li>
-    <li><strong>モデル解決・ログ記録:</strong> 9.4節のモデル解決、9.3節のT-19記録は<code>ai_client.py</code>内で一元的に行い、各機能の呼び出し元（materials.py, learning.py, dashboard.py, reports.py）はモデル名やログ記録を意識しない。</li>
+    <li><strong>構造化出力:</strong> 教材レビュー（F-08）・つまずき分析（F-21）のように「指摘事項のリスト」「分析結果＋提案」を返す機能は、<span class="rev-new">OpenAI Responses APIの</span>ツール呼び出し（<span class="rev-old">tool use</span><span class="rev-new">function calling、<code>tool_choice</code>で対象ツールを強制</span>）を用いて構造化されたJSONで応答を受け取り、パース失敗時のフォールバック処理を挟まない設計とする。</li>
+    <li><strong>タイムアウト・リトライ:</strong> 1回の呼び出しにつきタイムアウトを設定し（詳細設計で定める）、9.2節のリトライ方針（指数バックオフ最大3回）を共通実装する。<span class="rev-new">応答に<code>function_call</code>が1件も含まれない場合（9.4節のcallout参照）もリトライ対象の失敗として扱う。</span></li>
+    <li><strong>モデル解決・ログ記録:</strong> 9.4節のモデル解決（<span class="rev-new">機能ごとの<code>FEATURE_MODEL_CONFIG</code>参照</span>）、9.3節のT-19記録は<code>ai_client.py</code>内で一元的に行い、各機能の呼び出し元（materials.py, learning.py, dashboard.py, reports.py）はモデル名やログ記録を意識しない。</li>
   </ul>
 
   <!-- ============ 10. 非機能設計 ============ -->
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）基本設計書 v1.53</span>
-    <span>コガソフトウェア株式会社 / 2026-08-24</span>
+    <span>社内学習管理システム（Manabi）基本設計書 v1.55</span>
+    <span>コガソフトウェア株式会社 / 2026-09-08</span>
   </footer>
 
 </div>

@@ -57,7 +57,7 @@
         <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg></span>
         受講状況ダッシュボード
       </a>
-      <div class="nav-note">※ 「配信設定」は誰でも表示される常設メニュー。「受講状況ダッシュボード」はadmin（全社スコープ）、対象プロジェクトの管理者（自プロジェクトのスコープ）に表示</div>
+      <div class="nav-note">※ 「配信設定」「受講状況ダッシュボード」はどちらも誰でもメニューに表示される（他の常設メニューと同様）。実際に開ける範囲はadmin（全社スコープ）、対象プロジェクトの管理者（自プロジェクトのスコープ）に限られ、管理できるプロジェクトが無い場合は画面側で案内する</div>
     </nav>
     <div class="sidebar-user">
       <div class="sidebar-user-row">
@@ -153,34 +153,31 @@
         <div class="table-wrap" style="box-shadow:none;border:none">
           <table class="table">
             <thead>
-              <tr><th>氏名</th><th>教材</th><th style="width:110px">期限</th><th style="width:100px">残り日数</th><th style="width:130px">操作</th></tr>
+              <tr><th>氏名</th><th>教材</th><th style="width:110px">期限</th><th style="width:100px">残り日数</th></tr>
             </thead>
             <tbody>
               <tr>
-                <td><div style="display:flex;align-items:center;gap:9px"><span class="avatar">佐</span><a class="cell-main" href="S-09_my-report.html" title="佐藤 健一の個人学習レポートを見る">佐藤 健一</a></div></td>
+                <td><div style="display:flex;align-items:center;gap:9px"><span class="avatar">佐</span><span class="cell-main">佐藤 健一</span></div></td>
                 <td>情報セキュリティ研修 2026</td>
                 <td>2026-09-30</td>
                 <td class="num">43日</td>
-                <td><button class="btn btn-ghost btn-sm" type="button">Slackで催促</button></td>
               </tr>
               <tr>
-                <td><div style="display:flex;align-items:center;gap:9px"><span class="avatar">鈴</span><a class="cell-main" href="S-09_my-report.html" title="鈴木 美咲の個人学習レポートを見る">鈴木 美咲</a></div></td>
+                <td><div style="display:flex;align-items:center;gap:9px"><span class="avatar">鈴</span><span class="cell-main">鈴木 美咲</span></div></td>
                 <td>ビジネスマナー研修</td>
                 <td>2026-08-25</td>
                 <td class="num" style="color:#b45309">7日</td>
-                <td><button class="btn btn-secondary btn-sm" type="button">Slackで催促</button></td>
               </tr>
               <tr>
-                <td><div style="display:flex;align-items:center;gap:9px"><span class="avatar">村</span><a class="cell-main" href="S-09_my-report.html" title="村田 亮の個人学習レポートを見る">村田 亮</a></div></td>
+                <td><div style="display:flex;align-items:center;gap:9px"><span class="avatar">村</span><span class="cell-main">村田 亮</span></div></td>
                 <td>AI開発研修 基礎編</td>
                 <td>2026-08-20</td>
                 <td class="num" style="color:#b91c1c">2日</td>
-                <td><button class="btn btn-primary btn-sm" type="button">Slackで催促</button></td>
               </tr>
             </tbody>
           </table>
         </div>
-        <p style="margin-top:10px;font-size:11.5px;color:var(--text-subtle)">※ 全19名のうち代表3名を表示しています。「Slackで催促」を押すと未受講者本人へ受講を促す通知が送信されます。</p>
+        <p style="margin-top:10px;font-size:11.5px;color:var(--text-subtle)">※ 全19名のうち代表3名を表示しています。個人ごとの催促はSlackでは行わず（プロジェクト単位のIncoming Webhookのみに対応、個人名は送信しない方針）、この一覧を見た管理者が運用で直接連絡します（S-12メンバー管理の未受講者一覧と同じ方針。2026-09-08）。</p>
       </section>
 
       <!-- AI組織レポート -->

@@ -41,7 +41,7 @@
     <thead><tr><th>API ID</th><th>メソッド</th><th>パス</th><th>権限</th><th>概要</th></tr></thead>
     <tbody>
       <tr><td>A-05〜A-08</td><td>―</td><td>―</td><td>―</td><td>廃止（欠番）。旧組織マスタ管理（部署の登録・一覧等）API。要件定義書v1.5対応で部署の概念を廃止したため欠番とする（3.3節・5.3節参照）</td></tr>
-      <tr class="rev-new"><td>A-81</td><td><span class="badge badge-get">GET</span></td><td><code>/api/projects</code></td><td>認証済</td><td>自分が<code>min_role</code>以上（既定'editor'）のプロジェクト一覧（教材件数・メンバー数つき、<code>status='active'</code>のプロジェクトのみ）。全社Wikiを先頭固定、以降は名称昇順（S-13教材編集：プロジェクト選択、S-03教材一覧・検索、S-12の一覧判定等で使用）</td></tr>
+      <tr class="rev-new"><td>A-81</td><td><span class="badge badge-get">GET</span></td><td><code>/api/projects</code></td><td>認証済</td><td>自分が<code>min_role</code>以上（既定'editor'）のプロジェクト一覧（教材件数・メンバー数つき、<code>status='active'</code>のプロジェクトのみ）。全社Wikiを先頭固定、以降は名称昇順（S-13教材編集：プロジェクト選択、S-03教材一覧・検索、S-12の一覧判定等で使用）。<span class="rev-new">2026-09-08、<code>min_role='admin'</code>をシステムadminが呼んだ場合のみ、自分のメンバーシップ行の有無に関わらず全プロジェクトを返すよう変更した（このケースの<code>role</code>は実際のメンバーシップ行があればその値、無ければ<code>'admin'</code>を返す）。システムadminは<code>check_project_role</code>等の判定で常にローカル管理者と同等に扱われるにもかかわらず、本APIだけがそれを反映せず、S-08担当範囲セレクトでシステムadminが未参加のプロジェクトを選べない不具合があったための修正（S-08受講状況ダッシュボードで発見）。<code>min_role='editor'</code>／<code>'learner'</code>（S-13・S-03等が使用）は変更していない。</span></td></tr>
       <tr><td>A-09</td><td><span class="badge badge-post">POST</span></td><td><code>/api/projects</code></td><td><span class="badge badge-member">member</span> <span class="badge badge-admin">admin</span></td><td>プロジェクト作成。作成者を <code>project_memberships.role='admin'</code> で自動登録（3.5節・5.25節）</td></tr>
       <tr class="rev-new"><td>A-91</td><td><span class="badge badge-get">GET</span></td><td><code>/api/projects/{id}</code></td><td><span class="badge badge-projrole">対象プロジェクトの管理者</span> <span class="badge badge-admin">admin</span></td><td>プロジェクト詳細取得（名称・説明・状態・作成者・作成日時<span class="rev-new">、<code>can_delete</code>・<code>cannot_delete_reason</code>（A-93が実行可能かの事前判定。v1.42）</span>）。A-81（一覧）は要約のみ、A-10（更新）は取得を持たないため、S-12プロジェクト情報タブの初期表示用に新設した（S-12実装時）</td></tr>
       <tr><td>A-10</td><td><span class="badge badge-put">PUT</span></td><td><code>/api/projects/{id}</code></td><td><span class="badge badge-projrole">対象プロジェクトの管理者</span> <span class="badge badge-admin">admin</span></td><td>プロジェクト情報（名称・説明・状態）更新</td></tr>
@@ -139,7 +139,7 @@
     <tbody>
       <tr><td>A-45</td><td><span class="badge badge-get">GET</span></td><td><code>/api/dashboard</code></td><td><span class="badge badge-admin">admin</span>（全社）、<span class="badge badge-projrole">対象プロジェクトの管理者</span>（自プロジェクトのスコープ）</td><td>ダッシュボード取得（<code>scope</code>クエリで対象範囲指定）</td></tr>
       <tr><td>A-46</td><td><span class="badge badge-get">GET</span></td><td><code>/api/dashboard/incomplete-users</code></td><td>同上</td><td>未受講者一覧</td></tr>
-      <tr><td>A-47</td><td><span class="badge badge-post">POST</span></td><td><code>/api/dashboard/remind</code></td><td>同上</td><td>Slack受講催促送信</td></tr>
+      <tr><td>A-47</td><td colspan="3"><strong>実装しない（2026-09-08決定）。</strong>Slack連携がプロジェクト単位Incoming Webhook方式へ変更済みのため個人向け送信が実現できず、未受講者一覧のSlack催促ボタン自体を削除した（9.5節・4.10節参照）</td></tr>
       <tr><td>A-48</td><td><span class="badge badge-post">POST</span></td><td><code>/api/reports/org</code></td><td>同上</td><td>AI組織レポート生成（非同期、9.2節）</td></tr>
       <tr><td>A-49</td><td><span class="badge badge-get">GET</span></td><td><code>/api/reports/org</code></td><td>同上</td><td>AI組織レポート取得</td></tr>
     </tbody>
@@ -168,11 +168,11 @@
   <table>
     <thead><tr><th>API ID</th><th>メソッド</th><th>パス</th><th>権限</th><th>概要</th></tr></thead>
     <tbody>
-      <tr><td>A-55</td><td><span class="badge badge-get">GET</span></td><td><code>/api/settings</code></td><td><span class="badge badge-admin">admin</span></td><td>システム設定取得（AIモデル・Slack設定・猶予期間日数等）。T-21に行が無いキーは未設定として返す（<code>null</code>）</td></tr>
+      <tr><td>A-55</td><td><span class="badge badge-get">GET</span></td><td><code>/api/settings</code></td><td><span class="badge badge-admin">admin</span></td><td>システム設定取得。<span class="rev-new">機能別AIモデル設定（<code>ai_models</code>、9.4節。固定値でT-21には保存しない）と</span>猶予期間日数等（T-21）を返す。T-21に行が無いキーは未設定として返す（<code>null</code>）</td></tr>
       <tr><td>A-56</td><td><span class="badge badge-put">PUT</span></td><td><code>/api/settings</code></td><td><span class="badge badge-admin">admin</span></td><td>システム設定更新（T-21へのupsert）</td></tr>
       <tr><td>A-57</td><td><span class="badge badge-post">POST</span></td><td><code>/api/settings/slack-test</code></td><td><span class="badge badge-admin">admin</span></td><td>Slackテスト送信</td></tr>
       <tr><td>A-58</td><td><span class="badge badge-get">GET</span></td><td><code>/api/settings/ai-usage</code></td><td><span class="badge badge-admin">admin</span></td><td>AI利用状況取得（今月のトークン数・概算コスト。<span class="rev-new">機能〔<code>feature</code>〕別の呼び出し件数・トークン数・概算コストの内訳も返す（v1.21）。</span>9.3節）</td></tr>
-      <tr class="rev-row"><td>A-80</td><td><span class="badge badge-delete">DELETE</span></td><td><code>/api/settings</code></td><td><span class="badge badge-admin">admin</span></td><td>S-10「初期状態に戻す」。T-21の対象4キー（<code>ai_model</code>・<code>slack_webhook_url</code>・<code>slack_channel</code>・<code>project_leave_grace_period_days</code>）全行を削除し、以降は環境変数／既定値（9.4節の優先順位）にフォールバックさせる（v1.25新設）</td></tr>
+      <tr class="rev-row"><td>A-80</td><td><span class="badge badge-delete">DELETE</span></td><td><code>/api/settings</code></td><td><span class="badge badge-admin">admin</span></td><td>S-10「初期状態に戻す」。T-21の対象キー（<code>project_leave_grace_period_days</code>）を削除し、以降は既定値にフォールバックさせる（v1.25新設。<span class="rev-new">AIモデルは元々T-21に保存しない固定値のため対象外（9.4節）</span>）</td></tr>
     </tbody>
   </table>
 
@@ -198,8 +198,8 @@
   <!-- ============ 8. 教材連携設計（Claude Code連携） ============ -->
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）基本設計書 v1.53</span>
-    <span>コガソフトウェア株式会社 / 2026-08-24</span>
+    <span>社内学習管理システム（Manabi）基本設計書 v1.55</span>
+    <span>コガソフトウェア株式会社 / 2026-09-08</span>
   </footer>
 
 </div>
