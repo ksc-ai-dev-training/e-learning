@@ -40,12 +40,16 @@ app.include_router(dashboard.router)
 
 @app.get("/healthz", include_in_schema=False)
 async def healthz():
-    """簡易ヘルスチェック。DBまで疎通しているかを確認する"""
+    """簡易ヘルスチェック。DBまで疎通しているかを確認する。Cache-Control: no-storeを明示する
+    （2026-09-09。本番でFly.ioのエッジと思われる箇所に、/healthz実装前のSPAフォールバック
+    レスポンスが一時的にキャッシュされ、実際には健全なのに古い応答が返り続ける事象が確認された
+    ため、今後同様の問題が起きないよう予防的に付与）。"""
+    no_store = {"Cache-Control": "no-store"}
     try:
         await database.get_pool().fetchval("SELECT 1")
     except Exception:
-        return JSONResponse(status_code=503, content={"status": "unhealthy"})
-    return {"status": "ok", "env": database.APP_ENV}
+        return JSONResponse(status_code=503, content={"status": "unhealthy"}, headers=no_store)
+    return JSONResponse(content={"status": "ok", "env": database.APP_ENV}, headers=no_store)
 
 
 @app.exception_handler(Exception)
