@@ -1,4 +1,4 @@
-# 教材API（A-15〜A-22, A-27, A-29〜A-32/A-33, A-64, A-82, A-94）。AI機能のうちA-34/A-35（F-21）は未着手。
+# 教材API（A-15〜A-22, A-27, A-29〜A-33, A-64, A-82, A-94）。
 import json
 import os
 import random
@@ -923,12 +923,18 @@ def _review_row_dict(row) -> dict:
 @detail_router.post("/{id}/ai-review")
 async def run_ai_review(id: int, user: CurrentUser = Depends(require_material_role(min_role="editor"))):
     """A-32: 教材AIレビューを実行する（F-08、8.6節）。同期呼び出し。教材本文（サニタイズ前の原文）・
-    問題定義をOpenAI APIへ送り、結果をT-15へ保存して返す。AI呼び出しが最終的に失敗した場合は
-    502を返す（APIキー未設定・OpenAI側障害等を利用者に詳細を見せず伝える、8.7節）。"""
+    問題定義をOpenAI APIへ送り、結果をT-15へ保存して返す。教材に受験後アンケートが設置され回答が
+    ある場合は、その集計結果（評価点平均・自由記述）も判断材料として併せて送る
+    （2026-09-09、ユーザー要望：AIレビューに実際の受講者の感想も含めてほしい）。AI呼び出しが
+    最終的に失敗した場合は502を返す（APIキー未設定・OpenAI側障害等を利用者に詳細を見せず伝える、
+    8.7節）。"""
     pool = get_pool()
     source_text = await _rebuild_source(pool, id)
+    survey_summary = await _aggregate_survey_summary(pool, id)
     try:
-        findings = await ai_client.review_material(material_text=source_text, user_id=user.id)
+        findings = await ai_client.review_material(
+            material_text=source_text, survey_summary=survey_summary, user_id=user.id,
+        )
     except Exception:
         raise HTTPException(502, detail="AIレビューの実行に失敗しました。しばらくしてから再度お試しください")
 
@@ -957,6 +963,42 @@ async def get_ai_review(id: int, user: CurrentUser = Depends(require_material_ro
     if row is None:
         raise HTTPException(404, detail="AIレビューはまだ実行されていません")
     return _review_row_dict(row)
+
+
+async def _aggregate_survey_summary(pool, material_id: int) -> list[dict]:
+    """教材に設置された受験後アンケートの集計（評価点平均・自由記述テキスト群）を返す。
+    AIレビュー（F-08）に「実際の受講者の感想」も判断材料として渡すために使う（2026-09-09、
+    ユーザー要望）。個々の回答者は特定できない（氏名等は取得しない）。"""
+    survey_rows = await pool.fetch(
+        "SELECT id, title FROM surveys WHERE material_id = $1 AND is_active = true", material_id,
+    )
+    survey_stats = []
+    for survey in survey_rows:
+        sq_rows = await pool.fetch(
+            "SELECT id, type, prompt FROM survey_questions WHERE survey_id = $1 ORDER BY sort_order",
+            survey["id"],
+        )
+        question_summaries = []
+        for sq in sq_rows:
+            answer_rows = await pool.fetch(
+                """SELECT sa.value FROM survey_answers sa
+                    JOIN survey_responses sr ON sr.id = sa.response_id
+                   WHERE sa.survey_question_id = $1""",
+                sq["id"],
+            )
+            values = [json.loads(r["value"]) for r in answer_rows]
+            if not values:
+                continue
+            if sq["type"] == "rating_5":
+                summary = {"avg_rating": round(sum(values) / len(values), 1), "response_count": len(values)}
+            elif sq["type"] == "free_text":
+                summary = {"free_text_responses": values}
+            else:
+                summary = {"response_count": len(values)}
+            question_summaries.append({"prompt": sq["prompt"], "type": sq["type"], **summary})
+        if question_summaries:
+            survey_stats.append({"title": survey["title"], "questions": question_summaries})
+    return survey_stats
 
 
 class UploadUrlRequest(BaseModel):

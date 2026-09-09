@@ -17,7 +17,6 @@ import type { AiUsageByFeature, Role } from '../types'
 const AI_FEATURE_LABELS: Record<AiUsageByFeature['feature'], string> = {
   material_review: '教材AIレビュー（F-08）',
   grading: 'AI記述式採点（F-20）',
-  insight_analysis: 'AIつまずき分析（F-21）',
   personal_feedback: 'AI個人フィードバック（F-22）',
   org_report: 'AI組織レポート（F-23）',
 }
@@ -288,7 +287,7 @@ function SystemSettingsTab() {
 
       <h3 className="mb-2 text-sm font-semibold text-slate-700">今月のAI利用状況</h3>
       <p className="mb-4 text-xs text-slate-500">
-        機能別（F-08教材AIレビュー・F-20 AI記述式採点・F-21〜F-23）の呼び出し件数・トークン数・概算コストの内訳です。教材の作成・修正（F-05、Claude Code CLI連携）は利用者本人の契約で課金されるため、この集計には含まれません。
+        機能別（F-08教材AIレビュー・F-20 AI記述式採点・F-22〜F-23）の呼び出し件数・トークン数・概算コストの内訳です。教材の作成・修正（F-05、Claude Code CLI連携）は利用者本人の契約で課金されるため、この集計には含まれません。
       </p>
 
       <div className="mb-4 max-w-[160px]">

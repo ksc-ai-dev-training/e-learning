@@ -319,7 +319,7 @@ CREATE TABLE IF NOT EXISTS ai_usage_logs (
     id             BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     user_id        BIGINT REFERENCES users(id) ON DELETE SET NULL,
     feature        TEXT NOT NULL
-                   CHECK (feature IN ('material_review', 'grading', 'insight_analysis', 'personal_feedback', 'org_report')),
+                   CHECK (feature IN ('material_review', 'grading', 'personal_feedback', 'org_report')),
     model          TEXT NOT NULL,
     input_tokens   INTEGER NOT NULL DEFAULT 0,
     output_tokens  INTEGER NOT NULL DEFAULT 0,

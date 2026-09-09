@@ -203,16 +203,32 @@ _REVIEW_SYSTEM_PROMPT = (
     "あなたは社内学習管理システムの教材レビュー担当AIです。教材の説明不足・記述の分かりにくさ・"
     "問題と教材内容の不整合を指摘するレビュアーとして振る舞ってください。指摘は具体的な章・ページ名で"
     "場所（location）を示してください。severityは、改善を推奨する指摘はwarning、軽微な気づき・提案は"
-    "infoにしてください。改善提案が無い指摘はsuggestionを省略してください。submit_reviewツールで結果を"
-    "提出してください。"
+    "infoにしてください。改善提案が無い指摘はsuggestionを省略してください。\n"
+    "教材本文に続けて、受験後アンケートの集計結果（評価点の平均・自由記述コメント）が渡される場合が"
+    "あります。渡された場合は、それも指摘材料の一つとして扱ってください。実際の受講者の感想・評価から"
+    "読み取れる傾向（例：特定の章が分かりにくいと感じている人が多い、評価が低い等）があれば、"
+    "location=\"全体\"またはアンケートが対象とする章・ページ名で、severity=\"info\"の指摘として"
+    "追加してください。アンケートが渡されない、または回答が無い場合は、この観点の指摘は行わず教材本文"
+    "のみをレビューしてください。アンケートの自由記述をそのまま引用するのではなく、傾向として要約して"
+    "ください。submit_reviewツールで結果を提出してください。"
 )
 
 
-async def review_material(*, material_text: str, user_id: int | None) -> list[dict]:
-    """教材本文・問題定義をAIレビューする（F-08）。"""
+async def review_material(
+    *, material_text: str, survey_summary: list[dict] | None, user_id: int | None
+) -> list[dict]:
+    """教材本文・問題定義をAIレビューする（F-08）。survey_summaryは教材に設置された受験後
+    アンケートの集計結果（あれば）で、渡された場合はレビューの判断材料に含める
+    （2026-09-09、ユーザー要望）。"""
+    user_message = material_text
+    if survey_summary:
+        user_message += (
+            "\n\n---\n以下は本教材の受験後アンケートの集計結果です（個々の回答者は特定できません）:\n"
+            + json.dumps(survey_summary, ensure_ascii=False)
+        )
     result = await _call_tool(
         instructions=_REVIEW_SYSTEM_PROMPT,
-        user_message=material_text,
+        user_message=user_message,
         tool_schema=REVIEW_TOOL,
         tool_name="submit_review",
         max_output_tokens=4096,
