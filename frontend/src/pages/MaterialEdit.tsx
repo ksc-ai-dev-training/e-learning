@@ -9,6 +9,8 @@ import Select from '../components/ui/Select'
 import TagInput from '../components/ui/TagInput'
 import TextArea from '../components/ui/TextArea'
 import TextInput from '../components/ui/TextInput'
+import Toast from '../components/ui/Toast'
+import UnsavedChangesModal from '../components/ui/UnsavedChangesModal'
 import { useMaterial } from '../hooks/useMaterial'
 import { useMaterialAttachments } from '../hooks/useMaterialAttachments'
 import { useAiReview, runAiReview } from '../hooks/useAiReview'
@@ -17,6 +19,7 @@ import { useProjectMemberships } from '../hooks/useProjectMemberships'
 import { useProjects } from '../hooks/useProjects'
 import { useQuestionsSummary } from '../hooks/useQuestionsSummary'
 import { useSurveys } from '../hooks/useSurveys'
+import { useUnsavedChangesGuard } from '../hooks/useUnsavedChangesGuard'
 import { ApiError, apiFetch, apiFetchText } from '../lib/api'
 import { formatDateJst, formatDateTimeJst, formatYearMonthJst } from '../lib/datetime'
 import { buildMaterialSource } from '../lib/materialSource'
@@ -80,6 +83,11 @@ export default function MaterialEdit() {
   // 保存し直すと復活・重複してしまう不具合があった。2026-08-27発見）
   const [dirty, setDirty] = useState(false)
   const markDirty = () => setDirty(true)
+  // 保存していない変更があるときにページ離脱を警告する（サイドバーのリンク・戻る/進むボタン
+  // 含む。2026-09-09）。既存の「ページ編集への移動だけ禁止する」上記の仕組みとは独立で、
+  // こちらはあらゆる画面遷移をモーダルで確認する汎用の仕組み（ページ編集への遷移も含めて
+  // 警告されるが、互いに競合しない）。
+  const unsavedBlocker = useUnsavedChangesGuard(dirty)
 
   const { attachments, isLoading: attachmentsLoading } = useMaterialAttachments(
     activeTab === 'attach' ? savedId : null,
@@ -612,11 +620,7 @@ export default function MaterialEdit() {
         {error && (
           <p className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
         )}
-        {savedMessage && (
-          <p className="mb-4 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
-            {savedMessage}
-          </p>
-        )}
+        {savedMessage && <Toast message={savedMessage} />}
 
         {activeTab === 'structure' && (
         <>
@@ -1468,6 +1472,10 @@ export default function MaterialEdit() {
           onClose={() => setSurveyModal(null)}
           onSaved={() => mutateSurveys()}
         />
+      )}
+
+      {unsavedBlocker.state === 'blocked' && (
+        <UnsavedChangesModal onStay={() => unsavedBlocker.reset()} onDiscard={() => unsavedBlocker.proceed()} />
       )}
     </div>
   )

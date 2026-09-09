@@ -46,15 +46,17 @@ async def list_projects(min_role: str = "editor", user: CurrentUser = Depends(re
     既定はeditor（S-13教材編集：プロジェクト選択と同じ、従来どおり）。S-03（教材一覧・検索）は
     min_role='learner'を指定し、学習者としてのみ参加しているプロジェクトも含める（新規、2026-08-28）。
 
-    min_role='admin'をシステムadminが呼んだ場合は、自分のメンバーシップ行の有無に関わらず全プロジェクト
-    を返す（システムadminは`check_project_role`等の判定で常にローカル管理者と同等に扱われるため、
-    このAPIも同じ基準に揃えた。2026-09-08、S-08受講状況ダッシュボードの担当範囲セレクトがシステム
-    adminのローカル未参加プロジェクトを選べない不具合の修正）。それ以外のmin_role（editor/learner）は
-    従来どおり実際のメンバーシップに基づく一覧のまま変更しない。"""
+    システムadminが呼んだ場合は、min_roleの値によらず、自分のメンバーシップ行の有無に関わらず
+    全プロジェクトを返す（システムadminは`check_project_role`・`require_material_role`等の判定で
+    常にローカル管理者・編集者と同等に扱われるため、このAPIも同じ基準に揃えた。2026-09-08新設、
+    S-08受講状況ダッシュボードの担当範囲セレクトで発見した際はmin_role='admin'のみ対応したが、
+    S-13教材編集：プロジェクト選択（min_role='editor'）で同種の不具合が見つかったため、min_roleに
+    関わらずシステムadminは常に全件を返すよう修正した（システムadminがローカルメンバーでない
+    プロジェクトの教材を編集できない不具合の修正）。"""
     if min_role not in ROLE_RANK:
         raise HTTPException(422, detail="min_roleが不正です")
     allowed_roles = [r for r, rank in ROLE_RANK.items() if rank >= ROLE_RANK[min_role]]
-    system_admin_sees_all = user.role == "admin" and min_role == "admin"
+    system_admin_sees_all = user.role == "admin"
     membership_join = (
         "LEFT JOIN project_memberships pm ON pm.project_id = p.id AND pm.user_id = $1"
         if system_admin_sees_all
