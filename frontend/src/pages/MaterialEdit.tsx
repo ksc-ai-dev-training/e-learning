@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import PageHeader from '../components/layout/PageHeader'
 import AttachmentList from '../components/material/AttachmentList'
+import InlinePageEditor from '../components/material/InlinePageEditor'
 import SurveyEditModal from '../components/material/SurveyEditModal'
 import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
@@ -18,9 +19,11 @@ import { useMaterialRevisions } from '../hooks/useMaterialRevisions'
 import { useProjectMemberships } from '../hooks/useProjectMemberships'
 import { useProjects } from '../hooks/useProjects'
 import { useQuestionsSummary } from '../hooks/useQuestionsSummary'
+import { useSaveShortcut } from '../hooks/useSaveShortcut'
 import { useSurveys } from '../hooks/useSurveys'
 import { useUnsavedChangesGuard } from '../hooks/useUnsavedChangesGuard'
 import { ApiError, apiFetch, apiFetchText } from '../lib/api'
+import { chapterAccentClass } from '../lib/chapterAccent'
 import { formatDateJst, formatDateTimeJst, formatYearMonthJst } from '../lib/datetime'
 import { buildMaterialSource } from '../lib/materialSource'
 import type { EditableNode } from '../lib/materialSource'
@@ -65,7 +68,12 @@ export default function MaterialEdit() {
   const [defaultFeedbackStyle, setDefaultFeedbackStyle] =
     useState<Material['default_feedback_style']>('show_answer')
   const [aiContext, setAiContext] = useState('')
-  const [chapters, setChapters] = useState<EditableNode[]>([])
+  // 新規教材は最初から空の第1章を1つ用意しておく（既存教材はmaterial取得後のuseEffectで
+  // 上書きされる）。「+ 見出しを追加」を最初の1回押させるだけの手間を省くため（2026-09-09、
+  // ユーザー要望）。
+  const [chapters, setChapters] = useState<EditableNode[]>(
+    isNew ? [{ id: null, title: '第1章', kind: 'chapter', children: [] }] : [],
+  )
   const [saving, setSaving] = useState(false)
   const [duplicating, setDuplicating] = useState(false)
   const [archiving, setArchiving] = useState(false)
@@ -76,6 +84,17 @@ export default function MaterialEdit() {
   const [error, setError] = useState<string | null>(null)
   const [savedMessage, setSavedMessage] = useState<string | null>(null)
   const [pendingDelete, setPendingDelete] = useState<string | null>(null)
+  // インラインページ編集パネルをどこで開いているか（2026-09-09）。'new'は章・小見出し直下への
+  // 新規ページ追加、'edit'はまだサーバー未保存（id=null）のページをその場で再編集するモード。
+  // sectionIdx・childIdxはchapter.children／section.children内のインデックス（ページ・小見出しが
+  // 混在する配列、既存のsi/renameSection等と同じ考え方）。sectionIdx=nullは章の直下（小見出しを
+  // 介さない）を意味する。同時に開けるのは1箇所のみ（直列の操作フローのため）。
+  type InlineEditorTarget =
+    | { mode: 'new'; chapterIdx: number; sectionIdx: number | null }
+    | { mode: 'edit'; chapterIdx: number; sectionIdx: number | null; childIdx: number }
+  const [inlineTarget, setInlineTarget] = useState<InlineEditorTarget | null>(null)
+  // 折りたたんだ章のインデックス集合（2026-09-09、目次の見やすさ改善）。既定は全展開。
+  const [collapsedChapters, setCollapsedChapters] = useState<Set<number>>(new Set())
   const [historyYear, setHistoryYear] = useState('')
   const [historyMonth, setHistoryMonth] = useState('all')
   // 目次編集タブの未保存の変更フラグ。true の間はページ編集（S-17）への移動を禁止する
@@ -184,12 +203,14 @@ export default function MaterialEdit() {
   // 「下書き保存」押下時にタイトル・タグ・目次構造をまとめて保存する。章・小見出しの
   // 追加/削除/並び替え/リネームはこの保存まではローカルstateのみで、A-20は呼ばない
   // （以前は操作のたびに自動保存していたが、保存押下時にまとめて確定する方式に変更した）。
-  const saveDraft = async () => {
+  // 呼び出し元（ページ編集への自動保存等）が成否を判定できるよう、成功時true・失敗時falseを
+  // 返す（2026-09-09）。
+  const saveDraft = async (): Promise<boolean> => {
     setError(null)
     setSavedMessage(null)
     if (title.trim().length === 0) {
       setError('教材タイトルを入力してください')
-      return
+      return false
     }
     setSaving(true)
     try {
@@ -198,12 +219,31 @@ export default function MaterialEdit() {
           method: 'POST',
           body: JSON.stringify({ project_id: Number(projectId), title, tags }),
         })
+        // 新規作成の初回保存では、ここまでにタイトル入力と並行してインライン編集で組み立てていた
+        // 章・ページ（本文・問題込み）も同じ保存操作でまとめて送る（duplicateMaterialと同じ
+        // POST→PUT /sourceの2段呼び出しパターン。2026-09-09、「タイトル→章作成→ページ作成→保存」
+        // を1回の保存で完結させたいという要望への対応）。chaptersが空（章を1つも追加していない）
+        // 場合は空のツリーが送られるだけなので、「タイトルだけ決めて保存」も従来どおり動く。
+        const source = buildMaterialSource(
+          {
+            ...created,
+            attempt_scope: attemptScope,
+            retake_scope: retakeScope,
+            grading_mode: gradingMode,
+            default_feedback_style: defaultFeedbackStyle,
+            ai_context: aiContext.trim() ? aiContext : null,
+          },
+          chapters,
+        )
+        await apiFetchText(`/api/materials/${created.id}/source`, source)
         setSavedId(created.id)
-        // navigate()より先にdirtyを落とす。保存直後のこのnavigateは自分自身が起こす画面遷移
-        // （新規作成後の作成済みURLへの置き換え）であって、保存していない変更の破棄ではないため、
-        // dirtyが立ったままだとuseUnsavedChangesGuardのブロッカーが誤って確認モーダルを
-        // 出してしまう（2026-09-09に発見・修正）。
+        // 保存直後のこのnavigateは自分自身が起こす画面遷移（新規作成後の作成済みURLへの
+        // 置き換え）であって、保存していない変更の破棄ではない。setDirty(false)だけでは
+        // useBlockerの判定関数がレンダーを経てからでないと更新されず、この直後の同期的な
+        // navigate()には間に合わない（Reactのstate更新は非同期のため）ので、bypassOnce()で
+        // 同期的にもブロックを解除しておく（2026-09-09、setDirty(false)だけでは不十分と判明し修正）。
         setDirty(false)
+        unsavedBlocker.bypassOnce()
         navigate(`/projects/${projectId}/materials/${created.id}/edit`, { replace: true })
       } else if (material) {
         const source = buildMaterialSource(withMeta(material), chapters)
@@ -212,12 +252,17 @@ export default function MaterialEdit() {
         setDirty(false)
       }
       setSavedMessage('保存しました')
+      return true
     } catch (e) {
       setError(e instanceof ApiError ? e.message : '保存に失敗しました')
+      return false
     } finally {
       setSaving(false)
     }
   }
+
+  // Ctrl+S/Cmd+Sで保存できるようにする（2026-09-09、ユーザー要望）
+  useSaveShortcut(saveDraft, !saving)
 
   // 章・小見出し・ページ・設問のidをすべてnullにし、書き戻し時にA-20が新規ノードとして
   // 採番するようにする（複製先の教材に元教材のノードIDをそのまま送ると「存在しません」で422になる）。
@@ -304,11 +349,12 @@ export default function MaterialEdit() {
     setDeleting(true)
     try {
       await deleteMaterial(savedId)
-      // 削除ボタン自体はdirtyで無効化していないため、未保存の変更があるまま削除した場合
-      // navigate()前にdirtyを落としておく（教材はもう存在しないため確認する意味が無く、
-      // 落とさないとuseUnsavedChangesGuardのブロッカーが誤って確認モーダルを出してしまう。
-      // 2026-09-09、レビューで発見・修正）。
+      // 削除ボタン自体はdirtyで無効化していないため、未保存の変更があるまま削除した場合、
+      // navigate()前にdirtyを落とし、bypassOnce()で同期的にもブロックを解除しておく
+      // （教材はもう存在しないため確認する意味が無い。setDirty(false)だけでは不十分な理由は
+      // saveDraft内のコメント参照。2026-09-09）。
       setDirty(false)
+      unsavedBlocker.bypassOnce()
       navigate(`/projects/${projectId}/materials/edit`)
     } catch (e) {
       setError(e instanceof ApiError ? e.message : '削除に失敗しました')
@@ -417,22 +463,70 @@ export default function MaterialEdit() {
     setPendingDelete(null)
   }
 
-  // ページ編集（S-17）は開くたびにサーバーから目次を取り直すため、目次編集タブに
-  // 未保存の変更がある状態で移動すると、その変更（削除等）が無かったことになってしまう。
-  // そのため未保存の間は移動させず、先に「下書き保存」を促す。
-  const goToNewPage = (parentNodeId: number) => {
-    if (dirty) {
-      setError(`保存していない変更があります。ページ編集に移動する前に「${saveButtonLabel}」を押してください。`)
-      return
-    }
-    navigate(`/projects/${projectId}/materials/${savedId}/pages/new/edit?parentNodeId=${parentNodeId}`)
+  // 新規ページ作成のインラインパネルを開く／閉じる。以前は別画面（S-17）への遷移だったが、
+  // 章・ページを追加してすぐ中身を書きたいという自然な操作のたびに保存・画面遷移を挟む必要があり
+  // 負担というフィードバックを受け、目次画面内でその場编集できるように変更した（2026-09-09）。
+  const openNewPageEditor = (chapterIdx: number, sectionIdx: number | null) => {
+    setInlineTarget({ mode: 'new', chapterIdx, sectionIdx })
+  }
+  // まだサーバー未保存（id=null）のページをインラインパネルで再編集する（2026-09-09、
+  // 「追加した直後のページを開き直して編集できない」というフィードバックへの対応。
+  // 保存済み〔id!==null〕のページは従来どおりgoToEditPageでS-17を開く）。
+  const openExistingPageEditor = (chapterIdx: number, sectionIdx: number | null, childIdx: number) => {
+    setInlineTarget({ mode: 'edit', chapterIdx, sectionIdx, childIdx })
+  }
+  const closeInlinePageEditor = () => setInlineTarget(null)
+
+  // インラインパネルで確定したページをローカルの章ツリーへ反映する（新規なら追加、編集なら
+  // その位置を差し替え。サーバー保存はまだしない。「下書き保存」を押したときにsaveDraft()が
+  // まとめて送信する）。
+  const confirmInlinePage = (page: EditableNode) => {
+    if (!inlineTarget) return
+    const { chapterIdx, sectionIdx } = inlineTarget
+    markDirty()
+    setChapters((prev) =>
+      prev.map((c, i) => {
+        if (i !== chapterIdx) return c
+        if (sectionIdx === null) {
+          const children =
+            inlineTarget.mode === 'new'
+              ? [...c.children, page]
+              : c.children.map((ch, j) => (j === inlineTarget.childIdx ? page : ch))
+          return { ...c, children }
+        }
+        return {
+          ...c,
+          children: c.children.map((s, j) => {
+            if (j !== sectionIdx) return s
+            const children =
+              inlineTarget.mode === 'new'
+                ? [...s.children, page]
+                : s.children.map((ch, k) => (k === inlineTarget.childIdx ? page : ch))
+            return { ...s, children }
+          }),
+        }
+      }),
+    )
+    closeInlinePageEditor()
   }
 
-  const goToEditPage = (nodeId: number) => {
-    if (dirty) {
-      setError(`保存していない変更があります。ページ編集に移動する前に「${saveButtonLabel}」を押してください。`)
-      return
-    }
+  const toggleChapterCollapsed = (chapterIdx: number) => {
+    setCollapsedChapters((prev) => {
+      const next = new Set(prev)
+      if (next.has(chapterIdx)) next.delete(chapterIdx)
+      else next.add(chapterIdx)
+      return next
+    })
+  }
+
+  // 章に含まれるページ数（小見出し配下も含めて再帰的に数える）。折りたたみ時のサマリー表示用
+  // （2026-09-09）。
+  const countPages = (nodes: EditableNode[]): number =>
+    nodes.reduce((sum, n) => sum + (n.kind === 'page' ? 1 : countPages(n.children)), 0)
+
+  const goToEditPage = async (nodeId: number) => {
+    if (dirty && !(await saveDraft())) return
+    unsavedBlocker.bypassOnce()
     navigate(`/projects/${projectId}/materials/${savedId}/pages/${nodeId}/edit`)
   }
 
@@ -578,6 +672,12 @@ export default function MaterialEdit() {
     </>
   )
 
+  // インラインパネルを開いたまま章・小見出し・ページの並び替えや削除を行うと、パネルが保持している
+  // 位置情報（chapterIdx/sectionIdx/childIdx）と実際の配列インデックスがずれ、確定時に別のページへ
+  // 誤って上書き・挿入してしまう（最悪、無関係なページの内容が入れ替わる）。並び替え・削除・
+  // 他の位置での新規パネルオープンをインライン編集中は禁止することで防ぐ（2026-09-09）。
+  const inlineEditorOpen = inlineTarget !== null
+
   return (
     <div className="flex flex-1 flex-col">
       <PageHeader title={`教材編集${title ? ` — ${title}` : ''}`} actions={headerActions} />
@@ -634,6 +734,11 @@ export default function MaterialEdit() {
 
         {activeTab === 'structure' && (
         <>
+        {dirty && (
+          <p className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            保存していない変更があります。
+          </p>
+        )}
         <div className="mb-4 flex max-w-xl flex-col gap-1">
           <label htmlFor="m-title" className="text-xs font-semibold text-slate-500">
             教材タイトル
@@ -873,42 +978,50 @@ export default function MaterialEdit() {
               {chapters.length}章（変更は上の「{saveButtonLabel}」を押すまで確定しません）
             </span>
           </div>
-          {dirty && (
-            <p className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-800">
-              保存していない変更があります。ページ編集画面に移動する前に「{saveButtonLabel}」を押してください。
-            </p>
-          )}
           <div className="p-4">
-            {savedId === null && (
-              <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400">
-                先に「下書き保存」してください。教材が作成されると章・小見出しを追加できます。
+            {chapters.length === 0 && (
+              <p className="mb-3 rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400">
+                まだ章がありません。「+ 見出しを追加」から始めてください。
               </p>
             )}
-
-            {savedId !== null && (
-              <>
-                {chapters.map((chapter, ci) => (
-                  <div key={chapter.id ?? `new-${ci}`} className="mb-3 rounded-md border border-slate-200">
-                    <div className="flex items-center gap-2 rounded-t-md bg-slate-50 px-3 py-2">
-                      <span className="flex-shrink-0 text-xs font-bold text-blue-800">第{ci + 1}章</span>
-                      <TextInput
-                        value={chapter.title}
-                        onChange={(e) => renameChapter(ci, e.target.value)}
-                        className="flex-1"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => moveChapter(ci, -1)}
-                        disabled={ci === 0}
-                        title="上へ"
-                        className="rounded p-1 text-slate-400 hover:bg-slate-200 disabled:opacity-30"
-                      >
-                        ↑
-                      </button>
+            {chapters.map((chapter, ci) => {
+              const collapsed = collapsedChapters.has(ci)
+              return (
+                <div
+                  key={chapter.id ?? `new-${ci}`}
+                  className={`mb-3 rounded-md border border-l-[3px] border-slate-200 ${chapterAccentClass(ci)}`}
+                >
+                  <div className="flex items-center gap-2 rounded-t-md bg-slate-50 px-3 py-2">
+                    <button
+                      type="button"
+                      onClick={() => toggleChapterCollapsed(ci)}
+                      title={collapsed ? '展開' : '折りたたむ'}
+                      className="flex-shrink-0 rounded p-1 text-slate-400 hover:bg-slate-200"
+                    >
+                      {collapsed ? '▶' : '▼'}
+                    </button>
+                    <span className="flex-shrink-0 text-xs font-bold text-blue-800">第{ci + 1}章</span>
+                    <TextInput
+                      value={chapter.title}
+                      onChange={(e) => renameChapter(ci, e.target.value)}
+                      className="flex-1"
+                    />
+                    {collapsed && (
+                      <span className="flex-shrink-0 text-xs text-slate-400">{countPages(chapter.children)}ページ</span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => moveChapter(ci, -1)}
+                      disabled={ci === 0 || inlineEditorOpen}
+                      title="上へ"
+                      className="rounded p-1 text-slate-400 hover:bg-slate-200 disabled:opacity-30"
+                    >
+                      ↑
+                    </button>
                       <button
                         type="button"
                         onClick={() => moveChapter(ci, 1)}
-                        disabled={ci === chapters.length - 1}
+                        disabled={ci === chapters.length - 1 || inlineEditorOpen}
                         title="下へ"
                         className="rounded p-1 text-slate-400 hover:bg-slate-200 disabled:opacity-30"
                       >
@@ -931,7 +1044,8 @@ export default function MaterialEdit() {
                           <button
                             type="button"
                             onClick={() => deleteChapter(ci)}
-                            className="rounded bg-red-600 px-2 py-1 font-semibold text-white hover:bg-red-700"
+                            disabled={inlineEditorOpen}
+                            className="rounded bg-red-600 px-2 py-1 font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
                           >
                             削除する
                           </button>
@@ -947,19 +1061,22 @@ export default function MaterialEdit() {
                         <button
                           type="button"
                           onClick={() => setPendingDelete(`chapter:${ci}`)}
-                          className="flex-shrink-0 rounded border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+                          disabled={inlineEditorOpen}
+                          title={inlineEditorOpen ? 'インライン編集中は並び替え・削除できません' : undefined}
+                          className="flex-shrink-0 rounded border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white"
                         >
                           削除
                         </button>
                       )}
                     </div>
 
+                    {!collapsed && (
                     <div className="p-3">
                       {chapter.children.map((child, si) =>
                         child.kind === 'page' ? (
+                          <div key={child.id ?? `new-${si}`} className="mb-1.5">
                           <div
-                            key={child.id ?? `new-${si}`}
-                            className="mb-1.5 ml-6 flex items-center gap-2 rounded-md border-l-2 border-slate-200 bg-slate-50 px-2.5 py-1.5"
+                            className="ml-6 flex items-center gap-2 rounded-md border-l-2 border-slate-200 bg-slate-50 px-2.5 py-1.5"
                           >
                             <TextInput
                               value={child.title}
@@ -971,7 +1088,7 @@ export default function MaterialEdit() {
                             <button
                               type="button"
                               onClick={() => movePageInChapter(ci, si, -1)}
-                              disabled={si === 0}
+                              disabled={si === 0 || inlineEditorOpen}
                               title="上へ"
                               className="rounded p-1 text-slate-400 hover:bg-slate-200 disabled:opacity-30"
                             >
@@ -980,18 +1097,28 @@ export default function MaterialEdit() {
                             <button
                               type="button"
                               onClick={() => movePageInChapter(ci, si, 1)}
-                              disabled={si === chapter.children.length - 1}
+                              disabled={si === chapter.children.length - 1 || inlineEditorOpen}
                               title="下へ"
                               className="rounded p-1 text-slate-400 hover:bg-slate-200 disabled:opacity-30"
                             >
                               ↓
                             </button>
-                            {child.id !== null && (
+                            {child.id !== null ? (
                               <button
                                 type="button"
                                 onClick={() => goToEditPage(child.id!)}
-                                disabled={dirty}
-                                title={dirty ? `保存していない変更があります。先に「${saveButtonLabel}」を押してください` : undefined}
+                                disabled={inlineEditorOpen}
+                                title={inlineEditorOpen ? 'インライン編集中は他のページを開けません' : '未保存の変更は自動で保存してから移動します'}
+                                className="flex-shrink-0 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white"
+                              >
+                                編集する
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => openExistingPageEditor(ci, null, si)}
+                                disabled={inlineEditorOpen && !(inlineTarget?.mode === 'edit' && inlineTarget.chapterIdx === ci && inlineTarget.sectionIdx === null && inlineTarget.childIdx === si)}
+                                title="この場で編集できます"
                                 className="flex-shrink-0 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white"
                               >
                                 編集する
@@ -1003,7 +1130,8 @@ export default function MaterialEdit() {
                                 <button
                                   type="button"
                                   onClick={() => deleteSection(ci, si)}
-                                  className="rounded bg-red-600 px-2 py-1 font-semibold text-white hover:bg-red-700"
+                                  disabled={inlineEditorOpen}
+                                  className="rounded bg-red-600 px-2 py-1 font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
                                 >
                                   削除する
                                 </button>
@@ -1019,10 +1147,26 @@ export default function MaterialEdit() {
                               <button
                                 type="button"
                                 onClick={() => setPendingDelete(`section:${ci}:${si}`)}
-                                className="flex-shrink-0 rounded border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+                                disabled={inlineEditorOpen}
+                                className="flex-shrink-0 rounded border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white"
                               >
                                 削除
                               </button>
+                            )}
+                          </div>
+                          {inlineTarget?.mode === 'edit' &&
+                            inlineTarget.chapterIdx === ci &&
+                            inlineTarget.sectionIdx === null &&
+                            inlineTarget.childIdx === si && (
+                              <div className="ml-6">
+                                <InlinePageEditor
+                                  materialId={savedId}
+                                  initialPage={child}
+                                  confirmLabel="変更を反映する"
+                                  onConfirm={confirmInlinePage}
+                                  onCancel={closeInlinePageEditor}
+                                />
+                              </div>
                             )}
                           </div>
                         ) : (
@@ -1040,7 +1184,7 @@ export default function MaterialEdit() {
                               <button
                                 type="button"
                                 onClick={() => moveSection(ci, si, -1)}
-                                disabled={si === 0}
+                                disabled={si === 0 || inlineEditorOpen}
                                 title="上へ"
                                 className="rounded p-1 text-slate-400 hover:bg-slate-200 disabled:opacity-30"
                               >
@@ -1049,7 +1193,7 @@ export default function MaterialEdit() {
                               <button
                                 type="button"
                                 onClick={() => moveSection(ci, si, 1)}
-                                disabled={si === chapter.children.length - 1}
+                                disabled={si === chapter.children.length - 1 || inlineEditorOpen}
                                 title="下へ"
                                 className="rounded p-1 text-slate-400 hover:bg-slate-200 disabled:opacity-30"
                               >
@@ -1061,7 +1205,8 @@ export default function MaterialEdit() {
                                   <button
                                     type="button"
                                     onClick={() => deleteSection(ci, si)}
-                                    className="rounded bg-red-600 px-2 py-1 font-semibold text-white hover:bg-red-700"
+                                    disabled={inlineEditorOpen}
+                                    className="rounded bg-red-600 px-2 py-1 font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
                                   >
                                     削除する
                                   </button>
@@ -1077,7 +1222,8 @@ export default function MaterialEdit() {
                                 <button
                                   type="button"
                                   onClick={() => setPendingDelete(`section:${ci}:${si}`)}
-                                  className="flex-shrink-0 rounded border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+                                  disabled={inlineEditorOpen}
+                                  className="flex-shrink-0 rounded border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white"
                                 >
                                   削除
                                 </button>
@@ -1085,9 +1231,9 @@ export default function MaterialEdit() {
                             </div>
                             <div className="ml-4 mt-1">
                               {child.children.map((page, pi) => (
+                                <div key={page.id ?? `new-${pi}`} className="mb-1.5">
                                 <div
-                                  key={page.id ?? `new-${pi}`}
-                                  className="mb-1.5 ml-6 flex items-center gap-2 rounded-md border-l-2 border-slate-200 bg-white px-2.5 py-1.5"
+                                  className="ml-6 flex items-center gap-2 rounded-md border-l-2 border-slate-200 bg-white px-2.5 py-1.5"
                                 >
                                   <TextInput
                                     value={page.title}
@@ -1099,7 +1245,7 @@ export default function MaterialEdit() {
                                   <button
                                     type="button"
                                     onClick={() => movePageInSection(ci, si, pi, -1)}
-                                    disabled={pi === 0}
+                                    disabled={pi === 0 || inlineEditorOpen}
                                     title="上へ"
                                     className="rounded p-1 text-slate-400 hover:bg-slate-200 disabled:opacity-30"
                                   >
@@ -1108,18 +1254,28 @@ export default function MaterialEdit() {
                                   <button
                                     type="button"
                                     onClick={() => movePageInSection(ci, si, pi, 1)}
-                                    disabled={pi === child.children.length - 1}
+                                    disabled={pi === child.children.length - 1 || inlineEditorOpen}
                                     title="下へ"
                                     className="rounded p-1 text-slate-400 hover:bg-slate-200 disabled:opacity-30"
                                   >
                                     ↓
                                   </button>
-                                  {page.id !== null && (
+                                  {page.id !== null ? (
                                     <button
                                       type="button"
                                       onClick={() => goToEditPage(page.id!)}
-                                      disabled={dirty}
-                                      title={dirty ? `保存していない変更があります。先に「${saveButtonLabel}」を押してください` : undefined}
+                                      disabled={inlineEditorOpen}
+                                      title={inlineEditorOpen ? 'インライン編集中は他のページを開けません' : '未保存の変更は自動で保存してから移動します'}
+                                      className="flex-shrink-0 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white"
+                                    >
+                                      編集する
+                                    </button>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => openExistingPageEditor(ci, si, pi)}
+                                      disabled={inlineEditorOpen && !(inlineTarget?.mode === 'edit' && inlineTarget.chapterIdx === ci && inlineTarget.sectionIdx === si && inlineTarget.childIdx === pi)}
+                                      title="この場で編集できます"
                                       className="flex-shrink-0 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white"
                                     >
                                       編集する
@@ -1131,7 +1287,8 @@ export default function MaterialEdit() {
                                       <button
                                         type="button"
                                         onClick={() => deletePageInSection(ci, si, pi)}
-                                        className="rounded bg-red-600 px-2 py-1 font-semibold text-white hover:bg-red-700"
+                                        disabled={inlineEditorOpen}
+                                        className="rounded bg-red-600 px-2 py-1 font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
                                       >
                                         削除する
                                       </button>
@@ -1147,23 +1304,46 @@ export default function MaterialEdit() {
                                     <button
                                       type="button"
                                       onClick={() => setPendingDelete(`page-in-section:${ci}:${si}:${pi}`)}
-                                      className="flex-shrink-0 rounded border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+                                      disabled={inlineEditorOpen}
+                                      className="flex-shrink-0 rounded border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white"
                                     >
                                       削除
                                     </button>
                                   )}
                                 </div>
+                                {inlineTarget?.mode === 'edit' &&
+                                  inlineTarget.chapterIdx === ci &&
+                                  inlineTarget.sectionIdx === si &&
+                                  inlineTarget.childIdx === pi && (
+                                    <div className="ml-6">
+                                      <InlinePageEditor
+                                        materialId={savedId}
+                                        initialPage={page}
+                                        confirmLabel="変更を反映する"
+                                        onConfirm={confirmInlinePage}
+                                        onCancel={closeInlinePageEditor}
+                                      />
+                                    </div>
+                                  )}
+                                </div>
                               ))}
-                              {child.id !== null && (
-                                <button
-                                  type="button"
-                                  onClick={() => goToNewPage(child.id!)}
-                                  disabled={dirty}
-                                  title={dirty ? `保存していない変更があります。先に「${saveButtonLabel}」を押してください` : undefined}
-                                  className="ml-6 rounded-md border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white"
-                                >
-                                  + ページを追加
-                                </button>
+                              <button
+                                type="button"
+                                onClick={() => openNewPageEditor(ci, si)}
+                                disabled={inlineEditorOpen}
+                                title="この場でページの内容を入力できます"
+                                className="ml-6 rounded-md border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white"
+                              >
+                                + ページを追加
+                              </button>
+                              {inlineTarget?.mode === 'new' && inlineTarget.chapterIdx === ci && inlineTarget.sectionIdx === si && (
+                                <div className="ml-6">
+                                  <InlinePageEditor
+                                    materialId={savedId}
+                                    onConfirm={confirmInlinePage}
+                                    onCancel={closeInlinePageEditor}
+                                  />
+                                </div>
                               )}
                             </div>
                           </div>
@@ -1173,35 +1353,41 @@ export default function MaterialEdit() {
                         <button
                           type="button"
                           onClick={() => addSection(ci)}
-                          className="rounded-md border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                          disabled={inlineEditorOpen}
+                          className="rounded-md border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white"
                         >
                           + 小見出しを追加
                         </button>
-                        {chapter.id !== null && (
-                          <button
-                            type="button"
-                            onClick={() => goToNewPage(chapter.id!)}
-                            disabled={dirty}
-                            title={dirty ? `保存していない変更があります。先に「${saveButtonLabel}」を押してください` : undefined}
-                            className="rounded-md border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white"
-                          >
-                            + ページを追加
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => openNewPageEditor(ci, null)}
+                          disabled={inlineEditorOpen}
+                          title="この場でページの内容を入力できます"
+                          className="rounded-md border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white"
+                        >
+                          + ページを追加
+                        </button>
                       </div>
+                      {inlineTarget?.mode === 'new' && inlineTarget.chapterIdx === ci && inlineTarget.sectionIdx === null && (
+                        <InlinePageEditor
+                          materialId={savedId}
+                          onConfirm={confirmInlinePage}
+                          onCancel={closeInlinePageEditor}
+                        />
+                      )}
                     </div>
+                    )}
                   </div>
-                ))}
+                )
+              })}
 
-                <button
-                  type="button"
-                  onClick={addChapter}
-                  className="mt-1 rounded-md border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-600 hover:bg-slate-100"
-                >
-                  + 見出しを追加（第{chapters.length + 1}章）
-                </button>
-              </>
-            )}
+            <button
+              type="button"
+              onClick={addChapter}
+              className="mt-1 rounded-md border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-600 hover:bg-slate-100"
+            >
+              + 見出しを追加（第{chapters.length + 1}章）
+            </button>
           </div>
         </section>
         </>

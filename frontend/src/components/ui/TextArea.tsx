@@ -5,7 +5,7 @@ export default function TextArea(props: TextareaHTMLAttributes<HTMLTextAreaEleme
   const { className = '', ...rest } = props
   return (
     <textarea
-      className={`rounded-md border border-slate-300 px-3 py-2 text-sm placeholder:text-slate-400 focus:border-blue-700 focus:outline-none ${className}`}
+      className={`rounded-md border border-slate-300 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:border-blue-700 focus:outline-none ${className}`}
       {...rest}
     />
   )

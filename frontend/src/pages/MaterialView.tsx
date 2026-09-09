@@ -10,6 +10,7 @@ import { useMaterialAttachments } from '../hooks/useMaterialAttachments'
 import { useAttemptSummary } from '../hooks/useAttemptSummary'
 import { usePracticeAttempts } from '../hooks/usePracticeAttempts'
 import { useSurveys } from '../hooks/useSurveys'
+import { chapterAccentClass } from '../lib/chapterAccent'
 import { formatDateJst, formatDateTimeJst, formatDurationMinutes } from '../lib/datetime'
 import { openAttachmentDownload } from '../lib/attachmentActions'
 import { pageKindLabel, toEditableChapters } from '../lib/materialTree'
@@ -387,7 +388,10 @@ export default function MaterialView() {
             )}
 
             {chapters.map((chapter, chapterIndex) => (
-              <div key={chapter.id} className="mb-4 rounded-md border border-slate-200">
+              <div
+                key={chapter.id}
+                className={`mb-4 rounded-md border border-l-[3px] border-slate-200 ${chapterAccentClass(chapterIndex)}`}
+              >
                 <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-2.5">
                   <span className="text-sm font-semibold text-slate-700">
                     <span className="text-xs font-bold text-blue-800">第{chapterIndex + 1}章</span>{' '}

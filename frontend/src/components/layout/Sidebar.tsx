@@ -45,6 +45,16 @@ const ACCENT_ICON_CLASS = {
   emerald: 'text-emerald-500',
   amber: 'text-amber-500',
 } as const
+// 選択中の項目の強調表示。ブロックごとにアイコン色を付けたことで、選択中を示す既存の
+// 一律「薄い青背景」がどのブロックでもほぼ同じに見え、区別しづらくなっていたため、
+// 選択中もブロックのアクセントカラーに合わせ、左端に太めのボーダーも付けて強調する
+// （2026-09-09、ユーザー指摘）。
+const ACCENT_ACTIVE_CLASS = {
+  blue: 'border-l-blue-600 bg-blue-50 text-blue-900',
+  violet: 'border-l-violet-600 bg-violet-50 text-violet-900',
+  emerald: 'border-l-emerald-600 bg-emerald-50 text-emerald-900',
+  amber: 'border-l-amber-600 bg-amber-50 text-amber-900',
+} as const
 type Accent = keyof typeof ACCENT_ICON_CLASS
 
 const NAV_ITEMS = [
@@ -198,8 +208,10 @@ export default function Sidebar({ me }: { me: Me }) {
         )}
         {NAV_ITEMS.filter((item) => !item.adminOnly || me.role === 'admin').map((item) => {
           const isActive = item.implemented && item.match(location.pathname, location.search)
-          // 未実装・選択中の項目は既存の統一色（灰色/青）のままにし、それ以外はグループごとの
-          // アイコン色でどのブロックの項目かを分かりやすくする（2026-09-09、ユーザー要望）
+          // 未選択の項目はグループごとのアイコン色でどのブロックかを分かりやすくし（2026-09-09、
+          // ユーザー要望）、選択中の項目はそのブロックのアクセントカラーで強調する（左端の太い
+          // ボーダー＋背景色）。以前は選択中を一律の薄い青背景だけで示していたが、複数の色を
+          // 使うようになったことで見分けづらくなっていたための修正（2026-09-09、ユーザー指摘）。
           const iconAccentClass = item.implemented && !isActive ? ACCENT_ICON_CLASS[item.accent] : ''
           const body = (
             <>
@@ -207,14 +219,14 @@ export default function Sidebar({ me }: { me: Me }) {
               {!collapsed && <span className="truncate">{item.label}</span>}
             </>
           )
-          const className = `mb-0.5 flex h-[34px] items-center gap-2 rounded-md font-medium ${
+          const className = `mb-0.5 flex h-[34px] items-center gap-2 rounded-md border-l-[3px] font-medium ${
             collapsed ? 'justify-center px-0' : 'px-2.5'
           } ${
             item.implemented
               ? isActive
-                ? 'bg-blue-50 font-semibold text-blue-900'
-                : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'
-              : 'cursor-default text-slate-300'
+                ? `${ACCENT_ACTIVE_CLASS[item.accent]} font-semibold`
+                : 'border-l-transparent text-slate-500 hover:bg-slate-100 hover:text-slate-800'
+              : 'border-l-transparent cursor-default text-slate-300'
           }`
           return (
             <div key={item.href}>

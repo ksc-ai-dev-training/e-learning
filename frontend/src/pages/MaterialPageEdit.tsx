@@ -2,22 +2,23 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import PageHeader from '../components/layout/PageHeader'
 import AttachmentList from '../components/material/AttachmentList'
-import QuestionEditCard from '../components/material/QuestionEditCard'
+import PageContentFields from '../components/material/PageContentFields'
 import Button from '../components/ui/Button'
-import MarkdownHtmlEditor from '../components/ui/MarkdownHtmlEditor'
 import TextInput from '../components/ui/TextInput'
+import Toast from '../components/ui/Toast'
 import { useMaterial } from '../hooks/useMaterial'
 import { useMaterialAttachments } from '../hooks/useMaterialAttachments'
+import { useSaveShortcut } from '../hooks/useSaveShortcut'
 import { addLinkAttachment, deleteAttachment, uploadFileAttachment } from '../lib/attachmentActions'
 import { ApiError, apiFetch, apiFetchText } from '../lib/api'
 import { buildMaterialSource } from '../lib/materialSource'
 import type { EditableNode } from '../lib/materialSource'
 import { findNode, insertPageInTree, replacePageInTree, toEditableChapters } from '../lib/materialTree'
-import { emptyQuestionForType } from '../lib/questionDefaults'
+import { validatePageContent } from '../lib/pageValidation'
 import type { Material, Question } from '../types'
 
 // 新規ページ作成中、まだノードが存在せずA-27/A-29を呼べない添付ファイル・リンクを
-// ローカルに保持しておくための型。「下書き保存」時にページ作成後まとめて登録する
+// ローカルに保持しておくための型。保存時にページ作成後まとめて登録する
 type PendingAttachment =
   | { key: string; kind: 'file'; file: File }
   | { key: string; kind: 'link'; url: string }
@@ -71,6 +72,9 @@ export default function MaterialPageEdit() {
   const [poolMembership, setPoolMembership] = useState<boolean[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Ctrl+Sでこのページに留まる保存の完了通知（2026-09-09、ユーザー要望。保存ボタンは
+  // 保存後に目次へ移動してしまうため見えないが、Ctrl+Sはこの画面に留まるので表示できる）
+  const [savedMessage, setSavedMessage] = useState<string | null>(null)
   const [initialized, setInitialized] = useState(false)
   const [linkUrl, setLinkUrl] = useState('')
   const [attachmentError, setAttachmentError] = useState<string | null>(null)
@@ -97,86 +101,34 @@ export default function MaterialPageEdit() {
     setInitialized(true)
   }, [material, initialized, isNew, nodeId])
 
+  // 保存完了メッセージは一定時間で消す（MaterialEdit.tsxと同じパターン）
+  useEffect(() => {
+    if (!savedMessage) return
+    const timer = setTimeout(() => setSavedMessage(null), 3000)
+    return () => clearTimeout(timer)
+  }, [savedMessage])
+
   const backToStructure = () => navigate(`/projects/${projectId}/materials/${materialId}/edit`)
 
-  const addQuestion = () => {
-    setQuestions([...questions, emptyQuestionForType('single')])
-    setPoolMembership([...poolMembership, false])
-  }
-  const updateQuestion = (i: number, q: Question) => setQuestions(questions.map((old, idx) => (idx === i ? q : old)))
-  const deleteQuestion = (i: number) => {
-    setQuestions(questions.filter((_, idx) => idx !== i))
-    setPoolMembership(poolMembership.filter((_, idx) => idx !== i))
-  }
-  const togglePoolMembership = (i: number) =>
-    setPoolMembership(poolMembership.map((v, idx) => (idx === i ? !v : v)))
-
-  const validateQuestions = (qs: Question[]): string | null => {
-    for (let i = 0; i < qs.length; i++) {
-      const q = qs[i]
-      if (!q.prompt.trim()) {
-        return `設問${i + 1}: 設問文を入力してください`
-      }
-      if (q.type === 'single' || q.type === 'multi') {
-        const options = (q.options ?? []).filter((o) => o.trim())
-        if (options.length < 2) {
-          return `設問${i + 1}: 選択肢を2つ以上入力してください`
-        }
-        const hasCorrect =
-          q.type === 'multi' ? ((q.correct_answer as string[] | null) ?? []).length > 0 : !!q.correct_answer
-        if (!hasCorrect) {
-          return `設問${i + 1}: 正解を選んでください`
-        }
-      }
-      if (q.type === 'reorder') {
-        const items = ((q.correct_answer as string[] | null) ?? []).filter((v) => v.trim())
-        if (items.length < 2) {
-          return `設問${i + 1}: 項目を2つ以上入力してください`
-        }
-      }
-      if (q.type === 'free_text' || q.type === 'code') {
-        if (!q.scoring_criteria?.trim()) {
-          return `設問${i + 1}: AI採点基準を入力してください`
-        }
-        if (q.type === 'code' && !q.code_language?.trim()) {
-          return `設問${i + 1}: 言語ヒントを入力してください`
-        }
-      }
-      if (q.type === 'score_log' && !q.score_unit?.trim()) {
-        return `設問${i + 1}: スコアの単位を入力してください`
-      }
-    }
-    return null
-  }
-
-  const save = async () => {
+  // navigateAfter=true（保存ボタン既定）は保存後に目次へ戻る。navigateAfter=false（Ctrl+S）は
+  // 目次へ戻らずこのページに留まる。新規ページの場合は「留まる」を選んでも、そのままでは
+  // node_idがまだ'new'のためこのURLで再保存すると重複作成されてしまうので、実際に採番された
+  // node_idの編集URLへreplaceで置き換える（画面上は同じページに留まったまま。2026-09-09、
+  // 「保存＝目次に戻る」が固定でCtrl+Sの動作として不自然というフィードバックを受け対応）。
+  const save = async (navigateAfter = true) => {
     setError(null)
-    if (title.trim().length === 0) {
-      setError('ページタイトルを入力してください')
+    const validationError = validatePageContent({
+      title,
+      includeExplanation,
+      includeQuiz,
+      body,
+      questions,
+      quizMode,
+      poolDrawCount,
+    })
+    if (validationError) {
+      setError(validationError)
       return
-    }
-    if (!includeExplanation && !includeQuiz) {
-      setError('説明文・問題のいずれかを含めてください')
-      return
-    }
-    if (includeExplanation && !body.trim()) {
-      setError('説明文を入力してください')
-      return
-    }
-    if (includeQuiz) {
-      if (questions.length === 0) {
-        setError('問題を1つ以上追加してください')
-        return
-      }
-      const qError = validateQuestions(questions)
-      if (qError) {
-        setError(qError)
-        return
-      }
-      if (quizMode === 'pool' && (!poolDrawCount || poolDrawCount < 1)) {
-        setError('出題プールの抽出数を1以上で入力してください')
-        return
-      }
     }
     if (!material) return
     setSaving(true)
@@ -199,17 +151,28 @@ export default function MaterialPageEdit() {
         : replacePageInTree(tree, Number(nodeId), page)
       const source = buildMaterialSource(material, updatedTree)
       await apiFetchText(`/api/materials/${materialId}/source`, source)
+      // 目次へ移動する場合はこの画面がすぐ消えるため表示されないが、留まる場合（Ctrl+S）に
+      // 見えるよう常に設定しておく（2026-09-09、ユーザー要望）
+      setSavedMessage('保存しました')
 
-      // 新規ページの場合、保存前に追加していた添付ファイル・リンクをこのタイミングで登録する
-      // （保存するまでnode_idが存在せずA-27/A-29を呼べないため、保存後に新しいnode_idを
-      // 取得してからまとめて反映する）
-      if (isNew && pendingAttachments.length > 0) {
-        try {
-          const freshMaterial = await apiFetch<Material>(`/api/materials/${materialId}`)
-          const freshTree = toEditableChapters(freshMaterial.toc ?? [])
-          const parent = findNode(freshTree, parentNodeId)
-          const newPage = parent?.children.find((c) => c.kind === 'page' && c.title === title)
-          if (newPage) {
+      if (isNew) {
+        // 新規ページ保存後は必ず、実際に採番されたnode_idを取得する。理由は2つ：
+        // (1) 保存前に追加していた添付ファイル・リンクをこのタイミングで登録するため
+        //     （保存するまでnode_idが存在せずA-27/A-29を呼べない）。
+        // (2) このページに留まる場合（navigateAfter=false）でも、URLはまだnode_id='new'の
+        //     ままなので、実際のnode_idの編集URLへ置き換える必要があるため（このURLのままだと
+        //     次の保存でまた新規ページとして重複作成されてしまう）。
+        const freshMaterial = await apiFetch<Material>(`/api/materials/${materialId}`)
+        const freshTree = toEditableChapters(freshMaterial.toc ?? [])
+        const parent = findNode(freshTree, parentNodeId)
+        const newPage = parent?.children.find((c) => c.kind === 'page' && c.title === title)
+        if (!newPage) {
+          setError('ページは保存されましたが、保存後の状態取得に失敗しました。目次から開き直してご確認ください。')
+          backToStructure()
+          return
+        }
+        if (pendingAttachments.length > 0) {
+          try {
             for (const pending of pendingAttachments) {
               if (pending.kind === 'file') {
                 await uploadFileAttachment(Number(materialId), newPage.id!, pending.file)
@@ -217,23 +180,29 @@ export default function MaterialPageEdit() {
                 await addLinkAttachment(Number(materialId), newPage.id!, pending.url)
               }
             }
-          } else {
+          } catch {
             setError('ページは保存されましたが、添付ファイル・リンクの登録に失敗しました。ページ編集画面から改めて追加してください。')
+            backToStructure()
             return
           }
-        } catch {
-          setError('ページは保存されましたが、添付ファイル・リンクの登録に失敗しました。ページ編集画面から改めて追加してください。')
-          return
         }
+        if (navigateAfter) {
+          backToStructure()
+        } else {
+          navigate(`/projects/${projectId}/materials/${materialId}/pages/${newPage.id}/edit`, { replace: true })
+        }
+      } else if (navigateAfter) {
+        backToStructure()
       }
-
-      backToStructure()
     } catch (e) {
       setError(e instanceof ApiError ? e.message : '保存に失敗しました')
     } finally {
       setSaving(false)
     }
   }
+
+  // Ctrl+S/Cmd+Sで保存できるようにする（2026-09-09、ユーザー要望）
+  useSaveShortcut(() => save(false), !saving)
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -317,54 +286,34 @@ export default function MaterialPageEdit() {
           </Link>
         </p>
 
+        {savedMessage && <Toast message={savedMessage} />}
+
         {error && (
           <p className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
         )}
 
-        <div className="mb-4 flex max-w-md flex-col gap-1">
-          <label htmlFor="p-title" className="text-xs font-semibold text-slate-500">
-            ページタイトル
-          </label>
-          <TextInput id="p-title" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={200} />
-        </div>
-
-        <div className="mb-5 flex flex-col gap-1">
-          <label className="text-xs font-semibold text-slate-500">このページの構成</label>
-          <div className="flex gap-2">
-            <label className="flex items-center gap-1.5 rounded-md border border-slate-300 px-3.5 py-2 text-xs">
-              <input
-                type="checkbox"
-                checked={includeExplanation}
-                onChange={(e) => setIncludeExplanation(e.target.checked)}
-              />
-              説明文を含める
-            </label>
-            <label className="flex items-center gap-1.5 rounded-md border border-slate-300 px-3.5 py-2 text-xs">
-              <input type="checkbox" checked={includeQuiz} onChange={(e) => setIncludeQuiz(e.target.checked)} />
-              問題を含める
-            </label>
-          </div>
-          <span className="text-xs text-slate-400">
-            作成者の判断で自由に組み合わせられます。少なくとも一方は必須です。
-          </span>
-        </div>
-
-        {includeExplanation && (
-          <section className="mb-6 rounded-md border border-slate-200">
-            <div className="border-b border-slate-200 px-4 py-2.5">
-              <span className="text-sm font-semibold text-slate-700">説明文</span>
-            </div>
-            <div className="p-4">
-              <MarkdownHtmlEditor
-                materialId={Number(materialId)}
-                format={format}
-                onFormatChange={setFormat}
-                body={body}
-                onBodyChange={setBody}
-              />
-            </div>
-          </section>
-        )}
+        <PageContentFields
+          materialId={Number(materialId)}
+          title={title}
+          onTitleChange={setTitle}
+          includeExplanation={includeExplanation}
+          onIncludeExplanationChange={setIncludeExplanation}
+          includeQuiz={includeQuiz}
+          onIncludeQuizChange={setIncludeQuiz}
+          format={format}
+          onFormatChange={setFormat}
+          body={body}
+          onBodyChange={setBody}
+          questions={questions}
+          onQuestionsChange={setQuestions}
+          quizMode={quizMode}
+          onQuizModeChange={setQuizMode}
+          poolDrawCount={poolDrawCount}
+          onPoolDrawCountChange={setPoolDrawCount}
+          poolMembership={poolMembership}
+          onPoolMembershipChange={setPoolMembership}
+          titleInputId="p-title"
+        />
 
         <section className="mb-6 rounded-md border border-slate-200">
           <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2.5">
@@ -404,7 +353,7 @@ export default function MaterialPageEdit() {
                   </ul>
                 )}
                 <p className="mb-2 text-xs text-slate-400">
-                  ここで追加したファイル・リンクは、「下書き保存」を押したときにまとめて登録されます。
+                  ここで追加したファイル・リンクは、保存したときにまとめて登録されます。
                 </p>
               </>
             ) : (
@@ -433,97 +382,11 @@ export default function MaterialPageEdit() {
           </div>
         </section>
 
-        {includeQuiz && (
-          <section className="mb-6 rounded-md border border-slate-200">
-            <div className="border-b border-slate-200 px-4 py-2.5">
-              <span className="text-sm font-semibold text-slate-700">問題</span>
-            </div>
-            <div className="p-4">
-              {questions.map((q, i) => (
-                <QuestionEditCard
-                  key={i}
-                  question={q}
-                  index={i}
-                  onChange={(nq) => updateQuestion(i, nq)}
-                  onDelete={() => deleteQuestion(i)}
-                />
-              ))}
-              <button
-                type="button"
-                onClick={addQuestion}
-                className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-600 hover:bg-slate-100"
-              >
-                + 設問を追加
-              </button>
-
-              <div className="mt-4 flex flex-col gap-1 border-t border-slate-200 pt-3">
-                <label className="text-xs font-semibold text-slate-500">出題設定</label>
-                <div className="flex flex-wrap items-center gap-4 text-xs">
-                  <label className="flex items-center gap-1">
-                    <input type="radio" checked={quizMode === 'all'} onChange={() => setQuizMode('all')} />
-                    すべて出題
-                  </label>
-                  <label className="flex items-center gap-1">
-                    <input type="radio" checked={quizMode === 'pool'} onChange={() => setQuizMode('pool')} />
-                    プールからランダムに抽出
-                  </label>
-                  {quizMode === 'pool' && (
-                    <label className="flex items-center gap-1">
-                      出題数
-                      <input
-                        type="number"
-                        min={1}
-                        max={questions.length || undefined}
-                        value={poolDrawCount ?? ''}
-                        onChange={(e) => setPoolDrawCount(e.target.value ? Number(e.target.value) : null)}
-                        className="w-16 rounded-md border border-slate-300 px-2 py-1"
-                      />
-                      問
-                    </label>
-                  )}
-                </div>
-                <span className="text-xs text-slate-400">
-                  「プールからランダムに抽出」を選ぶと、この設問一覧から毎回指定した数だけランダムに出題します。
-                </span>
-
-                {quizMode === 'pool' && (
-                  <div className="mt-2 flex flex-col gap-1.5 rounded-md border border-slate-200 bg-slate-50 p-3">
-                    <span className="text-xs font-semibold text-slate-500">プールに含める設問</span>
-                    {questions.length === 0 ? (
-                      <span className="text-xs text-slate-400">設問を追加してください。</span>
-                    ) : (
-                      questions.map((q, i) => (
-                        <label
-                          key={i}
-                          className={`flex items-center gap-2 text-xs ${
-                            q.id === null ? 'text-slate-300' : 'text-slate-600'
-                          }`}
-                          title={q.id === null ? '保存後にプール対象へ選択できます' : undefined}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={!!poolMembership[i]}
-                            disabled={q.id === null}
-                            onChange={() => togglePoolMembership(i)}
-                          />
-                          設問{i + 1}: {q.prompt.trim() || '（設問文未入力）'}
-                        </label>
-                      ))
-                    )}
-                    <span className="text-xs text-slate-400">
-                      チェックしなかった設問は毎回固定で出題されます（プールの抽選対象外）。2問以上チェックしないとプールは組めません。新規追加した設問は保存後に選択できます。
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-          </section>
-        )}
-
         <div className="flex items-center gap-3">
-          <Button variant="primary" onClick={save} disabled={saving}>
-            下書き保存
+          <Button variant="primary" onClick={() => save()} disabled={saving}>
+            保存して目次に戻る
           </Button>
+          <span className="text-xs text-slate-400">Ctrl+S（Macはcmd+S）でこのページに留まったまま保存できます</span>
         </div>
       </div>
     </div>

@@ -13,7 +13,10 @@ export default function MarkdownHtmlEditor({
   onBodyChange,
   className = '',
 }: {
-  materialId: number
+  // 教材がまだ保存されていない新規作成中（S-05のインラインページ編集）はnull。
+  // その間はプレビューAPI（A-64）を呼べる実IDが無いため、プレビュー取得をスキップする
+  // （2026-09-09）。
+  materialId: number | null
   format: 'markdown' | 'html'
   onFormatChange: (format: 'markdown' | 'html') => void
   body: string
@@ -24,6 +27,11 @@ export default function MarkdownHtmlEditor({
   const [previewError, setPreviewError] = useState(false)
 
   useEffect(() => {
+    if (materialId === null) {
+      setPreviewHtml('')
+      setPreviewError(false)
+      return
+    }
     let cancelled = false
     const timer = setTimeout(async () => {
       if (!body.trim()) {
@@ -81,8 +89,11 @@ export default function MarkdownHtmlEditor({
         <div className="flex flex-col gap-1">
           <span className="text-xs font-semibold text-slate-500">プレビュー</span>
           <div className="min-h-[280px] rounded-md border border-slate-200 bg-white px-3 py-2 text-sm">
-            {previewError && <p className="text-xs text-red-600">プレビューの取得に失敗しました</p>}
-            {!previewError && (
+            {materialId === null && <p className="text-xs text-slate-400">保存後にプレビューできます</p>}
+            {materialId !== null && previewError && (
+              <p className="text-xs text-red-600">プレビューの取得に失敗しました</p>
+            )}
+            {materialId !== null && !previewError && (
               <div
                 className="[&_pre]:overflow-x-auto [&_pre]:rounded [&_pre]:bg-slate-800 [&_pre]:px-3 [&_pre]:py-2 [&_pre]:text-slate-100 [&_p]:mb-2 [&_ul]:ml-5 [&_ul]:list-disc [&_ol]:ml-5 [&_ol]:list-decimal"
                 dangerouslySetInnerHTML={{ __html: previewHtml }}
