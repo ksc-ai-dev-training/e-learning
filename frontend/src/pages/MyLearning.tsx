@@ -38,16 +38,17 @@ function isUrgent(item: MyLearningItem): boolean {
 function actionLabelFor(item: MyLearningItem): string {
   if (item.next_action === 'start') return '受講を開始'
   if (item.next_action === 'resume') return '続きから受講'
-  return item.required ? '復習する' : '反復演習する'
+  return '復習する'
 }
 
-// 「反復演習する」（完了済みの任意教材）の遷移先には、S-04の「反復演習」タブを直接開く
-// ?tab=practiceを付ける。付けないと既定の「目次」タブが開き、そこの「再度受講」ボタンは
-// 合格済みスコープを閲覧専用で開くだけ（問題が出ない）ため、反復演習タブへ辿り着けなかった
-// （2026-09-07、ユーザー報告により修正）。
+// 完了済み教材（必修/任意問わず）は既定の「目次」タブへ遷移する。以前は完了済みの任意教材だけ
+// 「反復演習する」ラベルで練習タブへ直接飛ばしていたが、その導線からは「目次」タブの
+// 「再度受講」（合格済みスコープを閲覧専用で開き、毎回アンケート等はここで判定される）に
+// 一切たどり着けなかった。練習をしたい場合は目次を開いてから自分でタブを切り替えれば
+// よいため、必修・任意とも「復習する」で統一し、目次タブを既定にした
+// （2026-09-09、ユーザー要望）。
 function materialLinkFor(item: MyLearningItem): string {
-  const tabQuery = actionLabelFor(item) === '反復演習する' ? '&tab=practice' : ''
-  return `/materials/${item.id}?from=my-learning${tabQuery}`
+  return `/materials/${item.id}?from=my-learning`
 }
 
 interface ProjectTab {

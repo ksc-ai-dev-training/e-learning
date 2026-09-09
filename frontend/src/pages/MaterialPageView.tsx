@@ -32,7 +32,7 @@ const WRONG_ONLY_QUEUE_KEY = 'wrongOnlyQueue'
 // 3つのモードを扱う（?modeクエリ）:
 // - graded（既定）: attempt_scope（教材/章/小見出し/ページ）ごとに独立した受験記録を扱う。ページ
 //   遷移のたびにA-40を呼び、現在のスコープの試行を再開または新規開始する（「続きから受講」の実体）。
-// - practice（反復演習）: scope_node_idは常にnull。教材の全ページを通しで解き、最後のページでのみ提出する。
+// - practice（練習）: scope_node_idは常にnull。教材の全ページを通しで解き、最後のページでのみ提出する。
 // - wrong_only（誤答のみ抽出）: A-44が作成済みの特定attemptを対象にする。A-40は呼ばずA-43
 //   （getAttempt）で状態取得する。対象ページはこのattemptのquestion_orderに含まれるものだけに絞る。
 export default function MaterialPageView() {
@@ -65,6 +65,10 @@ export default function MaterialPageView() {
     nextChapterNumber: number
     nextChapterTitle: string
   } | null>(null)
+  // アンケートモーダルと章区切りモーダルが同時に出ないよう、アンケート表示中は章区切りを
+  // 保留し、アンケートを閉じた後に表示する（どちらもfixed inset-0の全画面モーダルのため。
+  // 2026-09-09、アンケート表示ロジックの根本修正の一部）。
+  const [pendingChapterTransition, setPendingChapterTransition] = useState<typeof chapterTransition>(null)
 
   const allPages = material ? flattenPages(material.toc ?? []) : []
   const allPageIndex = findPageIndex(allPages, pageNodeId)
@@ -195,6 +199,16 @@ export default function MaterialPageView() {
     setSkipped((prev) => new Set(prev).add(questionId))
   }
 
+  // アンケートを閉じた/提出した後、章区切り画面の表示を保留していればそれを表示する
+  // （同時にモーダルを2枚重ねて出さないため。2026-09-09）。
+  const closeSurvey = () => {
+    setSurveyToShow(null)
+    if (pendingChapterTransition) {
+      setChapterTransition(pendingChapterTransition)
+      setPendingChapterTransition(null)
+    }
+  }
+
   const goToPage = (targetNodeId: number) => {
     const suffix =
       mode === 'graded'
@@ -223,16 +237,44 @@ export default function MaterialPageView() {
         ? !nextFlat || resolveScopeNodeId(allPages, material.attempt_scope, nextFlat.node.id) !== scopeNodeId
         : !nextFlat
 
+    // アンケートの表示要否は、クイズの採点範囲（attempt_scope）とは独立に、実際にその章・教材を
+    // 読み終えたかどうか（ページ位置）だけで判定する。以前はscopeNodeId（attempt_scope由来）と
+    // survey.node_idの一致で判定していたため、attempt_scopeが'chapter'以外の教材では章単位の
+    // アンケートが、'material'以外の教材では教材全体のアンケートが、常に表示されない不具合が
+    // あった（2026-09-09、ユーザー報告により根本修正）。教材全体アンケートが優先だが、無ければ
+    // 章単位アンケートにフォールバックする（例: 章が1つしか無い教材で章単位に設置しているケース）。
+    const isEndOfChapter = !nextFlat || nextFlat.chapterId !== flatPage.chapterId
+    const isEndOfMaterial = !nextFlat
+    // 初めてこのスコープを完了した/この境界を越えたときの判定（repeat_mode='once'は未回答なら対象）
+    const findFreshSurvey = (nodeId: number | null) =>
+      surveys.find((s) => s.node_id === nodeId && s.is_active && (s.repeat_mode === 'every_time' || !s.answered_by_me))
+    // 一度提出済みのスコープを再度見たときの判定。repeat_mode='once'は初回完了時にすでに提出機会が
+    // あったため対象外にする（既存の挙動を踏襲。2026-09-07修正時の意図と同じ）。
+    const findRevisitSurvey = (nodeId: number | null) =>
+      surveys.find((s) => s.node_id === nodeId && s.is_active && s.repeat_mode === 'every_time')
+
     if (!isLastOfScope) {
       if (nextFlat!.chapterId !== flatPage.chapterId) {
         const chapters = material.toc?.filter((n) => n.kind === 'chapter') ?? []
-        setChapterTransition({
+        const transition = {
           nextNodeId: nextFlat!.node.id,
           completedChapterNumber: chapterNumber + 1,
           completedChapterTitle: flatPage.chapterTitle,
           nextChapterNumber: chapters.findIndex((c) => c.id === nextFlat!.chapterId) + 1,
           nextChapterTitle: nextFlat!.chapterTitle,
-        })
+        }
+        // この分岐は「章の最後のページを読み終えて次の章へ進む」タイミングそのものなので、
+        // まだ採点範囲全体は終わっていなくても、この章のアンケートはここで表示してよい
+        // （章単位アンケートは「この章の感想」を聞くものであり、採点の合否とは無関係）。
+        if (mode === 'graded') {
+          const survey = findFreshSurvey(flatPage.chapterId)
+          if (survey) {
+            setSurveyToShow(survey)
+            setPendingChapterTransition(transition)
+            return
+          }
+        }
+        setChapterTransition(transition)
         return
       }
       goToPage(nextFlat!.node.id)
@@ -248,9 +290,12 @@ export default function MaterialPageView() {
     // 「毎回」設定でも一切表示されなくなっていた（2026-09-07、ユーザー報告により修正）。
     if (attempt.submitted_at !== null) {
       if (mode === 'graded') {
-        const survey = surveys.find(
-          (s) => s.node_id === scopeNodeId && s.is_active && s.repeat_mode === 'every_time',
-        )
+        // isEndOfMaterialはisEndOfChapterも常に満たすため、教材全体アンケートが無い場合は
+        // 章単位アンケートにフォールバックする（例: 章が1つしか無い教材で、教材全体ではなく
+        // 章単位でアンケートを設置しているケース。2026-09-09に発見）。
+        const survey =
+          (isEndOfMaterial ? findRevisitSurvey(null) : undefined) ??
+          (isEndOfChapter ? findRevisitSurvey(flatPage.chapterId) : undefined)
         if (survey) setSurveyToShow(survey)
       }
       setSubmittedResult(attempt)
@@ -263,9 +308,9 @@ export default function MaterialPageView() {
       if (mode === 'graded') {
         await mutateMaterial()
         if (result.passed) {
-          const survey = surveys.find(
-            (s) => s.node_id === scopeNodeId && s.is_active && (s.repeat_mode === 'every_time' || !s.answered_by_me),
-          )
+          const survey =
+            (isEndOfMaterial ? findFreshSurvey(null) : undefined) ??
+            (isEndOfChapter ? findFreshSurvey(flatPage.chapterId) : undefined)
           if (survey) setSurveyToShow(survey)
         }
       }
@@ -324,7 +369,7 @@ export default function MaterialPageView() {
   }
 
   const alreadySubmitted = attempt.submitted_at !== null
-  const modeLabel = mode === 'practice' ? '（反復演習）' : mode === 'wrong_only' ? '（誤答のみ抽出）' : ''
+  const modeLabel = mode === 'practice' ? '（練習）' : mode === 'wrong_only' ? '（誤答のみ抽出）' : ''
 
   return (
     <div className="flex flex-1 flex-col">
@@ -432,11 +477,7 @@ export default function MaterialPageView() {
       </div>
 
       {surveyToShow && (
-        <SurveyModal
-          survey={surveyToShow}
-          onClose={() => setSurveyToShow(null)}
-          onSubmitted={() => setSurveyToShow(null)}
-        />
+        <SurveyModal survey={surveyToShow} onClose={closeSurvey} onSubmitted={closeSurvey} />
       )}
 
       {chapterTransition && (
@@ -489,7 +530,7 @@ function AttemptResultPanel({ attempt, mode }: { attempt: QuizAttempt; mode: Pag
           提出済み{attempt.score_pct !== null && ` ／ 正答率${Math.round(attempt.score_pct)}%`}
         </div>
         <p className="text-xs text-slate-500">
-          {mode === 'practice' ? '反復演習' : '誤答のみ抽出'}は合否に影響しません。習熟のための記録として保存されました。
+          {mode === 'practice' ? '練習' : '誤答のみ抽出'}は合否に影響しません。習熟のための記録として保存されました。
         </p>
       </div>
     )

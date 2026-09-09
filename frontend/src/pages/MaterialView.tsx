@@ -22,7 +22,7 @@ import type { QuizAttempt, Survey } from '../types'
 
 const TABS = [
   { key: 'toc', label: '目次' },
-  { key: 'practice', label: '反復演習' },
+  { key: 'practice', label: '練習' },
   { key: 'wrong_only', label: '誤答のみ抽出' },
 ] as const
 type TabKey = (typeof TABS)[number]['key']
@@ -38,10 +38,11 @@ export default function MaterialView() {
   const returnQuery = fromQuery(from)
   const { material, error, isLoading, mutate: mutateMaterial } = useMaterial(id)
   const { attachments } = useMaterialAttachments(id)
-  // ?tab=practice で「反復演習」タブを開いた状態で表示する（マイ学習の「反復演習する」導線用。
-  // 以前は常に「目次」タブで開き、合格済み教材の「再度受講」ボタンが合否判定不要のgradedモード
-  // （合格済みスコープは閲覧専用で問題が出ない）に繋がっていたため、反復演習タブへ辿り着けず
-  // 問題が出ないように見える不具合になっていた。2026-09-07、ユーザー報告により修正）。
+  // ?tab=practiceで「練習」タブを開いた状態で表示できる（タブの直接指定に汎用的に対応する
+  // ためのクエリで、現状アプリ内からこの値でリンクする箇所は無い。以前はマイ学習の完了済み
+  // 任意教材のリンクがこれを使っていたが、目次タブの「再度受講」（合格済みスコープを閲覧専用で
+  // 開く。毎回アンケート等の判定もここで走る）に一切たどり着けなくなるため、2026-09-09に
+  // マイ学習側を「目次」タブへ統一した。練習をしたい場合は目次を開いてからタブを切り替える）。
   const initialTab = searchParams.get('tab')
   const [activeTab, setActiveTab] = useState<TabKey>(
     TABS.some((t) => t.key === initialTab) ? (initialTab as TabKey) : 'toc',
@@ -511,7 +512,7 @@ export default function MaterialView() {
             </section>
             {actionError && <p className="mb-3 text-sm text-red-600">{actionError}</p>}
             <Button onClick={handleStartPractice} disabled={startingPractice}>
-              {startingPractice ? '開始中…' : '反復演習を開始'}
+              {startingPractice ? '開始中…' : '練習を開始'}
             </Button>
           </>
         )}
@@ -519,7 +520,7 @@ export default function MaterialView() {
         {activeTab === 'wrong_only' && (
           <>
             <p className="mb-4 text-xs text-slate-500">
-              過去に間違えた問題、または正答率の低い問題だけを抽出して出題します。結果は反復演習と同様に合否へは影響しません。
+              過去に間違えた問題、または正答率の低い問題だけを抽出して出題します。結果は練習と同様に合否へは影響しません。
             </p>
             <div className="mb-4 flex flex-col gap-2">
               <label className="flex items-center gap-2 text-sm text-slate-700">

@@ -265,7 +265,7 @@ export interface AttemptSummaryEntry {
   }[]
 }
 
-// A-87 GET /materials/{id}/practice-attempts のitems（S-04 反復演習タブの実施履歴）
+// A-87 GET /materials/{id}/practice-attempts のitems（S-04 練習タブの実施履歴）
 export interface PracticeAttemptSummary {
   id: number
   score_pct: number | null

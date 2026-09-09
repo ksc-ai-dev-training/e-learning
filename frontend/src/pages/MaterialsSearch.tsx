@@ -40,10 +40,12 @@ const EMPTY_FILTER: FilterForm = {
   myAssignmentsOnly: false,
 }
 
-function actionLabel(status: EnrollmentStatus, required: boolean): string {
+function actionLabel(status: EnrollmentStatus): string {
   if (status === 'not_started') return '受講する'
   if (status === 'in_progress') return '続きから受講'
-  return required ? '復習する' : '反復演習'
+  // 常に目次タブへ遷移するボタンのため、必修・任意問わず「復習する」で統一する
+  // （マイ学習と同じ理由。2026-09-09）。「練習」をしたい場合は目次タブから切り替える。
+  return '復習する'
 }
 
 // URLクエリからの絞り込み込みリンク（S-09「未受講の必修教材」等）向け。個々のキーが無ければ
@@ -306,7 +308,7 @@ export default function MaterialsSearch() {
                     <td className="px-3 py-2">
                       <div className="flex flex-col items-start gap-1.5">
                         <Button variant="secondary" onClick={() => navigate(`/materials/${m.id}`)}>
-                          {actionLabel(m.progress_status, m.required)}
+                          {actionLabel(m.progress_status)}
                         </Button>
                         {m.is_company_wide && !m.required && (
                           <MyLearningToggle
