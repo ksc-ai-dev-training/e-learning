@@ -199,13 +199,18 @@ export default function MaterialEdit() {
           body: JSON.stringify({ project_id: Number(projectId), title, tags }),
         })
         setSavedId(created.id)
+        // navigate()より先にdirtyを落とす。保存直後のこのnavigateは自分自身が起こす画面遷移
+        // （新規作成後の作成済みURLへの置き換え）であって、保存していない変更の破棄ではないため、
+        // dirtyが立ったままだとuseUnsavedChangesGuardのブロッカーが誤って確認モーダルを
+        // 出してしまう（2026-09-09に発見・修正）。
+        setDirty(false)
         navigate(`/projects/${projectId}/materials/${created.id}/edit`, { replace: true })
       } else if (material) {
         const source = buildMaterialSource(withMeta(material), chapters)
         await apiFetchText(`/api/materials/${savedId}/source`, source)
         await mutate()
+        setDirty(false)
       }
-      setDirty(false)
       setSavedMessage('保存しました')
     } catch (e) {
       setError(e instanceof ApiError ? e.message : '保存に失敗しました')
@@ -299,6 +304,11 @@ export default function MaterialEdit() {
     setDeleting(true)
     try {
       await deleteMaterial(savedId)
+      // 削除ボタン自体はdirtyで無効化していないため、未保存の変更があるまま削除した場合
+      // navigate()前にdirtyを落としておく（教材はもう存在しないため確認する意味が無く、
+      // 落とさないとuseUnsavedChangesGuardのブロッカーが誤って確認モーダルを出してしまう。
+      // 2026-09-09、レビューで発見・修正）。
+      setDirty(false)
       navigate(`/projects/${projectId}/materials/edit`)
     } catch (e) {
       setError(e instanceof ApiError ? e.message : '削除に失敗しました')

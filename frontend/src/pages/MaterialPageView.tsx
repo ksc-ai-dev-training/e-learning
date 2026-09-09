@@ -69,6 +69,10 @@ export default function MaterialPageView() {
   // 保留し、アンケートを閉じた後に表示する（どちらもfixed inset-0の全画面モーダルのため。
   // 2026-09-09、アンケート表示ロジックの根本修正の一部）。
   const [pendingChapterTransition, setPendingChapterTransition] = useState<typeof chapterTransition>(null)
+  // 教材の最後の章の最後のページでは、教材全体アンケートと章単位アンケートの両方が該当しうる。
+  // 1つ目を閉じた後に2つ目を出すためのキュー（2026-09-09、両方設置時に章アンケートが
+  // 一切表示されなくなる問題への対応）。
+  const [pendingSurvey, setPendingSurvey] = useState<Survey | null>(null)
 
   const allPages = material ? flattenPages(material.toc ?? []) : []
   const allPageIndex = findPageIndex(allPages, pageNodeId)
@@ -199,10 +203,16 @@ export default function MaterialPageView() {
     setSkipped((prev) => new Set(prev).add(questionId))
   }
 
-  // アンケートを閉じた/提出した後、章区切り画面の表示を保留していればそれを表示する
-  // （同時にモーダルを2枚重ねて出さないため。2026-09-09）。
+  // アンケートを閉じた/提出した後、次に控えているものを表示する（同時にモーダルを2枚重ねて
+  // 出さないため）。もう1件アンケートが控えていればそれを先に、無ければ保留していた章区切り
+  // 画面を表示する（2026-09-09）。
   const closeSurvey = () => {
     setSurveyToShow(null)
+    if (pendingSurvey) {
+      setSurveyToShow(pendingSurvey)
+      setPendingSurvey(null)
+      return
+    }
     if (pendingChapterTransition) {
       setChapterTransition(pendingChapterTransition)
       setPendingChapterTransition(null)
@@ -241,8 +251,7 @@ export default function MaterialPageView() {
     // 読み終えたかどうか（ページ位置）だけで判定する。以前はscopeNodeId（attempt_scope由来）と
     // survey.node_idの一致で判定していたため、attempt_scopeが'chapter'以外の教材では章単位の
     // アンケートが、'material'以外の教材では教材全体のアンケートが、常に表示されない不具合が
-    // あった（2026-09-09、ユーザー報告により根本修正）。教材全体アンケートが優先だが、無ければ
-    // 章単位アンケートにフォールバックする（例: 章が1つしか無い教材で章単位に設置しているケース）。
+    // あった（2026-09-09、ユーザー報告により根本修正）。
     const isEndOfChapter = !nextFlat || nextFlat.chapterId !== flatPage.chapterId
     const isEndOfMaterial = !nextFlat
     // 初めてこのスコープを完了した/この境界を越えたときの判定（repeat_mode='once'は未回答なら対象）
@@ -252,6 +261,28 @@ export default function MaterialPageView() {
     // あったため対象外にする（既存の挙動を踏襲。2026-09-07修正時の意図と同じ）。
     const findRevisitSurvey = (nodeId: number | null) =>
       surveys.find((s) => s.node_id === nodeId && s.is_active && s.repeat_mode === 'every_time')
+    // 教材の最後の章の最後のページでは、教材全体アンケート（isEndOfMaterial）と章単位アンケート
+    // （isEndOfChapter、isEndOfMaterialのときは常に真）の両方が該当しうる。両方設置されている
+    // 場合は章単位アンケートが一切表示される機会を失っていたため、両方を対象に含め、「章の終了→
+    // 教材の終了」という自然な順序に合わせて章単位を先に・教材全体を後に表示する2件のキューとして
+    // 返す（2026-09-09、レビューで発見・修正、表示順はユーザー指定）。
+    const applicableSurveys = (find: (nodeId: number | null) => Survey | undefined): Survey[] => {
+      const result: Survey[] = []
+      if (isEndOfChapter) {
+        const s = find(flatPage.chapterId)
+        if (s) result.push(s)
+      }
+      if (isEndOfMaterial) {
+        const s = find(null)
+        if (s) result.push(s)
+      }
+      return result
+    }
+    const showSurveyQueue = (list: Survey[]) => {
+      if (list.length === 0) return
+      setSurveyToShow(list[0])
+      if (list.length > 1) setPendingSurvey(list[1])
+    }
 
     if (!isLastOfScope) {
       if (nextFlat!.chapterId !== flatPage.chapterId) {
@@ -266,8 +297,16 @@ export default function MaterialPageView() {
         // この分岐は「章の最後のページを読み終えて次の章へ進む」タイミングそのものなので、
         // まだ採点範囲全体は終わっていなくても、この章のアンケートはここで表示してよい
         // （章単位アンケートは「この章の感想」を聞くものであり、採点の合否とは無関係）。
+        // ただし、attempt_scope='material'等の複数章にまたがる採点範囲では、この境界越えは
+        // 初回の通読時にも「一度合格済みのスコープを見返している」ときにも起こりうる。
+        // attempt.submitted_atが既にセットされていれば後者（再訪問）なので、repeat_mode='once'
+        // 未回答の章アンケートを毎回出し直してしまわないよう、revisit判定を使う
+        // （2026-09-09、実装直後のレビューで発見・修正）。
         if (mode === 'graded') {
-          const survey = findFreshSurvey(flatPage.chapterId)
+          const survey =
+            attempt.submitted_at !== null
+              ? findRevisitSurvey(flatPage.chapterId)
+              : findFreshSurvey(flatPage.chapterId)
           if (survey) {
             setSurveyToShow(survey)
             setPendingChapterTransition(transition)
@@ -290,13 +329,7 @@ export default function MaterialPageView() {
     // 「毎回」設定でも一切表示されなくなっていた（2026-09-07、ユーザー報告により修正）。
     if (attempt.submitted_at !== null) {
       if (mode === 'graded') {
-        // isEndOfMaterialはisEndOfChapterも常に満たすため、教材全体アンケートが無い場合は
-        // 章単位アンケートにフォールバックする（例: 章が1つしか無い教材で、教材全体ではなく
-        // 章単位でアンケートを設置しているケース。2026-09-09に発見）。
-        const survey =
-          (isEndOfMaterial ? findRevisitSurvey(null) : undefined) ??
-          (isEndOfChapter ? findRevisitSurvey(flatPage.chapterId) : undefined)
-        if (survey) setSurveyToShow(survey)
+        showSurveyQueue(applicableSurveys(findRevisitSurvey))
       }
       setSubmittedResult(attempt)
       return
@@ -308,10 +341,7 @@ export default function MaterialPageView() {
       if (mode === 'graded') {
         await mutateMaterial()
         if (result.passed) {
-          const survey =
-            (isEndOfMaterial ? findFreshSurvey(null) : undefined) ??
-            (isEndOfChapter ? findFreshSurvey(flatPage.chapterId) : undefined)
-          if (survey) setSurveyToShow(survey)
+          showSurveyQueue(applicableSurveys(findFreshSurvey))
         }
       }
       setSubmittedResult(result)
@@ -477,7 +507,10 @@ export default function MaterialPageView() {
       </div>
 
       {surveyToShow && (
-        <SurveyModal survey={surveyToShow} onClose={closeSurvey} onSubmitted={closeSurvey} />
+        // key={survey.id}: 教材全体アンケート→章単位アンケートと連続表示する場合に、前の
+        // フォーム入力内容（values等の内部state）を引き継がず、確実にまっさらな状態で
+        // 表示させるため（2026-09-09）。
+        <SurveyModal key={surveyToShow.id} survey={surveyToShow} onClose={closeSurvey} onSubmitted={closeSurvey} />
       )}
 
       {chapterTransition && (
