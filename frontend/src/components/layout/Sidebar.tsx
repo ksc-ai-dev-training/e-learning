@@ -34,12 +34,26 @@ const COLLAPSED_KEY = 'manabi-sidebar-collapsed'
 // 遷移元はlib/backLink.tsの`from=my-learning`クエリで引き継いでいるため、matchにも
 // search文字列を渡してこれを判定に使う（2026-08-31。以前はどちらのナビ項目もハイライト
 // されなくなる不具合があった）。
+// ほとんどの利用者（受講のみ行う一般学習者）が使うのは「マイ学習」「教材一覧・検索」
+// 「個人学習レポート」の3つのため、これを先頭グループに置き、以降を教材運営（教材編集〜
+// 受講状況ダッシュボード）・プロジェクト運営（プロジェクト作成・管理）・システム管理の
+// グループに分けて、薄い区切り線とグループごとのアイコン色で視覚的にまとめる
+// （2026-09-09、ユーザー指定の並び順・グループ配色）。
+const ACCENT_ICON_CLASS = {
+  blue: 'text-blue-500',
+  violet: 'text-violet-500',
+  emerald: 'text-emerald-500',
+  amber: 'text-amber-500',
+} as const
+type Accent = keyof typeof ACCENT_ICON_CLASS
+
 const NAV_ITEMS = [
   {
     href: '/',
     label: 'マイ学習',
     icon: Home,
     implemented: true,
+    accent: 'blue' as Accent,
     match: (p: string, search: string) => p === '/' || (/^\/materials\/\d+(\/|$)/.test(p) && search.includes('from=my-learning')),
   },
   {
@@ -47,42 +61,40 @@ const NAV_ITEMS = [
     label: '教材一覧・検索',
     icon: BookOpen,
     implemented: true,
+    accent: 'blue' as Accent,
     match: (p: string, search: string) => p === '/materials' || (/^\/materials\/\d+(\/|$)/.test(p) && !search.includes('from=my-learning')),
+  },
+  {
+    href: '/reports/me',
+    label: '個人学習レポート',
+    icon: BarChart3,
+    implemented: true,
+    accent: 'blue' as Accent,
+    match: (p: string) => p.startsWith('/reports/'),
   },
   {
     href: '/materials/edit-projects',
     label: '教材編集',
     icon: Pencil,
     implemented: true,
+    accent: 'violet' as Accent,
+    dividerBefore: true,
     match: (p: string) => p === '/materials/edit-projects' || /^\/projects\/[^/]+\/materials(\/|$)/.test(p),
   },
-  { href: '/grading', label: '採点', icon: CircleCheckBig, implemented: false, match: (p: string) => p === '/grading' },
   {
-    href: '/reports/me',
-    label: '個人学習レポート',
-    icon: BarChart3,
-    implemented: true,
-    match: (p: string) => p.startsWith('/reports/'),
-  },
-  {
-    href: '/projects/new',
-    label: 'プロジェクト作成',
-    icon: Plus,
-    implemented: true,
-    match: (p: string) => p === '/projects/new',
-  },
-  {
-    href: '/projects/manage',
-    label: 'プロジェクト管理',
-    icon: LayoutGrid,
-    implemented: true,
-    match: (p: string) => p === '/projects/manage' || /^\/projects\/[^/]+\/manage(\/|$)/.test(p),
+    href: '/grading',
+    label: '採点',
+    icon: CircleCheckBig,
+    implemented: false,
+    accent: 'violet' as Accent,
+    match: (p: string) => p === '/grading',
   },
   {
     href: '/assignments',
     label: '配信設定',
     icon: Send,
     implemented: true,
+    accent: 'violet' as Accent,
     match: (p: string) => p === '/assignments',
   },
   {
@@ -90,10 +102,28 @@ const NAV_ITEMS = [
     label: '受講状況ダッシュボード',
     icon: LayoutDashboard,
     implemented: true,
+    accent: 'violet' as Accent,
     // S-08はadmin（全社スコープ）とプロジェクト管理者（自プロジェクトのスコープ）のみ閲覧できるが、
     // 「教材編集」等と同様ナビ項目自体は全員に表示し、担当プロジェクトが無い場合は画面側の
-    // 空状態で案内する（2026-09-08）。配信設定の下に配置（ユーザー指定）。
+    // 空状態で案内する（2026-09-08）。
     match: (p: string) => p === '/dashboard',
+  },
+  {
+    href: '/projects/new',
+    label: 'プロジェクト作成',
+    icon: Plus,
+    implemented: true,
+    accent: 'emerald' as Accent,
+    dividerBefore: true,
+    match: (p: string) => p === '/projects/new',
+  },
+  {
+    href: '/projects/manage',
+    label: 'プロジェクト管理',
+    icon: LayoutGrid,
+    implemented: true,
+    accent: 'emerald' as Accent,
+    match: (p: string) => p === '/projects/manage' || /^\/projects\/[^/]+\/manage(\/|$)/.test(p),
   },
   {
     href: '/admin/settings',
@@ -103,6 +133,8 @@ const NAV_ITEMS = [
     label: 'システム管理',
     icon: Settings,
     implemented: true,
+    accent: 'amber' as Accent,
+    dividerBefore: true,
     // S-10はシステムadmin専用（基本設計書4.12節）。他の項目と異なりロールで表示自体を絞る
     adminOnly: true,
     match: (p: string) => p === '/admin/settings',
@@ -165,9 +197,13 @@ export default function Sidebar({ me }: { me: Me }) {
           </div>
         )}
         {NAV_ITEMS.filter((item) => !item.adminOnly || me.role === 'admin').map((item) => {
+          const isActive = item.implemented && item.match(location.pathname, location.search)
+          // 未実装・選択中の項目は既存の統一色（灰色/青）のままにし、それ以外はグループごとの
+          // アイコン色でどのブロックの項目かを分かりやすくする（2026-09-09、ユーザー要望）
+          const iconAccentClass = item.implemented && !isActive ? ACCENT_ICON_CLASS[item.accent] : ''
           const body = (
             <>
-              <item.icon className="h-4 w-4 flex-shrink-0" />
+              <item.icon className={`h-4 w-4 flex-shrink-0 ${iconAccentClass}`} />
               {!collapsed && <span className="truncate">{item.label}</span>}
             </>
           )
@@ -175,19 +211,24 @@ export default function Sidebar({ me }: { me: Me }) {
             collapsed ? 'justify-center px-0' : 'px-2.5'
           } ${
             item.implemented
-              ? item.match(location.pathname, location.search)
+              ? isActive
                 ? 'bg-blue-50 font-semibold text-blue-900'
                 : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'
               : 'cursor-default text-slate-300'
           }`
-          return item.implemented ? (
-            <Link key={item.href} to={item.href} title={collapsed ? item.label : undefined} className={className}>
-              {body}
-            </Link>
-          ) : (
-            <span key={item.href} title={collapsed ? item.label : '未実装'} className={className}>
-              {body}
-            </span>
+          return (
+            <div key={item.href}>
+              {item.dividerBefore && <div className="my-1.5 border-t border-slate-200" />}
+              {item.implemented ? (
+                <Link to={item.href} title={collapsed ? item.label : undefined} className={className}>
+                  {body}
+                </Link>
+              ) : (
+                <span title={collapsed ? item.label : '未実装'} className={className}>
+                  {body}
+                </span>
+              )}
+            </div>
           )
         })}
       </nav>
