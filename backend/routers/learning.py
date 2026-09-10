@@ -694,8 +694,11 @@ class WrongQuestionsIn(BaseModel):
 
 @router.post("/materials/{id}/wrong-questions-attempts", status_code=201)
 async def start_wrong_questions_attempt(id: int, body: WrongQuestionsIn, user: CurrentUser = Depends(require_auth)):
-    """A-44: 誤答のみ抽出出題を開始する（mode='practice'。合否・ドボン判定は行わない）。
-    自分の直近の誤答に加え、全受講者の正答率が50%未満の設問も対象に含める。"""
+    """A-44: 誤答＆難問抽出出題を開始する（mode='practice'。合否・ドボン判定は行わない）。
+    自分の直近の誤答に加え、自分が解答したことのある設問のうち全受講者の正答率が50%未満の
+    ものも対象に含める（scope='all'の場合、自分が一度も解いたことのない教材の低正答率設問まで
+    無条件に混ざり込み、全社wiki等の教材が増えるほど無関係な問題が際限なく増えてしまうため、
+    2026-09-10、自分の解答履歴がある設問に限定する形へ変更）。"""
     pool = get_pool()
     await _require_view_access(pool, id, user)
 
@@ -714,13 +717,25 @@ async def start_wrong_questions_attempt(id: int, body: WrongQuestionsIn, user: C
     )
     question_ids = {r["question_id"] for r in own_wrong}
 
-    low_rate_filter = "AND q.material_id = $1" if body.scope == "material" else ""
-    low_rate_params = [id] if body.scope == "material" else []
+    if body.scope == "material":
+        low_rate_filter = "AND q.material_id = $1"
+        low_rate_params = [id, user.id]
+        user_param = "$2"
+    else:
+        low_rate_filter = ""
+        low_rate_params = [user.id]
+        user_param = "$1"
     low_rate = await pool.fetch(
         f"""SELECT a.question_id FROM answers a
             JOIN questions q ON q.id = a.question_id
             WHERE a.is_correct IS NOT NULL {low_rate_filter}
-            GROUP BY a.question_id HAVING AVG(a.is_correct::int) < 0.5""",
+            GROUP BY a.question_id
+            HAVING AVG(a.is_correct::int) < 0.5
+               AND EXISTS (
+                 SELECT 1 FROM answers ua
+                 JOIN quiz_attempts uqa ON uqa.id = ua.attempt_id
+                 WHERE ua.question_id = a.question_id AND uqa.user_id = {user_param}
+               )""",
         *low_rate_params,
     )
     question_ids |= {r["question_id"] for r in low_rate}

@@ -33,7 +33,7 @@ const WRONG_ONLY_QUEUE_KEY = 'wrongOnlyQueue'
 // - graded（既定）: attempt_scope（教材/章/小見出し/ページ）ごとに独立した受験記録を扱う。ページ
 //   遷移のたびにA-40を呼び、現在のスコープの試行を再開または新規開始する（「続きから受講」の実体）。
 // - practice（練習）: scope_node_idは常にnull。教材の全ページを通しで解き、最後のページでのみ提出する。
-// - wrong_only（誤答のみ抽出）: A-44が作成済みの特定attemptを対象にする。A-40は呼ばずA-43
+// - wrong_only（誤答＆難問抽出）: A-44が作成済みの特定attemptを対象にする。A-40は呼ばずA-43
 //   （getAttempt）で状態取得する。対象ページはこのattemptのquestion_orderに含まれるものだけに絞る。
 export default function MaterialPageView() {
   const { materialId, nodeId } = useParams<{ materialId: string; nodeId: string }>()
@@ -229,6 +229,20 @@ export default function MaterialPageView() {
     navigate(`/materials/${id}/pages/${targetNodeId}${suffix}`)
   }
 
+  // 「前のページへ戻る」。handleNextと違い、来訪マーク・アンケート表示・章区切りモーダル・
+  // スコープ提出などの前進専用の副作用は一切持たせず、単にページを移動するだけにする
+  // （2026-09-09、スコープ提出まで回答を編集可能にする対応の一部）。graded時はattempt_scopeの
+  // 境界を越えて前の章・小見出し等へは戻れないようにする（そこはこのスコープの範囲外のため）。
+  const prevFlat = sequenceIndex > 0 ? sequencePages[sequenceIndex - 1] : null
+  const isFirstOfScope =
+    mode === 'graded'
+      ? !prevFlat || resolveScopeNodeId(allPages, material?.attempt_scope ?? 'material', prevFlat.node.id) !== scopeNodeId
+      : !prevFlat
+  const canGoPrev = !isFirstOfScope
+  const handlePrev = () => {
+    if (prevFlat && canGoPrev) goToPage(prevFlat.node.id)
+  }
+
   const handleNext = async () => {
     // 目次の✓マーク用「閲覧済み」記録。合否判定（completed_node_ids）とは別物で、このページを
     // 読み終えて「次へ」を押した時点でのみ記録する（開いた時点では記録しない。2026-09-03、ユーザー要望）。
@@ -399,7 +413,7 @@ export default function MaterialPageView() {
   }
 
   const alreadySubmitted = attempt.submitted_at !== null
-  const modeLabel = mode === 'practice' ? '（練習）' : mode === 'wrong_only' ? '（誤答のみ抽出）' : ''
+  const modeLabel = mode === 'practice' ? '（練習）' : mode === 'wrong_only' ? '（誤答＆難問抽出）' : ''
 
   return (
     <div className="flex flex-1 flex-col">
@@ -443,6 +457,19 @@ export default function MaterialPageView() {
         {submittedResult ? (
           <>
             <AttemptResultPanel attempt={submittedResult} mode={mode} />
+            {questions.map((q, i) => (
+              <AnswerQuestionCard
+                key={q.id}
+                question={q}
+                index={i}
+                answer={answers[q.id as number]}
+                locked={false}
+                skipped={skipped.has(q.id as number)}
+                revealResult={true}
+                onSave={async () => {}}
+                onSkip={() => {}}
+              />
+            ))}
             <div className="mt-4">
               <Button onClick={handleContinueAfterResult}>
                 {mode === 'wrong_only'
@@ -458,6 +485,23 @@ export default function MaterialPageView() {
         ) : alreadySubmitted ? (
           <>
             <AttemptResultPanel attempt={attempt} mode={mode} />
+            {/* 提出済みスコープの読み返し。回答中は採点のズルを防ぐため正誤を隠しているので
+                （AnswerQuestionCardのrevealResult=false）、提出後にここで各設問の正誤・AI採点結果を
+                確認できるようにする（2026-09-09、スコープ提出まで回答を編集可能にする対応の一部）。
+                onSave/onSkipはrevealResult=trueの間は入力UI自体が出ないため呼ばれないダミー。 */}
+            {questions.map((q, i) => (
+              <AnswerQuestionCard
+                key={q.id}
+                question={q}
+                index={i}
+                answer={answers[q.id as number]}
+                locked={false}
+                skipped={skipped.has(q.id as number)}
+                revealResult={true}
+                onSave={async () => {}}
+                onSkip={() => {}}
+              />
+            ))}
             <div className="mt-4 flex items-center gap-3">
               <Link
                 to={`/materials/${id}${fromQuery(from)}`}
@@ -465,6 +509,9 @@ export default function MaterialPageView() {
               >
                 目次へ戻る
               </Link>
+              <Button variant="secondary" onClick={handlePrev} disabled={!canGoPrev || advancing}>
+                前のページへ戻る
+              </Button>
               <Button onClick={handleNext} disabled={advancing}>
                 次のページへ
               </Button>
@@ -481,6 +528,7 @@ export default function MaterialPageView() {
                 answer={answers[q.id as number]}
                 locked={i > firstUnresolvedIndex && firstUnresolvedIndex !== -1}
                 skipped={skipped.has(q.id as number)}
+                revealResult={mode !== 'graded'}
                 onSave={(response) => handleSave(q.id as number, response)}
                 onSkip={() => handleSkip(q.id as number)}
               />
@@ -493,12 +541,16 @@ export default function MaterialPageView() {
               >
                 目次へ戻る
               </Link>
+              <Button variant="secondary" onClick={handlePrev} disabled={!canGoPrev || advancing}>
+                前のページへ戻る
+              </Button>
               <Button onClick={handleNext} disabled={!allResolved || advancing}>
                 {advancing ? '送信中…' : '回答して次のページへ'}
               </Button>
               {mode === 'graded' && (
                 <span className="text-xs text-slate-400">
-                  中断しても回答内容は保存され、次回この続きから再開できます
+                  中断しても回答内容は保存され、次回この続きから再開できます（スコープを提出するまでは、
+                  前のページに戻って回答を変更することもできます）
                 </span>
               )}
             </div>
@@ -563,7 +615,7 @@ function AttemptResultPanel({ attempt, mode }: { attempt: QuizAttempt; mode: Pag
           提出済み{attempt.score_pct !== null && ` ／ 正答率${Math.round(attempt.score_pct)}%`}
         </div>
         <p className="text-xs text-slate-500">
-          {mode === 'practice' ? '練習' : '誤答のみ抽出'}は合否に影響しません。習熟のための記録として保存されました。
+          {mode === 'practice' ? '練習' : '誤答＆難問抽出'}は合否に影響しません。習熟のための記録として保存されました。
         </p>
       </div>
     )

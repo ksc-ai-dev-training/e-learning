@@ -35,6 +35,7 @@ export default function AnswerQuestionCard({
   answer,
   locked,
   skipped,
+  revealResult,
   onSave,
   onSkip,
 }: {
@@ -43,11 +44,19 @@ export default function AnswerQuestionCard({
   answer: Answer | undefined
   locked: boolean
   skipped: boolean
+  // true: このスコープは提出済みで読み返し中（正誤・AI採点結果を表示し、入力は常に不可）。
+  // false: まだ提出前で回答中（スコープを提出するまでは、一度回答した設問も答えを変更できる。
+  // ただし採点のズルを防ぐため、正誤はここでは見せない「回答済み」表示にとどめる。2026-09-09）。
+  revealResult: boolean
   onSave: (response: unknown) => Promise<void>
   onSkip: () => void
 }) {
   const answered = answer !== undefined
-  const disabled = locked || answered || skipped
+  // revealResultは「正誤を見せてよいか」のフラグであり、それ単体では入力を無効化しない。
+  // 無効化すべきなのは、正誤を見せる場面で既に回答済みの設問（提出済みスコープの読み返し、
+  // および練習/誤答＆難問抽出モードでの回答直後ロック）だけ。graded中の回答中（revealResult=false）は
+  // 何度でも回答し直せる（2026-09-10、練習/誤答＆難問抽出モードで全問回答不可になっていた不具合の修正）。
+  const disabled = locked || skipped || (revealResult && answered)
   const [singleValue, setSingleValue] = useState<string>((answer?.response as string) ?? '')
   const [multiValue, setMultiValue] = useState<string[]>((answer?.response as string[]) ?? [])
   const [textValue, setTextValue] = useState<string>((answer?.response as string) ?? '')
@@ -108,7 +117,12 @@ export default function AnswerQuestionCard({
             設問{index}に回答すると解放されます
           </span>
         )}
-        {!locked && answered && <StatusBadge answer={answer} />}
+        {!locked && answered && revealResult && <StatusBadge answer={answer} />}
+        {!locked && answered && !revealResult && (
+          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-500">
+            回答済み
+          </span>
+        )}
         {!locked && !answered && skipped && (
           <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-400">スキップ済み</span>
         )}
@@ -163,7 +177,12 @@ export default function AnswerQuestionCard({
       )}
 
       {question.type === 'reorder' && !disabled && (
-        <AnswerReorderList options={question.options ?? []} disabled={submitting} onSubmit={submit} />
+        <AnswerReorderList
+          options={question.options ?? []}
+          disabled={submitting}
+          onSubmit={submit}
+          initialOrder={answer?.response as string[] | undefined}
+        />
       )}
       {question.type === 'reorder' && disabled && (question.options ?? []).length > 0 && (
         <ul className="list-inside list-decimal text-sm text-slate-400">

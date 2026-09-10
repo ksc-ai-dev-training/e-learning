@@ -42,7 +42,10 @@ export default function SurveyModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
       <div className="w-full max-w-lg rounded-lg bg-white p-6 shadow-xl">
         <h2 className="mb-1 text-base font-bold text-slate-900">{survey.title}</h2>
-        <p className="mb-4 text-xs text-slate-500">回答は任意です。スキップできます。</p>
+        <p className="mb-4 text-xs text-slate-500">
+          回答は任意です。スキップできます。
+          {survey.answered_by_me && '（このアンケートには前回も回答済みです。今回分として改めて回答できます）'}
+        </p>
         <div className="flex flex-col gap-4">
           {survey.questions.map((q) => {
             // GETで返る既存アンケートの設問は必ずDB採番済み（id != null）。id === nullは

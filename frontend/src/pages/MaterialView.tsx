@@ -24,7 +24,7 @@ import type { QuizAttempt, Survey } from '../types'
 const TABS = [
   { key: 'toc', label: '目次' },
   { key: 'practice', label: '練習' },
-  { key: 'wrong_only', label: '誤答のみ抽出' },
+  { key: 'wrong_only', label: '誤答＆難問抽出' },
 ] as const
 type TabKey = (typeof TABS)[number]['key']
 
@@ -235,7 +235,10 @@ export default function MaterialView() {
               type="button"
               role="tab"
               aria-selected={activeTab === tab.key}
-              onClick={() => setActiveTab(tab.key)}
+              onClick={() => {
+                setActiveTab(tab.key)
+                setActionError(null)
+              }}
               className={`-mb-px border-b-2 px-3 py-2 text-sm font-semibold ${
                 activeTab === tab.key
                   ? 'border-blue-800 text-blue-900'
@@ -270,6 +273,9 @@ export default function MaterialView() {
             {pendingSurvey && (
               <div className="mb-5 rounded-md border border-blue-200 bg-blue-50 p-4">
                 <p className="text-sm font-semibold text-blue-900">{pendingSurvey.title}にご協力ください（任意・30秒程度）</p>
+                {pendingSurvey.answered_by_me && (
+                  <p className="mt-1 text-xs text-blue-700">前回も回答済みです。今回分として改めて回答できます。</p>
+                )}
                 <div className="mt-2 flex items-center gap-3">
                   <Button onClick={() => setSurveyModalSurvey(pendingSurvey)}>回答する</Button>
                   <button
@@ -534,7 +540,7 @@ export default function MaterialView() {
                   checked={wrongScope === 'material'}
                   onChange={() => setWrongScope('material')}
                 />
-                この教材内の誤答のみ
+                この教材内の誤答・難問から出題
               </label>
               <label className="flex items-center gap-2 text-sm text-slate-700">
                 <input
@@ -543,13 +549,15 @@ export default function MaterialView() {
                   checked={wrongScope === 'all'}
                   onChange={() => setWrongScope('all')}
                 />
-                全教材の誤答から出題
+                これまで解いた全教材の誤答・難問から出題
               </label>
-              <p className="text-xs text-slate-400">正答率が低い設問（正答率50%未満）も合わせて抽出対象になります。</p>
+              <p className="text-xs text-slate-400">
+                正答率が低い設問（正答率50%未満）も、自分が一度は解いたことのあるものに限り合わせて抽出対象になります。
+              </p>
             </div>
             {actionError && <p className="mb-3 text-sm text-red-600">{actionError}</p>}
             <Button onClick={handleStartWrongOnly} disabled={startingWrongOnly}>
-              {startingWrongOnly ? '開始中…' : '誤答問題を解く'}
+              {startingWrongOnly ? '開始中…' : '誤答・難問を解く'}
             </Button>
           </>
         )}

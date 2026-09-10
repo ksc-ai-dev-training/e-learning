@@ -31,12 +31,12 @@ export function submitAttempt(attemptId: number): Promise<QuizAttempt> {
   return apiFetch(`/api/attempts/${attemptId}/submit`, { method: 'POST' })
 }
 
-// A-43: 結果取得。本人なら未提出でも取得できる（誤答のみ抽出モードの状態再取得に使う）
+// A-43: 結果取得。本人なら未提出でも取得できる（誤答＆難問抽出モードの状態再取得に使う）
 export function getAttempt(attemptId: number): Promise<QuizAttempt & { answers: Answer[] }> {
   return apiFetch(`/api/attempts/${attemptId}`)
 }
 
-// A-44: 誤答のみ抽出出題を開始する
+// A-44: 誤答＆難問抽出出題を開始する
 export function startWrongQuestionsAttempt(
   materialId: number,
   scope: 'material' | 'all',

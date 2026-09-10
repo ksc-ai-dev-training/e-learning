@@ -124,7 +124,7 @@
       <div class="tabs" role="tablist">
         <button class="tab active" id="tab-toc" type="button" onclick="switchTab('toc')">目次</button>
         <button class="tab" id="tab-repeat" type="button" onclick="switchTab('repeat')">練習</button>
-        <button class="tab" id="tab-wrong" type="button" onclick="switchTab('wrong')">誤答のみ抽出</button>
+        <button class="tab" id="tab-wrong" type="button" onclick="switchTab('wrong')">誤答＆難問抽出</button>
       </div>
 
       <!-- 目次 -->
@@ -136,9 +136,11 @@
           <span class="progress-label">43%</span>
         </div>
 
-        <!-- 受験後アンケート（合格直後、まだ回答していないアンケートが1件だけ表示される。回答するとモーダルが開く） -->
+        <!-- 受験後アンケート（合格直後、まだ回答していないアンケートが1件だけ表示される。回答するとモーダルが開く。
+             毎回表示設定のアンケートで前回も回答済みの場合はその旨を一言添える） -->
         <div class="callout" style="border-color:#93c5fd;background:#eff6ff;margin-bottom:18px">
           <strong>第2章のアンケートにご協力ください（任意・30秒程度）</strong>
+          <p style="margin:6px 0 0;font-size:11.5px;color:#1d4ed8">前回も回答済みです。今回分として改めて回答できます。</p>
           <p style="margin:10px 0 0"><a class="btn btn-primary btn-sm" href="#" style="margin-right:6px">回答する</a><a href="#" style="font-size:11.5px;color:var(--text-subtle)">今回はスキップ</a></p>
         </div>
 
@@ -375,7 +377,7 @@
         <button class="btn btn-primary" type="button">練習を開始</button>
       </div>
 
-      <!-- 誤答のみ抽出 -->
+      <!-- 誤答＆難問抽出 -->
       <div class="tab-panel" id="panel-wrong">
         <p class="tab-note">過去に間違えた問題、または正答率の低い問題だけを抽出して出題します。結果は練習と同様に合否へは影響しません。</p>
 
@@ -384,15 +386,15 @@
             <div class="field" style="margin-bottom:10px">
               <label>出題範囲</label>
               <div class="radio-group">
-                <label class="radio-line"><input type="radio" name="wrong-scope" checked> この教材内の誤答のみ</label>
-                <label class="radio-line"><input type="radio" name="wrong-scope"> 全教材の誤答から出題</label>
+                <label class="radio-line"><input type="radio" name="wrong-scope" checked> この教材内の誤答・難問から出題</label>
+                <label class="radio-line"><input type="radio" name="wrong-scope"> これまで解いた全教材の誤答・難問から出題</label>
               </div>
             </div>
-            <p class="field-help">正答率が低い設問（正答率50%未満）も合わせて抽出対象になります。</p>
+            <p class="field-help">正答率が低い設問（正答率50%未満）も、自分が一度は解いたことのあるものに限り合わせて抽出対象になります。</p>
           </div>
         </section>
 
-        <button class="btn btn-primary" type="button">誤答問題を解く</button>
+        <button class="btn btn-primary" type="button">誤答・難問を解く</button>
       </div>
 
     </div>

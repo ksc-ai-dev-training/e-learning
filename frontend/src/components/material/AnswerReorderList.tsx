@@ -8,12 +8,16 @@ export default function AnswerReorderList({
   options,
   disabled,
   onSubmit,
+  initialOrder,
 }: {
   options: string[]
   disabled: boolean
   onSubmit: (order: string[]) => Promise<void>
+  // 既にこのスコープ内で一度回答済み（かつ未提出のため編集可能）な場合、前回送信した並び順から
+  // 再開する。無指定ならoptionsの初期順（2026-09-09、スコープ提出まで編集可能にする対応で新設）。
+  initialOrder?: string[]
 }) {
-  const [order, setOrder] = useState<string[]>(options)
+  const [order, setOrder] = useState<string[]>(initialOrder ?? options)
   const [submitting, setSubmitting] = useState(false)
 
   const move = (i: number, dir: -1 | 1) => {
