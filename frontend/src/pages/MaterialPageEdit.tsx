@@ -58,8 +58,13 @@ export default function MaterialPageEdit() {
     isLoading: attachmentsLoading,
     mutate: mutateAttachments,
   } = useMaterialAttachments(isNew ? null : Number(materialId), isNew ? undefined : Number(nodeId))
+  // isNewはページ（nodeId='new'）が新規かどうかであり、教材自体（materialId）は新規ページ追加時も
+  // 既存の実在教材のまま。在席確認・更新検知は教材単位の機能なので、useMaterialAttachments
+  // （ページnodeに紐づくためisNew時はnull）と違い、isNewかどうかに関わらず常に有効にする
+  // （2026-09-10、レビューで発見・修正。誤ってuseMaterialAttachmentsと同じ条件をコピーしていたため、
+  // 新規ページ追加中は在席確認・更新検知が一切効かなくなっていた）。
   const { others: editingOthers, changedSinceLoad, acknowledgeSave } = useMaterialEditPresence(
-    isNew ? null : Number(materialId),
+    Number(materialId),
   )
 
   const [title, setTitle] = useState('')
