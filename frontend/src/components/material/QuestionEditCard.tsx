@@ -22,7 +22,7 @@ const TYPE_OPTIONS: { value: QuestionType; label: string }[] = (
 ).map((value) => ({ value, label: questionTypeLabel(value) }))
 
 // 設問編集カード（詳細設計書2.1.6節）。S-05目次編集タブ・S-17ページ編集で共通利用する想定だが、
-// 今回はS-17でのみ初実装する。単一選択・複数選択・並び替え・記述式・コード記述式・スコア記録の6種すべてを編集できる。
+// 今回はS-17でのみ初実装する。単一選択・複数選択・並び替え・記述式・コード記述式・記録型の6種すべてを編集できる。
 export default function QuestionEditCard({
   question,
   index,
@@ -47,7 +47,7 @@ export default function QuestionEditCard({
     onChange({ ...question, feedback_style: value === '' ? null : (value as Question['feedback_style']) })
 
   return (
-    <div className="mb-3 rounded-md border border-slate-200 p-3">
+    <div className={`mb-3 rounded-md border p-3 ${isScoreLog ? 'border-slate-300 bg-slate-50' : 'border-slate-200'}`}>
       <div className="mb-2 flex items-center justify-between">
         <span className="text-sm font-semibold text-slate-700">
           設問{index + 1}（{typeLabel}）
@@ -64,6 +64,11 @@ export default function QuestionEditCard({
       <div className="mb-2 flex flex-col gap-1">
         <label className="text-xs font-semibold text-slate-500">種別</label>
         <Select value={question.type} onChange={changeType} options={TYPE_OPTIONS} className="w-40" />
+        {isScoreLog && (
+          <p className="text-[11px] text-slate-400">
+            ※記録型は正解・不正解の概念がなく、必須にしても合否判定・ドボンには一切影響しません（自己申告の数値をそのまま記録するだけです）。
+          </p>
+        )}
       </div>
 
       <div className="mb-2 flex flex-col gap-1">
@@ -105,12 +110,15 @@ export default function QuestionEditCard({
               任意（スキップ可）
             </label>
           </div>
+          <p className="text-[11px] text-slate-400">
+            ※任意にすると、回答してもスコア・合否判定には反映されません（採点・AIフィードバック自体は行われます）。
+          </p>
         </div>
         <div className="flex flex-col gap-1">
           <label className="text-xs font-semibold text-slate-500">ドボン問題</label>
           <label
             className={`flex items-center gap-1 text-xs ${isScoreLog ? 'opacity-40' : ''}`}
-            title={isScoreLog ? 'スコア記録型には設定できません' : undefined}
+            title={isScoreLog ? '記録型には設定できません' : undefined}
           >
             <input
               type="checkbox"
@@ -120,6 +128,7 @@ export default function QuestionEditCard({
             />
             この設問にする
           </label>
+          <p className="text-[11px] text-slate-400">※任意の設問はドボン判定の対象になりません。</p>
         </div>
         {gradingOverridable && (
           <div className="flex flex-col gap-1">

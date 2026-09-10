@@ -39,7 +39,7 @@ function resolvePoolGroups(questions: Question[], poolMembership: boolean[], poo
 }
 
 // S-17 教材編集：ページ編集（詳細設計書10.16節）。説明文編集・添付ファイル・設問編集
-// （単一選択・複数選択・並び替え・記述式・コード記述式・スコア記録の6種）まで実装済み。保存はS-05と同じくA-20（PUT /source）の
+// （単一選択・複数選択・並び替え・記述式・コード記述式・記録型の6種）まで実装済み。保存はS-05と同じくA-20（PUT /source）の
 // 全置換で、他ページの内容（body/questions）はtocから素通りさせて一緒に送る。
 export default function MaterialPageEdit() {
   const { projectId, materialId, nodeId } = useParams<{

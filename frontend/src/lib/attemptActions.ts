@@ -47,7 +47,7 @@ export function startWrongQuestionsAttempt(
   })
 }
 
-// A-88: スコア記録設問の「これまでの記録」
+// A-88: 記録型設問の「これまでの記録」
 export function getMyQuestionScores(
   questionId: number,
 ): Promise<{ items: { score: number; recorded_at: string }[] }> {

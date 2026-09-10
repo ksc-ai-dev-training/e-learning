@@ -10,7 +10,7 @@ const TYPE_LABEL: Record<Question['type'], string> = {
   reorder: '並び替え',
   free_text: '記述式',
   code: 'コード記述式',
-  score_log: 'スコア記録',
+  score_log: '記録型',
 }
 
 // S-05「プレビュー」ボタン専用の教材全体通し読み画面（詳細設計書10.5節相当）。編集者限定

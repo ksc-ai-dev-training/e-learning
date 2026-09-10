@@ -437,12 +437,14 @@ async def _recompute_attempt_result(pool, attempt_id: int) -> None:
     if attempt is None:
         return
     rows = await pool.fetch(
-        """SELECT a.is_correct, q.type, q.is_critical, q.prompt
+        """SELECT a.is_correct, q.type, q.is_critical, q.required, q.prompt
            FROM answers a JOIN questions q ON q.id = a.question_id
            WHERE a.attempt_id = $1""",
         attempt_id,
     )
-    gradable = [r for r in rows if r["type"] != "score_log"]
+    # required=false（任意）の設問は、回答してもスコア・合否判定には反映しない
+    # （採点・AIフィードバック自体は行われるが、算入されないだけ）。
+    gradable = [r for r in rows if r["type"] != "score_log" and r["required"]]
     total = len(gradable)
     correct = sum(1 for r in gradable if r["is_correct"])
     score_pct = (correct / total * 100) if total > 0 else 100.0
@@ -450,7 +452,11 @@ async def _recompute_attempt_result(pool, attempt_id: int) -> None:
     passed = None
     fail_reason = None
     if attempt["mode"] == "graded":
-        critical_fail = next((r for r in rows if r["is_critical"] and r["is_correct"] is False), None)
+        # ドボン（is_critical）も同様に、任意の設問では自動不合格を発生させない
+        # （スコアに反映されない設問がドボンだけ特別扱いで不合格を引き起こすのは矛盾するため）。
+        critical_fail = next(
+            (r for r in rows if r["is_critical"] and r["required"] and r["is_correct"] is False), None
+        )
         if critical_fail is not None:
             passed = False
             fail_reason = critical_fail["prompt"]
@@ -1042,9 +1048,9 @@ async def list_practice_attempts(id: int, user: CurrentUser = Depends(require_au
         """SELECT qa.id, qa.score_pct, qa.submitted_at,
                   EXTRACT(EPOCH FROM (qa.submitted_at - qa.started_at))::int AS duration_seconds,
                   (SELECT COUNT(*) FROM answers a JOIN questions q ON q.id = a.question_id
-                    WHERE a.attempt_id = qa.id AND q.type != 'score_log') AS total_count,
+                    WHERE a.attempt_id = qa.id AND q.type != 'score_log' AND q.required) AS total_count,
                   (SELECT COUNT(*) FROM answers a JOIN questions q ON q.id = a.question_id
-                    WHERE a.attempt_id = qa.id AND q.type != 'score_log' AND a.is_correct = true) AS correct_count
+                    WHERE a.attempt_id = qa.id AND q.type != 'score_log' AND q.required AND a.is_correct = true) AS correct_count
            FROM quiz_attempts qa
            WHERE qa.user_id = $1 AND qa.material_id = $2 AND qa.mode = 'practice'
              AND qa.practice_kind = 'repeat' AND qa.submitted_at IS NOT NULL

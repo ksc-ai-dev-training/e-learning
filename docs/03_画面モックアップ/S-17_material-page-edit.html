@@ -199,7 +199,7 @@ git checkout -b feature/add-login
                 <option>並び替え</option>
                 <option>記述式</option>
                 <option>コード記述式</option>
-                <option>スコア記録</option>
+                <option>記録型</option>
               </select>
             </div>
             <div class="field">
@@ -239,10 +239,12 @@ git checkout -b feature/add-login
                   <label class="radio-line"><input type="radio" name="q1-required" checked> 必須</label>
                   <label class="radio-line"><input type="radio" name="q1-required"> 任意（スキップ可）</label>
                 </div>
+                <span class="field-help">※任意にすると、回答してもスコア・合否判定には反映されません（採点・AIフィードバック自体は行われます）。</span>
               </div>
               <div>
                 <label>ドボン問題</label>
                 <label class="checkbox-line"><input type="checkbox"> この設問にする</label>
+                <span class="field-help">※任意の設問はドボン判定の対象になりません。</span>
               </div>
               <div>
                 <label>AI講評スタイル（この設問のみ上書き）</label>
@@ -269,7 +271,7 @@ git checkout -b feature/add-login
                 <option>並び替え</option>
                 <option selected>記述式</option>
                 <option>コード記述式</option>
-                <option>スコア記録</option>
+                <option>記録型</option>
               </select>
             </div>
             <div class="field">
@@ -287,10 +289,12 @@ git checkout -b feature/add-login
                   <label class="radio-line"><input type="radio" name="q2-required" checked> 必須</label>
                   <label class="radio-line"><input type="radio" name="q2-required"> 任意（スキップ可）</label>
                 </div>
+                <span class="field-help">※任意にすると、回答してもスコア・合否判定には反映されません（採点・AIフィードバック自体は行われます）。</span>
               </div>
               <div>
                 <label>ドボン問題</label>
                 <label class="checkbox-line"><input type="checkbox" checked> この設問にする</label>
+                <span class="field-help">※任意の設問はドボン判定の対象になりません。</span>
               </div>
             </div>
             <div class="field">
@@ -325,7 +329,7 @@ git checkout -b feature/add-login
                 <option selected>並び替え</option>
                 <option>記述式</option>
                 <option>コード記述式</option>
-                <option>スコア記録</option>
+                <option>記録型</option>
               </select>
             </div>
             <div class="field">
@@ -372,10 +376,12 @@ git checkout -b feature/add-login
                   <label class="radio-line"><input type="radio" name="q3-required" checked> 必須</label>
                   <label class="radio-line"><input type="radio" name="q3-required"> 任意（スキップ可）</label>
                 </div>
+                <span class="field-help">※任意にすると、回答してもスコア・合否判定には反映されません（採点・AIフィードバック自体は行われます）。</span>
               </div>
               <div>
                 <label>ドボン問題</label>
                 <label class="checkbox-line"><input type="checkbox"> この設問にする</label>
+                <span class="field-help">※任意の設問はドボン判定の対象になりません。</span>
               </div>
               <div>
                 <label>AI講評スタイル（この設問のみ上書き）</label>
@@ -389,9 +395,9 @@ git checkout -b feature/add-login
             </div>
           </div>
 
-          <div class="edit-card">
+          <div class="edit-card" style="border-color:var(--border-strong)">
             <div class="edit-card-head">
-              <span class="edit-card-title">設問4（スコア記録）</span>
+              <span class="edit-card-title">設問4（記録型）</span>
               <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
             </div>
             <div class="field">
@@ -402,8 +408,9 @@ git checkout -b feature/add-login
                 <option>並び替え</option>
                 <option>記述式</option>
                 <option>コード記述式</option>
-                <option selected>スコア記録</option>
+                <option selected>記録型</option>
               </select>
+              <span class="field-help">※記録型は正解・不正解の概念がなく、必須にしても合否判定・ドボンには一切影響しません（自己申告の数値をそのまま記録するだけです）。</span>
             </div>
             <div class="field">
               <label>設問文</label>
@@ -421,10 +428,12 @@ git checkout -b feature/add-login
                   <label class="radio-line"><input type="radio" name="q4-required" checked> 必須</label>
                   <label class="radio-line"><input type="radio" name="q4-required"> 任意（スキップ可）</label>
                 </div>
+                <span class="field-help">※任意にすると、回答してもスコア・合否判定には反映されません（採点・AIフィードバック自体は行われます）。</span>
               </div>
               <div>
                 <label>ドボン問題</label>
-                <label class="checkbox-line" title="スコア記録型には設定できません" style="opacity:0.4"><input type="checkbox" disabled> この設問にする</label>
+                <label class="checkbox-line" title="記録型には設定できません" style="opacity:0.4"><input type="checkbox" disabled> この設問にする</label>
+                <span class="field-help">※任意の設問はドボン判定の対象になりません。</span>
               </div>
               <div>
                 <label>AI講評スタイル（この設問のみ上書き）</label>

@@ -138,13 +138,17 @@ correct_answer: "abc_1 = 1"
 | `reorder` | 並び替え | `correct_answer`（2件以上の配列、正しい順序） |
 | `free_text` | 記述式 | `scoring_criteria`（AI採点の基準文） |
 | `code` | コード記述式 | `scoring_criteria`, `code_language`（例: `python`） |
-| `score_log` | スコア記録（自己申告の数値記録、正誤判定なし） | `score_unit`（例: "点", "秒"）。`is_critical`は設定不可 |
+| `score_log` | 記録型（自己申告の数値記録、正誤判定なし） | `score_unit`（例: "点", "秒"）。`is_critical`は設定不可 |
 
 共通の任意項目: `id`（既存問題を更新する場合の問題ID）, `prompt`（必須, 問題文）, `required`
-（既定true、falseにすると回答必須にしない）, `is_critical`（既定false、trueで正誤に関わらず不正解
-だと以降のページに進めない「ドボン問題」）, `feedback_style`（省略時はページ・教材の既定値を継承）,
-`pool_group`（quiz_mode:poolのページでの出題グループ番号）, `grading_mode`（`free_text`/`code`のみ、
-`ai`または`manual`）。
+（既定true、falseにすると回答必須にしない。**falseの設問は、回答してもスコア・合否判定には
+一切反映されない**。AIによる採点・フィードバック自体は行われるが、算入されないだけなので、
+「参考として答えてもらうが合否には関係ない設問」を作りたい場合はrequired: falseにする。
+設問文に「採点対象外」等と書くだけでは何も変わらないので注意）, `is_critical`（既定false、trueで
+正誤に関わらず不正解だと以降のページに進めない「ドボン問題」。required: falseの設問では
+ドボン判定自体が発生しないため、両方同時に指定しても意味がない）, `feedback_style`（省略時は
+ページ・教材の既定値を継承）, `pool_group`（quiz_mode:poolのページでの出題グループ番号）,
+`grading_mode`（`free_text`/`code`のみ、`ai`または`manual`）。
 
 ## 画像の埋め込み
 

@@ -6,7 +6,7 @@ const TYPE_LABELS: Record<QuestionType, string> = {
   reorder: '並び替え',
   free_text: '記述式',
   code: 'コード記述式',
-  score_log: 'スコア記録',
+  score_log: '記録型',
 }
 
 export function questionTypeLabel(type: QuestionType): string {
