@@ -16,7 +16,8 @@ export default function AssignmentEditPanel({
   onClose,
   onSaved,
   className = '',
-  requireBeforeSave = false,
+  defaultChecked = false,
+  saveLabel = '保存',
 }: {
   material: AssignmentListItem
   onClose: () => void
@@ -24,10 +25,17 @@ export default function AssignmentEditPanel({
   // 呼び出し元のレイアウトに合わせた余白等を渡す（S-06はmt-5でインライン表示、公開確認モーダルは
   // モーダル側の余白に任せるため未指定のまま）。
   className?: string
-  // true時、プロジェクト全体配信・個人指定のどちらも選ばれていなければ保存をブロックする
-  // （「公開する」を必ず配信設定込みにするための必須化。2026-09-10）。全社Wiki教材は必修・個人
-  // 指定自体が無意味（F-25の既定アクセスで全員が既にアクセスできる）なため対象外にする。
-  requireBeforeSave?: boolean
+  // true時、配信行がまだ無い場合の「プロジェクト全体に必修として配信する」の初期状態をONにする
+  // （公開確認モーダルからの利用時、公開前で必ずstatus='draft'のため、既存の「公開済みなら初期ON」
+  // だけでは常にOFFになってしまうための補い。2026-09-10）。何も選ばずに保存すること自体は
+  // 「プロジェクト全体に任意公開する」という正当な選択のため、これはあくまで初期値の既定であって
+  // 保存を強制するものではない（同日、ユーザー指摘によりブロックする挙動は廃止した）。
+  defaultChecked?: boolean
+  // 保存ボタンの文言。公開確認モーダルからの利用時は、この保存が実際には教材の公開も同時に
+  // 引き起こす（onSaved経由でdoPublishが呼ばれる）ため、「保存・公開」等それが伝わる文言を
+  // 呼び出し元から渡せるようにする（2026-09-10、ユーザー指摘）。S-06単体利用では素の保存のため
+  // 既定は「保存」のまま。
+  saveLabel?: string
 }) {
   const { assignments, isLoading } = useMaterialAssignments(material.id)
   const { memberships } = useProjectMemberships(material.project_id)
@@ -63,10 +71,10 @@ export default function AssignmentEditPanel({
     // 初めて編集パネルを開いたとき（＝まだ配信行が無いとき）は、この実態に合わせて既定でチェック
     // 済みにしておく（下書きはそもそも一般メンバーに見えないため対象外。ユーザーフィードバック
     // により2026-09-01追加）。既存の配信行がある場合は常にその実データを優先する。
-    // requireBeforeSave（公開確認モーダルからの利用）時は、公開前で必ずstatus='draft'のため
+    // defaultChecked（公開確認モーダルからの利用）時は、公開前で必ずstatus='draft'のため
     // 上記条件だけでは常に未チェックになってしまう。公開ボタンから開いた以上「配信するつもり」が
     // 前提のため、既定でチェック済みにしておく（2026-09-10、ユーザー要望）。
-    setProjectEnabled(project ? true : material.status === 'published' || requireBeforeSave)
+    setProjectEnabled(project ? true : material.status === 'published' || defaultChecked)
     setProjectAssignmentId(project?.id ?? null)
     setProjectDueAt(project?.due_at ? formatDateJst(project.due_at) : '')
     setIndividuals(
@@ -79,7 +87,7 @@ export default function AssignmentEditPanel({
           dueAt: a.due_at ? formatDateJst(a.due_at) : '',
         })),
     )
-  }, [assignments, isLoading, material.status, requireBeforeSave])
+  }, [assignments, isLoading, material.status, defaultChecked])
 
   const candidateOptions = activeMembers.filter(
     (m) => !individuals.some((i) => i.userId === m.user_id),
@@ -139,11 +147,10 @@ export default function AssignmentEditPanel({
               due_at: i.dueAt || null,
             }))),
       ]
-      if (requireBeforeSave && !isCompanyWide && payload.length === 0) {
-        setSaveError('公開するには、配信対象（プロジェクト全体または個人）を少なくとも1つ選択してください')
-        setSaving(false)
-        return
-      }
+      // 「何も選ばない」こと自体が「プロジェクト全体に任意公開する（誰も必修にしない）」という
+      // 正当な選択（F-25の既定アクセスにより、配信行が無くても現役プロジェクトメンバーは受講できる
+      // ため）であり、エラーで止めるべき状態ではないと判断し、必須バリデーションは廃止した
+      // （2026-09-10、ユーザー指摘）。その旨はチェックボックスの下に説明文として表示する。
       await updateMaterialAssignments(material.id, payload)
       onSaved()
       onClose()
@@ -184,6 +191,12 @@ export default function AssignmentEditPanel({
                   </span>
                   <span className="text-xs text-slate-400">この教材が属するプロジェクトです（変更不可）</span>
                 </div>
+                {!projectEnabled && (
+                  <p className="pl-5 text-xs text-slate-400">
+                    チェックを外したままの場合、個人を指定しない限り誰も必修にはなりませんが、
+                    プロジェクトの現役メンバーは引き続き任意で受講できます（プロジェクト全体への任意公開）。
+                  </p>
+                )}
                 {projectEnabled && (
                   <div className="flex flex-col gap-1 pl-5">
                     <label className="text-xs font-semibold text-slate-500">受講期限</label>
@@ -259,14 +272,14 @@ export default function AssignmentEditPanel({
 
             {saveError && <p className="text-sm text-red-600">{saveError}</p>}
 
-            <div className="flex items-center gap-2 border-t border-slate-100 pt-3">
-              <Button onClick={handleSave} disabled={saving}>
-                {saving ? '保存中…' : '保存'}
+            <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
+              <Button className="shrink-0 whitespace-nowrap" onClick={handleSave} disabled={saving}>
+                {saving ? `${saveLabel}中…` : saveLabel}
               </Button>
-              <Button variant="secondary" onClick={onClose} disabled={saving}>
+              <Button className="shrink-0 whitespace-nowrap" variant="secondary" onClick={onClose} disabled={saving}>
                 キャンセル
               </Button>
-              <span className="ml-auto text-xs text-slate-500">
+              <span className="text-xs text-slate-500 sm:ml-auto">
                 対象者プレビュー:{' '}
                 <strong className="text-slate-700">
                   {projectScopeActive ? `${material.project_name} 所属 ${targetCount}名` : `${targetCount}名（個人指定のみ）`}

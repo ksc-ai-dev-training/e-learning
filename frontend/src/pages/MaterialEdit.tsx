@@ -1727,11 +1727,12 @@ export default function MaterialEdit() {
               </button>
             </div>
             <p className="mb-3 text-sm leading-relaxed text-slate-600">
-              「{title}」を公開するには、配信対象（プロジェクト全体または個人）を設定してください。
+              「{title}」を公開する前に、配信設定（必修にするかどうか）を確認してください。
             </p>
             <AssignmentEditPanel
               material={assignmentTarget}
-              requireBeforeSave={!assignmentTarget.is_company_wide}
+              defaultChecked={!assignmentTarget.is_company_wide}
+              saveLabel="保存・公開"
               onClose={() => setPublishModalOpen(false)}
               onSaved={() => {
                 setPublishModalOpen(false)
