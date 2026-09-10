@@ -60,10 +60,7 @@ export default function MaterialEdit() {
   const saveButtonLabel = material?.status === 'published' ? '変更を保存・公開' : '下書き保存'
 
   const [savedId, setSavedId] = useState<number | null>(isNew ? null : Number(materialId))
-  const { others: editingOthers, changedSinceLoad } = useMaterialEditPresence(
-    savedId,
-    material?.updated_at ?? null,
-  )
+  const { others: editingOthers, changedSinceLoad, acknowledgeSave } = useMaterialEditPresence(savedId)
   const [activeTab, setActiveTab] = useState<TabKey>('structure')
   const [title, setTitle] = useState('')
   const [tags, setTags] = useState<string[]>([])
@@ -257,7 +254,8 @@ export default function MaterialEdit() {
         await apiFetchText(`/api/materials/${savedId}/source`, source, {
           'X-Expected-Updated-At': material.updated_at,
         })
-        await mutate()
+        const refreshed = await mutate()
+        if (refreshed) acknowledgeSave(refreshed.updated_at)
         setDirty(false)
       } else {
         // savedId!==nullだがmaterial未取得（読み込み中）。ここで何もせず「保存しました」を
@@ -332,7 +330,8 @@ export default function MaterialEdit() {
     setError(null)
     setArchiving(true)
     try {
-      await archiveMaterial(savedId)
+      const result = await archiveMaterial(savedId)
+      acknowledgeSave(result.updated_at)
       await mutate()
       setArchiveModalOpen(false)
     } catch (e) {
@@ -347,7 +346,8 @@ export default function MaterialEdit() {
     setError(null)
     setArchiving(true)
     try {
-      await restoreMaterial(savedId)
+      const result = await restoreMaterial(savedId)
+      acknowledgeSave(result.updated_at)
       await mutate()
     } catch (e) {
       setError(e instanceof ApiError ? e.message : '復元に失敗しました')
@@ -400,7 +400,8 @@ export default function MaterialEdit() {
     setError(null)
     setPublishing(true)
     try {
-      await publishMaterial(savedId)
+      const result = await publishMaterial(savedId)
+      acknowledgeSave(result.updated_at)
       await mutate()
     } catch (e) {
       setError(e instanceof ApiError ? e.message : '公開に失敗しました')

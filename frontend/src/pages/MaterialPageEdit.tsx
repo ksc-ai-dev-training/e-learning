@@ -58,9 +58,8 @@ export default function MaterialPageEdit() {
     isLoading: attachmentsLoading,
     mutate: mutateAttachments,
   } = useMaterialAttachments(isNew ? null : Number(materialId), isNew ? undefined : Number(nodeId))
-  const { others: editingOthers, changedSinceLoad } = useMaterialEditPresence(
+  const { others: editingOthers, changedSinceLoad, acknowledgeSave } = useMaterialEditPresence(
     isNew ? null : Number(materialId),
-    material?.updated_at ?? null,
   )
 
   const [title, setTitle] = useState('')
@@ -180,6 +179,7 @@ export default function MaterialPageEdit() {
         //     ままなので、実際のnode_idの編集URLへ置き換える必要があるため（このURLのままだと
         //     次の保存でまた新規ページとして重複作成されてしまう）。
         const freshMaterial = await apiFetch<Material>(`/api/materials/${materialId}`)
+        acknowledgeSave(freshMaterial.updated_at)
         const freshTree = toEditableChapters(freshMaterial.toc ?? [])
         const parent = findNode(freshTree, parentNodeId)
         const newPage = parent?.children.find((c) => c.kind === 'page' && c.title === title)
@@ -208,8 +208,13 @@ export default function MaterialPageEdit() {
         } else {
           navigate(`/projects/${projectId}/materials/${materialId}/pages/${newPage.id}/edit`, { replace: true })
         }
-      } else if (navigateAfter) {
-        backToStructure()
+      } else {
+        // 既存ページの保存では、保存後にmaterialを再取得していなかったため、以前は
+        // updated_atが古いまま据え置かれ、在席確認のポーリングが自分自身の保存を
+        // 「他の人が更新した」と誤検知し続けてしまっていた（2026-09-10、レビューで発見・修正）。
+        const refreshed = await mutate()
+        if (refreshed) acknowledgeSave(refreshed.updated_at)
+        if (navigateAfter) backToStructure()
       }
     } catch (e) {
       setError(conflictAwareMessage(e, '保存に失敗しました'))
