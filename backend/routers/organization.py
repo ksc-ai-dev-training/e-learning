@@ -4,7 +4,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, model_validator
 
-from auth_helpers import ROLE_RANK, CurrentUser, check_project_role, require_auth
+from auth_helpers import ROLE_RANK, CurrentUser, check_project_role, has_active_project_role, require_auth
 from database import get_pool
 
 router = APIRouter(prefix="/api/projects", tags=["organization"])
@@ -149,11 +149,18 @@ async def _delete_blocked_reason(pool, project_id: int, is_company_wide: bool, r
 async def get_project(id: int, user: CurrentUser = Depends(require_auth)):
     """A-91: プロジェクト詳細（S-12プロジェクト情報タブ）。A-81（一覧）は名称・件数の
     要約のみでdescription/created_by/created_atを含まないため、A-10（更新）と対になる単体取得
-    APIとして新設した。権限はA-10と同じ（対象プロジェクトの管理者, admin）。can_delete・
-    cannot_delete_reasonを追加した（2026-09-01。S-12の削除ボタンを、押してからエラーになる
-    のではなく最初から無効化＋理由表示できるようにするため、A-93と同じ判定を事前に返す）。"""
+    APIとして新設した。can_delete・cannot_delete_reasonを追加した（2026-09-01。S-12の削除ボタンを、
+    押してからエラーになるのではなく最初から無効化＋理由表示できるようにするため、A-93と同じ判定を
+    事前に返す）。
+
+    閲覧権限は対象プロジェクトの現役メンバー（admin/editor/learnerいずれでも可）またはシステムadmin
+    まで緩和した（2026-09-09。従来はA-10と同じくadminのみだったが、S-12を編集者・受講者にも
+    「閲覧のみ」で開放する要望への対応。更新・削除・Slackリマインド等の操作系エンドポイントは
+    従来どおりadmin限定のまま）。slack_webhook_urlはSlackへ直接投稿できてしまう秘密情報相当のため、
+    プロジェクトのadmin・システムadmin以外にはnullで返す（値そのものは編集フォームにも出さない）。"""
     pool = get_pool()
-    await check_project_role(user, id, min_role="admin")
+    await check_project_role(user, id, min_role="learner")
+    is_admin_viewer = user.role == "admin" or await has_active_project_role(id, user.id, "admin")
     row = await pool.fetchrow(
         """SELECT p.id, p.name, p.description, p.status, p.is_company_wide, p.slack_webhook_url,
                   p.created_by, u.name AS created_by_name, p.created_at, p.updated_at
@@ -163,10 +170,15 @@ async def get_project(id: int, user: CurrentUser = Depends(require_auth)):
     )
     if row is None:
         raise HTTPException(404, detail="プロジェクトが見つかりません")
-    reason = await _delete_blocked_reason(pool, id, row["is_company_wide"], user.id)
     result = dict(row)
-    result["can_delete"] = reason is None
-    result["cannot_delete_reason"] = reason
+    if not is_admin_viewer:
+        result["slack_webhook_url"] = None
+        result["can_delete"] = False
+        result["cannot_delete_reason"] = None
+    else:
+        reason = await _delete_blocked_reason(pool, id, row["is_company_wide"], user.id)
+        result["can_delete"] = reason is None
+        result["cannot_delete_reason"] = reason
     return result
 
 
@@ -411,15 +423,17 @@ async def list_project_memberships(
     status: str | None = None,
     user: CurrentUser = Depends(require_auth),
 ):
-    """A-11: プロジェクトメンバー一覧。project_id指定時は対象プロジェクトの編集者以上（S-05の
-    プロジェクトメンバータブが参照専用で編集者にも見せる仕様のため、4.2節の「管理者のみ」から緩和した）。
-    user_id指定時は本人またはadminのみ。project_status（プロジェクト自体のstatus）を追加した
-    （S-12新設の「自分の全プロジェクト一覧」パネルが、状態で行を絞り込む・表示するために必要。
-    2026-09-01）。"""
+    """A-11: プロジェクトメンバー一覧。project_id指定時は対象プロジェクトの現役メンバー（admin/
+    editor/learnerいずれでも可）まで緩和した（S-05のプロジェクトメンバータブが参照専用で編集者にも
+    見せる仕様のため、当初4.2節の「管理者のみ」から編集者以上へ緩和し、2026-09-09にS-12を受講者にも
+    「閲覧のみ」で開放する要望を受けさらに受講者まで緩和した。行の並び替え・削除・ロール変更等の
+    操作系エンドポイントは従来どおり管理者限定のまま）。user_id指定時は本人またはadminのみ。
+    project_status（プロジェクト自体のstatus）を追加した（S-12新設の「自分の全プロジェクト一覧」
+    パネルが、状態で行を絞り込む・表示するために必要。2026-09-01）。"""
     if project_id is None and user_id is None:
         raise HTTPException(400, detail="project_id または user_id のいずれかが必要です")
     if project_id is not None:
-        await check_project_role(user, project_id, min_role="editor")
+        await check_project_role(user, project_id, min_role="learner")
     elif user_id != user.id and user.role != "admin":
         raise HTTPException(403, detail="この操作を行う権限がありません")
 
@@ -451,9 +465,11 @@ async def list_project_memberships(
 
 @router.get("/{id}/incoming-shares")
 async def list_incoming_shares(id: int, status: str = "pending", user: CurrentUser = Depends(require_auth)):
-    """A-66: 自プロジェクト宛ての教材共有申請一覧（F-26、基本設計書5.27節）。対象プロジェクトの
-    管理者・システムadminのみ閲覧できる。statusは既定でpending（承認待ち）のみを返す。"""
-    await check_project_role(user, id, min_role="admin")
+    """A-66: 自プロジェクト宛ての教材共有申請一覧（F-26、基本設計書5.27節）。閲覧は対象プロジェクトの
+    編集者以上・システムadminまで緩和した（2026-09-09。S-12「教材の共有」タブを編集者にも閲覧のみで
+    開放する要望への対応。承認・却下〔A-65〕は従来どおり管理者限定のまま）。statusは既定でpending
+    （承認待ち）のみを返す。"""
+    await check_project_role(user, id, min_role="editor")
     rows = await get_pool().fetch(
         """SELECT s.id, s.material_id, m.title AS material_title,
                   m.project_id AS shared_by_project_id, p.name AS shared_by_project_name,

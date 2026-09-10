@@ -1,4 +1,5 @@
 # ユーザー管理API（A-53〜A-54。S-10「管理」ユーザー管理タブ）
+import json
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -20,7 +21,13 @@ async def list_users(
     user: CurrentUser = Depends(require_roles("admin")),
 ):
     """A-53: ユーザー一覧（システムadmin専用）。プロジェクトのローカル管理者向けの招待候補検索は
-    別途軽量なA-90（member-candidates）を使う（本APIとは権限・用途が異なるため使い分ける）。"""
+    別途軽量なA-90（member-candidates）を使う（本APIとは権限・用途が異なるため使い分ける）。
+
+    各ユーザーが管理者（role='admin'）になっているプロジェクトの一覧（admin_projects）を付加する
+    （2026-09-09、新設。誰がどのプロジェクトの管理者かをシステム管理者が横断的に把握できるようにする
+    要望への対応）。退任済み（left_at設定済み）・招待中（status!='active'）の行は含めない
+    （has_active_project_roleと同じ「現役admin」の基準）。全社Wikiは構造上adminロールを誰も持てない
+    ため、常に含まれない。"""
     if per_page not in (20, 50, 100):
         raise HTTPException(422, detail="per_pageは20/50/100のいずれかを指定してください")
     if page < 1:
@@ -49,12 +56,26 @@ async def list_users(
     limit_ph = add_param(per_page)
     offset_ph = add_param((page - 1) * per_page)
     rows = await pool.fetch(
-        f"""SELECT id, name, email, role, is_active, created_at
-            FROM users WHERE {where_sql}
-            ORDER BY name LIMIT {limit_ph} OFFSET {offset_ph}""",
+        f"""SELECT u.id, u.name, u.email, u.role, u.is_active, u.created_at,
+                   COALESCE(ap.admin_projects, '[]') AS admin_projects
+            FROM users u
+            LEFT JOIN LATERAL (
+                SELECT jsonb_agg(jsonb_build_object('id', p.id, 'name', p.name) ORDER BY p.name) AS admin_projects
+                FROM project_memberships pm
+                JOIN projects p ON p.id = pm.project_id
+                WHERE pm.user_id = u.id AND pm.role = 'admin'
+                  AND pm.status = 'active' AND pm.left_at IS NULL
+            ) ap ON true
+            WHERE {where_sql}
+            ORDER BY u.name LIMIT {limit_ph} OFFSET {offset_ph}""",
         *params,
     )
-    return {"items": [dict(r) for r in rows], "total": total}
+    items = []
+    for r in rows:
+        d = dict(r)
+        d["admin_projects"] = json.loads(d["admin_projects"])
+        items.append(d)
+    return {"items": items, "total": total}
 
 
 class UserUpdate(BaseModel):

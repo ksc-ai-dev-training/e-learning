@@ -73,6 +73,9 @@ export interface AdminUser {
   role: Role
   is_active: boolean
   created_at: string
+  // このユーザーが管理者（role='admin'）になっている現役（招待中・退任済みを除く）プロジェクト。
+  // 誰がどのプロジェクトの管理者かをシステム管理者が横断的に把握できるように追加した（2026-09-09）
+  admin_projects: { id: number; name: string }[]
 }
 
 // GET /api/auth/dev-users のitems（開発用ログインのアカウント選択に使用）

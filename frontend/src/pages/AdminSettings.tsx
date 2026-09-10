@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router'
 import PageHeader from '../components/layout/PageHeader'
 import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
@@ -138,6 +139,7 @@ function UsersTab({ myUserId }: { myUserId: number }) {
                 <th className="px-3 py-2 font-normal">メールアドレス</th>
                 <th className="px-3 py-2 font-normal">ロール</th>
                 <th className="px-3 py-2 font-normal">状態</th>
+                <th className="px-3 py-2 font-normal">管理者になっているプロジェクト</th>
                 <th className="px-3 py-2 font-normal">登録日</th>
                 <th className="px-3 py-2 font-normal">操作</th>
               </tr>
@@ -145,7 +147,7 @@ function UsersTab({ myUserId }: { myUserId: number }) {
             <tbody>
               {users.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-3 py-4 text-center text-sm text-slate-400">
+                  <td colSpan={7} className="px-3 py-4 text-center text-sm text-slate-400">
                     該当するユーザーがいません。
                   </td>
                 </tr>
@@ -172,6 +174,31 @@ function UsersTab({ myUserId }: { myUserId: number }) {
                       </td>
                       <td className="px-3 py-2">
                         <Badge variant={u.is_active ? 'user-active' : 'user-inactive'} />
+                      </td>
+                      <td className="px-3 py-2">
+                        {/* デプロイ直後など、この列が無い旧レスポンスがまだ残っている一瞬でも
+                            落ちないようnull合体で防御する（2026-09-09、ローカル動作確認中に
+                            バックエンド再起動前のキャッシュで実際に発生したクラッシュを踏まえて追加） */}
+                        {(u.admin_projects ?? []).length === 0 ? (
+                          <span className="text-xs text-slate-300">—</span>
+                        ) : (
+                          <div className="flex flex-wrap items-center gap-1">
+                            {(u.admin_projects ?? []).slice(0, 3).map((p) => (
+                              <Link
+                                key={p.id}
+                                to={`/projects/${p.id}/manage`}
+                                className="rounded border border-indigo-200 bg-indigo-50 px-1.5 py-0.5 text-[11px] font-semibold text-indigo-700 hover:underline"
+                              >
+                                {p.name}
+                              </Link>
+                            ))}
+                            {(u.admin_projects ?? []).length > 3 && (
+                              <span className="text-[11px] text-slate-400">
+                                他{(u.admin_projects ?? []).length - 3}件
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </td>
                       <td className="px-3 py-2 text-slate-500">{formatDateJst(u.created_at)}</td>
                       <td className="px-3 py-2">

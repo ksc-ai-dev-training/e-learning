@@ -92,6 +92,11 @@ export default function MyProjectsPanel({
           <tbody>
             {rows.map((m) => {
               const canManage = (isSystemAdmin || m.role === 'admin') && m.status === 'active'
+              // 2026-09-09: プロジェクト管理画面（S-12）を編集者・受講者にも「閲覧のみ」で開放した
+              // ため、状態を実際に変更できる（canManage）かどうかとは別に、画面自体を開けるかどうか
+              // （canOpen）を分ける。招待に応諾済み（status==='active'）の現役メンバーなら、
+              // ロールに関わらず管理画面を開ける（開いた先で操作の可否はロールに応じて制御される）。
+              const canOpen = m.status === 'active'
               const stopped = m.project_status === 'completed'
               return (
                 <tr
@@ -122,7 +127,7 @@ export default function MyProjectsPanel({
                     )}
                   </td>
                   <td className="px-4 py-2">
-                    {canManage ? (
+                    {canOpen ? (
                       <button
                         type="button"
                         onClick={() => onOpenManage(m.project_id)}
@@ -131,7 +136,7 @@ export default function MyProjectsPanel({
                         管理する
                       </button>
                     ) : (
-                      <span className="text-xs text-slate-300" title="管理者ではないため管理画面は開けません">
+                      <span className="text-xs text-slate-300" title="招待に応諾するまで開けません">
                         —
                       </span>
                     )}

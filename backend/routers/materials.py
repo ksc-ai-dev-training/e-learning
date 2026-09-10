@@ -1406,8 +1406,10 @@ async def _duplicate_material_into_project(conn, material_id: int, target_projec
 
 
 @detail_router.get("/{id}/shares")
-async def list_material_shares(id: int, user: CurrentUser = Depends(require_material_role(min_role="admin"))):
-    """A-59: 教材のプロジェクト間共有一覧取得。元プロジェクトの管理者のみ（5.27節）。"""
+async def list_material_shares(id: int, user: CurrentUser = Depends(require_material_role(min_role="editor"))):
+    """A-59: 教材のプロジェクト間共有一覧取得。閲覧は元プロジェクトの編集者以上まで緩和した
+    （2026-09-09。S-12「教材の共有」タブを編集者にも閲覧のみで開放する要望への対応。共有申請の
+    作成〔A-60〕は従来どおり管理者限定のまま、5.27節）。"""
     rows = await get_pool().fetch(
         """SELECT s.id, s.shared_to_project_id, p.name AS shared_to_project_name,
                   s.status, s.shared_at, s.responded_at
