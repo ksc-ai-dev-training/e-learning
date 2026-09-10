@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import PageHeader from '../components/layout/PageHeader'
+import AssignmentEditPanel from '../components/material/AssignmentEditPanel'
 import AttachmentList from '../components/material/AttachmentList'
 import InlinePageEditor from '../components/material/InlinePageEditor'
 import SurveyEditModal from '../components/material/SurveyEditModal'
@@ -86,6 +87,7 @@ export default function MaterialEdit() {
   const [deleting, setDeleting] = useState(false)
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
   const [publishing, setPublishing] = useState(false)
+  const [publishModalOpen, setPublishModalOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [savedMessage, setSavedMessage] = useState<string | null>(null)
   const [pendingDelete, setPendingDelete] = useState<string | null>(null)
@@ -640,7 +642,7 @@ export default function MaterialEdit() {
       {savedId !== null && material?.status === 'draft' && (
         <Button
           variant="secondary"
-          onClick={doPublish}
+          onClick={() => setPublishModalOpen(true)}
           disabled={publishing || dirty}
           title={dirty ? `保存していない変更があります。先に「${saveButtonLabel}」を押してください` : undefined}
         >
@@ -690,6 +692,16 @@ export default function MaterialEdit() {
   // 誤って上書き・挿入してしまう（最悪、無関係なページの内容が入れ替わる）。並び替え・削除・
   // 他の位置での新規パネルオープンをインライン編集中は禁止することで防ぐ（2026-09-09）。
   const inlineEditorOpen = inlineTarget !== null
+
+  // 「公開する」確認モーダルに埋め込むAssignmentEditPanel用のアダプタ（AssignmentListItem形状）。
+  // materialにはA-15/F-31向けの別目的のis_company_wide?があるため、project.is_company_wideを
+  // 後から明示的に上書きする順序にしている（2026-09-10）。
+  const assignmentTarget = material && {
+    ...material,
+    project_name: project?.name ?? '',
+    is_company_wide: project?.is_company_wide ?? false,
+    assignments: [],
+  }
 
   return (
     <div className="flex flex-1 flex-col">
@@ -1698,6 +1710,35 @@ export default function MaterialEdit() {
 
       {unsavedBlocker.state === 'blocked' && (
         <UnsavedChangesModal onStay={() => unsavedBlocker.reset()} onDiscard={() => unsavedBlocker.proceed()} />
+      )}
+
+      {publishModalOpen && assignmentTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-lg rounded-md bg-white p-5 shadow-lg">
+            <div className="mb-3 flex items-center justify-between">
+              <span className="text-base font-semibold text-slate-800">公開前に配信設定を確認してください</span>
+              <button
+                type="button"
+                onClick={() => setPublishModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                ×
+              </button>
+            </div>
+            <p className="mb-3 text-sm leading-relaxed text-slate-600">
+              「{title}」を公開するには、配信対象（プロジェクト全体または個人）を設定してください。
+            </p>
+            <AssignmentEditPanel
+              material={assignmentTarget}
+              requireBeforeSave={!assignmentTarget.is_company_wide}
+              onClose={() => setPublishModalOpen(false)}
+              onSaved={() => {
+                setPublishModalOpen(false)
+                doPublish()
+              }}
+            />
+          </div>
+        </div>
       )}
     </div>
   )

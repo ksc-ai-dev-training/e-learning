@@ -43,9 +43,11 @@ async def list_assignments(
     status: Literal["draft", "published"] | None = None,
     user: CurrentUser = Depends(require_auth),
 ):
-    """A-36: 配信設定の一覧（S-06）。adminは全教材、それ以外は自分がローカル管理者を務める
+    """A-36: 配信設定の一覧（S-06）。adminは全教材、それ以外は自分がローカル管理者・編集者を務める
     プロジェクトに属する教材（下書き含む）のみを対象にする。管理対象が無い一般社員は0件を返す
-    （画面側で「配信設定できる教材がありません」を表示する）。"""
+    （画面側で「配信設定できる教材がありません」を表示する）。公開・非公開の切り替え（A-17）等の
+    他の教材操作が編集者にも開放されているのに、配信設定（誰向けに必修/任意か）だけ管理者限定なのは
+    権限として非対称という指摘を受け、編集者にも開放した（2026-09-10）。"""
     pool = get_pool()
     is_system_admin = user.role == "admin"
     conditions = ["m.is_archived = false"]
@@ -56,7 +58,7 @@ async def list_assignments(
             f"""EXISTS (
                 SELECT 1 FROM project_memberships pm
                  WHERE pm.project_id = m.project_id AND pm.user_id = ${len(params)}
-                   AND pm.role = 'admin' AND pm.status = 'active' AND pm.left_at IS NULL
+                   AND pm.role IN ('admin', 'editor') AND pm.status = 'active' AND pm.left_at IS NULL
             )"""
         )
     if q:
@@ -81,9 +83,10 @@ async def list_assignments(
 
 @router.get("/materials/{id}/assignments")
 async def get_material_assignments(
-    id: int, user: CurrentUser = Depends(require_material_role(min_role="admin"))
+    id: int, user: CurrentUser = Depends(require_material_role(min_role="editor"))
 ):
-    """A-37: 特定教材の配信設定行を取得する（S-06編集パネルの初期表示用）。"""
+    """A-37: 特定教材の配信設定行を取得する（S-06編集パネルの初期表示用）。編集者にも開放
+    （2026-09-10、A-17公開操作等との権限の非対称を解消）。"""
     pool = get_pool()
     assignment_map = await _fetch_assignment_rows(pool, [id])
     return {"items": assignment_map.get(id, [])}
@@ -103,9 +106,10 @@ class AssignmentsUpdate(BaseModel):
 
 @router.put("/materials/{id}/assignments")
 async def update_material_assignments(
-    id: int, body: AssignmentsUpdate, user: CurrentUser = Depends(require_material_role(min_role="admin"))
+    id: int, body: AssignmentsUpdate, user: CurrentUser = Depends(require_material_role(min_role="editor"))
 ):
-    """A-38: 教材の配信設定を全置換する（A-31と同じ全置換セマンティクス）。プロジェクトスコープの
+    """A-38: 教材の配信設定を全置換する（A-31と同じ全置換セマンティクス）。編集者にも開放
+    （2026-09-10、A-17公開操作等との権限の非対称を解消）。プロジェクトスコープの
     scope_idは教材自身のproject_idに固定、個人スコープのscope_idはそのプロジェクトの現役メンバーに
     限る（他プロジェクトへの一方的な配信を防ぐ、基本設計書5.9節）。全社Wikiに属する教材は
     required=trueの行を1つでも含めば拒否する（常に任意固定、5.9節「設計判断」参照）。同様に
