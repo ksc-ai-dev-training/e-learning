@@ -10,7 +10,8 @@ import { useMaterial } from '../hooks/useMaterial'
 import { useMaterialAttachments } from '../hooks/useMaterialAttachments'
 import { useSaveShortcut } from '../hooks/useSaveShortcut'
 import { addLinkAttachment, deleteAttachment, uploadFileAttachment } from '../lib/attachmentActions'
-import { ApiError, apiFetch, apiFetchText } from '../lib/api'
+import { ApiError, apiFetch, apiFetchText, conflictAwareMessage } from '../lib/api'
+import { useMaterialEditPresence } from '../hooks/useMaterialEditPresence'
 import { buildMaterialSource } from '../lib/materialSource'
 import type { EditableNode } from '../lib/materialSource'
 import { findNode, insertPageInTree, replacePageInTree, toEditableChapters } from '../lib/materialTree'
@@ -51,12 +52,16 @@ export default function MaterialPageEdit() {
   const navigate = useNavigate()
   const isNew = nodeId === 'new'
 
-  const { material, isLoading, error: materialError } = useMaterial(Number(materialId))
+  const { material, isLoading, error: materialError, mutate } = useMaterial(Number(materialId))
   const {
     attachments,
     isLoading: attachmentsLoading,
     mutate: mutateAttachments,
   } = useMaterialAttachments(isNew ? null : Number(materialId), isNew ? undefined : Number(nodeId))
+  const { others: editingOthers, changedSinceLoad } = useMaterialEditPresence(
+    isNew ? null : Number(materialId),
+    material?.updated_at ?? null,
+  )
 
   const [title, setTitle] = useState('')
   const [includeExplanation, setIncludeExplanation] = useState(true)
@@ -145,12 +150,24 @@ export default function MaterialPageEdit() {
         poolDrawCount: includeQuiz && quizMode === 'pool' ? poolDrawCount : null,
         questions: includeQuiz ? resolvedQuestions : [],
       }
-      const tree = toEditableChapters(material.toc ?? [])
+      // 保存直前に最新の教材ツリーを取得し直す。自分が編集したページ（page）以外は常に
+      // 最新のサーバー状態を反映することで、他の人が別ページを同時に編集していた場合に
+      // その変更ごと上書きしてしまう事故を防ぐ（2026-09-10、複数人編集対策）。
+      // 変数名はisNew分岐内の別目的のfreshMaterial（保存後に新規node_idを探すためのもの）と
+      // 混同しないようmaterialAtSaveとする。
+      const materialAtSave = await mutate()
+      if (!materialAtSave) {
+        setError('最新の状態を取得できませんでした。もう一度お試しください。')
+        return
+      }
+      const tree = toEditableChapters(materialAtSave.toc ?? [])
       const updatedTree = isNew
         ? insertPageInTree(tree, parentNodeId, page)
         : replacePageInTree(tree, Number(nodeId), page)
-      const source = buildMaterialSource(material, updatedTree)
-      await apiFetchText(`/api/materials/${materialId}/source`, source)
+      const source = buildMaterialSource(materialAtSave, updatedTree)
+      await apiFetchText(`/api/materials/${materialId}/source`, source, {
+        'X-Expected-Updated-At': materialAtSave.updated_at,
+      })
       // 目次へ移動する場合はこの画面がすぐ消えるため表示されないが、留まる場合（Ctrl+S）に
       // 見えるよう常に設定しておく（2026-09-09、ユーザー要望）
       setSavedMessage('保存しました')
@@ -195,7 +212,7 @@ export default function MaterialPageEdit() {
         backToStructure()
       }
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : '保存に失敗しました')
+      setError(conflictAwareMessage(e, '保存に失敗しました'))
     } finally {
       setSaving(false)
     }
@@ -287,6 +304,19 @@ export default function MaterialPageEdit() {
         </p>
 
         {savedMessage && <Toast message={savedMessage} />}
+
+        {editingOthers.length > 0 && (
+          <p className="mb-4 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500">
+            {editingOthers.map((o) => `${o.name}さんが編集中です（最終確認: ${o.seconds_ago}秒前）`).join('、')}
+          </p>
+        )}
+
+        {changedSinceLoad && (
+          <p className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            他のユーザーがこの教材を更新しました。このまま保存すると競合エラーになる場合があります。
+            早めに保存するか、一度画面を再読み込みしてください。
+          </p>
+        )}
 
         {error && (
           <p className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>

@@ -22,7 +22,8 @@ import { useQuestionsSummary } from '../hooks/useQuestionsSummary'
 import { useSaveShortcut } from '../hooks/useSaveShortcut'
 import { useSurveys } from '../hooks/useSurveys'
 import { useUnsavedChangesGuard } from '../hooks/useUnsavedChangesGuard'
-import { ApiError, apiFetch, apiFetchText } from '../lib/api'
+import { ApiError, apiFetch, apiFetchText, conflictAwareMessage } from '../lib/api'
+import { useMaterialEditPresence } from '../hooks/useMaterialEditPresence'
 import { chapterAccentClass } from '../lib/chapterAccent'
 import { formatDateJst, formatDateTimeJst, formatYearMonthJst } from '../lib/datetime'
 import { buildMaterialSource } from '../lib/materialSource'
@@ -58,6 +59,10 @@ export default function MaterialEdit() {
   const saveButtonLabel = material?.status === 'published' ? '変更を保存・公開' : '下書き保存'
 
   const [savedId, setSavedId] = useState<number | null>(isNew ? null : Number(materialId))
+  const { others: editingOthers, changedSinceLoad } = useMaterialEditPresence(
+    savedId,
+    material?.updated_at ?? null,
+  )
   const [activeTab, setActiveTab] = useState<TabKey>('structure')
   const [title, setTitle] = useState('')
   const [tags, setTags] = useState<string[]>([])
@@ -247,14 +252,22 @@ export default function MaterialEdit() {
         navigate(`/projects/${projectId}/materials/${created.id}/edit`, { replace: true })
       } else if (material) {
         const source = buildMaterialSource(withMeta(material), chapters)
-        await apiFetchText(`/api/materials/${savedId}/source`, source)
+        await apiFetchText(`/api/materials/${savedId}/source`, source, {
+          'X-Expected-Updated-At': material.updated_at,
+        })
         await mutate()
         setDirty(false)
+      } else {
+        // savedId!==nullだがmaterial未取得（読み込み中）。ここで何もせず「保存しました」を
+        // 表示すると、実際には未保存のまま成功したかのように見えてしまう
+        // （2026-09-10、レビューで発見・修正）。
+        setError('教材を読み込み中です。少し待ってから保存し直してください。')
+        return false
       }
       setSavedMessage('保存しました')
       return true
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : '保存に失敗しました')
+      setError(conflictAwareMessage(e, '保存に失敗しました'))
       return false
     } finally {
       setSaving(false)
@@ -726,6 +739,19 @@ export default function MaterialEdit() {
             </button>
           ))}
         </div>
+
+        {editingOthers.length > 0 && (
+          <p className="mb-4 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500">
+            {editingOthers.map((o) => `${o.name}さんが編集中です（最終確認: ${o.seconds_ago}秒前）`).join('、')}
+          </p>
+        )}
+
+        {changedSinceLoad && (
+          <p className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            他のユーザーがこの教材を更新しました。このまま保存すると競合エラーになる場合があります。
+            早めに保存するか、一度画面を再読み込みしてください。
+          </p>
+        )}
 
         {error && (
           <p className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>

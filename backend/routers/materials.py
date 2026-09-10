@@ -1,7 +1,8 @@
-# 教材API（A-15〜A-22, A-27, A-29〜A-33, A-64, A-82, A-94）。
+# 教材API（A-15〜A-22, A-27, A-29〜A-33, A-64, A-82, A-94, A-97）。
 import json
 import os
 import random
+from datetime import datetime
 from typing import Literal
 from uuid import uuid4
 
@@ -10,6 +11,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel, Field, model_validator
 
 import ai_client
+import material_presence
 import storage
 from auth_helpers import (
     CurrentUser,
@@ -748,7 +750,11 @@ async def put_material_source(
     id: int, request: Request, user: CurrentUser = Depends(require_material_role(min_role="editor"))
 ):
     """A-20: 目次構造の全置換保存（詳細設計書7.3節）。目次ツリー編集（章・小見出しの追加/削除/並び替え）は
-    このAPIを都度呼ぶ形にする（Claude Code連携A-19/A-20と同じ書き込み経路。7章参照）。"""
+    このAPIを都度呼ぶ形にする（Claude Code連携A-19/A-20と同じ書き込み経路。7章参照）。
+    複数人での同時編集による無条件上書き事故を防ぐため、`X-Expected-Updated-At`ヘッダーで
+    クライアントが把握している時点のupdated_atを送らせ、現在のDBの値と食い違えば409で拒否する
+    （楽観的ロック。2026-09-10）。Claude Code CLI連携（A-19/A-20往復）はこのヘッダーを送らないため、
+    ヘッダー省略時は従来通り無条件で保存する。"""
     text = (await request.body()).decode("utf-8")
     try:
         meta, nodes = parse_source(text)
@@ -761,16 +767,27 @@ async def put_material_source(
             material_row = await conn.fetchrow("SELECT * FROM materials WHERE id = $1", id)
             if material_row is None:
                 raise HTTPException(404, detail="教材が見つかりません")
+
+            expected_updated_at = request.headers.get("x-expected-updated-at")
+            expected_dt = None
+            if expected_updated_at is not None:
+                try:
+                    expected_dt = datetime.fromisoformat(expected_updated_at)
+                except ValueError:
+                    raise HTTPException(400, detail="X-Expected-Updated-Atの形式が不正です")
+
             incoming_project_id = meta.get("project_id")
             if incoming_project_id is not None and incoming_project_id != material_row["project_id"]:
                 raise HTTPException(400, detail="プロジェクトの付け替えはA-17を使用してください")
 
-            await conn.execute(
-                """UPDATE materials SET
-                       title = $1, description = $2, tags = $3, status = $4, sort_order = $5,
-                       attempt_scope = $6, retake_scope = $7, default_feedback_style = $8,
-                       ai_context = $9, grading_mode = $10, updated_at = now()
-                   WHERE id = $11""",
+            # expected_dt指定時は、単に事前のSELECT値と比較するのではなく、UPDATE文自体の
+            # WHERE句にupdated_atの一致条件を含めて更新件数で判定する。事前比較だけだと、
+            # ほぼ同時に届いた2つの保存リクエストが両方とも同じ古いupdated_atを読み取って
+            # チェックを通過し、両方とも書き込めてしまう（TOCTOU競合）。WHERE句に含めることで
+            # PostgreSQLの行ロックにより2件目の更新は1件目コミット後に条件を再評価され、
+            # 確実に0件（競合）として検知できる（2026-09-10、レビューで発見・修正）。
+            where_version_clause = " AND updated_at = $12" if expected_dt is not None else ""
+            params = [
                 meta.get("title", material_row["title"]),
                 meta.get("description", material_row["description"]),
                 json.dumps(meta.get("tags") or []),
@@ -782,7 +799,23 @@ async def put_material_source(
                 meta.get("ai_context", material_row["ai_context"]),
                 meta.get("grading_mode", material_row["grading_mode"]),
                 id,
+            ]
+            if expected_dt is not None:
+                params.append(expected_dt)
+            update_result = await conn.execute(
+                f"""UPDATE materials SET
+                       title = $1, description = $2, tags = $3, status = $4, sort_order = $5,
+                       attempt_scope = $6, retake_scope = $7, default_feedback_style = $8,
+                       ai_context = $9, grading_mode = $10, updated_at = now()
+                   WHERE id = $11{where_version_clause}""",
+                *params,
             )
+            if expected_dt is not None and update_result == "UPDATE 0":
+                raise HTTPException(
+                    409,
+                    detail="他のユーザーがこの教材を更新したため保存できませんでした。"
+                    "画面を再読み込みしてから、内容をご確認のうえ保存し直してください。",
+                )
 
             existing_ids = {r["id"] for r in await conn.fetch(
                 "SELECT id FROM material_nodes WHERE material_id = $1", id
@@ -865,6 +898,18 @@ async def put_material_source(
             )
 
     return Response(content=new_source, media_type="text/plain")
+
+
+@detail_router.post("/{id}/presence")
+async def touch_presence(id: int, user: CurrentUser = Depends(require_material_role(min_role="editor"))):
+    """A-97（新規）: S-05/S-17編集画面が定期的に呼ぶハートビート。ロック取得は行わず、
+    在席通知（他に誰が編集画面を開いているか）とupdated_atの変化検知のみを行う
+    advisoryな仕組み（2026-09-10）。プロセス内メモリで完結し、DBの状態は変更しない。"""
+    others = material_presence.touch(id, user.id, user.name)
+    updated_at = await get_pool().fetchval("SELECT updated_at FROM materials WHERE id = $1", id)
+    if updated_at is None:
+        raise HTTPException(404, detail="教材が見つかりません")
+    return {"updated_at": updated_at, "others": others}
 
 
 class QuestionsReplaceRequest(BaseModel):
