@@ -6,6 +6,7 @@ import { useMe } from '../hooks/useMe'
 import { useProjects } from '../hooks/useProjects'
 import { useDashboardStats, useIncompleteUsers, useOrgReport } from '../hooks/useDashboard'
 import { requestOrgReport } from '../lib/dashboardActions'
+import { sendProjectSlackReminder } from '../lib/projectActions'
 import { ApiError } from '../lib/api'
 import { formatDateJst, formatDateTimeJst } from '../lib/datetime'
 
@@ -31,6 +32,11 @@ function daysRemainingLabel(dueAt: string | null): string {
 // Slack連携がプロジェクト単位Incoming Webhook（チャンネル投稿のみ）方式のため実装せず、一覧表示
 // のみとした（個人名をチャンネルに出したくないというユーザー判断、2026-09-08。個別の催促は
 // S-12と同じく運用でカバーする）。
+// 代わりに、S-12（ProjectManagement.tsx）の「必修教材のリマインドをSlackに送信」
+// （F-12, send_project_slack_reminder）をこの画面からも呼べるようにした（2026-09-09、
+// ユーザー要望）。担当範囲がプロジェクト単位のときのみボタンを表示する。「全社」スコープは
+// 単一のSlackチャンネルに対応しない（プロジェクトごとにWebhook URLを持つ設計のため）うえ、
+// 全社スコープを選べるのはシステムadminのみなので表示しない。
 export default function Dashboard() {
   const { me } = useMe()
   const { projects, isLoading: projectsLoading } = useProjects('admin')
@@ -39,6 +45,9 @@ export default function Dashboard() {
   const [generating, setGenerating] = useState(false)
   const [generateError, setGenerateError] = useState<string | null>(null)
   const [slowWarning, setSlowWarning] = useState(false)
+  const [sendingSlack, setSendingSlack] = useState(false)
+  const [slackResult, setSlackResult] = useState<string | null>(null)
+  const [slackError, setSlackError] = useState<string | null>(null)
 
   const isSystemAdmin = me?.role === 'admin'
   const scopeOptions = [
@@ -66,6 +75,23 @@ export default function Dashboard() {
     const timer = setTimeout(() => setSlowWarning(true), GENERATING_SLOW_AFTER_MS)
     return () => clearTimeout(timer)
   }, [generating])
+
+  const handleSendSlack = async () => {
+    if (scope == null) return
+    const { scope_type, scope_id } = parseScope(scope)
+    if (scope_type !== 'project' || scope_id === null) return
+    setSlackError(null)
+    setSlackResult(null)
+    setSendingSlack(true)
+    try {
+      await sendProjectSlackReminder(scope_id)
+      setSlackResult('Slackに送信しました。')
+    } catch (e) {
+      setSlackError(e instanceof ApiError ? e.message : '送信に失敗しました')
+    } finally {
+      setSendingSlack(false)
+    }
+  }
 
   const handleGenerate = async () => {
     if (scope == null) return
@@ -118,6 +144,8 @@ export default function Dashboard() {
             onChange={(e) => {
               setScope(e.target.value)
               setSelectedMaterialId(null)
+              setSlackResult(null)
+              setSlackError(null)
             }}
             className="h-9 rounded-md border border-slate-300 bg-white px-2.5 text-sm"
           >
@@ -127,6 +155,15 @@ export default function Dashboard() {
               </option>
             ))}
           </select>
+          {scope != null && parseScope(scope).scope_type === 'project' && (
+            <>
+              <Button variant="secondary" onClick={handleSendSlack} disabled={sendingSlack}>
+                {sendingSlack ? '送信中...' : '必修教材のリマインドをSlackに送信'}
+              </Button>
+              {slackResult && <span className="text-sm text-green-700">{slackResult}</span>}
+              {slackError && <span className="text-sm text-red-600">{slackError}</span>}
+            </>
+          )}
         </div>
 
         {statsLoading || !stats ? (
