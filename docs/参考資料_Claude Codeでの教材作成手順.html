@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>参考資料: Claude Codeでの教材作成手順 | 社内学習管理システム（Manabi）</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<script src="_sidenav.js"></script>
+<div class="doc">
+
+  <div class="cover">
+    <span class="doc-type">参考資料</span>
+    <h1>Claude Codeでの教材作成手順</h1>
+    <p class="subtitle">社内学習管理システム（Manabi）— Claude Code CLI連携（F-05）を使った教材の新規作成・編集手順</p>
+    <div class="meta">
+      <span>作成日: 2026-09-11</span>
+      <span>版数: 1.0</span>
+      <span>作成: コガソフトウェア株式会社</span>
+    </div>
+    <p class="note">
+      本ドキュメントは新人社員向けAI開発研修のサンプル成果物です。
+      Manabi画面を一切開かずに、Claude Codeへの指示だけで教材（章・ページ・設問）を作成・編集する方法をまとめる。
+      内部実装は<code>.claude/skills/manabi-material/SKILL.md</code>（Claude Code自身が読むスキル定義）を参照しているため、
+      両者は基本的に同じ内容だが、本書は人が読む前提でより丁寧に手順・具体例を補っている。
+    </p>
+  </div>
+
+  <h2 id="history">改訂履歴</h2>
+  <table>
+    <thead><tr><th>版数</th><th>日付</th><th>改訂内容</th></tr></thead>
+    <tbody>
+      <tr><td>1.0</td><td>2026-09-11</td><td>初版。</td></tr>
+    </tbody>
+  </table>
+
+  <nav class="toc">
+    <strong>目次</strong>
+    <ol>
+      <li><a href="#purpose">このドキュメントの目的</a></li>
+      <li><a href="#prep">事前準備（初回のみ）</a></li>
+      <li><a href="#flow">教材作成の全体の流れ</a></li>
+      <li><a href="#frontmatter">フロントマター（教材メタデータ）の書式</a></li>
+      <li><a href="#toc">目次構造（章・小見出し・ページ）の書き方</a></li>
+      <li><a href="#question">設問（問題）ブロックの書き方</a></li>
+      <li><a href="#example">実践例：簡単な教材を1つ作ってみる</a></li>
+      <li><a href="#image">画像の埋め込み</a></li>
+      <li><a href="#troubleshoot">よくあるエラーと対処</a></li>
+    </ol>
+  </nav>
+
+  <h2 id="purpose">1. このドキュメントの目的</h2>
+  <p>
+    Manabiには、教材の章・ページ・設問をプレーンテキスト（YAMLフロントマター＋Markdown見出し階層）として
+    読み書きできるAPIが用意されている（A-16・A-19・A-20）。Claude Codeにこの手順を頼めば、
+    ブラウザでManabiの画面を開かずに、チャットでの指示だけで教材を新規作成・編集できる。
+  </p>
+  <div class="callout">
+    <strong>依頼の例:</strong> 「Manabi教材を作って。タイトルは『Git入門』、プロジェクトは新人研修プロジェクトで、
+    第1章にコミットの基本を説明するページと、確認問題を1問（単一選択）入れて」のように、自然文で依頼すればよい。
+    Claude Code側は<code>.claude/skills/manabi-material/SKILL.md</code>のスキル定義に従い、本書と同じ手順で
+    API呼び出しを組み立てる。
+  </div>
+
+  <h2 id="prep">2. 事前準備（初回のみ）</h2>
+  <p>
+    ManabiのAPIを呼ぶには認証済みのCLIトークンが必要。<code>~/.config/Manabi/credentials</code>に
+    保存済みのトークンが無い場合、Claude Code自身はブラウザでのGoogle認証を完結できないため、
+    ユーザー本人が以下を実行する。
+  </p>
+  <pre><code>python cli/manabi_login.py</code></pre>
+  <p>
+    ブラウザが自動で開き、Googleアカウント（<code>kogasoftware.com</code>）でログインを求められる。
+    成功すると<code>~/.config/Manabi/credentials</code>（JSON: <code>{"manabi_url": "...", "token": "..."}</code>、
+    有効期限90日）が保存され、以後Claude Codeがこのファイルからトークンを読んで使う。
+  </p>
+  <div class="callout warn">
+    <strong>本番環境に対して使う場合は別手順。</strong>
+    既定ではローカル環境（<code>http://localhost:5177</code>）を対象にする。本番環境
+    （<code>https://manabi-elearning.fly.dev</code>）に対して直接教材を作成・編集したい場合は、
+    <code>MANABI_URL</code>を指定してログインし直す必要がある（
+    <a href="参考資料_本番環境運用手順.html">参考資料_本番環境運用手順.html</a> 6章参照）。
+    ログイン情報の保存先は環境によらず1箇所のみのため、本番向けにログインし直すとローカル向けの
+    トークンは上書きされる。
+  </div>
+
+  <h2 id="flow">3. 教材作成の全体の流れ</h2>
+  <p>白紙の新規教材を作る場合、以下の3ステップで完結する（Manabi画面は一切使わない）。</p>
+  <table>
+    <thead><tr><th>手順</th><th>API</th><th>内容</th></tr></thead>
+    <tbody>
+      <tr><td>① 新規作成</td><td>A-16 <code>POST /api/materials</code></td><td>タイトル・所属プロジェクトを指定して空の教材を1つ発行する。レスポンスの<code>id</code>を控える。</td></tr>
+      <tr><td>② 取得</td><td>A-19 <code>GET /api/materials/{id}/source</code></td><td>フロントマターのみの空の教材ソースを取得する。</td></tr>
+      <tr><td>③ 編集・保存</td><td>A-20 <code>PUT /api/materials/{id}/source</code></td><td>取得したテキストに章・ページ・設問を書き足し、全体をそのまま保存する（部分更新ではなく全置換）。</td></tr>
+    </tbody>
+  </table>
+  <p>既存教材を編集したい場合は①を省略し、②→③だけを行う（対象教材のIDが分からない場合は<code>GET /api/materials</code>で一覧から探す）。</p>
+  <div class="callout warn">
+    <strong>A-20は目次構造全体の全置換。</strong>
+    取得したソースの一部だけを書き換えて送り返すこと。必要な変更以外の章・ページを勝手に削除しない
+    （送らなかった部分は「削除された」とみなされる）。
+  </div>
+
+  <h2 id="frontmatter">4. フロントマター（教材メタデータ）の書式</h2>
+  <p>教材ソースの先頭は<code>---</code>で囲んだYAMLのフロントマター。</p>
+  <pre><code>---
+title: 教材タイトル
+description: 説明文（省略可）
+tags: ["タグ1", "タグ2"]
+status: draft  # draft（下書き）| published（公開）
+attempt_scope: material  # material | chapter | section | page（受験の単位）
+retake_scope: all  # all（全問）| wrong_only（誤答のみ）
+pass_score_pct: 70  # 合格基準スコア（%）。省略・nullなら「合格基準なし＝常に合格」
+retake_allowed: true  # 再受験を許可するか
+retake_limit: null  # 再受験回数の上限。nullなら無制限
+default_feedback_style: show_answer  # show_answer | review_only | hint_only
+grading_mode: ai  # 記述式/コード記述式のAI採点を使うかどうかの既定値（ai | manual）
+---</code></pre>
+  <table>
+    <thead><tr><th>項目</th><th>必須</th><th>内容</th></tr></thead>
+    <tbody>
+      <tr><td><code>title</code></td><td>必須</td><td>教材タイトル。</td></tr>
+      <tr><td><code>project_id</code></td><td>新規作成時のみ</td><td>省略すると全社Wikiになる。既存教材の場合は元のプロジェクトと一致している必要がある（変更したい場合はManabi画面のA-17を使う）。</td></tr>
+      <tr><td><code>status</code></td><td>任意（既定<code>draft</code>）</td><td><code>published</code>にすると受講対象者に公開される。</td></tr>
+      <tr><td><code>attempt_scope</code></td><td>任意（既定<code>material</code>）</td><td>合否判定・提出の単位。章ごとに区切って合否を出したい場合は<code>chapter</code>にする。</td></tr>
+      <tr><td><code>retake_scope</code></td><td>任意（既定<code>all</code>）</td><td><code>wrong_only</code>にすると、再受験時は前回不正解だった設問だけが出題され、正解済みの設問はそのまま正解として繰り越される。</td></tr>
+      <tr><td><code>pass_score_pct</code></td><td>任意</td><td>この％以上で合格。省略時（<code>null</code>）は合格基準なし＝提出すれば常に合格扱いになり、再受験設定に従って何度でも解き直せる。</td></tr>
+      <tr><td><code>retake_allowed</code> / <code>retake_limit</code></td><td>任意（既定<code>true</code> / 無制限）</td><td>再受験の可否と回数上限。上限に達すると再受験できなくなる（合格済みスコープは、合格基準を設定している場合に限りそもそも再受験対象外になる）。</td></tr>
+      <tr><td><code>default_feedback_style</code></td><td>任意</td><td>記述式・コード記述式のAI講評の見せ方の既定値。設問ごとに<code>feedback_style</code>で上書きできる。</td></tr>
+      <tr><td><code>grading_mode</code></td><td>任意（既定<code>ai</code>）</td><td>記述式・コード記述式の採点方式の既定値。設問ごとに上書きできる（6章参照）。</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="toc">5. 目次構造（章・小見出し・ページ）の書き方</h2>
+  <p>フロントマターに続けて、Markdownの見出し記号で目次階層を表現する。</p>
+  <table>
+    <thead><tr><th>見出し</th><th>意味</th></tr></thead>
+    <tbody>
+      <tr><td><code>#</code></td><td>章（chapter）</td></tr>
+      <tr><td><code>##</code></td><td>小見出し（section、省略可。章の直下にページを置いてもよい）</td></tr>
+      <tr><td><code>###</code></td><td>ページ（page）</td></tr>
+    </tbody>
+  </table>
+  <div class="callout warn">
+    <strong>章タイトルに「第1章」等の番号を含めない。</strong>
+    画面側が章の並び順から自動的に「第N章 」を付けて表示するため、タイトル自体にも書くと
+    「第1章 第1章 はじめに」のように二重表示になる。章タイトルは番号を除いた文言のみ
+    （例: <code># はじめに</code>）にする。
+  </div>
+  <p>
+    既存ページ・章を更新する場合は、見出し行の直後に<code>&lt;!-- node:123 --&gt;</code>を付ける
+    （無ければ新規ノードとして作成される）。ページには任意で<code>&lt;!-- format:markdown --&gt;</code>／
+    <code>&lt;!-- format:html --&gt;</code>（省略時はフロントマターの既定値）、出題プールを使う場合は
+    <code>&lt;!-- quiz_mode:pool --&gt;</code>と<code>&lt;!-- pool_draw_count:N --&gt;</code>を付けられる。
+  </p>
+  <p>
+    ページの本文は説明文（Markdown/HTML）と、それに続く<code>```question```</code>フェンスブロック
+    （0個以上）を自由に組み合わせられる。
+  </p>
+  <div class="callout warn">
+    <strong>本文中に見出し記号（<code>#</code>〜<code>###</code>）を書く場合は<code>\</code>でエスケープする。</strong>
+    コードブロック内のシェルコメント<code>\# ...</code>なども含む。エスケープせずそのまま書くと、
+    その行が実際の章・小見出し・ページの区切りと誤認識され、意図しない場所でページが分割されてしまう。
+    既存教材をA-19で取得した本文には書き出し時に自動でエスケープ済みのため気にしなくてよいが、
+    新規に本文を書き起こす場合は自分でエスケープが必要。
+  </div>
+
+  <h2 id="question">6. 設問（問題）ブロックの書き方</h2>
+  <p><code>```question```</code>フェンス内はYAMLで、種別（<code>type</code>）ごとに必須項目が異なる。</p>
+  <table>
+    <thead><tr><th><code>type</code></th><th>用途</th><th>必須項目</th></tr></thead>
+    <tbody>
+      <tr><td><code>single</code></td><td>単一選択</td><td><code>options</code>（配列）, <code>correct_answer</code>（optionsの中の1つの文字列）</td></tr>
+      <tr><td><code>multi</code></td><td>複数選択</td><td><code>options</code>（配列）, <code>correct_answer</code>（配列）</td></tr>
+      <tr><td><code>reorder</code></td><td>並び替え</td><td><code>correct_answer</code>（2件以上の配列、正しい順序）</td></tr>
+      <tr><td><code>free_text</code></td><td>記述式</td><td><code>scoring_criteria</code>（AI採点の基準文）</td></tr>
+      <tr><td><code>code</code></td><td>コード記述式</td><td><code>scoring_criteria</code>, <code>code_language</code>（例: <code>python</code>）</td></tr>
+      <tr><td><code>score_log</code></td><td>記録型（自己申告の数値記録、正誤判定なし）</td><td>無し。<code>score_unit</code>（例: "点", "秒"）は任意項目（省略可、問題文側で単位を指定してもよい）。<code>is_critical</code>は設定不可。</td></tr>
+    </tbody>
+  </table>
+  <p>共通の任意項目:</p>
+  <table>
+    <thead><tr><th>項目</th><th>内容</th></tr></thead>
+    <tbody>
+      <tr><td><code>id</code></td><td>既存問題を更新する場合の問題ID。新規なら省略。</td></tr>
+      <tr><td><code>prompt</code></td><td>問題文。必須。</td></tr>
+      <tr><td><code>required</code> / <code>counted</code></td><td>回答必須・合否算入の組み合わせで実質3状態になる（下表参照）。</td></tr>
+      <tr><td><code>is_critical</code></td><td>既定<code>false</code>。<code>true</code>にすると正誤に関わらず不正解だと以降のページに進めない「ドボン問題」になる。<code>counted</code>が<code>false</code>の設問（記録・任意）では判定自体が発生しないため同時指定は無意味。</td></tr>
+      <tr><td><code>feedback_style</code></td><td>省略時はページ・教材の既定値を継承。</td></tr>
+      <tr><td><code>pool_group</code></td><td><code>quiz_mode:pool</code>のページでの出題グループ番号。</td></tr>
+      <tr><td><code>grading_mode</code></td><td><code>free_text</code>/<code>code</code>のみ。<code>ai</code>または<code>manual</code>。省略時は教材の既定値（フロントマターの<code>grading_mode</code>）を継承。</td></tr>
+    </tbody>
+  </table>
+  <h3>required / counted の3状態</h3>
+  <table>
+    <thead><tr><th>状態</th><th>設定</th><th>意味</th></tr></thead>
+    <tbody>
+      <tr><td>必須（既定）</td><td><code>required: true, counted: true</code></td><td>回答必須、スコア・合否判定に算入する。</td></tr>
+      <tr><td>記録</td><td><code>required: true, counted: false</code></td><td>回答は必須だが、AIによる採点・フィードバック自体は行われても合否には反映しない。「回答は必須で書かせたいが合否には関係ない設問」を作りたい場合に使う。</td></tr>
+      <tr><td>任意</td><td><code>required: false, counted: false</code></td><td>回答をスキップでき、合否にも反映されない。</td></tr>
+    </tbody>
+  </table>
+  <div class="callout warn">
+    <code>required: false, counted: true</code>という組み合わせは意味を成さないため使わない。
+    設問文に「採点対象外」等と書くだけでは何も変わらない（実際の判定はこの2項目でのみ決まる）ので注意。
+  </div>
+
+  <h2 id="example">7. 実践例：簡単な教材を1つ作ってみる</h2>
+  <p>「新人研修プロジェクトに、Python変数の教材を1つ作って、確認問題を1問入れて」と依頼した場合、Claude Codeは概ね以下の手順で進める。</p>
+  <p><strong>① 新規作成（A-16）</strong></p>
+  <pre><code>curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"project_id": 8, "title": "Python入門：変数"}' \
+  "$URL/api/materials"
+# → {"id": 42, ...}</code></pre>
+  <p><strong>② 取得（A-19）</strong></p>
+  <pre><code>curl -s -H "Authorization: Bearer $TOKEN" "$URL/api/materials/42/source"</code></pre>
+  <p><strong>③ 章・ページ・設問を書き足して保存（A-20）</strong></p>
+  <pre><code>---
+id: 42
+project_id: 8
+title: Python入門：変数
+status: published
+attempt_scope: material
+retake_scope: all
+default_feedback_style: show_answer
+grading_mode: ai
+---
+
+# Python入門
+
+## 変数と型
+
+### 変数の宣言
+&lt;!-- format:markdown --&gt;
+
+Pythonの変数には型宣言が不要です。`x = 1`と書くだけで変数`x`が作られます。
+
+```question
+type: single
+prompt: 次のうち、Pythonの変数名として正しいものはどれか
+options:
+  - "1abc = 1"
+  - "abc_1 = 1"
+  - "abc-1 = 1"
+correct_answer: "abc_1 = 1"
+```</code></pre>
+  <pre><code>curl -s -X PUT -H "Authorization: Bearer $TOKEN" -H "Content-Type: text/plain" \
+  --data-binary @material.md "$URL/api/materials/42/source"</code></pre>
+  <p>
+    保存が成功すると、更新後のソース（実際に採番されたノードID<code>&lt;!-- node:xxx --&gt;</code>付き）が
+    そのままレスポンスとして返る。以後この教材をさらに編集する場合は、このノードID付きのソースを
+    ベースに変更すればよい。
+  </p>
+
+  <h2 id="image">8. 画像の埋め込み</h2>
+  <p>
+    本文に画像を貼りたい場合は<code>![説明](attachment:123)</code>という記法を使う（123は下記手順で
+    アップロードした添付ファイルのID）。表示のたびにその時点で有効なURLへ自動的に解決されるため、
+    Base64化して直接貼り付ける必要はない。
+  </p>
+  <ol>
+    <li>
+      アップロード先URLを発行する（A-27）:
+      <pre><code>curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"filename": "screenshot.png", "mime_type": "image/png", "size_bytes": 12345}' \
+  "$URL/api/materials/{id}/attachments/upload-url"</code></pre>
+      レスポンスの<code>upload_url</code>・<code>storage_key</code>を控える。
+    </li>
+    <li>
+      発行されたURLへ画像本体をアップロードする:
+      <pre><code>curl -s -X PUT --data-binary @screenshot.png "$UPLOAD_URL"</code></pre>
+      （本番はSupabase StorageのURLがそのまま返るため<code>$URL</code>を付けず<code>$UPLOAD_URL</code>だけで叩く。
+      ローカル開発では<code>$URL</code>＋<code>upload_url</code>の組み合わせになる）
+    </li>
+    <li>
+      添付として登録し、IDを取得する（A-29。<code>node_id</code>は画像を貼りたいページのノードID）:
+      <pre><code>curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"node_id": 456, "kind": "file", "storage_key": "'"$STORAGE_KEY"'", "filename": "screenshot.png", "mime_type": "image/png", "size_bytes": 12345}' \
+  "$URL/api/materials/{id}/attachments"</code></pre>
+      レスポンスの<code>id</code>を使い、本文に<code>![説明](attachment:{id})</code>と書いてA-20で保存する。
+    </li>
+  </ol>
+  <p>外部サイトへのリンクを貼りたいだけの場合（画像でなく参照用リンク）はこの手順は不要で、通常のMarkdownリンク<code>[表示文言](https://...)</code>をそのまま本文に書けばよい。</p>
+
+  <h2 id="troubleshoot">9. よくあるエラーと対処</h2>
+  <table>
+    <thead><tr><th>状況</th><th>原因・対処</th></tr></thead>
+    <tbody>
+      <tr><td>A-20が422を返す</td><td><code>detail</code>にパースエラー内容が入っている（フロントマター不備・見出し順序違反・問題ブロックの必須項目不足など）。内容を確認して修正し再送する。</td></tr>
+      <tr><td>401エラー</td><td>CLIトークンが無い、または失効している（90日）。<code>python cli/manabi_login.py</code>で再ログインする。</td></tr>
+      <tr><td>403エラー</td><td>指定した<code>project_id</code>の編集者以上（またはシステムadmin）の権限が無い。所属プロジェクトが分からない場合は<code>GET /api/projects</code>で一覧を確認する。</td></tr>
+      <tr><td>「第1章 第1章 …」のように章番号が二重表示される</td><td>章タイトルに自分で番号を書いてしまっている。5章の注意を参照し、タイトルから番号を除く。</td></tr>
+      <tr><td>本文中の見出し記号でページが意図せず分割される</td><td>本文中の<code>#</code>〜<code>###</code>で始まる行（コードコメント含む）が<code>\</code>でエスケープされていない。5章の注意を参照。</td></tr>
+    </tbody>
+  </table>
+
+  <footer class="doc-footer">
+    <span>社内学習管理システム（Manabi）</span>
+    <span>Ver 1.0 / 2026-09-11</span>
+  </footer>
+
+</div>
+</body>
+</html>

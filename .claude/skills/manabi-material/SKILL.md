@@ -76,7 +76,10 @@ description: 説明文（省略可）
 tags: ["タグ1", "タグ2"]
 status: draft  # draft | published
 attempt_scope: material  # material | chapter | section | page（受験の単位）
-retake_scope: all  # all | wrong_only（再受験時に全問か誤答のみか）
+retake_scope: all  # all | wrong_only（再受験時に全問か誤答のみか。wrong_onlyは前回正解済み設問を除外し繰り越す）
+pass_score_pct: 70  # 合格基準スコア（%）。省略・nullなら「合格基準なし＝提出すれば常に合格」
+retake_allowed: true  # 再受験を許可するか（既定true）
+retake_limit: null  # 再受験回数の上限。nullなら無制限（既定null）
 default_feedback_style: show_answer  # show_answer | review_only | hint_only
 grading_mode: ai  # 記述式/コード記述式のAI採点を使うかどうかの既定値
 ---

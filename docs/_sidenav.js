@@ -91,6 +91,7 @@
       docs: [
         { href: '参考資料_環境構築手順.html', title: '開発環境構築手順' },
         { href: '参考資料_本番環境運用手順.html', title: '本番環境運用手順' },
+        { href: '参考資料_Claude Codeでの教材作成手順.html', title: 'Claude Codeでの教材作成手順' },
       ],
     },
   ];
