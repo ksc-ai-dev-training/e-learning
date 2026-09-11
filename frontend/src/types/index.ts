@@ -178,6 +178,7 @@ export interface Question {
   scoring_criteria: string | null
   code_language: string | null
   required: boolean
+  counted: boolean
   is_critical: boolean
   feedback_style: 'show_answer' | 'review_only' | 'hint_only' | null
   score_unit: string | null

@@ -84,6 +84,7 @@ function serializeQuestion(q: Question): string {
   if (q.scoring_criteria) lines.push(`scoring_criteria: ${yamlScalar(q.scoring_criteria)}`)
   if (q.code_language) lines.push(`code_language: ${yamlScalar(q.code_language)}`)
   if (!q.required) lines.push('required: false')
+  if (!q.counted) lines.push('counted: false')
   if (q.is_critical) lines.push('is_critical: true')
   if (q.feedback_style) lines.push(`feedback_style: ${q.feedback_style}`)
   if (q.score_unit) lines.push(`score_unit: ${yamlScalar(q.score_unit)}`)

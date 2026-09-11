@@ -182,6 +182,7 @@ CREATE TABLE IF NOT EXISTS questions (
 CREATE INDEX IF NOT EXISTS idx_questions_node_sort ON questions (node_id, sort_order);
 CREATE INDEX IF NOT EXISTS idx_questions_pool_group_id ON questions (pool_group_id);
 ALTER TABLE questions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE questions ADD COLUMN IF NOT EXISTS counted BOOLEAN NOT NULL DEFAULT true;
 
 -- T-11 assignments（配信設定）。S-06（配信設定画面、A-36〜A-38）で実際に作成・編集される他、
 -- S-03「区分」バッジ・「未受講のみ」等のフィルタも参照する。

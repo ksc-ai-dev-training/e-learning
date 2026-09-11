@@ -240,11 +240,11 @@ def _extract_questions(body: str) -> tuple[str, list[dict]]:
 
 QUESTION_FIELDS = (
     "id", "type", "prompt", "options", "correct_answer", "scoring_criteria",
-    "code_language", "required", "is_critical", "feedback_style", "pool_group",
+    "code_language", "required", "counted", "is_critical", "feedback_style", "pool_group",
     "score_unit", "grading_mode",
 )
 # 既定値と一致する場合はテキストへ出力しない（往復時の差分を減らす）
-QUESTION_FIELD_DEFAULTS = {"required": True, "is_critical": False}
+QUESTION_FIELD_DEFAULTS = {"required": True, "counted": True, "is_critical": False}
 
 
 def _serialize_question(q: dict) -> str:

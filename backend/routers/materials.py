@@ -218,7 +218,7 @@ async def _fetch_tree(executor, material_id: int, *, strip_answers: bool = False
     )
     question_rows = await executor.fetch(
         """SELECT id, node_id, type, prompt, options, correct_answer, scoring_criteria,
-                  code_language, sort_order, required, is_critical, feedback_style,
+                  code_language, sort_order, required, counted, is_critical, feedback_style,
                   pool_group_id, score_unit, grading_mode
            FROM questions WHERE material_id = $1 ORDER BY node_id, sort_order""",
         material_id,
@@ -275,6 +275,7 @@ class QuestionIn(BaseModel):
     scoring_criteria: str | None = None
     code_language: str | None = None
     required: bool = True
+    counted: bool = True
     is_critical: bool = False
     feedback_style: Literal["show_answer", "review_only", "hint_only"] | None = None
     pool_group: int | None = None
@@ -324,12 +325,12 @@ async def upsert_questions_for_node(
                 raise HTTPException(422, detail=f"問題ID {q.id} はこのページに存在しません")
             await conn.execute(
                 """UPDATE questions SET type=$1, prompt=$2, options=$3, correct_answer=$4,
-                       sort_order=$5, required=$6, is_critical=$7, feedback_style=$8,
-                       pool_group_id=$9, scoring_criteria=$10, code_language=$11,
-                       score_unit=$12, grading_mode=$13, updated_at=now()
-                   WHERE id=$14 AND node_id=$15""",
+                       sort_order=$5, required=$6, counted=$7, is_critical=$8, feedback_style=$9,
+                       pool_group_id=$10, scoring_criteria=$11, code_language=$12,
+                       score_unit=$13, grading_mode=$14, updated_at=now()
+                   WHERE id=$15 AND node_id=$16""",
                 q.type, q.prompt, options_json, answer_json, idx,
-                q.required, q.is_critical, q.feedback_style, q.pool_group,
+                q.required, q.counted, q.is_critical, q.feedback_style, q.pool_group,
                 q.scoring_criteria, q.code_language, q.score_unit, q.grading_mode, q.id, node_id,
             )
             seen_ids.add(q.id)
@@ -337,11 +338,11 @@ async def upsert_questions_for_node(
         else:
             new_id = await conn.fetchval(
                 """INSERT INTO questions (material_id, node_id, type, prompt, options,
-                       correct_answer, sort_order, required, is_critical, feedback_style, pool_group_id,
+                       correct_answer, sort_order, required, counted, is_critical, feedback_style, pool_group_id,
                        scoring_criteria, code_language, score_unit, grading_mode)
-                   VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING id""",
+                   VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING id""",
                 material_id, node_id, q.type, q.prompt, options_json, answer_json, idx,
-                q.required, q.is_critical, q.feedback_style, q.pool_group,
+                q.required, q.counted, q.is_critical, q.feedback_style, q.pool_group,
                 q.scoring_criteria, q.code_language, q.score_unit, q.grading_mode,
             )
             seen_ids.add(new_id)
@@ -1378,11 +1379,11 @@ async def _duplicate_material_into_project(conn, material_id: int, target_projec
                 answer_json = json.dumps(q["correct_answer"]) if q["correct_answer"] is not None else None
                 new_q_id = await conn.fetchval(
                     """INSERT INTO questions (material_id, node_id, type, prompt, options,
-                           correct_answer, sort_order, required, is_critical, feedback_style,
+                           correct_answer, sort_order, required, counted, is_critical, feedback_style,
                            scoring_criteria, code_language, score_unit, grading_mode)
-                       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING id""",
+                       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING id""",
                     new_material_id, new_node_id, q["type"], q["prompt"], options_json, answer_json,
-                    q["sort_order"], q["required"], q["is_critical"], q["feedback_style"],
+                    q["sort_order"], q["required"], q["counted"], q["is_critical"], q["feedback_style"],
                     q["scoring_criteria"], q["code_language"], q["score_unit"], q["grading_mode"],
                 )
                 question_id_map[q["id"]] = new_q_id

@@ -111,6 +111,9 @@ export default function AnswerQuestionCard({
             </span>
           )}
           {!question.required && <span className="ml-2 text-[11px] font-normal text-slate-400">（任意）</span>}
+          {question.required && !question.counted && (
+            <span className="ml-2 text-[11px] font-normal text-slate-400">（記録・合否には反映されません）</span>
+          )}
         </span>
         {locked && (
           <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-400">

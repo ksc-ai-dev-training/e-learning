@@ -237,14 +237,15 @@ git checkout -b feature/add-login
                 <label>回答</label>
                 <div class="radio-group">
                   <label class="radio-line"><input type="radio" name="q1-required" checked> 必須</label>
+                  <label class="radio-line"><input type="radio" name="q1-required"> 記録（採点なし）</label>
                   <label class="radio-line"><input type="radio" name="q1-required"> 任意（スキップ可）</label>
                 </div>
-                <span class="field-help">※任意にすると、回答してもスコア・合否判定には反映されません（採点・AIフィードバック自体は行われます）。</span>
+                <span class="field-help">※「記録」は回答必須のままスコア・合否判定には算入しません（採点・AIフィードバック自体は行われます）。「任意」は回答自体を省略できます（同じく算入されません）。</span>
               </div>
               <div>
                 <label>ドボン問題</label>
                 <label class="checkbox-line"><input type="checkbox"> この設問にする</label>
-                <span class="field-help">※任意の設問はドボン判定の対象になりません。</span>
+                <span class="field-help">※記録・任意の設問はドボン判定の対象になりません。</span>
               </div>
               <div>
                 <label>AI講評スタイル（この設問のみ上書き）</label>
@@ -287,14 +288,15 @@ git checkout -b feature/add-login
                 <label>回答</label>
                 <div class="radio-group">
                   <label class="radio-line"><input type="radio" name="q2-required" checked> 必須</label>
+                  <label class="radio-line"><input type="radio" name="q2-required"> 記録（採点なし）</label>
                   <label class="radio-line"><input type="radio" name="q2-required"> 任意（スキップ可）</label>
                 </div>
-                <span class="field-help">※任意にすると、回答してもスコア・合否判定には反映されません（採点・AIフィードバック自体は行われます）。</span>
+                <span class="field-help">※「記録」は回答必須のままスコア・合否判定には算入しません（採点・AIフィードバック自体は行われます）。「任意」は回答自体を省略できます（同じく算入されません）。</span>
               </div>
               <div>
                 <label>ドボン問題</label>
                 <label class="checkbox-line"><input type="checkbox" checked> この設問にする</label>
-                <span class="field-help">※任意の設問はドボン判定の対象になりません。</span>
+                <span class="field-help">※記録・任意の設問はドボン判定の対象になりません。</span>
               </div>
             </div>
             <div class="field">
@@ -374,14 +376,15 @@ git checkout -b feature/add-login
                 <label>回答</label>
                 <div class="radio-group">
                   <label class="radio-line"><input type="radio" name="q3-required" checked> 必須</label>
+                  <label class="radio-line"><input type="radio" name="q3-required"> 記録（採点なし）</label>
                   <label class="radio-line"><input type="radio" name="q3-required"> 任意（スキップ可）</label>
                 </div>
-                <span class="field-help">※任意にすると、回答してもスコア・合否判定には反映されません（採点・AIフィードバック自体は行われます）。</span>
+                <span class="field-help">※「記録」は回答必須のままスコア・合否判定には算入しません（採点・AIフィードバック自体は行われます）。「任意」は回答自体を省略できます（同じく算入されません）。</span>
               </div>
               <div>
                 <label>ドボン問題</label>
                 <label class="checkbox-line"><input type="checkbox"> この設問にする</label>
-                <span class="field-help">※任意の設問はドボン判定の対象になりません。</span>
+                <span class="field-help">※記録・任意の設問はドボン判定の対象になりません。</span>
               </div>
               <div>
                 <label>AI講評スタイル（この設問のみ上書き）</label>
@@ -428,12 +431,11 @@ git checkout -b feature/add-login
                   <label class="radio-line"><input type="radio" name="q4-required" checked> 必須</label>
                   <label class="radio-line"><input type="radio" name="q4-required"> 任意（スキップ可）</label>
                 </div>
-                <span class="field-help">※任意にすると、回答してもスコア・合否判定には反映されません（採点・AIフィードバック自体は行われます）。</span>
               </div>
               <div>
                 <label>ドボン問題</label>
                 <label class="checkbox-line" title="記録型には設定できません" style="opacity:0.4"><input type="checkbox" disabled> この設問にする</label>
-                <span class="field-help">※任意の設問はドボン判定の対象になりません。</span>
+                <span class="field-help">※記録・任意の設問はドボン判定の対象になりません。</span>
               </div>
               <div>
                 <label>AI講評スタイル（この設問のみ上書き）</label>

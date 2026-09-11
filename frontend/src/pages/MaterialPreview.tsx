@@ -107,7 +107,11 @@ function QuestionView({ question, index }: { question: Question; index: number }
         <span className="rounded border border-indigo-200 bg-indigo-50 px-1.5 py-0.5 text-[11px] font-semibold text-indigo-700">
           問{index + 1}・{TYPE_LABEL[question.type]}
         </span>
-        {question.required && <span className="text-[11px] text-slate-400">回答必須</span>}
+        {question.required && (
+          <span className="text-[11px] text-slate-400">
+            {question.counted ? '回答必須' : '回答必須（記録・非算入）'}
+          </span>
+        )}
         {question.is_critical && (
           <span className="rounded border border-red-200 bg-red-50 px-1.5 py-0.5 text-[11px] font-semibold text-red-700">
             ドボン問題

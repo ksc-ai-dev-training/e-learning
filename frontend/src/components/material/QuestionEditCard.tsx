@@ -39,7 +39,12 @@ export default function QuestionEditCard({
   const gradingOverridable = supportsGradingModeOverride(question.type)
   const feedbackDisabled = gradingOverridable && question.grading_mode === 'manual'
 
-  const changeType = (value: string) => onChange(emptyQuestionForType(value as QuestionType))
+  const changeType = (value: string) =>
+    onChange({
+      ...emptyQuestionForType(value as QuestionType),
+      required: question.required,
+      counted: question.counted,
+    })
 
   const changeGradingMode = (value: string) =>
     onChange({ ...question, grading_mode: value === '' ? null : (value as 'ai' | 'manual') })
@@ -96,23 +101,35 @@ export default function QuestionEditCard({
             <label className="flex items-center gap-1">
               <input
                 type="radio"
-                checked={question.required}
-                onChange={() => onChange({ ...question, required: true })}
+                checked={isScoreLog ? question.required : question.required && question.counted}
+                onChange={() => onChange({ ...question, required: true, counted: true })}
               />
               必須
             </label>
+            {!isScoreLog && (
+              <label className="flex items-center gap-1">
+                <input
+                  type="radio"
+                  checked={question.required && !question.counted}
+                  onChange={() => onChange({ ...question, required: true, counted: false })}
+                />
+                記録（採点なし）
+              </label>
+            )}
             <label className="flex items-center gap-1">
               <input
                 type="radio"
                 checked={!question.required}
-                onChange={() => onChange({ ...question, required: false })}
+                onChange={() => onChange({ ...question, required: false, counted: false })}
               />
               任意（スキップ可）
             </label>
           </div>
-          <p className="text-[11px] text-slate-400">
-            ※任意にすると、回答してもスコア・合否判定には反映されません（採点・AIフィードバック自体は行われます）。
-          </p>
+          {!isScoreLog && (
+            <p className="text-[11px] text-slate-400">
+              ※「記録」は回答必須のままスコア・合否判定には算入しません（採点・AIフィードバック自体は行われます）。「任意」は回答自体を省略できます（同じく算入されません）。
+            </p>
+          )}
         </div>
         <div className="flex flex-col gap-1">
           <label className="text-xs font-semibold text-slate-500">ドボン問題</label>
@@ -128,7 +145,7 @@ export default function QuestionEditCard({
             />
             この設問にする
           </label>
-          <p className="text-[11px] text-slate-400">※任意の設問はドボン判定の対象になりません。</p>
+          <p className="text-[11px] text-slate-400">※記録・任意の設問はドボン判定の対象になりません。</p>
         </div>
         {gradingOverridable && (
           <div className="flex flex-col gap-1">

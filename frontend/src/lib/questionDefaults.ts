@@ -32,6 +32,7 @@ export function emptyQuestionForType(type: QuestionType): Question {
     scoring_criteria: type === 'free_text' || type === 'code' ? '' : null,
     code_language: type === 'code' ? '' : null,
     required: true,
+    counted: true,
     is_critical: false,
     feedback_style: null,
     score_unit: type === 'score_log' ? '' : null,
