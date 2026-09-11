@@ -122,6 +122,9 @@ CREATE TABLE IF NOT EXISTS materials (
                             CHECK (attempt_scope IN ('material', 'chapter', 'section', 'page')),
     retake_scope            TEXT NOT NULL DEFAULT 'all'
                             CHECK (retake_scope IN ('all', 'wrong_only')),
+    pass_score_pct          NUMERIC(5, 2),
+    retake_allowed          BOOLEAN NOT NULL DEFAULT true,
+    retake_limit            INTEGER,
     default_feedback_style  TEXT NOT NULL DEFAULT 'show_answer'
                             CHECK (default_feedback_style IN ('show_answer', 'review_only', 'hint_only')),
     ai_context              TEXT,
@@ -136,6 +139,9 @@ CREATE TABLE IF NOT EXISTS materials (
 CREATE INDEX IF NOT EXISTS idx_materials_project_id ON materials(project_id);
 CREATE INDEX IF NOT EXISTS idx_materials_tags ON materials USING GIN (tags jsonb_path_ops);
 ALTER TABLE materials ENABLE ROW LEVEL SECURITY;
+ALTER TABLE materials ADD COLUMN IF NOT EXISTS pass_score_pct NUMERIC(5, 2);
+ALTER TABLE materials ADD COLUMN IF NOT EXISTS retake_allowed BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE materials ADD COLUMN IF NOT EXISTS retake_limit INTEGER;
 
 -- T-23 material_nodes（教材の目次ノード: 章・小見出し・ページの自己参照ツリー）
 CREATE TABLE IF NOT EXISTS material_nodes (
@@ -196,15 +202,18 @@ CREATE TABLE IF NOT EXISTS assignments (
     scope_id        BIGINT NOT NULL,
     required        BOOLEAN NOT NULL DEFAULT true,
     due_at          TIMESTAMPTZ,
-    pass_score_pct  NUMERIC(5, 2),
-    retake_allowed  BOOLEAN NOT NULL DEFAULT true,
-    retake_limit    INTEGER,
     created_by      BIGINT NOT NULL REFERENCES users(id),
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_assignments_material_id ON assignments (material_id);
 ALTER TABLE assignments ENABLE ROW LEVEL SECURITY;
+-- pass_score_pct・retake_allowed・retake_limitは配信設定（S-06）の画面に該当UIが無く、書き込み経路が
+-- 一度も実装されなかった死んだカラムだったため撤去し、代わりに教材全体で1つに決まる設定として
+-- materials側へ移設した（S-05「合否判定・再受験設定」に実際のUIを新設。2026-09-11）。
+ALTER TABLE assignments DROP COLUMN IF EXISTS pass_score_pct;
+ALTER TABLE assignments DROP COLUMN IF EXISTS retake_allowed;
+ALTER TABLE assignments DROP COLUMN IF EXISTS retake_limit;
 
 -- T-12 enrollment_progress（受講進捗）。S-16（受講API、A-39〜A-44）で実際に更新される他、
 -- S-03「未受講のみ表示」フィルタ・一覧の受講状況表示も参照する
@@ -313,6 +322,7 @@ CREATE TABLE IF NOT EXISTS answers (
 CREATE INDEX IF NOT EXISTS idx_answers_attempt_id ON answers (attempt_id);
 CREATE INDEX IF NOT EXISTS idx_answers_question_id ON answers (question_id);
 ALTER TABLE answers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE answers ADD COLUMN IF NOT EXISTS result_seen_at TIMESTAMPTZ;
 
 -- T-19 ai_usage_logs（AI利用ログ）。F-08/F-20〜F-23共通で`ai_client.py`が呼び出しのたびに1行書き込む。
 -- 質問・回答の内容そのものは保存しない（Keireki T-09と同方針）
@@ -375,7 +385,7 @@ CREATE INDEX IF NOT EXISTS idx_material_revisions_material_id
     ON material_revisions (material_id, created_at DESC);
 ALTER TABLE material_revisions ENABLE ROW LEVEL SECURITY;
 
--- T-26 surveys（受験後アンケート。node_id=NULLは教材全体、設定時は対象の章）
+-- T-26 surveys（受講後アンケート。node_id=NULLは教材全体、設定時は対象の章）
 CREATE TABLE IF NOT EXISTS surveys (
     id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     material_id   BIGINT NOT NULL REFERENCES materials(id) ON DELETE CASCADE,

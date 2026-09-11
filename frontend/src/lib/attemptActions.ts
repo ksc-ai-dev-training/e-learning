@@ -54,7 +54,7 @@ export function getMyQuestionScores(
   return apiFetch(`/api/questions/${questionId}/my-scores`)
 }
 
-// A-72: 受験後アンケートへの回答送信
+// A-72: 受講後アンケートへの回答送信
 export function submitSurveyResponse(
   surveyId: number,
   answers: { survey_question_id: number; value: unknown }[],

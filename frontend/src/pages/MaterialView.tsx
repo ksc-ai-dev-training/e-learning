@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import PageHeader from '../components/layout/PageHeader'
 import Badge from '../components/ui/Badge'
@@ -16,6 +16,7 @@ import { openAttachmentDownload } from '../lib/attachmentActions'
 import { pageKindLabel, toEditableChapters } from '../lib/materialTree'
 import { flattenPages, type FlatPage } from '../lib/pageNav'
 import { startAttempt, startWrongQuestionsAttempt } from '../lib/attemptActions'
+import { ackGradingResults } from '../lib/gradingActions'
 import { andFromQuery, backTarget, fromQuery } from '../lib/backLink'
 import { ApiError } from '../lib/api'
 import type { EditableNode } from '../lib/materialSource'
@@ -51,6 +52,7 @@ export default function MaterialView() {
   const [downloadError, setDownloadError] = useState<string | null>(null)
 
   const { items: attemptSummary } = useAttemptSummary(activeTab === 'toc' ? id : null)
+  const gradingResultRef = useRef<HTMLDivElement | null>(null)
   const { items: practiceAttempts } = usePracticeAttempts(activeTab === 'practice' ? id : null)
   const { surveys } = useSurveys(activeTab === 'toc' ? id : null)
   const [dismissedSurveyIds, setDismissedSurveyIds] = useState<Set<number>>(new Set())
@@ -60,6 +62,35 @@ export default function MaterialView() {
   const [startingPractice, setStartingPractice] = useState(false)
   const [startingWrongOnly, setStartingWrongOnly] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
+
+  // 採点結果パネル: attemptSummaryの各スコープの回答（記録型を除く）を横断集約する
+  // （2026-09-11、選択式が除外されていた不具合を修正し、手動採点結果も表示するようパネル名を改称）
+  const gradedAnswers = attemptSummary.flatMap((entry) =>
+    entry.answers.map((a) => ({ ...a, scope_label: entry.scope_label })),
+  )
+
+  // A-98: 採点結果パネルが実際に画面に見えたタイミングで確認済みにする（マイ学習「採点結果未確認」
+  // タブから外すため）。以前は目次タブを開いた瞬間に無条件で確認済みにしていたため、このパネルを
+  // 一度も見ないまま（他タブへすぐ切り替える等）確認済みになってしまう不具合があった
+  // （2026-09-11、ユーザー報告により発見・修正）。IntersectionObserverでパネル自体が
+  // ビューポートに入ったことを検知してから1回だけ呼ぶ。early return（読み込み中・エラー時）より前で
+  // 呼ぶ必要がある（Hooksのルール上、条件付きでuseEffectを呼び出せないため）。
+  useEffect(() => {
+    if (activeTab !== 'toc' || Number.isNaN(id) || gradedAnswers.length === 0) return
+    const el = gradingResultRef.current
+    if (!el) return
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          ackGradingResults(id).catch(() => {})
+          observer.disconnect()
+        }
+      },
+      { threshold: 0.5 },
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [activeTab, id, gradedAnswers.length])
 
   if (isLoading) {
     return <div className="p-8 text-sm text-slate-400">読み込み中...</div>
@@ -126,12 +157,7 @@ export default function MaterialView() {
     }
   }
 
-  // AI採点結果パネル: attemptSummaryの各スコープの記述式・コード記述式の回答を横断集約する
-  const aiGradedAnswers = attemptSummary.flatMap((entry) =>
-    entry.answers.map((a) => ({ ...a, scope_label: entry.scope_label })),
-  )
-
-  // 受験後アンケートcallout: 合格済みスコープに設置された、まだ答えていない（または毎回表示の）
+  // 受講後アンケートcallout: 合格済みスコープに設置された、まだ答えていない（または毎回表示の）
   // アンケートを1件だけ表示する（スキップはローカル状態のみ、次回訪問時にはまた表示される）
   const passedScopeIds = new Set(
     attemptSummary.filter((e) => e.attempt.passed === true).map((e) => e.scope_node_id),
@@ -328,29 +354,44 @@ export default function MaterialView() {
               </section>
             ))}
 
-            {aiGradedAnswers.length > 0 && (
-              <section className="mb-5 rounded-md border border-slate-200">
+            {gradedAnswers.length > 0 && (
+              <section ref={gradingResultRef} className="mb-5 rounded-md border border-slate-200">
                 <div className="border-b border-slate-200 px-4 py-2.5">
-                  <span className="text-sm font-semibold text-slate-700">記述式回答のAI採点結果</span>
+                  <span className="text-sm font-semibold text-slate-700">採点結果</span>
                 </div>
                 <div className="divide-y divide-slate-100">
-                  {aiGradedAnswers.map((a) => (
-                    <div key={a.question_id} className="flex items-start gap-3 p-4">
-                      <span
-                        className={`flex-shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${
-                          a.ai_score_pct !== null ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'
-                        }`}
-                      >
-                        {a.ai_score_pct !== null ? `${Math.round(a.ai_score_pct)}点` : '採点中'}
-                      </span>
-                      <div>
-                        <div className="text-[12.5px] font-semibold text-slate-700">
-                          {a.scope_label} {a.prompt}
+                  {gradedAnswers.map((a) => {
+                    // 記述式・コード記述式はAI/手動採点の点数（採点待ちは「採点中」）、それ以外
+                    // （単一選択・複数選択・並び替え）は保存時に同期採点済みのため正解/不正解を表示する
+                    const isAiGraded = a.type === 'free_text' || a.type === 'code'
+                    const badgeText = isAiGraded
+                      ? a.ai_score_pct !== null
+                        ? `${Math.round(a.ai_score_pct)}点`
+                        : '採点中'
+                      : a.is_correct
+                        ? '正解'
+                        : '不正解'
+                    const badgeClass = isAiGraded
+                      ? a.ai_score_pct !== null
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-slate-100 text-slate-500'
+                      : a.is_correct
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-red-100 text-red-700'
+                    return (
+                      <div key={a.question_id} className="flex items-start gap-3 p-4">
+                        <span className={`flex-shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${badgeClass}`}>
+                          {badgeText}
+                        </span>
+                        <div>
+                          <div className="text-[12.5px] font-semibold text-slate-700">
+                            {a.scope_label} {a.prompt}
+                          </div>
+                          {a.ai_feedback && <div className="mt-0.5 text-xs text-slate-500">{a.ai_feedback}</div>}
                         </div>
-                        {a.ai_feedback && <div className="mt-0.5 text-xs text-slate-500">{a.ai_feedback}</div>}
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </section>
             )}

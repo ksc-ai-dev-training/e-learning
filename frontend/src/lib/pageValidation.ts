@@ -41,9 +41,6 @@ function validateQuestions(qs: Question[]): string | null {
         return `設問${i + 1}: 言語ヒントを入力してください`
       }
     }
-    if (q.type === 'score_log' && !q.score_unit?.trim()) {
-      return `設問${i + 1}: スコアの単位を入力してください`
-    }
   }
   return null
 }

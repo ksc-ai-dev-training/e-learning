@@ -95,7 +95,7 @@ const NAV_ITEMS = [
     href: '/grading',
     label: '採点',
     icon: CircleCheckBig,
-    implemented: false,
+    implemented: true,
     accent: 'violet' as Accent,
     match: (p: string) => p === '/grading',
   },

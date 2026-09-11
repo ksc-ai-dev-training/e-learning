@@ -12,7 +12,7 @@ from pydantic import BaseModel
 
 import ai_client
 import slack_client
-from auth_helpers import CurrentUser, has_active_project_role, require_auth
+from auth_helpers import CurrentUser, check_project_role, has_active_project_role, require_auth
 from database import get_pool
 from routers.materials import _count_pages, _fetch_tree, _material_dict, _require_view_access
 from settings_store import DEFAULT_GRACE_PERIOD_DAYS, get_setting_int
@@ -20,13 +20,6 @@ from settings_store import DEFAULT_GRACE_PERIOD_DAYS, get_setting_int
 router = APIRouter(prefix="/api", tags=["learning"])
 
 logger = logging.getLogger("manabi.learning")
-
-# 配信設定（T-11 assignments.pass_score_pct等）は本来教材ごとに1つに定めるが、S-06（配信設定画面）で
-# 明示的に設定されるまではassignments行が存在しないため、該当行が無い場合の既定値として使う
-# （assignments行が存在する場合は常にそちらの値を優先する）。
-DEFAULT_PASS_SCORE_PCT = 70.0
-DEFAULT_RETAKE_ALLOWED = True
-DEFAULT_RETAKE_LIMIT = None
 
 GRADABLE_TYPES = ("single", "multi", "reorder", "free_text", "code")
 
@@ -115,26 +108,20 @@ def _draw_question_order(pages: list[dict]) -> dict:
     return question_order
 
 
-async def _resolve_assignment_settings(pool, material_id: int, project_id: int, user_id: int) -> dict:
-    """配信設定（T-11 assignments）からpass_score_pct・retake_allowed・retake_limitを取得する。
-    自分に適用される行（プロジェクトスコープまたは個人指定）を1件取得し、無ければ既定値を使う
-    （S-06で配信設定が未作成の教材ではassignments行が存在しないため）。"""
+async def _resolve_assignment_settings(pool, material_id: int) -> dict:
+    """合否判定・再受験設定（materials.pass_score_pct・retake_allowed・retake_limit、S-05
+    「合否判定・再受験設定」で編集）を取得する。pass_score_pctはNULLのままにもできる任意項目で、
+    その場合は「合格基準なし＝スコアによらず常に合格」を意味する（かつてT-11 assignmentsに
+    同名のカラムがあったが、配信設定〔S-06〕には対応するUIが無く書き込み経路が一度も実装
+    されなかったため、教材全体で1つに決まる設定としてmaterialsへ移設した。2026-09-11、
+    ユーザー要望で「合否判定・再受験設定」に実際の編集UIを新設。合否基準・再受験回数上限は
+    どちらも必須項目ではなく、無指定（自由に再受験可・常に合格）のままでよい）。"""
     row = await pool.fetchrow(
-        """SELECT pass_score_pct, retake_allowed, retake_limit FROM assignments
-            WHERE material_id = $1
-              AND ((scope_type = 'project' AND scope_id = $2)
-                   OR (scope_type = 'individual' AND scope_id = $3))
-            LIMIT 1""",
-        material_id, project_id, user_id,
+        "SELECT pass_score_pct, retake_allowed, retake_limit FROM materials WHERE id = $1",
+        material_id,
     )
-    if row is None:
-        return {
-            "pass_score_pct": DEFAULT_PASS_SCORE_PCT,
-            "retake_allowed": DEFAULT_RETAKE_ALLOWED,
-            "retake_limit": DEFAULT_RETAKE_LIMIT,
-        }
     return {
-        "pass_score_pct": float(row["pass_score_pct"]) if row["pass_score_pct"] is not None else DEFAULT_PASS_SCORE_PCT,
+        "pass_score_pct": float(row["pass_score_pct"]) if row["pass_score_pct"] is not None else None,
         "retake_allowed": row["retake_allowed"],
         "retake_limit": row["retake_limit"],
     }
@@ -156,7 +143,7 @@ class StartAttemptIn(BaseModel):
 async def start_attempt(id: int, body: StartAttemptIn, user: CurrentUser = Depends(require_auth)):
     """A-40: 受験開始。未提出の試行があれば再開し、無ければ新規作成する。ただしmode='graded'で
     そのスコープの直近提出済み記録が合格済みの場合は、新規作成せずその記録を閲覧専用で返す
-    （2026-09-03、詳細はpassed_attempt周りのコメント参照）。
+    （2026-09-03、詳細はfrozen_attempt周りのコメント参照）。
     (user_id, material_id, mode, scope_node_id)の組でsubmitted_at IS NULLな行を高々1件に保つ
     部分ユニークインデックス（uq_quiz_attempts_active）を使い、INSERT ... ON CONFLICT DO UPDATEで
     「無ければ作る・あれば取得する」を1クエリでアトミックに行う。S-16実装時、Reactの開発時
@@ -165,7 +152,7 @@ async def start_attempt(id: int, body: StartAttemptIn, user: CurrentUser = Depen
     pool = get_pool()
     perm_row = await _require_view_access(pool, id, user)
     material_row = await pool.fetchrow(
-        "SELECT id, project_id, attempt_scope, updated_at FROM materials WHERE id = $1", id
+        "SELECT id, project_id, attempt_scope, updated_at, pass_score_pct FROM materials WHERE id = $1", id
     )
     tree = await _fetch_tree(pool, id, strip_answers=True)
     attempt_scope = material_row["attempt_scope"]
@@ -183,14 +170,19 @@ async def start_attempt(id: int, body: StartAttemptIn, user: CurrentUser = Depen
     # 部分ユニークインデックス上で衝突しない。
     practice_kind = "repeat" if body.mode == "practice" else None
 
-    # 合格済みスコープを開き直しても新規受験記録を作らず、直近の合格記録を閲覧専用で返す
-    # （2026-09-03、ユーザー指摘）。quiz_attemptsの部分ユニークインデックスはsubmitted_at IS NULLの
-    # 行にしか効かないため、提出済みスコープを再訪すると素朴には毎回新規の未提出試行が作られてしまい、
-    # 再受験回数（retake_limit、スコープ単位でカウント）の意図しない消費や、タグ別正答率平均
+    # 合格済み、または採点中（未確定）のスコープを開き直しても新規受験記録を作らず、直近の記録を
+    # 閲覧専用で返す（2026-09-03、ユーザー指摘。採点中の扱いは2026-09-11追加）。
+    # quiz_attemptsの部分ユニークインデックスはsubmitted_at IS NULLの行にしか効かないため、
+    # 提出済みスコープを再訪すると素朴には毎回新規の未提出試行が作られてしまい、再受験回数
+    # （retake_limit、スコープ単位でカウント）の意図しない消費や、タグ別正答率平均
     # （_aggregate_tag_stats）の水増しにつながっていた。このアプリには専用の「再受験する」ボタンが
-    # 無く「開き直す」ことそのものが唯一の再受験手段のため、不合格スコープは今まで通り新規受験記録を
-    # 作って解き直せるようにし、合格済みスコープだけをこの対象から除外する（スコープ単位判定なので、
-    # 章単位・小見出し単位の教材で一部合格・一部不合格が混在していても、それぞれ独立して正しく扱える）。
+    # 無く「開き直す」ことそのものが唯一の再受験手段のため、不合格（かつ採点確定済み）スコープは
+    # 今まで通り新規受験記録を作って解き直せるようにし、合格済み・採点中のスコープだけをこの対象から
+    # 除外する（スコープ単位判定なので、章単位・小見出し単位の教材で一部合格・一部不合格が混在して
+    # いても、それぞれ独立して正しく扱える）。採点中（記述式・コード記述式のAI採点待ち・手動採点待ち）
+    # のスコープは合否が未確定のため、再受験（練習は引き続き可能）を認めると採点完了前に何度も
+    # 解き直せてしまい、手動採点対象が際限なく増える・どの試行を採点すべきか曖昧になるという問題が
+    # あるため、合格済みと同様に新規受験記録の作成をブロックする（2026-09-11）。
     # submitted_at >= materials.updated_atも必須条件にする。教材編集（A-20）でページが追加/変更
     # された後は、編集前の古い合格記録をそのまま再利用してはいけない（新しいページを最後まで読んでも
     # 一切提出されず、completed_node_idsが古いまま固定されて進捗が停滞するバグになっていた。
@@ -199,25 +191,35 @@ async def start_attempt(id: int, body: StartAttemptIn, user: CurrentUser = Depen
     # のため、リセット後に再受講しても、リセット前の古い合格記録がそのまま再利用されてしまい
     # current_node_idが二度と更新されない（＝「続きから受講」が常に先頭に戻る）不具合があった。
     # enrollment_progress.reset_atより後に提出されたものだけを有効とする（2026-09-03発見）。
-    passed_attempt = None
+    frozen_attempt = None
     if body.mode == "graded":
         reset_at = await pool.fetchval(
             "SELECT reset_at FROM enrollment_progress WHERE user_id = $1 AND material_id = $2",
             user.id, id,
         )
-        passed_attempt = await pool.fetchrow(
-            """SELECT * FROM quiz_attempts
+        # 合格基準（pass_score_pct）が未設定の教材は「基準なし＝常に合格」として扱う
+        # （_recompute_attempt_result参照）が、この見なし合格は「もう合格したので再受験不要」を
+        # 意味しない（そもそも合否の概念が無い教材なので、再受験設定〔retake_allowed・
+        # retake_limit〕どおりに何度でも解き直せてよい）。合格基準が実際に設定されている教材でのみ、
+        # 合格済みスコープを再受験不可（閲覧専用）にする（2026-09-11、ユーザー報告により発見・修正。
+        # 「合格基準なし」を新設した際、既存の合格済みブロックと組み合わせると再受験が事実上
+        # 無限に不可能になっていた）。採点中（passed IS NULL）は合否基準の有無に関わらず、
+        # 採点完了前の重複受験を防ぐため引き続き閲覧専用にする。
+        has_pass_criteria = material_row["pass_score_pct"] is not None
+        passed_block_clause = "passed = true" if has_pass_criteria else "false"
+        frozen_attempt = await pool.fetchrow(
+            f"""SELECT * FROM quiz_attempts
                 WHERE user_id = $1 AND material_id = $2 AND mode = 'graded'
                   AND scope_node_id IS NOT DISTINCT FROM $3
-                  AND submitted_at IS NOT NULL AND passed = true
+                  AND submitted_at IS NOT NULL AND ({passed_block_clause} OR passed IS NULL)
                   AND submitted_at >= $4
                   AND ($5::timestamptz IS NULL OR submitted_at >= $5)
                 ORDER BY attempt_no DESC LIMIT 1""",
             user.id, id, scope_node_id, material_row["updated_at"], reset_at,
         )
 
-    if passed_attempt is not None:
-        attempt = dict(passed_attempt)
+    if frozen_attempt is not None:
+        attempt = dict(frozen_attempt)
         is_new = False
     else:
         # REQ-F-09/F-14: 再受験の可否・回数を教材ごとに定められる、という要求に対し、以前は
@@ -236,7 +238,7 @@ async def start_attempt(id: int, body: StartAttemptIn, user: CurrentUser = Depen
                 user.id, id, scope_node_id,
             )
             if has_unsubmitted is None:
-                settings = await _resolve_assignment_settings(pool, id, material_row["project_id"], user.id)
+                settings = await _resolve_assignment_settings(pool, id)
                 # attempt_limit_resets: プロジェクトadmin・システムadminがS-12「メンバー管理」から
                 # 回数をリセットした時刻。この時刻より後に提出された回数だけを数える
                 # （2026-09-03、REQ-F-09対応と合わせて新設）。
@@ -445,6 +447,16 @@ async def _recompute_attempt_result(pool, attempt_id: int) -> None:
     # required=false（任意）・counted=false（記録）の設問は、回答してもスコア・合否判定には反映しない
     # （採点・AIフィードバック自体は行われるが、算入されないだけ）。
     gradable = [r for r in rows if r["type"] != "score_log" and r["required"] and r["counted"]]
+    # gradable（算入対象）のうち記述式・コード記述式がAI採点待ち・手動採点待ちで1件でも残っている間は
+    # score_pct・passedともNULLのまま「採点中」とする（単一選択・複数選択・並び替えは保存時に同期採点
+    # されるためis_correctがNULLになるのはAI/手動採点待ちの場合のみ）。この保留を入れず提出直後に
+    # 未採点分を不正解扱いして合否を確定していた不具合の修正。
+    if any(r["is_correct"] is None for r in gradable):
+        await pool.execute(
+            "UPDATE quiz_attempts SET score_pct = NULL, passed = NULL, fail_reason = NULL WHERE id = $1",
+            attempt_id,
+        )
+        return
     total = len(gradable)
     correct = sum(1 for r in gradable if r["is_correct"])
     score_pct = (correct / total * 100) if total > 0 else 100.0
@@ -461,13 +473,10 @@ async def _recompute_attempt_result(pool, attempt_id: int) -> None:
             passed = False
             fail_reason = critical_fail["prompt"]
         else:
-            material = await pool.fetchrow(
-                "SELECT project_id FROM materials WHERE id = $1", attempt["material_id"]
-            )
-            settings = await _resolve_assignment_settings(
-                pool, attempt["material_id"], material["project_id"], attempt["user_id"]
-            )
-            passed = score_pct >= settings["pass_score_pct"]
+            settings = await _resolve_assignment_settings(pool, attempt["material_id"])
+            # 合格基準（pass_score_pct）が未設定の教材は「基準なし＝スコアによらず常に合格」
+            # とする（2026-09-11、ユーザー要望：合否基準を設定しない運用も許容する）。
+            passed = True if settings["pass_score_pct"] is None else score_pct >= settings["pass_score_pct"]
 
     await pool.execute(
         "UPDATE quiz_attempts SET score_pct = $1, passed = $2, fail_reason = $3 WHERE id = $4",
@@ -519,6 +528,147 @@ async def _grade_and_store_answer(answer_id: int) -> None:
         bool(result["correct"]), float(result["score_pct"]), feedback_text, answer_id,
     )
     await _recompute_attempt_result(pool, row["attempt_id"])
+
+
+class AnswerReviewIn(BaseModel):
+    is_correct: bool
+    ai_feedback: str
+
+
+@router.put("/answers/{answer_id}/review")
+async def review_answer(answer_id: int, body: AnswerReviewIn, user: CurrentUser = Depends(require_auth)):
+    """A-74: 設問1件の採点結果を確定・修正する（S-20「採点する」）。grading_mode='ai'の設問
+    （AI採点結果の訂正）・'manual'の設問（担当者による新規採点）のいずれも本APIで扱う。
+    is_correct・ai_feedback（担当者の講評として保存）を更新し、reviewed_by・reviewed_atを設定する。
+    ai_score_pctは変更しない（AIが算出した参考値としてそのまま保持し、人手の判断はis_correctのみで
+    表現する）。更新後は_recompute_attempt_resultを呼び、他に未採点が無ければここで合否が確定する
+    （「採点中」状態からの確定を含む）。"""
+    pool = get_pool()
+    row = await pool.fetchrow(
+        """SELECT a.attempt_id, m.project_id
+           FROM answers a
+           JOIN quiz_attempts qa ON qa.id = a.attempt_id
+           JOIN materials m ON m.id = qa.material_id
+           WHERE a.id = $1""",
+        answer_id,
+    )
+    if row is None:
+        raise HTTPException(404, detail="回答が見つかりません")
+    await check_project_role(user, row["project_id"], "editor")
+
+    await pool.execute(
+        """UPDATE answers SET is_correct = $1, ai_feedback = $2, reviewed_by = $3, reviewed_at = now(),
+               updated_at = now()
+           WHERE id = $4""",
+        body.is_correct, body.ai_feedback, user.id, answer_id,
+    )
+    await _recompute_attempt_result(pool, row["attempt_id"])
+    return {"detail": "採点結果を保存しました"}
+
+
+def _build_node_path(node_id: int, nodes_by_id: dict) -> str:
+    """material_nodesのparent_node_idを根まで辿り、章／小見出し／ページ名を「／」区切りで組み立てる。"""
+    titles: list[str] = []
+    current = nodes_by_id.get(node_id)
+    while current is not None:
+        titles.append(current["title"])
+        current = nodes_by_id.get(current["parent_node_id"])
+    return "／".join(reversed(titles))
+
+
+@router.get("/grading-queue")
+async def get_grading_queue(
+    project_id: int | None = None,
+    material_id: int | None = None,
+    scope: Literal["mine", "all"] = "mine",
+    user: CurrentUser = Depends(require_auth),
+):
+    """A-83: 手動採点の未処理分を横断取得する（S-20）。grading_mode='manual'かつreviewed_by
+    未設定の回答を、自分が編集者以上として参加するプロジェクトの範囲で教材ごとにグループ化して返す。
+    scope='all'はsystem adminのみ有効（それ以外を指定した場合は無視して'mine'として扱う）。"""
+    pool = get_pool()
+    effective_scope_all = scope == "all" and user.role == "admin"
+
+    conditions = [
+        "q.grading_mode = 'manual'", "a.reviewed_by IS NULL", "qa.submitted_at IS NOT NULL",
+        "m.is_archived = false",
+    ]
+    params: list = []
+
+    def add_param(value) -> str:
+        params.append(value)
+        return f"${len(params)}"
+
+    if not effective_scope_all:
+        ph = add_param(user.id)
+        conditions.append(
+            f"EXISTS (SELECT 1 FROM project_memberships pm WHERE pm.project_id = m.project_id "
+            f"AND pm.user_id = {ph} AND pm.status = 'active' AND pm.left_at IS NULL "
+            f"AND pm.role IN ('admin', 'editor'))"
+        )
+    if project_id is not None:
+        conditions.append(f"m.project_id = {add_param(project_id)}")
+    if material_id is not None:
+        conditions.append(f"m.id = {add_param(material_id)}")
+
+    rows = await pool.fetch(
+        f"""SELECT a.id AS answer_id, q.id AS question_id, q.prompt, q.node_id,
+                   m.id AS material_id, m.title AS material_title, p.name AS project_name,
+                   u.name AS user_name, a.response, qa.submitted_at
+            FROM answers a
+            JOIN questions q ON q.id = a.question_id
+            JOIN quiz_attempts qa ON qa.id = a.attempt_id
+            JOIN material_nodes n ON n.id = q.node_id
+            JOIN materials m ON m.id = n.material_id
+            JOIN projects p ON p.id = m.project_id
+            JOIN users u ON u.id = qa.user_id
+            WHERE {" AND ".join(conditions)}
+            ORDER BY m.id, qa.submitted_at""",
+        *params,
+    )
+
+    material_ids = {r["material_id"] for r in rows}
+    nodes_by_id: dict[int, dict] = {}
+    if material_ids:
+        node_rows = await pool.fetch(
+            "SELECT id, parent_node_id, title FROM material_nodes WHERE material_id = ANY($1::bigint[])",
+            list(material_ids),
+        )
+        nodes_by_id = {n["id"]: n for n in node_rows}
+
+    materials: dict[int, dict] = {}
+    for r in rows:
+        m = materials.setdefault(
+            r["material_id"],
+            {
+                "material_id": r["material_id"],
+                "material_title": r["material_title"],
+                "project_name": r["project_name"],
+                "pending_count": 0,
+                "answers": [],
+            },
+        )
+        m["pending_count"] += 1
+        m["answers"].append({
+            "answer_id": r["answer_id"],
+            "question_id": r["question_id"],
+            "node_path": _build_node_path(r["node_id"], nodes_by_id),
+            "prompt": r["prompt"],
+            "user_name": r["user_name"],
+            "response_excerpt": json.loads(r["response"]) if r["response"] else "",
+            "submitted_at": r["submitted_at"],
+        })
+
+    total_pending = len(rows)
+    oldest_submitted_at = min((r["submitted_at"] for r in rows), default=None)
+    return {
+        "summary": {
+            "total_pending": total_pending,
+            "material_count": len(materials),
+            "oldest_submitted_at": oldest_submitted_at,
+        },
+        "materials": list(materials.values()),
+    }
 
 
 async def _update_enrollment_progress(
@@ -652,9 +802,11 @@ async def retake_attempt(attempt_id: int, user: CurrentUser = Depends(require_au
         raise HTTPException(400, detail="未提出の受験記録は再受験できません")
     if prev["mode"] != "graded":
         raise HTTPException(400, detail="本受験（graded）の記録のみ再受験できます")
+    if prev["passed"] is None:
+        raise HTTPException(400, detail="採点が完了するまで再受験できません（反復演習は利用できます）")
 
     material = await pool.fetchrow("SELECT * FROM materials WHERE id = $1", prev["material_id"])
-    settings = await _resolve_assignment_settings(pool, prev["material_id"], material["project_id"], user.id)
+    settings = await _resolve_assignment_settings(pool, prev["material_id"])
     if not settings["retake_allowed"]:
         raise HTTPException(400, detail="この教材は再受験できません")
     attempt_count = await pool.fetchval(
@@ -793,15 +945,16 @@ async def start_wrong_questions_attempt(id: int, body: WrongQuestionsIn, user: C
 
 @router.get("/materials/{id}/attempt-summary")
 async def get_attempt_summary(id: int, user: CurrentUser = Depends(require_auth)):
-    """A-86: S-04「前回の受験結果パネル」「AI採点結果パネル」向け。attempt_scopeで定まる
+    """A-86: S-04「前回の受験結果パネル」「採点結果パネル」向け。attempt_scopeで定まる
     スコープ群ごとに、自分の最新graded試行（提出済みのもの。無ければそのスコープは省略する）と、
-    その記述式・コード記述式の回答（AI講評込み）をまとめて返す。"""
+    その回答（記録型を除く全種別。AI講評込み）をまとめて返す（2026-09-11、選択式が除外されていた
+    不具合を修正し、手動採点結果も同じ仕組みで表示するようパネル名を「採点結果」に改称した）。"""
     pool = get_pool()
     await _require_view_access(pool, id, user)
     material = await pool.fetchrow("SELECT * FROM materials WHERE id = $1", id)
     tree = await _fetch_tree(pool, id, strip_answers=True)
     groups = _scope_groups(tree, material["attempt_scope"])
-    settings = await _resolve_assignment_settings(pool, id, material["project_id"], user.id)
+    settings = await _resolve_assignment_settings(pool, id)
 
     entries = []
     for g in groups:
@@ -824,10 +977,20 @@ async def get_attempt_summary(id: int, user: CurrentUser = Depends(require_auth)
         answers = await pool.fetch(
             """SELECT a.question_id, q.prompt, q.type, a.is_correct, a.ai_score_pct, a.ai_feedback
                FROM answers a JOIN questions q ON q.id = a.question_id
-               WHERE a.attempt_id = $1 AND q.type IN ('free_text', 'code')
-               ORDER BY q.sort_order""",
+               WHERE a.attempt_id = $1 AND q.type != 'score_log'""",
             attempt["id"],
         )
+        # q.sort_orderはページ内でのローカルな並び順（ページごとに0から始まる）のため、単独で
+        # ORDER BYすると複数ページにまたがるスコープ（例: attempt_scope='material'）で他ページの
+        # 設問と番号が衝突し、表示順がページをまたいで入れ替わってしまう不具合があった
+        # （2026-09-11、ユーザー報告により発見）。ページの並び（tree）→ページ内のsort_orderという
+        # 実際の出題順どおりに並べ直す。
+        pages = _scope_pages(tree, material["attempt_scope"], g["scope_node_id"])
+        order_index = {
+            q["id"]: i
+            for i, q in enumerate(q for page in pages for q in page.get("questions", []))
+        }
+        answers = sorted(answers, key=lambda a: order_index.get(a["question_id"], len(order_index)))
         entries.append({
             "scope_node_id": g["scope_node_id"],
             "scope_label": g["label"],
@@ -903,7 +1066,7 @@ async def get_member_attempt_status(
                   AND ($4::timestamptz IS NULL OR started_at > $4)""",
             user_id, material_id, r["scope_node_id"], last_reset,
         )
-        settings = await _resolve_assignment_settings(pool, material_id, project_id, user_id)
+        settings = await _resolve_assignment_settings(pool, material_id)
         items.append({
             "material_id": material_id,
             "material_title": r["material_title"],
@@ -1195,9 +1358,44 @@ async def get_my_learning(history: bool = False, user: CurrentUser = Depends(req
         "SELECT MAX(updated_at) FROM enrollment_progress WHERE user_id = $1", user.id
     )
 
+    # 採点結果未確認: 本人の回答がreviewed_at設定済み（手動採点・AI採点の訂正いずれも含む）だが
+    # まだresult_seen_atで確認済みにしていない（またはreviewed_atより後にまだ確認していない＝
+    # 確認後に採点し直された）教材を一覧する。S-04の採点結果パネルを開くとA-98で確認済みになる
+    # （2026-09-11新設）。
+    pending_review_rows = await pool.fetch(
+        """SELECT m.id, m.title, m.tags, m.project_id, p.name AS project_name, p.is_company_wide,
+                  COALESCE(nc.page_count, 0) AS page_count,
+                  COALESCE(asg.required, false) AS required, asg.due_at,
+                  ep.status AS progress_status, ep.completed_node_ids, ep.visited_node_ids, ep.completed_at,
+                  ep.updated_at AS progress_updated_at, m.updated_at
+           FROM materials m
+           JOIN projects p ON p.id = m.project_id
+           LEFT JOIN (
+               SELECT material_id, COUNT(*) FILTER (WHERE kind = 'page') AS page_count
+               FROM material_nodes GROUP BY material_id
+           ) nc ON nc.material_id = m.id
+           LEFT JOIN LATERAL (
+               SELECT required, due_at FROM assignments a
+               WHERE a.material_id = m.id
+                 AND ((a.scope_type = 'project' AND a.scope_id = m.project_id)
+                      OR (a.scope_type = 'individual' AND a.scope_id = $1))
+               ORDER BY required DESC, due_at ASC NULLS LAST LIMIT 1
+           ) asg ON true
+           LEFT JOIN enrollment_progress ep ON ep.material_id = m.id AND ep.user_id = $1
+           WHERE m.status = 'published' AND m.is_archived = false
+             AND EXISTS (
+               SELECT 1 FROM answers a JOIN quiz_attempts qa ON qa.id = a.attempt_id
+               WHERE qa.user_id = $1 AND qa.material_id = m.id AND a.reviewed_at IS NOT NULL
+                 AND (a.result_seen_at IS NULL OR a.result_seen_at < a.reviewed_at)
+           )""",
+        user.id,
+    )
+    pending_review_items = [_my_learning_item(r) for r in pending_review_rows]
+
     return {
         "required": required_items,
         "optional": optional_items,
+        "pending_review": pending_review_items,
         "stats": {
             "required_completion_pct": required_completion_pct,
             "completed_required_count": completed_required,
@@ -1239,6 +1437,25 @@ def _my_learning_item(r) -> dict:
     }
 
 
+@router.post("/materials/{id}/grading-results/ack")
+async def ack_grading_results(id: int, user: CurrentUser = Depends(require_auth)):
+    """A-98: 採点結果の確認済み化。本人のこの教材内の回答のうち、reviewed_at設定済み
+    （手動採点・AI採点の訂正いずれも含む）だがまだ確認済みにしていない行をresult_seen_at=now()に
+    更新する。マイ学習「採点結果未確認」ボックス（A-39）から対象教材を外すためのもの。本人の行しか
+    更新しないため教材へのアクセス権限チェックは不要（A-95と同じ考え方）。"""
+    pool = get_pool()
+    await pool.execute(
+        """UPDATE answers SET result_seen_at = now()
+           WHERE id IN (
+               SELECT a.id FROM answers a JOIN quiz_attempts qa ON qa.id = a.attempt_id
+               WHERE qa.user_id = $1 AND qa.material_id = $2 AND a.reviewed_at IS NOT NULL
+                 AND (a.result_seen_at IS NULL OR a.result_seen_at < a.reviewed_at)
+           )""",
+        user.id, id,
+    )
+    return {"detail": "確認済みにしました"}
+
+
 @router.put("/materials/{id}/my-learning")
 async def register_my_learning(id: int, user: CurrentUser = Depends(require_auth)):
     """A-89: マイ学習に追加（F-31）。対象教材の受講対象者のみ実行できる
@@ -1270,7 +1487,7 @@ class SurveyResponseIn(BaseModel):
 
 @router.post("/surveys/{survey_id}/responses", status_code=201)
 async def submit_survey_response(survey_id: int, body: SurveyResponseIn, user: CurrentUser = Depends(require_auth)):
-    """A-72: 受験後アンケートへの回答を送信する（T-28・T-29）。回答は任意でスキップ可能。"""
+    """A-72: 受講後アンケートへの回答を送信する（T-28・T-29）。回答は任意でスキップ可能。"""
     pool = get_pool()
     survey = await pool.fetchrow("SELECT material_id FROM surveys WHERE id = $1", survey_id)
     if survey is None:

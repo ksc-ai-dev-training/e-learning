@@ -28,6 +28,15 @@ interface WrongOnlyQueue {
 
 const WRONG_ONLY_QUEUE_KEY = 'wrongOnlyQueue'
 
+function shuffle<T>(items: T[]): T[] {
+  const result = [...items]
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[result[i], result[j]] = [result[j], result[i]]
+  }
+  return result
+}
+
 // S-16 教材受講：ページ（詳細設計書10.15節）。1ページ分の本文＋設問を表示し、回答して次のページへ進む。
 // 3つのモードを扱う（?modeクエリ）:
 // - graded（既定）: attempt_scope（教材/章/小見出し/ページ）ごとに独立した受験記録を扱う。ページ
@@ -181,6 +190,20 @@ export default function MaterialPageView() {
   const questions = questionIds
     .map((qid) => node.questions.find((q) => q.id === qid))
     .filter((q): q is NonNullable<typeof q> => q !== undefined)
+    // 並び替え（reorder）の選択肢はGET /materials/{id}が編集権限保持者へ正解を隠さず返す
+    // （strip_answersしない）ため、optionsがサーバー側で組み立てられずnullのまま届く
+    // （このAPIは並び替え対象の項目をcorrect_answerにしか持たない設計のため）。教材編集者・
+    // 管理者自身が自分の教材を受講（自己確認）した際に並び替えの選択肢が一切表示されない
+    // 不具合になっていたため、表示専用でcorrect_answerを補完する（保存には一切使わない
+    // 読み取り専用の変換であり、正解の事前漏洩にはならない。編集者は元々correct_answerを
+    // 見られる立場のため）。correct_answerをそのままの順序で出すと出題が常に正解の順番に
+    // なってしまい設問として無意味になるため、シャッフルしてから使う
+    // （strip_answers=Trueの受講者向け経路が既に行っているシャッフルと同じ扱い。2026-09-11）。
+    .map((q) =>
+      q.type === 'reorder' && (!q.options || q.options.length === 0) && Array.isArray(q.correct_answer)
+        ? { ...q, options: shuffle(q.correct_answer as string[]) }
+        : q,
+    )
 
   const isResolved = (index: number) => {
     const q = questions[index]
@@ -354,9 +377,10 @@ export default function MaterialPageView() {
       const result = await submitAttempt(attempt.id)
       if (mode === 'graded') {
         await mutateMaterial()
-        if (result.passed) {
-          showSurveyQueue(applicableSurveys(findFreshSurvey))
-        }
+        // 受講後アンケートは「このスコープを読み終えたか」だけで判定し、合否（採点中を含む）
+        // とは無関係に表示する（章単位アンケートの判定・findRevisitSurveyの判定と同じ方針。
+        // 2026-09-11、合否で出し分けていた不具合を修正）。
+        showSurveyQueue(applicableSurveys(findFreshSurvey))
       }
       setSubmittedResult(result)
     } catch (e) {
@@ -458,8 +482,13 @@ export default function MaterialPageView() {
           <>
             <AttemptResultPanel attempt={submittedResult} mode={mode} />
             {questions.map((q, i) => (
+              // keyにattempt.idも含める。qだけをkeyにすると、以前の受験記録（合格済み・閲覧専用）
+              // から新しい受験記録（再受験の解答可能な状態）へ切り替わってもReactが同じ
+              // AnswerQuestionCardインスタンスを使い回し、内部state（singleValue等）が古い
+              // 回答のまま残ってしまう不具合があった（2026-09-11、ユーザー報告により発見・修正。
+              // 「再受験しても以前の回答が入力済みのまま変更できない」ように見えていた）。
               <AnswerQuestionCard
-                key={q.id}
+                key={`${attempt.id}-${q.id}`}
                 question={q}
                 index={i}
                 answer={answers[q.id as number]}
@@ -491,7 +520,7 @@ export default function MaterialPageView() {
                 onSave/onSkipはrevealResult=trueの間は入力UI自体が出ないため呼ばれないダミー。 */}
             {questions.map((q, i) => (
               <AnswerQuestionCard
-                key={q.id}
+                key={`${attempt.id}-${q.id}`}
                 question={q}
                 index={i}
                 answer={answers[q.id as number]}
@@ -515,14 +544,18 @@ export default function MaterialPageView() {
               <Button onClick={handleNext} disabled={advancing}>
                 次のページへ
               </Button>
-              <span className="text-xs text-slate-400">合格済みのため閲覧のみです（再提出はされません）</span>
+              {attempt.passed === null && (
+                <span className="text-xs text-slate-400">
+                  採点中のため閲覧のみです（採点が完了すると合否が確定します）
+                </span>
+              )}
             </div>
           </>
         ) : (
           <>
             {questions.map((q, i) => (
               <AnswerQuestionCard
-                key={q.id}
+                key={`${attempt.id}-${q.id}`}
                 question={q}
                 index={i}
                 answer={answers[q.id as number]}
@@ -622,7 +655,13 @@ function AttemptResultPanel({ attempt, mode }: { attempt: QuizAttempt; mode: Pag
   }
   return (
     <div
-      className={`rounded-md border p-4 text-sm ${attempt.passed ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}
+      className={`rounded-md border p-4 text-sm ${
+        attempt.passed === null
+          ? 'border-slate-200 bg-slate-50'
+          : attempt.passed
+            ? 'border-green-200 bg-green-50'
+            : 'border-red-200 bg-red-50'
+      }`}
     >
       <div className="mb-1 font-semibold">
         {attempt.passed === null ? '提出済み' : attempt.passed ? '合格' : '不合格'}
@@ -634,6 +673,11 @@ function AttemptResultPanel({ attempt, mode }: { attempt: QuizAttempt; mode: Pag
         </p>
       )}
       <p className="mt-1 text-xs text-slate-500">このページを含む範囲は提出済みです。目次から他のページへ進んでください。</p>
+      {attempt.passed === true && (
+        <p className="mt-2 text-sm font-semibold text-green-800">
+          合格済みのため再提出はされません。復習のため問題を解き直したい場合は「練習」をご利用ください。
+        </p>
+      )}
     </div>
   )
 }

@@ -19,8 +19,8 @@ QUESTION_FENCE_END = "```"
 
 META_FIELDS = (
     "id", "project_id", "title", "description", "tags", "format", "status",
-    "sort_order", "attempt_scope", "retake_scope", "default_feedback_style",
-    "ai_context", "grading_mode",
+    "sort_order", "attempt_scope", "retake_scope", "pass_score_pct", "retake_allowed",
+    "retake_limit", "default_feedback_style", "ai_context", "grading_mode",
 )
 
 

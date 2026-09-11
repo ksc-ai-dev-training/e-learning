@@ -10,7 +10,7 @@ import { formatDateJst } from '../lib/datetime'
 import { scrollToAndHighlight } from '../lib/scrollHighlight'
 import type { MyLearningItem } from '../types'
 
-type ViewTab = 'assigned' | 'history'
+type ViewTab = 'assigned' | 'pending_review' | 'history'
 
 // 必修教材・任意教材で共通の絞り込み（2026-09-03、ユーザー要望で両パネルとも
 // 未受講／受講済み／すべての3択に統一。以前は必修=未完了のみ、任意=受講済みのみという
@@ -60,7 +60,7 @@ interface ProjectTab {
 
 // S-02 マイ学習（詳細設計書10.2節）。ルート"/"。
 export default function MyLearning() {
-  const { required, optional, stats, isLoading } = useMyLearning()
+  const { required, optional, pendingReview, stats, isLoading } = useMyLearning()
   const [viewTab, setViewTab] = useState<ViewTab>('assigned')
   const { items: historyItems, isLoading: historyLoading } = useMyLearningHistory(viewTab === 'history')
   const [activeProjectId, setActiveProjectId] = useState<number | null>(null)
@@ -97,6 +97,7 @@ export default function MyLearning() {
   const visibleRequired = applyStatusFilter(filteredRequired, requiredFilter)
   const filteredOptional = filterByProject(optional)
   const visibleOptional = applyStatusFilter(filteredOptional, optionalFilter)
+  const filteredPendingReview = filterByProject(pendingReview)
   const filteredHistory = filterByProject(historyItems)
 
   // S-09個人学習レポートの「未受講の必修教材」カードから#required-materialsハッシュ付きで
@@ -152,19 +153,25 @@ export default function MyLearning() {
         <div className="mb-5 flex gap-1 border-b border-slate-200" role="tablist">
           {(
             [
-              { key: 'assigned', label: '必修・任意' },
-              { key: 'history', label: '学習履歴' },
+              { key: 'assigned', label: '必修・任意', count: 0 },
+              { key: 'pending_review', label: '採点結果', count: filteredPendingReview.length },
+              { key: 'history', label: '学習履歴', count: 0 },
             ] as const
           ).map((tab) => (
             <button
               key={tab.key}
               type="button"
               onClick={() => setViewTab(tab.key)}
-              className={`border-b-2 px-3 py-2 text-sm font-semibold ${
+              className={`flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-semibold ${
                 viewTab === tab.key ? 'border-blue-700 text-blue-800' : 'border-transparent text-slate-500'
               }`}
             >
               {tab.label}
+              {tab.count > 0 && (
+                <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[11px] font-bold text-amber-800">
+                  {tab.count}
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -292,6 +299,26 @@ export default function MyLearning() {
               ※「全社Wiki」タブは常に先頭に固定表示されます。全社Wiki所属の任意教材は、S-03「教材一覧・検索」から
               「マイ学習に追加」しない限りここには表示されません。
             </p>
+          </>
+        ) : viewTab === 'pending_review' ? (
+          <>
+            <p className="mb-4 text-xs text-slate-500">
+              手動採点・AI採点結果の訂正が行われた教材です。S-04の採点結果パネルを開くと、この一覧から外れます。
+            </p>
+            <Panel title="採点結果" count={`${filteredPendingReview.length}件`} tone="warn">
+              {filteredPendingReview.length === 0 ? (
+                <p className="px-4 py-6 text-center text-sm text-slate-400">確認が必要な採点結果はありません。</p>
+              ) : (
+                filteredPendingReview.map((item) => (
+                  <MaterialCard
+                    key={item.id}
+                    item={item}
+                    actionLabel="採点結果を確認する"
+                    to={materialLinkFor(item)}
+                  />
+                ))
+              )}
+            </Panel>
           </>
         ) : (
           <>

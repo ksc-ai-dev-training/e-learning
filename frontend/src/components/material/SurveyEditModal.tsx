@@ -13,7 +13,7 @@ const TYPE_OPTIONS = [
   { value: 'free_text', label: '自由記述' },
 ]
 
-// 受験後アンケートの設置・編集モーダル（詳細設計書10.5節・基本設計書5.28節）。
+// 受講後アンケートの設置・編集モーダル（詳細設計書10.5節・基本設計書5.28節）。
 // 教材全体（nodeId=null）・章（nodeId指定）のどちらにも使う。
 export default function SurveyEditModal({
   materialId,
@@ -93,7 +93,7 @@ export default function SurveyEditModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-md bg-white p-5 shadow-lg">
         <h2 className="mb-4 text-base font-bold text-slate-800">
-          受験後アンケートの設置 — {targetLabel}
+          受講後アンケートの設置 — {targetLabel}
         </h2>
 
         {error && (

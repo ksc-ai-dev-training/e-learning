@@ -1,7 +1,7 @@
 import { apiFetch } from './api'
 import type { Survey, SurveyQuestion } from '../types'
 
-// A-78/A-79: S-05受験後アンケート設置の登録・削除（呼び出し側でuseSurveysのmutate()を呼ぶ）。
+// A-78/A-79: S-05受講後アンケート設置の登録・削除（呼び出し側でuseSurveysのmutate()を呼ぶ）。
 
 export async function upsertSurvey(
   materialId: number,

@@ -32,7 +32,10 @@ detail_router = APIRouter(prefix="/api/materials", tags=["materials"])
 
 
 def _material_dict(row) -> dict:
-    return {**dict(row), "tags": json.loads(row["tags"])}
+    d = {**dict(row), "tags": json.loads(row["tags"])}
+    if "pass_score_pct" in d and d["pass_score_pct"] is not None:
+        d["pass_score_pct"] = float(d["pass_score_pct"])
+    return d
 
 
 async def _require_view_access(pool, id: int, user: CurrentUser) -> dict:
@@ -298,8 +301,6 @@ class QuestionIn(BaseModel):
             if self.type == "code" and not self.code_language:
                 raise ValueError("コード記述式（code）には言語（code_language）が必須です")
         elif self.type == "score_log":
-            if not self.score_unit:
-                raise ValueError("スコア記録（score_log）には単位（score_unit）が必須です")
             if self.is_critical:
                 raise ValueError("スコア記録（score_log）にはドボン問題（is_critical）を設定できません")
         if self.grading_mode is not None and self.type not in ("free_text", "code"):
@@ -416,7 +417,8 @@ async def create_material(body: MaterialCreate, user: CurrentUser = Depends(requ
         """INSERT INTO materials (project_id, title, description, tags, created_by)
            VALUES ($1, $2, $3, $4, $5)
            RETURNING id, project_id, title, description, tags, status, sort_order,
-                     attempt_scope, retake_scope, default_feedback_style, ai_context,
+                     attempt_scope, retake_scope, pass_score_pct, retake_allowed, retake_limit,
+                     default_feedback_style, ai_context,
                      grading_mode, is_archived, archived_at, created_at, updated_at""",
         project_id, body.title, body.description, json.dumps(body.tags), user.id,
     )
@@ -440,7 +442,8 @@ async def get_material(id: int, user: CurrentUser = Depends(require_auth)):
     perm_row = await _require_view_access(pool, id, user)
     row = await pool.fetchrow(
         """SELECT id, project_id, title, description, tags, status, sort_order,
-                  attempt_scope, retake_scope, default_feedback_style, ai_context,
+                  attempt_scope, retake_scope, pass_score_pct, retake_allowed, retake_limit,
+                  default_feedback_style, ai_context,
                   grading_mode, is_archived, archived_at, created_at, updated_at
            FROM materials WHERE id = $1""",
         id,
@@ -546,7 +549,8 @@ async def archive_material(id: int, user: CurrentUser = Depends(require_material
         """UPDATE materials SET is_archived = true, archived_at = now(), archived_by = $2, updated_at = now()
            WHERE id = $1
            RETURNING id, project_id, title, description, tags, status, sort_order,
-                     attempt_scope, retake_scope, default_feedback_style, ai_context,
+                     attempt_scope, retake_scope, pass_score_pct, retake_allowed, retake_limit,
+                     default_feedback_style, ai_context,
                      grading_mode, is_archived, archived_at, created_at, updated_at""",
         id, user.id,
     )
@@ -564,7 +568,8 @@ async def restore_material(id: int, user: CurrentUser = Depends(require_material
         """UPDATE materials SET is_archived = false, archived_at = NULL, archived_by = NULL, updated_at = now()
            WHERE id = $1
            RETURNING id, project_id, title, description, tags, status, sort_order,
-                     attempt_scope, retake_scope, default_feedback_style, ai_context,
+                     attempt_scope, retake_scope, pass_score_pct, retake_allowed, retake_limit,
+                     default_feedback_style, ai_context,
                      grading_mode, is_archived, archived_at, created_at, updated_at""",
         id,
     )
@@ -787,7 +792,7 @@ async def put_material_source(
             # チェックを通過し、両方とも書き込めてしまう（TOCTOU競合）。WHERE句に含めることで
             # PostgreSQLの行ロックにより2件目の更新は1件目コミット後に条件を再評価され、
             # 確実に0件（競合）として検知できる（2026-09-10、レビューで発見・修正）。
-            where_version_clause = " AND updated_at = $12" if expected_dt is not None else ""
+            where_version_clause = " AND updated_at = $15" if expected_dt is not None else ""
             params = [
                 meta.get("title", material_row["title"]),
                 meta.get("description", material_row["description"]),
@@ -799,6 +804,9 @@ async def put_material_source(
                 meta.get("default_feedback_style", material_row["default_feedback_style"]),
                 meta.get("ai_context", material_row["ai_context"]),
                 meta.get("grading_mode", material_row["grading_mode"]),
+                meta.get("pass_score_pct", material_row["pass_score_pct"]),
+                meta.get("retake_allowed", material_row["retake_allowed"]),
+                meta.get("retake_limit", material_row["retake_limit"]),
                 id,
             ]
             if expected_dt is not None:
@@ -807,8 +815,9 @@ async def put_material_source(
                 f"""UPDATE materials SET
                        title = $1, description = $2, tags = $3, status = $4, sort_order = $5,
                        attempt_scope = $6, retake_scope = $7, default_feedback_style = $8,
-                       ai_context = $9, grading_mode = $10, updated_at = now()
-                   WHERE id = $11{where_version_clause}""",
+                       ai_context = $9, grading_mode = $10, pass_score_pct = $11,
+                       retake_allowed = $12, retake_limit = $13, updated_at = now()
+                   WHERE id = $14{where_version_clause}""",
                 *params,
             )
             if expected_dt is not None and update_result == "UPDATE 0":
@@ -969,7 +978,7 @@ def _review_row_dict(row) -> dict:
 @detail_router.post("/{id}/ai-review")
 async def run_ai_review(id: int, user: CurrentUser = Depends(require_material_role(min_role="editor"))):
     """A-32: 教材AIレビューを実行する（F-08、8.6節）。同期呼び出し。教材本文（サニタイズ前の原文）・
-    問題定義をOpenAI APIへ送り、結果をT-15へ保存して返す。教材に受験後アンケートが設置され回答が
+    問題定義をOpenAI APIへ送り、結果をT-15へ保存して返す。教材に受講後アンケートが設置され回答が
     ある場合は、その集計結果（評価点平均・自由記述）も判断材料として併せて送る
     （2026-09-09、ユーザー要望：AIレビューに実際の受講者の感想も含めてほしい）。AI呼び出しが
     最終的に失敗した場合は502を返す（APIキー未設定・OpenAI側障害等を利用者に詳細を見せず伝える、
@@ -1012,7 +1021,7 @@ async def get_ai_review(id: int, user: CurrentUser = Depends(require_material_ro
 
 
 async def _aggregate_survey_summary(pool, material_id: int) -> list[dict]:
-    """教材に設置された受験後アンケートの集計（評価点平均・自由記述テキスト群）を返す。
+    """教材に設置された受講後アンケートの集計（評価点平均・自由記述テキスト群）を返す。
     AIレビュー（F-08）に「実際の受講者の感想」も判断材料として渡すために使う（2026-09-09、
     ユーザー要望）。個々の回答者は特定できない（氏名等は取得しない）。"""
     survey_rows = await pool.fetch(
@@ -1349,11 +1358,13 @@ async def _duplicate_material_into_project(conn, material_id: int, target_projec
     material_row = await conn.fetchrow("SELECT * FROM materials WHERE id = $1", material_id)
     new_material_id = await conn.fetchval(
         """INSERT INTO materials (project_id, title, description, tags, created_by, status,
-               attempt_scope, retake_scope, default_feedback_style, ai_context, grading_mode)
-           VALUES ($1, $2, $3, $4, $5, 'draft', $6, $7, $8, $9, $10)
+               attempt_scope, retake_scope, pass_score_pct, retake_allowed, retake_limit,
+               default_feedback_style, ai_context, grading_mode)
+           VALUES ($1, $2, $3, $4, $5, 'draft', $6, $7, $8, $9, $10, $11, $12, $13)
            RETURNING id""",
         target_project_id, material_row["title"], material_row["description"], material_row["tags"],
         created_by, material_row["attempt_scope"], material_row["retake_scope"],
+        material_row["pass_score_pct"], material_row["retake_allowed"], material_row["retake_limit"],
         material_row["default_feedback_style"], material_row["ai_context"], material_row["grading_mode"],
     )
 
@@ -1425,7 +1436,7 @@ async def _duplicate_material_into_project(conn, material_id: int, target_projec
                 new_material_id, new_node_id, att["external_url"], att["filename"],
             )
 
-    # 受験後アンケート（surveys/survey_questions）も複製する（2026-09-02、再監査で追加。
+    # 受講後アンケート（surveys/survey_questions）も複製する（2026-09-02、再監査で追加。
     # 5.27節は「目次・全ページ・問題・添付ファイル」とだけ書きアンケートに触れていなかったが、
     # 「内容を丸ごと複製する」という趣旨に合わせ、添付ファイルと同様に複製対象とした）。
     # 回答履歴（survey_responses/survey_answers）は複製先の新規受講者の回答であるべきため

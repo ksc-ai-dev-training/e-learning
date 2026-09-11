@@ -26,6 +26,9 @@ type SourceMeta = Pick<
   | 'sort_order'
   | 'attempt_scope'
   | 'retake_scope'
+  | 'pass_score_pct'
+  | 'retake_allowed'
+  | 'retake_limit'
   | 'default_feedback_style'
   | 'ai_context'
   | 'grading_mode'
@@ -42,6 +45,10 @@ function yamlScalar(v: string): string {
 
 function yamlNullableScalar(v: string | null): string {
   return v === null ? 'null' : yamlScalar(v)
+}
+
+function yamlNullableNumber(v: number | null): string {
+  return v === null ? 'null' : String(v)
 }
 
 function yamlList(items: string[]): string {
@@ -105,6 +112,9 @@ export function buildMaterialSource(meta: SourceMeta, chapters: EditableNode[]):
     `sort_order: ${meta.sort_order}`,
     `attempt_scope: ${meta.attempt_scope}`,
     `retake_scope: ${meta.retake_scope}`,
+    `pass_score_pct: ${yamlNullableNumber(meta.pass_score_pct)}`,
+    `retake_allowed: ${meta.retake_allowed}`,
+    `retake_limit: ${yamlNullableNumber(meta.retake_limit)}`,
     `default_feedback_style: ${meta.default_feedback_style}`,
     `ai_context: ${yamlNullableScalar(meta.ai_context)}`,
     `grading_mode: ${meta.grading_mode}`,

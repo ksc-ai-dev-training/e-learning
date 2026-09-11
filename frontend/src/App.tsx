@@ -17,6 +17,7 @@ import AdminSettings from './pages/AdminSettings'
 import PersonalReport from './pages/PersonalReport'
 import Dashboard from './pages/Dashboard'
 import ProfileEdit from './pages/ProfileEdit'
+import Grading from './pages/Grading'
 import AppShell from './components/layout/AppShell'
 
 // ルーティング定義・認証ガード。
@@ -56,6 +57,7 @@ export default function App() {
         <Route path="/projects/manage" element={<ProjectManagement />} />
         <Route path="/projects/:projectId/manage" element={<ProjectManagement />} />
         <Route path="/assignments" element={<AssignmentSettings />} />
+        <Route path="/grading" element={<Grading />} />
         <Route path="/admin/settings" element={<AdminSettings />} />
         <Route path="/reports/:userId" element={<PersonalReport />} />
         <Route path="/dashboard" element={<Dashboard />} />

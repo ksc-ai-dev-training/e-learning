@@ -67,6 +67,11 @@ export default function MaterialEdit() {
   const [description, setDescription] = useState('')
   const [attemptScope, setAttemptScope] = useState<Material['attempt_scope']>('material')
   const [retakeScope, setRetakeScope] = useState<Material['retake_scope']>('all')
+  // 合否判定・再受験設定。いずれも空欄可（passScorePct空欄="合格基準なし・常に合格"、
+  // retakeLimit空欄="再受験回数無制限"）で、必須項目ではない（2026-09-11新設）。
+  const [passScorePct, setPassScorePct] = useState('')
+  const [retakeAllowed, setRetakeAllowed] = useState(true)
+  const [retakeLimit, setRetakeLimit] = useState('')
   const [gradingMode, setGradingMode] = useState<Material['grading_mode']>('ai')
   const [defaultFeedbackStyle, setDefaultFeedbackStyle] =
     useState<Material['default_feedback_style']>('show_answer')
@@ -142,6 +147,9 @@ export default function MaterialEdit() {
       setDescription(material.description ?? '')
       setAttemptScope(material.attempt_scope)
       setRetakeScope(material.retake_scope)
+      setPassScorePct(material.pass_score_pct !== null ? String(material.pass_score_pct) : '')
+      setRetakeAllowed(material.retake_allowed)
+      setRetakeLimit(material.retake_limit !== null ? String(material.retake_limit) : '')
       setGradingMode(material.grading_mode)
       setDefaultFeedbackStyle(material.default_feedback_style)
       setAiContext(material.ai_context ?? '')
@@ -192,6 +200,8 @@ export default function MaterialEdit() {
     setHistoryMonth('all')
   }
 
+  const parseNullableNumber = (v: string): number | null => (v.trim() ? Number(v) : null)
+
   const withMeta = (m: Material): Material => ({
     ...m,
     title,
@@ -199,6 +209,9 @@ export default function MaterialEdit() {
     description: description.trim() ? description : null,
     attempt_scope: attemptScope,
     retake_scope: retakeScope,
+    pass_score_pct: parseNullableNumber(passScorePct),
+    retake_allowed: retakeAllowed,
+    retake_limit: parseNullableNumber(retakeLimit),
     grading_mode: gradingMode,
     default_feedback_style: defaultFeedbackStyle,
     ai_context: aiContext.trim() ? aiContext : null,
@@ -214,6 +227,14 @@ export default function MaterialEdit() {
     setSavedMessage(null)
     if (title.trim().length === 0) {
       setError('教材タイトルを入力してください')
+      return false
+    }
+    if (passScorePct.trim() && (Number.isNaN(Number(passScorePct)) || Number(passScorePct) < 0 || Number(passScorePct) > 100)) {
+      setError('合格基準スコアは0〜100の数値で入力してください')
+      return false
+    }
+    if (retakeLimit.trim() && (Number.isNaN(Number(retakeLimit)) || Number(retakeLimit) < 1 || !Number.isInteger(Number(retakeLimit)))) {
+      setError('再受験回数の上限は1以上の整数で入力してください')
       return false
     }
     setSaving(true)
@@ -233,6 +254,9 @@ export default function MaterialEdit() {
             ...created,
             attempt_scope: attemptScope,
             retake_scope: retakeScope,
+            pass_score_pct: parseNullableNumber(passScorePct),
+            retake_allowed: retakeAllowed,
+            retake_limit: parseNullableNumber(retakeLimit),
             grading_mode: gradingMode,
             default_feedback_style: defaultFeedbackStyle,
             ai_context: aiContext.trim() ? aiContext : null,
@@ -307,6 +331,9 @@ export default function MaterialEdit() {
           ...created,
           attempt_scope: attemptScope,
           retake_scope: retakeScope,
+          pass_score_pct: parseNullableNumber(passScorePct),
+          retake_allowed: retakeAllowed,
+          retake_limit: parseNullableNumber(retakeLimit),
           grading_mode: gradingMode,
           default_feedback_style: defaultFeedbackStyle,
           ai_context: aiContext.trim() ? aiContext : null,
@@ -868,6 +895,86 @@ export default function MaterialEdit() {
                 className="w-32"
               />
             </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-semibold text-slate-500">合格基準</label>
+              <Select
+                value={passScorePct.trim() ? 'set' : 'none'}
+                onChange={(v) => {
+                  markDirty()
+                  setPassScorePct(v === 'set' ? '70' : '')
+                }}
+                options={[
+                  { value: 'none', label: '設定しない（常に合格）' },
+                  { value: 'set', label: '設定する' },
+                ]}
+                className="w-44"
+              />
+            </div>
+            {passScorePct.trim() && (
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-semibold text-slate-500">合格基準スコア</label>
+                <div className="flex items-center gap-1.5">
+                  <TextInput
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={passScorePct}
+                    onChange={(e) => {
+                      markDirty()
+                      setPassScorePct(e.target.value)
+                    }}
+                    className="w-20"
+                  />
+                  <span className="text-xs text-slate-500">% 以上で合格</span>
+                </div>
+              </div>
+            )}
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-semibold text-slate-500">再受験</label>
+              <Select
+                value={retakeAllowed ? 'allow' : 'deny'}
+                onChange={(v) => {
+                  markDirty()
+                  setRetakeAllowed(v === 'allow')
+                }}
+                options={[
+                  { value: 'allow', label: '許可する' },
+                  { value: 'deny', label: '許可しない' },
+                ]}
+                className="w-32"
+              />
+            </div>
+            {retakeAllowed && (
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-semibold text-slate-500">再受験回数上限</label>
+                <div className="flex items-center gap-1.5">
+                  <TextInput
+                    type="number"
+                    min={1}
+                    step={1}
+                    placeholder="無制限"
+                    value={retakeLimit}
+                    onChange={(e) => {
+                      markDirty()
+                      setRetakeLimit(e.target.value)
+                    }}
+                    className="w-24"
+                  />
+                  {retakeLimit.trim() && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        markDirty()
+                        setRetakeLimit('')
+                      }}
+                      className="text-xs text-blue-700 hover:underline"
+                    >
+                      無制限に戻す
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </section>
 
@@ -930,7 +1037,7 @@ export default function MaterialEdit() {
 
         <section className="mb-5 max-w-xl rounded-md border border-slate-200">
           <div className="border-b border-slate-200 px-4 py-2.5">
-            <span className="text-sm font-semibold text-slate-700">受験後アンケート（教材全体）</span>
+            <span className="text-sm font-semibold text-slate-700">受講後アンケート（教材全体）</span>
           </div>
           <div className="flex items-center justify-between gap-3 p-4">
             {surveyFor(null) ? (

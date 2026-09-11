@@ -138,7 +138,7 @@ correct_answer: "abc_1 = 1"
 | `reorder` | 並び替え | `correct_answer`（2件以上の配列、正しい順序） |
 | `free_text` | 記述式 | `scoring_criteria`（AI採点の基準文） |
 | `code` | コード記述式 | `scoring_criteria`, `code_language`（例: `python`） |
-| `score_log` | 記録型（自己申告の数値記録、正誤判定なし） | `score_unit`（例: "点", "秒"）。`is_critical`は設定不可 |
+| `score_log` | 記録型（自己申告の数値記録、正誤判定なし） | `score_unit`（例: "点", "秒"。任意項目、問題文側で単位を指定してもよい）。`is_critical`は設定不可 |
 
 共通の任意項目: `id`（既存問題を更新する場合の問題ID）, `prompt`（必須, 問題文）, `required`
 （既定true、falseにすると回答必須にしない＝スキップ可能にする）, `counted`（既定true、falseにすると

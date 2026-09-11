@@ -155,6 +155,9 @@ export interface MyLearningItem {
 export interface MyLearningResponse {
   required: MyLearningItem[]
   optional: MyLearningItem[]
+  // 採点結果未確認（2026-09-11新設）。本人の回答が採点済み（手動採点・AI採点の訂正）だが
+  // まだS-04で確認していない教材。S-04を開く（A-98）と消える
+  pending_review: MyLearningItem[]
   stats: {
     required_completion_pct: number
     completed_required_count: number
@@ -244,7 +247,7 @@ export interface Answer {
   reviewed_at: string | null
 }
 
-// A-86 GET /materials/{id}/attempt-summary のitems（S-04 前回の受験結果パネル・AI採点結果パネル）
+// A-86 GET /materials/{id}/attempt-summary のitems（S-04 前回の受験結果パネル・採点結果パネル）
 export interface AttemptSummaryEntry {
   scope_node_id: number | null
   scope_label: string
@@ -262,11 +265,40 @@ export interface AttemptSummaryEntry {
   answers: {
     question_id: number
     prompt: string
-    type: 'free_text' | 'code'
+    // 記録型（score_log）は正誤の概念が無いため対象外（2026-09-11、選択式も含めるよう拡張）
+    type: Exclude<QuestionType, 'score_log'>
     is_correct: boolean | null
     ai_score_pct: number | null
     ai_feedback: string | null
   }[]
+}
+
+// A-83 GET /api/grading-queue のレスポンス（S-20 採点）
+export interface GradingQueueAnswer {
+  answer_id: number
+  question_id: number
+  node_path: string
+  prompt: string
+  user_name: string
+  response_excerpt: string
+  submitted_at: string
+}
+
+export interface GradingQueueMaterial {
+  material_id: number
+  material_title: string
+  project_name: string
+  pending_count: number
+  answers: GradingQueueAnswer[]
+}
+
+export interface GradingQueueResponse {
+  summary: {
+    total_pending: number
+    material_count: number
+    oldest_submitted_at: string | null
+  }
+  materials: GradingQueueMaterial[]
 }
 
 // A-87 GET /materials/{id}/practice-attempts のitems（S-04 練習タブの実施履歴）
@@ -290,6 +322,11 @@ export interface Material {
   sort_order: number
   attempt_scope: 'material' | 'chapter' | 'section' | 'page'
   retake_scope: 'all' | 'wrong_only'
+  // 合否判定・再受験設定（S-05）。いずれも必須項目ではない: pass_score_pct未設定は
+  // 「合格基準なし＝常に合格」、retake_limit未設定は「再受験回数無制限」を意味する（2026-09-11新設）。
+  pass_score_pct: number | null
+  retake_allowed: boolean
+  retake_limit: number | null
   default_feedback_style: 'show_answer' | 'review_only' | 'hint_only'
   ai_context: string | null
   grading_mode: 'ai' | 'manual'
@@ -530,7 +567,7 @@ export interface OrgReport {
   generated_at: string
 }
 
-// A-78/A-79 GET/PUT /api/materials/{id}/surveys のitems（S-05受験後アンケート設置）。
+// A-78/A-79 GET/PUT /api/materials/{id}/surveys のitems（S-05受講後アンケート設置）。
 // node_id=nullは教材全体、指定時は対象の章（kind='chapter'）
 export interface Survey {
   id: number

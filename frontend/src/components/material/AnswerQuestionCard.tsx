@@ -8,7 +8,14 @@ import TextArea from '../ui/TextArea'
 import TextInput from '../ui/TextInput'
 import AnswerReorderList from './AnswerReorderList'
 
-function StatusBadge({ answer }: { answer: Answer }) {
+function StatusBadge({ answer, questionType }: { answer: Answer; questionType: Question['type'] }) {
+  // スコア記録（score_log）は正誤・採点の概念を持たず、is_correct・ai_score_pctは常にnullのまま
+  // 更新されることがない（合否判定からも常に除外される）。「採点中」「採点済み」のような
+  // 採点を示唆する文言を出すと、いつまでも採点されない状態を誤解させるため、単に「回答済み」とだけ
+  // 表示する（2026-09-11、ユーザー指摘）。
+  if (questionType === 'score_log') {
+    return <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-500">回答済み</span>
+  }
   if (answer.is_correct === true) {
     return <span className="rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-bold text-green-700">回答済み・正解</span>
   }
@@ -120,7 +127,7 @@ export default function AnswerQuestionCard({
             設問{index}に回答すると解放されます
           </span>
         )}
-        {!locked && answered && revealResult && <StatusBadge answer={answer} />}
+        {!locked && answered && revealResult && <StatusBadge answer={answer} questionType={question.type} />}
         {!locked && answered && !revealResult && (
           <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-500">
             回答済み
@@ -187,12 +194,21 @@ export default function AnswerQuestionCard({
           initialOrder={answer?.response as string[] | undefined}
         />
       )}
-      {question.type === 'reorder' && disabled && (question.options ?? []).length > 0 && (
-        <ul className="list-inside list-decimal text-sm text-slate-400">
-          {(question.options ?? []).map((opt) => (
-            <li key={opt}>{opt}</li>
-          ))}
-        </ul>
+      {question.type === 'reorder' && disabled && (
+        (() => {
+          // 提出済みの読み返し画面では、表示用にシャッフルされたquestion.optionsではなく、
+          // 実際に受講者が提出した順序（answer.response）を表示する（2026-09-11、提出前の
+          // シャッフル順のままになっていた不具合を修正）。未回答（スキップ済み任意設問）の
+          // 場合のみ、参考としてoptionsをそのまま表示する。
+          const items = (answer?.response as string[] | undefined) ?? question.options ?? []
+          return items.length > 0 ? (
+            <ul className="list-inside list-decimal text-sm text-slate-400">
+              {items.map((opt, i) => (
+                <li key={`${opt}-${i}`}>{opt}</li>
+              ))}
+            </ul>
+          ) : null
+        })()
       )}
 
       {(question.type === 'free_text' || question.type === 'code') && (

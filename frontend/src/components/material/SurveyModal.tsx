@@ -5,7 +5,7 @@ import { submitSurveyResponse } from '../../lib/attemptActions'
 import Button from '../ui/Button'
 import TextArea from '../ui/TextArea'
 
-// 受験後アンケート回答モーダル（F-28）。S-04のcallout・S-16の章完了時から開く。
+// 受講後アンケート回答モーダル（F-28）。S-04のcallout・S-16の章完了時から開く。
 // 回答はすべて任意でスキップ可（未入力の設問はsurvey_answersの行を作らず送信しない）。
 export default function SurveyModal({
   survey,
