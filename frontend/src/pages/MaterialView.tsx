@@ -29,6 +29,15 @@ const TABS = [
 ] as const
 type TabKey = (typeof TABS)[number]['key']
 
+// 採点結果パネルの「開く」操作で表示する、自分が実際に提出した回答内容の整形。
+// 単一選択・記述式・コード記述式はそのまま文字列、複数選択は「、」区切り、並び替えは提出順を
+// 「→」でつないで表示する。
+function formatResponse(response: unknown, type: string): string {
+  if (response === null || response === undefined) return '（未回答）'
+  if (Array.isArray(response)) return response.map(String).join(type === 'reorder' ? ' → ' : '、')
+  return String(response)
+}
+
 // S-04 教材受講：目次（詳細設計書10.4節）。
 export default function MaterialView() {
   const { materialId } = useParams<{ materialId: string }>()
@@ -56,6 +65,17 @@ export default function MaterialView() {
   const { items: practiceAttempts } = usePracticeAttempts(activeTab === 'practice' ? id : null)
   const { surveys } = useSurveys(activeTab === 'toc' ? id : null)
   const [dismissedSurveyIds, setDismissedSurveyIds] = useState<Set<number>>(new Set())
+  // 採点結果パネル: クリックで設問を開き、自分が実際に提出した回答内容を確認できるようにする
+  // （2026-09-11、ユーザー要望）。
+  const [expandedGradedAnswerIds, setExpandedGradedAnswerIds] = useState<Set<number>>(new Set())
+  const toggleGradedAnswer = (questionId: number) => {
+    setExpandedGradedAnswerIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(questionId)) next.delete(questionId)
+      else next.add(questionId)
+      return next
+    })
+  }
   const [surveyModalSurvey, setSurveyModalSurvey] = useState<Survey | null>(null)
 
   const [wrongScope, setWrongScope] = useState<'material' | 'all'>('material')
@@ -362,34 +382,54 @@ export default function MaterialView() {
                 <div className="divide-y divide-slate-100">
                   {gradedAnswers.map((a) => {
                     // 記述式・コード記述式はAI/手動採点の点数（採点待ちは「採点中」）、それ以外
-                    // （単一選択・複数選択・並び替え）は保存時に同期採点済みのため正解/不正解を表示する
+                    // （単一選択・複数選択・並び替え）は保存時に同期採点済みのため正解/不正解を表示する。
+                    // 記述式・コード記述式はAI採点済み（ai_score_pctあり）ならその点数を表示するが、
+                    // 手動採点（grading_mode='manual'）はA-74でis_correctのみ設定しai_score_pctは
+                    // 更新しない設計のため、ai_score_pctだけを見ると手動採点済みの回答がいつまでも
+                    // 「採点中」のまま表示されてしまう不具合があった（2026-09-11、ユーザー報告により
+                    // 発見・修正）。ai_score_pctが無い場合はis_correctの有無で判定する。
                     const isAiGraded = a.type === 'free_text' || a.type === 'code'
-                    const badgeText = isAiGraded
-                      ? a.ai_score_pct !== null
+                    const badgeText =
+                      isAiGraded && a.ai_score_pct !== null
                         ? `${Math.round(a.ai_score_pct)}点`
-                        : '採点中'
-                      : a.is_correct
-                        ? '正解'
-                        : '不正解'
-                    const badgeClass = isAiGraded
-                      ? a.ai_score_pct !== null
+                        : a.is_correct !== null
+                          ? a.is_correct
+                            ? '正解'
+                            : '不正解'
+                          : '採点中'
+                    const badgeClass =
+                      isAiGraded && a.ai_score_pct !== null
                         ? 'bg-green-100 text-green-700'
-                        : 'bg-slate-100 text-slate-500'
-                      : a.is_correct
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-red-100 text-red-700'
+                        : a.is_correct !== null
+                          ? a.is_correct
+                            ? 'bg-green-100 text-green-700'
+                            : 'bg-red-100 text-red-700'
+                          : 'bg-slate-100 text-slate-500'
+                    const expanded = expandedGradedAnswerIds.has(a.question_id)
                     return (
-                      <div key={a.question_id} className="flex items-start gap-3 p-4">
+                      <button
+                        key={a.question_id}
+                        type="button"
+                        onClick={() => toggleGradedAnswer(a.question_id)}
+                        className="flex w-full items-start gap-3 p-4 text-left hover:bg-slate-50"
+                      >
                         <span className={`flex-shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${badgeClass}`}>
                           {badgeText}
                         </span>
-                        <div>
+                        <div className="min-w-0 flex-1">
                           <div className="text-[12.5px] font-semibold text-slate-700">
                             {a.scope_label} {a.prompt}
                           </div>
                           {a.ai_feedback && <div className="mt-0.5 text-xs text-slate-500">{a.ai_feedback}</div>}
+                          {expanded && (
+                            <div className="mt-2 rounded-md border border-slate-200 bg-slate-50 p-2.5 text-xs text-slate-700">
+                              <div className="mb-1 font-semibold text-slate-500">自分の回答</div>
+                              <div className="whitespace-pre-wrap">{formatResponse(a.response, a.type)}</div>
+                            </div>
+                          )}
                         </div>
-                      </div>
+                        <span className="flex-shrink-0 text-xs text-slate-400">{expanded ? '閉じる' : '開く'}</span>
+                      </button>
                     )
                   })}
                 </div>

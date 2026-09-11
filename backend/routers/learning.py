@@ -152,7 +152,8 @@ async def start_attempt(id: int, body: StartAttemptIn, user: CurrentUser = Depen
     pool = get_pool()
     perm_row = await _require_view_access(pool, id, user)
     material_row = await pool.fetchrow(
-        "SELECT id, project_id, attempt_scope, updated_at, pass_score_pct FROM materials WHERE id = $1", id
+        "SELECT id, project_id, attempt_scope, retake_scope, updated_at, pass_score_pct FROM materials WHERE id = $1",
+        id,
     )
     tree = await _fetch_tree(pool, id, strip_answers=True)
     attempt_scope = material_row["attempt_scope"]
@@ -270,14 +271,48 @@ async def start_attempt(id: int, body: StartAttemptIn, user: CurrentUser = Depen
             user.id, id, body.mode, scope_node_id, practice_kind,
         ) + 1
         question_order = _draw_question_order(pages)
+        # 再受験範囲（materials.retake_scope='wrong_only'）: 直近の提出済み記録で正解していた設問は
+        # 今回の出題から除外し、carried_over_question_idsに記録する。以前はA-71（フロントエンドから
+        # 一度も呼ばれない未使用コード）にしかこの仕組みが実装されておらず、実際の再受験導線である
+        # 本APIには一切反映されていなかった（＝「誤答のみ」に設定していても常に全問解き直しに
+        # なっていた不具合。2026-09-11、ユーザー報告により発見・修正）。carried_over_question_idsは
+        # _recompute_attempt_resultで「出題こそしないが正解として算入する」ために使う。
+        carried_over: list[int] = []
+        if body.mode == "graded" and material_row["retake_scope"] == "wrong_only":
+            prev_attempt = await pool.fetchrow(
+                """SELECT id FROM quiz_attempts
+                    WHERE user_id = $1 AND material_id = $2 AND mode = 'graded'
+                      AND scope_node_id IS NOT DISTINCT FROM $3 AND submitted_at IS NOT NULL
+                    ORDER BY attempt_no DESC LIMIT 1""",
+                user.id, id, scope_node_id,
+            )
+            if prev_attempt is not None:
+                prev_answers = await pool.fetch(
+                    "SELECT question_id, is_correct FROM answers WHERE attempt_id = $1", prev_attempt["id"]
+                )
+                correct_ids = {a["question_id"] for a in prev_answers if a["is_correct"]}
+                carried_over = sorted(correct_ids)
+                # 記録型（score_log）は正誤の概念が無くis_correctが常にNULLのため、上のcorrect_idsには
+                # 絶対に入らず「誤答のみ」でも毎回出題され続けてしまっていた（2026-09-11、ユーザー報告
+                # により発見・修正）。合否判定にも一切算入されない設問なので、正解扱いで繰り越す
+                # （carried_over_question_ids）必要も無く、単に今回の出題対象から除外するだけでよい。
+                score_log_ids = {
+                    q["id"] for page in pages for q in page.get("questions", []) if q["type"] == "score_log"
+                }
+                question_order = {
+                    node_id: [qid for qid in qids if qid not in correct_ids and qid not in score_log_ids]
+                    for node_id, qids in question_order.items()
+                }
         row = await pool.fetchrow(
             """INSERT INTO quiz_attempts
-                   (user_id, material_id, scope_node_id, mode, attempt_no, question_order, practice_kind)
-               VALUES ($1, $2, $3, $4, $5, $6, $7)
+                   (user_id, material_id, scope_node_id, mode, attempt_no, question_order, practice_kind,
+                    carried_over_question_ids)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                ON CONFLICT (user_id, material_id, mode, scope_node_id, practice_kind) WHERE submitted_at IS NULL
                DO UPDATE SET attempt_no = quiz_attempts.attempt_no
                RETURNING *, (xmax = 0) AS inserted""",
             user.id, id, scope_node_id, body.mode, attempt_no, json.dumps(question_order), practice_kind,
+            json.dumps(carried_over),
         )
         attempt = dict(row)
         is_new = attempt.pop("inserted")
@@ -292,6 +327,40 @@ async def start_attempt(id: int, body: StartAttemptIn, user: CurrentUser = Depen
     answers_out = [
         {**dict(a), "response": json.loads(a["response"]) if a["response"] else None} for a in answers
     ]
+
+    # 提出済み（合格済み・閲覧専用）のスコープを再訪した場合、「誤答のみ」で今回出題しなかった
+    # 正解済み設問（carried_over_question_ids）もquestion_orderへ合流させ、その回答も合わせて
+    # 返す。そうしないと合格後に見返したとき、実際に解き直した設問しか表示されず、以前から
+    # 正解していた設問の回答が見えなくなってしまう（2026-09-11、ユーザー報告により発見・修正）。
+    # ページ内の並びは現在のquestions（sort_order順）に揃え、記録型（score_log）は元々「誤答のみ」の
+    # 対象外なのでここでも含めない。
+    if attempt["submitted_at"] is not None and attempt["carried_over_question_ids"]:
+        carried_over_set = set(attempt["carried_over_question_ids"])
+        original_ids = {qid for qids in attempt["question_order"].values() for qid in qids}
+        full_order: dict[str, list[int]] = {}
+        for page in pages:
+            ids_this_page = [
+                q["id"]
+                for q in page.get("questions", [])
+                if q["type"] != "score_log" and (q["id"] in original_ids or q["id"] in carried_over_set)
+            ]
+            if ids_this_page:
+                full_order[str(page["id"])] = ids_this_page
+        attempt["question_order"] = full_order
+        carried_answers = await pool.fetch(
+            """SELECT DISTINCT ON (a.question_id) a.question_id, a.response, a.is_correct
+               FROM answers a
+               JOIN quiz_attempts qa2 ON qa2.id = a.attempt_id
+               WHERE a.question_id = ANY($1::bigint[]) AND qa2.user_id = $2 AND qa2.material_id = $3
+                 AND qa2.scope_node_id IS NOT DISTINCT FROM $4
+               ORDER BY a.question_id, qa2.attempt_no DESC""",
+            list(carried_over_set), user.id, id, scope_node_id,
+        )
+        answers_out.extend(
+            {"question_id": r["question_id"], "response": json.loads(r["response"]) if r["response"] else None,
+             "is_correct": r["is_correct"]}
+            for r in carried_answers
+        )
 
     if is_new:
         # enrollment_progressの初期化（未着手→着手中）。既存試行の再開時は触らない。
@@ -438,12 +507,28 @@ async def _recompute_attempt_result(pool, attempt_id: int) -> None:
     attempt = await pool.fetchrow("SELECT * FROM quiz_attempts WHERE id = $1", attempt_id)
     if attempt is None:
         return
-    rows = await pool.fetch(
-        """SELECT a.is_correct, q.type, q.is_critical, q.required, q.counted, q.prompt
-           FROM answers a JOIN questions q ON q.id = a.question_id
-           WHERE a.attempt_id = $1""",
-        attempt_id,
+    rows = [
+        dict(r)
+        for r in await pool.fetch(
+            """SELECT a.is_correct, q.type, q.is_critical, q.required, q.counted, q.prompt
+               FROM answers a JOIN questions q ON q.id = a.question_id
+               WHERE a.attempt_id = $1""",
+            attempt_id,
+        )
+    ]
+    # 再受験範囲「誤答のみ」（materials.retake_scope='wrong_only'）で今回出題しなかった、前回正解済みの
+    # 設問（carried_over_question_ids）は、このattemptにanswers行を持たないため上のJOINには含まれない。
+    # 出題しないだけで合否判定・スコアには引き続き正解として算入する必要があるため、questionsテーブルから
+    # 直接取得し、is_correct=Trueの仮想行として合流させる（2026-09-11、「誤答のみ」実装時に対応）。
+    carried_over_ids = (
+        json.loads(attempt["carried_over_question_ids"]) if attempt["carried_over_question_ids"] else []
     )
+    if carried_over_ids:
+        carried_rows = await pool.fetch(
+            "SELECT type, is_critical, required, counted, prompt FROM questions WHERE id = ANY($1::bigint[])",
+            carried_over_ids,
+        )
+        rows.extend({**dict(r), "is_correct": True} for r in carried_rows)
     # required=false（任意）・counted=false（記録）の設問は、回答してもスコア・合否判定には反映しない
     # （採点・AIフィードバック自体は行われるが、算入されないだけ）。
     gradable = [r for r in rows if r["type"] != "score_log" and r["required"] and r["counted"]]
@@ -959,7 +1044,7 @@ async def get_attempt_summary(id: int, user: CurrentUser = Depends(require_auth)
     entries = []
     for g in groups:
         attempt = await pool.fetchrow(
-            """SELECT id, attempt_no, score_pct, passed, fail_reason, submitted_at
+            """SELECT id, attempt_no, score_pct, passed, fail_reason, submitted_at, carried_over_question_ids
                FROM quiz_attempts
                WHERE user_id = $1 AND material_id = $2 AND mode = 'graded'
                  AND scope_node_id IS NOT DISTINCT FROM $3 AND submitted_at IS NOT NULL
@@ -975,11 +1060,32 @@ async def get_attempt_summary(id: int, user: CurrentUser = Depends(require_auth)
             user.id, id, g["scope_node_id"],
         )
         answers = await pool.fetch(
-            """SELECT a.question_id, q.prompt, q.type, a.is_correct, a.ai_score_pct, a.ai_feedback
+            """SELECT a.question_id, q.prompt, q.type, a.response, a.is_correct, a.ai_score_pct, a.ai_feedback
                FROM answers a JOIN questions q ON q.id = a.question_id
                WHERE a.attempt_id = $1 AND q.type != 'score_log'""",
             attempt["id"],
         )
+        # 再受験範囲「誤答のみ」で今回は出題しなかった、前回までに正解済みの設問
+        # （carried_over_question_ids）は、このattemptにanswers行が無いため上のクエリに含まれない。
+        # 採点結果パネルの正答率表示と実際に並ぶ設問数が食い違って見えないよう、この受講者の同じ
+        # スコープの過去attemptから、その設問の直近の回答を拾って合流させる（2026-09-11、
+        # 「誤答のみ」実装時に対応）。
+        carried_over_ids = (
+            json.loads(attempt["carried_over_question_ids"]) if attempt["carried_over_question_ids"] else []
+        )
+        if carried_over_ids:
+            carried_answers = await pool.fetch(
+                """SELECT DISTINCT ON (a.question_id)
+                          a.question_id, q.prompt, q.type, a.response, a.is_correct, a.ai_score_pct, a.ai_feedback
+                   FROM answers a
+                   JOIN questions q ON q.id = a.question_id
+                   JOIN quiz_attempts qa2 ON qa2.id = a.attempt_id
+                   WHERE a.question_id = ANY($1::bigint[]) AND qa2.user_id = $2 AND qa2.material_id = $3
+                     AND qa2.scope_node_id IS NOT DISTINCT FROM $4
+                   ORDER BY a.question_id, qa2.attempt_no DESC""",
+                carried_over_ids, user.id, id, g["scope_node_id"],
+            )
+            answers = list(answers) + list(carried_answers)
         # q.sort_orderはページ内でのローカルな並び順（ページごとに0から始まる）のため、単独で
         # ORDER BYすると複数ページにまたがるスコープ（例: attempt_scope='material'）で他ページの
         # 設問と番号が衝突し、表示順がページをまたいで入れ替わってしまう不具合があった
@@ -991,6 +1097,11 @@ async def get_attempt_summary(id: int, user: CurrentUser = Depends(require_auth)
             for i, q in enumerate(q for page in pages for q in page.get("questions", []))
         }
         answers = sorted(answers, key=lambda a: order_index.get(a["question_id"], len(order_index)))
+        answer_dicts = []
+        for a in answers:
+            d = dict(a)
+            d["response"] = json.loads(d["response"]) if d["response"] else None
+            answer_dicts.append(d)
         entries.append({
             "scope_node_id": g["scope_node_id"],
             "scope_label": g["label"],
@@ -998,7 +1109,7 @@ async def get_attempt_summary(id: int, user: CurrentUser = Depends(require_auth)
             "attempt_count": attempt_count,
             "retake_allowed": settings["retake_allowed"],
             "retake_limit": settings["retake_limit"],
-            "answers": [dict(a) for a in answers],
+            "answers": answer_dicts,
         })
     return {"items": entries}
 

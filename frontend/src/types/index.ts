@@ -267,6 +267,7 @@ export interface AttemptSummaryEntry {
     prompt: string
     // 記録型（score_log）は正誤の概念が無いため対象外（2026-09-11、選択式も含めるよう拡張）
     type: Exclude<QuestionType, 'score_log'>
+    response: unknown
     is_correct: boolean | null
     ai_score_pct: number | null
     ai_feedback: string | null
