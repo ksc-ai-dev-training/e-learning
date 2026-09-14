@@ -33,7 +33,7 @@
       <tr><td>organization.py</td><td>A-09: require_auth／A-10, A-12, A-13: require_project_role(min_role='admin')／A-11: require_auth（本人判定はハンドラ内）／A-67: require_auth（本人判定はハンドラ内）／A-59〜A-61, A-65, A-66: require_project_role(min_role='admin')</td></tr>
       <tr><td>materials.py</td><td>A-14: require_auth／A-15, A-19, A-28, A-30, A-43: require_material_access（編集権限者は追加でrequire_material_editor相当のOR）／A-16, A-21: require_project_role(min_role='editor')（対象project_idに対して。A-21はパスに<code>material_id</code>を持たずproject_idを直接取るため、material_idからの解決を挟むrequire_material_editorではなくこちらを使う）／A-17, A-20, A-22, A-27, A-29, A-31〜A-35, A-64, A-78, A-79: require_material_editor／A-18, A-59: require_project_role(min_role='admin')</td></tr>
       <tr><td>assignments.py</td><td>A-36, A-37: require_project_role(min_role='admin')（自プロジェクト分に絞り込み）またはrequire_roles("admin")／A-38: 4.4節callout参照</td></tr>
-      <tr><td>learning.py</td><td>A-39: require_auth／A-40〜A-42, A-44, A-71, A-72: require_material_access／A-43: require_material_access または require_material_editor／A-73, A-74: require_material_editor</td></tr>
+      <tr><td>learning.py</td><td>A-39: require_auth／A-40〜A-42, A-44, A-71, A-72: require_material_access／A-43: require_material_access または require_material_editor／A-73, A-74: require_material_editor／<span class="rev-new">A-83: require_auth（依存関数によるリソースチェックではなく、ハンドラ内のSQLで<code>project_memberships</code>とのJOIN条件により絞り込む。scope='all'はadmin判定のみ追加チェック。2026-09-11新設）</span>／<span class="rev-new">A-98: require_auth（本人の回答行しか更新しないため教材への追加チェックは不要。A-95と同じ考え方。2026-09-11新設）</span></td></tr>
       <tr><td>dashboard.py, reports.py</td><td>A-45〜A-49: require_project_role(min_role='admin')またはrequire_roles("admin")／A-50〜A-52: 本人 or 「対象者が所属するプロジェクトの管理者」（5.4節の専用判定関数）</td></tr>
       <tr><td>users.py, settings.py</td><td>全API: require_roles("admin")</td></tr>
     </tbody>
@@ -161,7 +161,7 @@ async def require_project_role(project_id: int, min_role: str):
   <p class="rev-row"><strong>処理概要:</strong> 本番（<code>SUPABASE_URL</code>設定時）はA-27/A-30がSupabase Storageの署名付きURL（対象<code>storage_key</code>限定・600秒で失効）を返すが、ローカル開発専用の代替経路（<code>backend/routers/uploads.py</code>）は<code>require_auth</code>のみで、<code>storage_key</code>さえ知っていれば認証済みの任意のユーザーが無期限に閲覧・上書きできてしまっていた。本番と同等の保護をローカルでも持たせるため、<code>storage.py</code>に<code>make_local_signed_query</code>/<code>verify_local_signed_query</code>（HMAC-SHA256、<code>JWT_SECRET</code>を鍵として<code>storage_key:expires</code>に署名、600秒で失効）を新設し、A-27（<code>create_upload_target</code>）・A-30（<code>create_download_url</code>）が返すローカルURLに<code>?expires=...&amp;sig=...</code>クエリを付与、<code>uploads.py</code>のGET/PUTでこれを検証するようにした。署名が無い・期限切れ・別の<code>storage_key</code>向けの署名を流用した場合はいずれも403で拒否する。本番環境（Supabase Storage使用時）はこの経路自体を通らないため影響しない。</p>
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）詳細設計書 v1.80</span>
+    <span>社内学習管理システム（Manabi）詳細設計書 v1.87</span>
     <span>コガソフトウェア株式会社 / 2026-09-08</span>
   </footer>
 

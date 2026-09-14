@@ -93,6 +93,9 @@
       <tr><td>sort_order</td><td>INTEGER</td><td>NO</td><td>0</td><td>一覧表示の並び順</td></tr>
       <tr><td>attempt_scope</td><td>TEXT</td><td>NO</td><td>'material'</td><td>'material' / 'chapter' / 'section' / 'page'。合否判定・再受験の単位</td></tr>
       <tr><td>retake_scope</td><td>TEXT</td><td>NO</td><td>'all'</td><td>'all' / 'wrong_only'</td></tr>
+      <tr class="rev-new"><td>pass_score_pct</td><td>NUMERIC(5,2)</td><td>YES</td><td>—</td><td>合格基準（正答率%）。NULLは「基準なし＝スコアによらず常に合格」（2026-09-11、T-11 assignmentsから移設。下記callout参照）</td></tr>
+      <tr class="rev-new"><td>retake_allowed</td><td>BOOLEAN</td><td>NO</td><td>true</td><td>再受験可否（同上、T-11から移設）</td></tr>
+      <tr class="rev-new"><td>retake_limit</td><td>INTEGER</td><td>YES</td><td>—</td><td>再受験回数上限。NULLは無制限（同上、T-11から移設）</td></tr>
       <tr><td>default_feedback_style</td><td>TEXT</td><td>NO</td><td>'show_answer'</td><td>'show_answer' / 'review_only' / 'hint_only'</td></tr>
       <tr><td>ai_context</td><td>TEXT</td><td>YES</td><td>—</td><td>AI採点への共通の前提条件・制約の自由記述</td></tr>
       <tr><td>grading_mode</td><td>TEXT</td><td>NO</td><td>'ai'</td><td>'ai' / 'manual'。記述式・コード記述式の採点方式の教材既定</td></tr>
@@ -100,6 +103,9 @@
     </tbody>
   </table>
   <p><strong>制約:</strong> PK(id)、FK(project_id→projects.id)、FK(created_by→users.id)、CHECK(status IN ('draft','published'))、CHECK(attempt_scope IN ('material','chapter','section','page'))、CHECK(retake_scope IN ('all','wrong_only'))、CHECK(default_feedback_style IN ('show_answer','review_only','hint_only'))、CHECK(grading_mode IN ('ai','manual'))。<strong>インデックス:</strong> <code>project_id</code>にBTreeインデックス。<code>tags</code>はGINインデックス（<code>USING GIN (tags jsonb_path_ops)</code>）を付与し、A-14のタグ絞り込みを高速化する。</p>
+  <div class="callout rev-new">
+    <strong>pass_score_pct・retake_allowed・retake_limitのT-11からの移設（2026-09-11）:</strong> これら3列は元々T-11 assignmentsに置かれていたが、S-06（配信設定画面）には対応するUIが一度も実装されず、書き込み経路が存在しない死んだカラムのままだった（v1.45で「S-06はこれら3項目を一切扱わない」と確定していた。4.4節A-38のcallout参照）。S-20（採点）実装に合わせてS-05「目次編集」タブに実際の編集UI（合否判定・再受験設定パネル）を新設するにあたり、これらは配信対象（プロジェクト・個人）ごとに異なる値を持たせる要求が無く教材全体で1つに定まる設定であるため、assignments（1教材に複数行あり得る）ではなくmaterials（1教材1行）へ移設した。<code>pass_score_pct</code>は空欄（NULL）を許す任意項目とし、その場合は「合格基準を設けない＝スコアによらず常に合格」として扱う（5.14節参照）。
+  </div>
 
   <h4>T-23 material_nodes（教材の目次ノード：章・小見出し・ページ）</h4>
   <table>
@@ -169,7 +175,8 @@
       <tr><td>code_language</td><td>TEXT</td><td>YES</td><td>—</td><td>type='code'のときの言語ヒント</td></tr>
       <tr><td>sort_order</td><td>INTEGER</td><td>NO</td><td>0</td><td>同一ページ内での表示順</td></tr>
       <tr><td>required</td><td>BOOLEAN</td><td>NO</td><td>true</td><td>回答必須／任意</td></tr>
-      <tr><td>is_critical</td><td>BOOLEAN</td><td>NO</td><td>false</td><td>ドボン問題フラグ。score_logでは常にfalse</td></tr>
+      <tr class="rev-new"><td>counted</td><td>BOOLEAN</td><td>NO</td><td>true</td><td>スコア・合否判定に算入するか（2026-09-11新設）。<code>required</code>が背負っていた「回答必須にするか」と「合否に算入するか」の2軸を分離した列。必須=required・counted=true、記録=required=true・counted=false（回答必須のまま採点・AIフィードバックは行うが合否には算入しない）、任意=required・counted=false</td></tr>
+      <tr><td>is_critical</td><td>BOOLEAN</td><td>NO</td><td>false</td><td>ドボン問題フラグ。score_logでは常にfalse。counted=falseの設問はチェックしても不合格判定の対象にならない（4.5節A-42参照）</td></tr>
       <tr><td>feedback_style</td><td>TEXT</td><td>YES</td><td>—</td><td>教材既定を上書きする場合のみ設定</td></tr>
       <tr><td>pool_group_id</td><td>BIGINT</td><td>YES</td><td>—</td><td>FK→questions（自己参照）。同じ値を持つ設問群が出題プールを構成する</td></tr>
       <tr><td>score_unit</td><td>TEXT</td><td>YES</td><td>—</td><td>type='score_log'のときの単位表記</td></tr>
@@ -191,14 +198,12 @@
       <tr><td>scope_id</td><td>BIGINT</td><td>NO</td><td>—</td><td>scope_type='project'なら常にmaterials.project_idと同値（教材自身の所属プロジェクトに固定、他プロジェクトは選べない）、'individual'ならそのプロジェクトの現役メンバーのusers.id</td></tr>
       <tr><td>required</td><td>BOOLEAN</td><td>NO</td><td>true</td><td>必修／任意。教材が全社Wiki（materials.project_idの参照先projects.is_company_wide=true）に属する場合はtrueを設定不可（アプリ層でバリデーション。基本設計書5.9節）</td></tr>
       <tr><td>due_at</td><td>TIMESTAMPTZ</td><td>YES</td><td>—</td><td>受講期限。required=falseでは無効化して入力させない（画面制御）が、DB上は保持可</td></tr>
-      <tr><td>pass_score_pct</td><td>NUMERIC(5,2)</td><td>YES</td><td>—</td><td>合格基準（正答率%）</td></tr>
-      <tr><td>retake_allowed</td><td>BOOLEAN</td><td>NO</td><td>true</td><td>再受験可否</td></tr>
-      <tr><td>retake_limit</td><td>INTEGER</td><td>YES</td><td>—</td><td>再受験回数上限。NULLは無制限</td></tr>
       <tr><td>created_by</td><td>BIGINT</td><td>NO</td><td>—</td><td>FK→users</td></tr>
       <tr><td>created_at / updated_at</td><td>TIMESTAMPTZ</td><td>NO</td><td>now()</td><td></td></tr>
     </tbody>
   </table>
   <p><strong>制約:</strong> PK(id)、FK(material_id→materials.id) ON DELETE CASCADE、FK(created_by→users.id)、CHECK(scope_type IN ('project','individual'))、scope_idはNOT NULL（v1.42で'company'スコープ廃止に伴いNULL許容を廃止）。<strong>インデックス:</strong> <code>material_id</code>にBTreeインデックス。</p>
+  <p class="rev-new"><strong>2026-09-11、<code>pass_score_pct</code>・<code>retake_allowed</code>・<code>retake_limit</code>の3列を撤去した。</strong>S-06に該当UIが無く書き込み経路が一度も実装されなかった死んだカラムだったため、教材全体で1つに決まる設定としてT-06 materialsへ移設した（3.2節callout参照）。</p>
 
   <h4>T-12 enrollment_progress（受講進捗）</h4>
   <table>
@@ -252,6 +257,7 @@
       <tr><td>ai_feedback</td><td>TEXT</td><td>YES</td><td>—</td><td>AI講評または手動採点者の講評テキスト</td></tr>
       <tr><td>reviewed_by</td><td>BIGINT</td><td>YES</td><td>—</td><td>FK→users。採点結果を修正／入力したプロジェクト管理者・編集者</td></tr>
       <tr><td>reviewed_at</td><td>TIMESTAMPTZ</td><td>YES</td><td>—</td><td></td></tr>
+      <tr class="rev-new"><td>result_seen_at</td><td>TIMESTAMPTZ</td><td>YES</td><td>—</td><td>本人が採点結果パネル（S-04）を開いて確認した日時（2026-09-11新設、A-98）。<code>reviewed_at</code>設定済みかつ<code>result_seen_at IS NULL OR result_seen_at &lt; reviewed_at</code>の行がある教材を、マイ学習「採点結果」タブ（A-39 <code>pending_review</code>）に表示する</td></tr>
       <tr><td>created_at / updated_at</td><td>TIMESTAMPTZ</td><td>NO</td><td>now()</td><td></td></tr>
     </tbody>
   </table>
@@ -509,6 +515,9 @@ CREATE TABLE IF NOT EXISTS materials (
                            CHECK (attempt_scope IN ('material', 'chapter', 'section', 'page')),
     retake_scope           TEXT NOT NULL DEFAULT 'all'
                            CHECK (retake_scope IN ('all', 'wrong_only')),
+    pass_score_pct          NUMERIC(5, 2),
+    retake_allowed          BOOLEAN NOT NULL DEFAULT true,
+    retake_limit            INTEGER,
     default_feedback_style TEXT NOT NULL DEFAULT 'show_answer'
                            CHECK (default_feedback_style IN ('show_answer', 'review_only', 'hint_only')),
     ai_context              TEXT,
@@ -736,10 +745,9 @@ ALTER TABLE surveys ENABLE ROW LEVEL SECURITY;</code></pre>
       <text x="150" y="66" text-anchor="middle" font-size="11.5" font-weight="600" fill="#1e3a8a">T-11 assignments</text>
       <text x="150" y="86" text-anchor="middle" font-size="10.5" fill="#1a1d21">配信設定</text>
       <text x="150" y="102" text-anchor="middle" font-size="9.5" fill="#60656d">scope_type / required / due_at</text>
-      <text x="150" y="117" text-anchor="middle" font-size="9.5" fill="#60656d">pass_score_pct / retake_allowed</text>
-      <text x="150" y="132" text-anchor="middle" font-size="9.5" fill="#b45309">scope_id（ポリモーフィック、6.3節）</text>
-      <text x="150" y="148" text-anchor="middle" font-size="8.5" fill="#8a8f98">material_id → 図2 T-06（CASCADE）</text>
-      <text x="150" y="161" text-anchor="middle" font-size="8.5" fill="#8a8f98">created_by → 図1 T-01</text>
+      <text x="150" y="117" text-anchor="middle" font-size="9.5" fill="#b45309">scope_id（ポリモーフィック、6.3節）</text>
+      <text x="150" y="132" text-anchor="middle" font-size="8.5" fill="#8a8f98">material_id → 図2 T-06（CASCADE）</text>
+      <text x="150" y="145" text-anchor="middle" font-size="8.5" fill="#8a8f98">created_by → 図1 T-01</text>
 
       <!-- T-12 enrollment_progress -->
       <rect x="330" y="50" width="220" height="120" rx="8" fill="#ffffff" stroke="#1e40af" stroke-width="1.5"/>
@@ -879,7 +887,7 @@ ALTER TABLE surveys ENABLE ROW LEVEL SECURITY;</code></pre>
 
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）詳細設計書 v1.80</span>
+    <span>社内学習管理システム（Manabi）詳細設計書 v1.87</span>
     <span>コガソフトウェア株式会社 / 2026-09-08</span>
   </footer>
 
