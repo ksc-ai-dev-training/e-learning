@@ -29,6 +29,25 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Manabi API", lifespan=lifespan)
 
+
+class _McpTrailingSlash:
+    """/mcp（末尾スラッシュなし）を/mcp/に読み替える。app.mount("/mcp", ...)は/mcp/以下にしか
+    一致せず、本番ではSPAフォールバック（GET /{full_path:path}、下記STATIC_DIR部分）に先に
+    捕まってPOSTが405 Method Not Allowedになる（ローカルはbackend/staticが無くSPAフォールバックが
+    登録されないため、Starletteの307リダイレクトで/mcp/に転送されて動いていた）。手順書が案内する
+    登録URL（末尾スラッシュなし）を変えずに済むよう、ここでパスを書き換える（2026-09-14）。"""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http" and scope["path"] == "/mcp":
+            scope = dict(scope, path="/mcp/", raw_path=b"/mcp/")
+        await self.app(scope, receive, send)
+
+
+app.add_middleware(_McpTrailingSlash)
+
 app.include_router(auth.router)
 app.include_router(organization.router)
 app.include_router(organization.memberships_router)

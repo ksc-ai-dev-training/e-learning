@@ -16,6 +16,7 @@ from mcp.server.auth.middleware.auth_context import get_access_token
 from mcp.server.auth.provider import AccessToken, TokenVerifier
 from mcp.server.auth.settings import AuthSettings
 from mcp.server.mcpserver import MCPServer
+from mcp.server.transport_security import TransportSecuritySettings
 
 from auth_helpers import CurrentUser, require_material_role, resolve_current_user_from_token
 from database import get_pool
@@ -217,4 +218,11 @@ async def unregister_my_learning_tool(material_id: int) -> dict:
 
 # main.pyでapp.mount("/mcp", mcp_asgi_app)する。streamable_http_path="/"にすることで、
 # マウント先のパス（/mcp）自体がエンドポイントになる（既定の"/mcp"のままだと/mcp/mcpになってしまう）。
-mcp_asgi_app = mcp.streamable_http_app(streamable_http_path="/")
+# SDKはhost引数が既定値"127.0.0.1"のとき、Host検証（DNSリバインディング対策）をlocalhost系にしか
+# 通さない設定で自動的に有効化する。本番のHostはmanabi-elearning.fly.devのため421 Invalid Host header
+# で拒否されてしまう（ローカルはHostがlocalhostなので気づかれなかった）。認証はBearerトークン必須
+# （_ManabiTokenVerifier）で担保しているため、このHost検証は明示的に無効化する（2026-09-14）。
+mcp_asgi_app = mcp.streamable_http_app(
+    streamable_http_path="/",
+    transport_security=TransportSecuritySettings(enable_dns_rebinding_protection=False),
+)
