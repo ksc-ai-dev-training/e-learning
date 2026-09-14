@@ -704,6 +704,7 @@ async def get_question_answers(question_id: int, user: CurrentUser = Depends(req
             "grading_mode": q_row["grading_mode"],
             "score_unit": q_row["score_unit"],
             "material_id": q_row["material_id"],
+            "project_id": q_row["project_id"],
             "material_title": q_row["material_title"],
             "node_path": node_path,
         },

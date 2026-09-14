@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import PageHeader from '../components/layout/PageHeader'
 import AssignmentEditPanel from '../components/material/AssignmentEditPanel'
 import AttachmentList from '../components/material/AttachmentList'
@@ -49,6 +49,7 @@ type TabKey = (typeof TABS)[number]['key']
 export default function MaterialEdit() {
   const { projectId, materialId } = useParams<{ projectId: string; materialId: string }>()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const isNew = materialId === 'new'
   const { material, isLoading, error: materialError, mutate } = useMaterial(isNew ? null : Number(materialId))
   const { projects } = useProjects()
@@ -61,7 +62,10 @@ export default function MaterialEdit() {
 
   const [savedId, setSavedId] = useState<number | null>(isNew ? null : Number(materialId))
   const { others: editingOthers, changedSinceLoad, acknowledgeSave } = useMaterialEditPresence(savedId)
-  const [activeTab, setActiveTab] = useState<TabKey>('structure')
+  // S-19「← 問題一覧に戻る」から?tab=questionsで戻ってきたとき、該当タブを開いた状態にする
+  const requestedTab = searchParams.get('tab')
+  const initialTab = TABS.some((t) => t.key === requestedTab) ? (requestedTab as TabKey) : 'structure'
+  const [activeTab, setActiveTab] = useState<TabKey>(initialTab)
   const [title, setTitle] = useState('')
   const [tags, setTags] = useState<string[]>([])
   const [description, setDescription] = useState('')

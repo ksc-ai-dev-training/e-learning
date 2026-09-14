@@ -519,6 +519,7 @@ export interface QuestionAnswersResponse {
     grading_mode: 'ai' | 'manual' | null
     score_unit: string | null
     material_id: number
+    project_id: number
     material_title: string
     node_path: string
   }

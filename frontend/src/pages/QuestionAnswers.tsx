@@ -1,8 +1,7 @@
 import { useMemo } from 'react'
-import { useNavigate, useParams } from 'react-router'
+import { Link, useParams } from 'react-router'
 import PageHeader from '../components/layout/PageHeader'
 import Panel from '../components/ui/Panel'
-import Button from '../components/ui/Button'
 import { useQuestionAnswers } from '../hooks/useQuestionAnswers'
 import { questionTypeLabel } from '../lib/questionDefaults'
 import { formatDateJst } from '../lib/datetime'
@@ -14,7 +13,6 @@ type Item = QuestionAnswersResponse['items'][number]
 // S-05「問題一覧」タブの「詳細を見る」から開く。手動採点の処理はS-20（採点）に一本化している。
 export default function QuestionAnswers() {
   const { questionId } = useParams<{ questionId: string }>()
-  const navigate = useNavigate()
   const { data, error, isLoading } = useQuestionAnswers(questionId ? Number(questionId) : null)
 
   if (isLoading) {
@@ -38,15 +36,16 @@ export default function QuestionAnswers() {
 
   return (
     <div className="flex flex-1 flex-col">
-      <PageHeader
-        title="設問別の回答・結果一覧"
-        actions={
-          <Button variant="secondary" onClick={() => navigate(-1)}>
-            ← 目次編集に戻る
-          </Button>
-        }
-      />
+      <PageHeader title="設問別の回答・結果一覧" />
       <div className="px-8 py-6">
+        <p className="mb-4">
+          <Link
+            to={`/projects/${question.project_id}/materials/${question.material_id}/edit?tab=questions`}
+            className="text-blue-800 hover:underline"
+          >
+            ← 問題一覧に戻る
+          </Link>
+        </p>
         <p className="mb-1 text-xs text-slate-400">
           {question.material_title} ／ {question.node_path}
         </p>
