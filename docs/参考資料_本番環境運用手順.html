@@ -16,7 +16,7 @@
     <p class="subtitle">社内学習管理システム（Manabi）— 本番環境（Fly.io / Supabase）のデプロイ・DB変更反映・Slack連携設定</p>
     <div class="meta">
       <span>作成日: 2026-09-07</span>
-      <span>版数: 1.1</span>
+      <span>版数: 1.2</span>
       <span>作成: コガソフトウェア株式会社</span>
     </div>
     <p class="note">
@@ -33,6 +33,7 @@
     <tbody>
       <tr><td>1.0</td><td>2026-09-07</td><td>初版。Fly.ioへのデプロイ作業中に判明した運用上の注意点（手動デプロイの必要性、GitHub Actions自動デプロイが未稼働であること、本番DBスキーマ変更の手動反映）と、Slack連携（F-12）のWebhook URL発行手順を整理した。</td></tr>
       <tr><td>1.1</td><td>2026-09-07</td><td>6章としてClaude Code CLI連携（F-05）を本番環境向けに使う手順（<code>MANABI_URL</code>指定でのCLIログイン・ログアウト・下書き状態による事故時の復旧容易性）を新設した。</td></tr>
+      <tr><td>1.2</td><td>2026-09-14</td><td>MCPサーバー（<code>backend/mcp_server.py</code>）新設に伴い、6章を本番環境向けのMCP連携手順（Web画面からのセルフサービスの鍵発行・<code>claude mcp add</code>登録）に全面的に書き換えた。従来方式（<code>MANABI_URL</code>指定でのCLIログイン・SKILL.md配布）は各自の端末へのファイル配布が前提のため、今後使わない方針とし手順を削除した。</td></tr>
     </tbody>
   </table>
 
@@ -160,43 +161,43 @@ docker run --rm -it -e FLY_API_TOKEN="（実際のデプロイ用トークン）
 
   <h2 id="cli">6. Claude Code CLI連携（F-05）を本番環境で使う</h2>
   <p>
-    Claude Codeに教材の作成・編集を頼む際（<code>.claude/skills/manabi-material/SKILL.md</code>）、
-    既定ではローカル環境（<code>http://localhost:5177</code>）を対象にするが、<code>MANABI_URL</code>を
-    指定してCLIログインすれば、本番環境（<code>https://manabi-elearning.fly.dev</code>）に対して
-    直接、実際の教材を作成・編集できる。
+    Claude Codeに教材の作成・編集を頼むと、本番環境（<code>https://manabi-elearning.fly.dev</code>）に
+    対して直接、実際の教材を作成・編集できる。2026-09-14からはMCP（Model Context Protocol）連携が
+    唯一の方式になり、<code>MANABI_URL</code>を指定したCLIログイン・SKILL.mdファイルの配布は
+    使わない（各自の端末にファイルを保存・配布してもらう方式は廃止した）。
   </p>
-  <h3>6.1 本番向けCLIログイン</h3>
-  <p>リポジトリルート（<code>cli/manabi_login.py</code>から見える場所）で実行する。</p>
-  <pre><code>cd c:\Users\pc-000683\ai-dev-training\e-learning\e-learning
-$env:MANABI_URL="https://manabi-elearning.fly.dev"
-python cli/manabi_login.py</code></pre>
+  <h3>6.1 本番のAPIキーを発行する</h3>
   <p>
-    ブラウザが自動で開き、Googleアカウント（<code>kogasoftware.com</code>）でのログインを求められる。
-    成功すると<code>~/.config/Manabi/credentials</code>に、本番向けのCLIトークン（<code>manabi_url</code>と
-    <code>token</code>を含むJSON、有効期限90日）が保存される。以後、Claude Codeはこのファイルを読んで、
-    本番環境のAPI（A-16教材作成・A-19取得・A-20保存）を直接呼び出す。
+    本番環境（<code>https://manabi-elearning.fly.dev</code>）にブラウザでログインし、
+    プロフィール画面（<code>/profile</code>）の「APIキー（Claude Code連携）」パネルから「発行する」を
+    押す。発行された鍵と接続先URL（<code>https://manabi-elearning.fly.dev/mcp</code>）がその場に
+    表示される。
   </p>
-  <div class="callout">
-    <strong>ローカル環境用のトークンは上書きされる。</strong> 認証情報の保存先は環境によらず
-    <code>~/.config/Manabi/credentials</code>の1箇所のみのため、本番向けにログインし直すと、
-    それまで使っていたローカル環境向けのトークンは上書きされて使えなくなる。再度ローカルで
-    使いたい場合は、<code>MANABI_URL</code>を指定せず（またはローカルのURLを指定して）手順6.1を
-    やり直す。
+  <div class="callout warn">
+    <strong>ローカル環境向けの鍵とは別物。</strong> MCPサーバーへの登録（6.2節）は接続先ごとに
+    行うため、ローカル環境向けに<code>claude mcp add</code>で登録済みでも、本番環境向けには別途
+    本番のURL・鍵で登録し直す必要がある（<a href="参考資料_Claude Codeでの教材作成手順.html">
+    参考資料_Claude Codeでの教材作成手順.html</a> 2章参照）。
   </div>
-  <h3>6.2 ログアウト・失効</h3>
-  <pre><code>python cli/manabi_logout.py</code></pre>
+  <h3>6.2 Claude CodeにMCPサーバーを登録する</h3>
+  <p>自分の端末のターミナルで、発行された鍵を使って1回だけ登録する。</p>
+  <pre><code>claude mcp add --transport http manabi-prod https://manabi-elearning.fly.dev/mcp --header "Authorization: Bearer {発行された鍵}"</code></pre>
   <p>
-    保存済みの認証情報ファイル（<code>manabi_url</code>を含む）を読んで、その環境に対して失効
-    リクエストを送るため、<code>MANABI_URL</code>の指定は不要（ログイン時に使った環境がそのまま
-    対象になる）。
+    ローカル環境向けの登録（サーバー名<code>manabi</code>）と区別するため、サーバー名は
+    <code>manabi-prod</code>等、別名にすることを推奨する。登録後は新しいセッションを開けば、
+    本番環境の教材を検索・作成・編集する道具（ツール）が使えるようになる。
+  </p>
+  <h3>6.3 鍵の失効</h3>
+  <p>
+    不要になった、または漏えいの疑いがある鍵は、本番環境のプロフィール画面の「発行済みの鍵」
+    一覧から対象の「失効する」を押す（鍵そのものを再提示する必要はない）。
   </p>
   <div class="callout">
-    <strong>操作ミスをしても復旧しやすい。</strong> A-16で新規作成した教材は既定で下書き
+    <strong>操作ミスをしても復旧しやすい。</strong> 新規作成した教材は既定で下書き
     （<code>status: draft</code>）状態であり、公開操作をしない限り受講者には一切表示されない。
     そのため、本番環境に対して試しに教材を作成してみて内容に問題があった場合も、Manabi画面
-    （教材編集一覧）またはAPIから該当教材を削除するだけでよい。
+    （教材編集一覧）から該当教材を削除するだけでよい。
   </div>
-
   <h2 id="issues">7. 既知の課題</h2>
   <table>
     <thead><tr><th>課題</th><th>内容</th></tr></thead>
@@ -215,7 +216,7 @@ python cli/manabi_login.py</code></pre>
 
   <footer class="doc-footer">
     <span>社内学習管理システム（Manabi）</span>
-    <span>Ver 1.1 / 2026-09-07</span>
+    <span>Ver 1.2 / 2026-09-14</span>
   </footer>
 
 </div>

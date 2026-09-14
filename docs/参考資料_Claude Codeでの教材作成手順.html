@@ -16,14 +16,15 @@
     <p class="subtitle">社内学習管理システム（Manabi）— Claude Code CLI連携（F-05）を使った教材の新規作成・編集手順</p>
     <div class="meta">
       <span>作成日: 2026-09-11</span>
-      <span>版数: 1.0</span>
+      <span>版数: 1.1</span>
       <span>作成: コガソフトウェア株式会社</span>
     </div>
     <p class="note">
       本ドキュメントは新人社員向けAI開発研修のサンプル成果物です。
       Manabi画面を一切開かずに、Claude Codeへの指示だけで教材（章・ページ・設問）を作成・編集する方法をまとめる。
-      内部実装は<code>.claude/skills/manabi-material/SKILL.md</code>（Claude Code自身が読むスキル定義）を参照しているため、
-      両者は基本的に同じ内容だが、本書は人が読む前提でより丁寧に手順・具体例を補っている。
+      2026-09-14からはMCP（Model Context Protocol）連携が使えるようになり、SKILL.mdファイルの配布や
+      CLIトークンの手動発行（<code>manabi_login.py</code>実行）が不要になったため、本書はMCP連携のみを
+      手順として説明する（各自の端末にファイルを保存・配布してもらう方式は、この移行に伴い廃止した）。
     </p>
   </div>
 
@@ -32,6 +33,12 @@
     <thead><tr><th>版数</th><th>日付</th><th>改訂内容</th></tr></thead>
     <tbody>
       <tr><td>1.0</td><td>2026-09-11</td><td>初版。</td></tr>
+      <tr><td>1.1</td><td>2026-09-14</td><td>MCPサーバー（<code>backend/mcp_server.py</code>）を新設したことに伴い、
+        2章（事前準備）をMCP連携によるセルフサービスの鍵発行・登録手順に全面的に書き換えた。
+        SKILL.md配布・<code>manabi_login.py</code>実行による従来方式（各自の端末へのファイル配布が
+        前提の方式）は今後使わない方針とし、本書から手順を削除した。7章（実践例）をMCP経由の
+        依頼例に書き換え、8章（画像の埋め込み）をWeb画面での操作に、9章（よくあるエラー）を
+        MCP関連の内容に更新した。</td></tr>
     </tbody>
   </table>
 
@@ -53,53 +60,81 @@
   <h2 id="purpose">1. このドキュメントの目的</h2>
   <p>
     Manabiには、教材の章・ページ・設問をプレーンテキスト（YAMLフロントマター＋Markdown見出し階層）として
-    読み書きできるAPIが用意されている（A-16・A-19・A-20）。Claude Codeにこの手順を頼めば、
-    ブラウザでManabiの画面を開かずに、チャットでの指示だけで教材を新規作成・編集できる。
+    読み書きできるAPI（A-16・A-19・A-20）と、それをClaude Code等のAIから直接呼べるMCPサーバーが用意されている。
+    Claude Codeにこの手順を頼めば、ブラウザでManabiの画面を開かずに、チャットでの指示だけで
+    教材を新規作成・編集できる。
   </p>
   <div class="callout">
     <strong>依頼の例:</strong> 「Manabi教材を作って。タイトルは『Git入門』、プロジェクトは新人研修プロジェクトで、
     第1章にコミットの基本を説明するページと、確認問題を1問（単一選択）入れて」のように、自然文で依頼すればよい。
-    Claude Code側は<code>.claude/skills/manabi-material/SKILL.md</code>のスキル定義に従い、本書と同じ手順で
-    API呼び出しを組み立てる。
+    2章の準備が済んでいれば、Claude CodeはMCPサーバーが提供する道具
+    （<code>create_material</code>・<code>get_material_source</code>・<code>put_material_source</code>等）を
+    自動的に使い分けて、本書と同じ手順でAPI呼び出しを組み立てる。
   </div>
 
   <h2 id="prep">2. 事前準備（初回のみ）</h2>
+  <h3>2.1 APIキーを発行する</h3>
   <p>
-    ManabiのAPIを呼ぶには認証済みのCLIトークンが必要。<code>~/.config/Manabi/credentials</code>に
-    保存済みのトークンが無い場合、Claude Code自身はブラウザでのGoogle認証を完結できないため、
-    ユーザー本人が以下を実行する。
+    Manabiにブラウザでログインし、次のいずれかからAPIキー（CLIトークン）を発行する。
   </p>
-  <pre><code>python cli/manabi_login.py</code></pre>
+  <ul>
+    <li>初回ログイン直後に表示される案内画面の「発行する」ボタン</li>
+    <li>いつでも: プロフィール画面（<code>/profile</code>）の「APIキー（Claude Code連携）」パネルの「発行する」ボタン</li>
+  </ul>
   <p>
-    ブラウザが自動で開き、Googleアカウント（<code>kogasoftware.com</code>）でログインを求められる。
-    成功すると<code>~/.config/Manabi/credentials</code>（JSON: <code>{"manabi_url": "...", "token": "..."}</code>、
-    有効期限90日）が保存され、以後Claude Codeがこのファイルからトークンを読んで使う。
+    発行された鍵とMCPサーバーの接続先URL（<code>{ManabiのURL}/mcp</code>）がその場で表示される
+    （鍵はこのとき限りしか表示されないため、その場でコピーする）。
   </p>
   <div class="callout warn">
-    <strong>本番環境に対して使う場合は別手順。</strong>
-    既定ではローカル環境（<code>http://localhost:5177</code>）を対象にする。本番環境
-    （<code>https://manabi-elearning.fly.dev</code>）に対して直接教材を作成・編集したい場合は、
-    <code>MANABI_URL</code>を指定してログインし直す必要がある（
-    <a href="参考資料_本番環境運用手順.html">参考資料_本番環境運用手順.html</a> 6章参照）。
-    ログイン情報の保存先は環境によらず1箇所のみのため、本番向けにログインし直すとローカル向けの
-    トークンは上書きされる。
+    <strong>鍵は他人に見せない・会話やチャットに貼り付けない。</strong>
+    発行した鍵は、次の2.2節のコマンドの引数として、自分の端末のターミナルで直接使う。
+    Claude Codeとの会話（チャットのメッセージ）には絶対に貼り付けないこと——会話ログとして
+    記録が残るため、読める人がいれば誰でもその鍵を使えてしまう。
   </div>
-
+  <h3>2.2 Claude CodeにMCPサーバーを登録する</h3>
+  <p>自分の端末のターミナルで、発行された鍵を使って1回だけ登録する（1人・1台につき初回のみでよい）。</p>
+  <pre><code>claude mcp add --transport http manabi {ManabiのURL}/mcp --header "Authorization: Bearer {発行された鍵}"</code></pre>
+  <p>
+    ローカル環境なら<code>{ManabiのURL}</code>は<code>http://localhost:5177</code>、本番環境なら
+    <code>https://manabi-elearning.fly.dev</code>になる（発行画面に表示された接続先をそのまま使えばよい）。
+    登録は一度行えば、以後Claude Codeを開き直しても覚えている。新しいセッションを開けば、
+    登録したMCPサーバーの道具（ツール）が自動的に使えるようになる（セッション内で<code>/mcp</code>と
+    打つと接続状況を確認できる）。
+  </p>
+  <div class="callout warn">
+    <strong>鍵は使い回さず、必要になったら都度発行する。</strong>
+    「発行する」を押すたびに新しい鍵が発行される（古い鍵は自動では失効しない）。PCを変える・
+    鍵が漏れた等の理由で無効化したい場合は、プロフィール画面の「発行済みの鍵」一覧から
+    対象の鍵の「失効する」を押せばよい（鍵そのものを提示する必要はない）。
+  </div>
   <h2 id="flow">3. 教材作成の全体の流れ</h2>
-  <p>白紙の新規教材を作る場合、以下の3ステップで完結する（Manabi画面は一切使わない）。</p>
+  <p>
+    白紙の新規教材を作る場合、Manabi画面は一切使わずに完結する。2章の準備が済んでいれば、
+    以下の3ステップはClaude Codeが対応する道具（ツール）を自動的に呼び出す形で進み、
+    利用者が個々のAPIを意識する必要はない。
+  </p>
   <table>
-    <thead><tr><th>手順</th><th>API</th><th>内容</th></tr></thead>
+    <thead><tr><th>手順</th><th>MCPの道具</th><th>API</th><th>内容</th></tr></thead>
     <tbody>
-      <tr><td>① 新規作成</td><td>A-16 <code>POST /api/materials</code></td><td>タイトル・所属プロジェクトを指定して空の教材を1つ発行する。レスポンスの<code>id</code>を控える。</td></tr>
-      <tr><td>② 取得</td><td>A-19 <code>GET /api/materials/{id}/source</code></td><td>フロントマターのみの空の教材ソースを取得する。</td></tr>
-      <tr><td>③ 編集・保存</td><td>A-20 <code>PUT /api/materials/{id}/source</code></td><td>取得したテキストに章・ページ・設問を書き足し、全体をそのまま保存する（部分更新ではなく全置換）。</td></tr>
+      <tr><td>① 新規作成</td><td><code>create_material</code></td><td>A-16 <code>POST /api/materials</code></td><td>タイトル・所属プロジェクトを指定して空の教材を1つ発行する。</td></tr>
+      <tr><td>② 取得</td><td><code>get_material_source</code></td><td>A-19 <code>GET /api/materials/{id}/source</code></td><td>フロントマターのみの空の教材ソースを取得する。</td></tr>
+      <tr><td>③ 編集・保存</td><td><code>put_material_source</code></td><td>A-20 <code>PUT /api/materials/{id}/source</code></td><td>取得したテキストに章・ページ・設問を書き足し、全体をそのまま保存する（部分更新ではなく全置換）。</td></tr>
     </tbody>
   </table>
-  <p>既存教材を編集したい場合は①を省略し、②→③だけを行う（対象教材のIDが分からない場合は<code>GET /api/materials</code>で一覧から探す）。</p>
+  <p>
+    既存教材を編集したい場合は①を省略し、②→③だけを行う（対象教材のIDが分からない場合は
+    <code>search_materials</code>／<code>GET /api/materials</code>で一覧から探す）。
+  </p>
   <div class="callout warn">
-    <strong>A-20は目次構造全体の全置換。</strong>
+    <strong>③は目次構造全体の全置換。</strong>
     取得したソースの一部だけを書き換えて送り返すこと。必要な変更以外の章・ページを勝手に削除しない
     （送らなかった部分は「削除された」とみなされる）。
+  </div>
+  <div class="callout">
+    <strong>MCPで対応していない操作。</strong>
+    教材の公開/非公開切り替え・アーカイブ・削除・配信設定の変更・画像の添付（8章参照）は
+    MCPの道具に含まれていない。これらを頼むと、Claude Codeは<code>get_material_edit_url</code>を
+    使ってWeb画面の編集URLを案内するので、そのURLをブラウザで開いて操作する。
   </div>
 
   <h2 id="frontmatter">4. フロントマター（教材メタデータ）の書式</h2>
@@ -207,18 +242,21 @@ grading_mode: ai  # 記述式/コード記述式のAI採点を使うかどうか
   </div>
 
   <h2 id="example">7. 実践例：簡単な教材を1つ作ってみる</h2>
-  <p>「新人研修プロジェクトに、Python変数の教材を1つ作って、確認問題を1問入れて」と依頼した場合、Claude Codeは概ね以下の手順で進める。</p>
-  <p><strong>① 新規作成（A-16）</strong></p>
-  <pre><code>curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{"project_id": 8, "title": "Python入門：変数"}' \
-  "$URL/api/materials"
-# → {"id": 42, ...}</code></pre>
-  <p><strong>② 取得（A-19）</strong></p>
-  <pre><code>curl -s -H "Authorization: Bearer $TOKEN" "$URL/api/materials/42/source"</code></pre>
-  <p><strong>③ 章・ページ・設問を書き足して保存（A-20）</strong></p>
+  <p>
+    「新人研修プロジェクトに、Python変数の教材を1つ作って、確認問題を1問入れて」と依頼する。
+    このひとことをそのままチャットに送るだけでよい。
+  </p>
+  <div class="callout">
+    <strong>内部の流れ:</strong> Claude Codeは<code>create_material</code>（新規作成）→
+    <code>get_material_source</code>（空の教材の取得）→4〜6章のルールに沿って章・ページ・設問を
+    考えて書き足す→<code>put_material_source</code>（保存）の順に道具を呼び出し、完了したら
+    結果を報告する。利用者はAPI・トークンの類を一切意識しない。
+  </div>
+  <p>
+    上記の依頼に対し、Claude Codeが<code>put_material_source</code>に渡すテキスト（＝実際に
+    保存される教材ソース）はおおむね次のようになる（4〜6章の書式の実例として参考にする）。
+  </p>
   <pre><code>---
-id: 42
-project_id: 8
 title: Python入門：変数
 status: published
 attempt_scope: material
@@ -232,7 +270,6 @@ grading_mode: ai
 ## 変数と型
 
 ### 変数の宣言
-&lt;!-- format:markdown --&gt;
 
 Pythonの変数には型宣言が不要です。`x = 1`と書くだけで変数`x`が作られます。
 
@@ -245,51 +282,41 @@ options:
   - "abc-1 = 1"
 correct_answer: "abc_1 = 1"
 ```</code></pre>
-  <pre><code>curl -s -X PUT -H "Authorization: Bearer $TOKEN" -H "Content-Type: text/plain" \
-  --data-binary @material.md "$URL/api/materials/42/source"</code></pre>
   <p>
-    保存が成功すると、更新後のソース（実際に採番されたノードID<code>&lt;!-- node:xxx --&gt;</code>付き）が
-    そのままレスポンスとして返る。以後この教材をさらに編集する場合は、このノードID付きのソースを
-    ベースに変更すればよい。
+    保存が成功すると、実際に採番されたノードID（<code>&lt;!-- node:xxx --&gt;</code>）付きの
+    ソースが返る。以後この教材をさらに編集する場合、Claude Codeは<code>get_material_source</code>で
+    このノードID付きのソースを取得してから変更する。
   </p>
 
   <h2 id="image">8. 画像の埋め込み</h2>
   <p>
-    本文に画像を貼りたい場合は<code>![説明](attachment:123)</code>という記法を使う（123は下記手順で
-    アップロードした添付ファイルのID）。表示のたびにその時点で有効なURLへ自動的に解決されるため、
-    Base64化して直接貼り付ける必要はない。
+    画像のアップロードはMCPの道具に含まれていない（3章のMCPで対応していない操作を参照）。
+    次の手順でWeb画面から行う。
   </p>
   <ol>
-    <li>
-      アップロード先URLを発行する（A-27）:
-      <pre><code>curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{"filename": "screenshot.png", "mime_type": "image/png", "size_bytes": 12345}' \
-  "$URL/api/materials/{id}/attachments/upload-url"</code></pre>
-      レスポンスの<code>upload_url</code>・<code>storage_key</code>を控える。
-    </li>
-    <li>
-      発行されたURLへ画像本体をアップロードする:
-      <pre><code>curl -s -X PUT --data-binary @screenshot.png "$UPLOAD_URL"</code></pre>
-      （本番はSupabase StorageのURLがそのまま返るため<code>$URL</code>を付けず<code>$UPLOAD_URL</code>だけで叩く。
-      ローカル開発では<code>$URL</code>＋<code>upload_url</code>の組み合わせになる）
-    </li>
-    <li>
-      添付として登録し、IDを取得する（A-29。<code>node_id</code>は画像を貼りたいページのノードID）:
-      <pre><code>curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{"node_id": 456, "kind": "file", "storage_key": "'"$STORAGE_KEY"'", "filename": "screenshot.png", "mime_type": "image/png", "size_bytes": 12345}' \
-  "$URL/api/materials/{id}/attachments"</code></pre>
-      レスポンスの<code>id</code>を使い、本文に<code>![説明](attachment:{id})</code>と書いてA-20で保存する。
-    </li>
+    <li>対象ページの編集画面（S-17教材編集：ページ編集）を開く（Claude Codeに「編集画面のURLを教えて」と
+      頼めば<code>get_material_edit_url</code>で案内してもらえる）。</li>
+    <li>「このページの添付ファイル・リンク」から画像ファイルを選択してアップロードする。</li>
+    <li>一覧に追加された添付の<code>id</code>を確認する。</li>
   </ol>
+  <p>
+    本文中で画像を表示したい位置に<code>![説明](attachment:123)</code>という記法を使う（123は
+    上記でアップロードした添付ファイルのID）。表示のたびにその時点で有効なURLへ自動的に解決されるため、
+    Base64化して直接貼り付ける必要はない。この本文をClaude Codeに伝えれば、<code>put_material_source</code>
+    で保存してもらえる。
+  </p>
   <p>外部サイトへのリンクを貼りたいだけの場合（画像でなく参照用リンク）はこの手順は不要で、通常のMarkdownリンク<code>[表示文言](https://...)</code>をそのまま本文に書けばよい。</p>
 
   <h2 id="troubleshoot">9. よくあるエラーと対処</h2>
   <table>
     <thead><tr><th>状況</th><th>原因・対処</th></tr></thead>
     <tbody>
-      <tr><td>A-20が422を返す</td><td><code>detail</code>にパースエラー内容が入っている（フロントマター不備・見出し順序違反・問題ブロックの必須項目不足など）。内容を確認して修正し再送する。</td></tr>
-      <tr><td>401エラー</td><td>CLIトークンが無い、または失効している（90日）。<code>python cli/manabi_login.py</code>で再ログインする。</td></tr>
-      <tr><td>403エラー</td><td>指定した<code>project_id</code>の編集者以上（またはシステムadmin）の権限が無い。所属プロジェクトが分からない場合は<code>GET /api/projects</code>で一覧を確認する。</td></tr>
+      <tr><td>Claude Codeが「manabiの道具が見つからない」「MCPサーバーに接続できない」と言う</td><td>2.2節の<code>claude mcp add</code>が済んでいないか、登録前のセッションのままになっている。セッション内で<code>/mcp</code>と打って接続状況を確認し、繋がっていなければ新しいセッションを開き直す（新しいセッションの開き方はClaude Codeのコマンドパレットから「Claude Code: Open in New Tab」等）。</td></tr>
+      <tr><td>本番のはずがローカルに（またはその逆）繋がっている</td><td>登録したMCPサーバーの接続先（2.2節のURL）を確認する。ローカル・本番それぞれ別名で登録している場合は、依頼時に「manabi-prodを使って」のようにサーバー名を明示する。</td></tr>
+      <tr><td>MCP経由の道具呼び出しがエラーになる</td><td>権限不足（対象教材の編集者以上でない）・存在しない教材IDの指定など、原因は<code>put_material_source</code>と同様。Claude Codeにエラー内容を確認してもらい、対象や依頼内容を見直す。</td></tr>
+      <tr><td><code>put_material_source</code>がエラーを返す</td><td>フロントマター不備・見出し順序違反・問題ブロックの必須項目不足など、パースエラーの内容がエラーメッセージに含まれる。内容を確認して修正し再送する。</td></tr>
+      <tr><td>401エラー</td><td>APIキーが失効している。プロフィール画面から再発行し、2.2節の手順で登録し直す。</td></tr>
+      <tr><td>403エラー</td><td>指定した<code>project_id</code>の編集者以上（またはシステムadmin）の権限が無い。所属プロジェクトが分からない場合は「参加しているプロジェクトを教えて」のようにClaude Codeに確認してもらう。</td></tr>
       <tr><td>「第1章 第1章 …」のように章番号が二重表示される</td><td>章タイトルに自分で番号を書いてしまっている。5章の注意を参照し、タイトルから番号を除く。</td></tr>
       <tr><td>本文中の見出し記号でページが意図せず分割される</td><td>本文中の<code>#</code>〜<code>###</code>で始まる行（コードコメント含む）が<code>\</code>でエスケープされていない。5章の注意を参照。</td></tr>
     </tbody>
@@ -297,7 +324,7 @@ correct_answer: "abc_1 = 1"
 
   <footer class="doc-footer">
     <span>社内学習管理システム（Manabi）</span>
-    <span>Ver 1.0 / 2026-09-11</span>
+    <span>Ver 1.1 / 2026-09-14</span>
   </footer>
 
 </div>
