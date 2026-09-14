@@ -273,7 +273,7 @@ export interface AttemptSummaryEntry {
   answers: {
     question_id: number
     prompt: string
-    // 記録型（score_log）は正誤の概念が無いため対象外（2026-09-11、選択式も含めるよう拡張）
+    // スコア記録型（score_log）は正誤の概念が無いため対象外（2026-09-11、選択式も含めるよう拡張）
     type: Exclude<QuestionType, 'score_log'>
     response: unknown
     is_correct: boolean | null
@@ -506,6 +506,32 @@ export interface QuestionSummaryItem {
   total_answers: number
   accuracy_pct: number | null
   pending_count: number
+}
+
+// A-73 GET /api/questions/{question_id}/answers のレスポンス（S-19 設問別の回答・結果一覧）
+export interface QuestionAnswersResponse {
+  question: {
+    id: number
+    type: QuestionType
+    prompt: string
+    options: string[] | null
+    correct_answer: string | string[] | null
+    grading_mode: 'ai' | 'manual' | null
+    score_unit: string | null
+    material_id: number
+    material_title: string
+    node_path: string
+  }
+  items: {
+    user_id: number
+    user_name: string
+    response: unknown
+    is_correct: boolean | null
+    ai_score_pct: number | null
+    ai_feedback: string | null
+    reviewed_at: string | null
+    submitted_at: string
+  }[]
 }
 
 // A-36〜A-38 配信設定（S-06）。1教材につきscope_type='project'の行1件（任意）＋

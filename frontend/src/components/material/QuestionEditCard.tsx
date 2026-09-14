@@ -22,7 +22,7 @@ const TYPE_OPTIONS: { value: QuestionType; label: string }[] = (
 ).map((value) => ({ value, label: questionTypeLabel(value) }))
 
 // 設問編集カード（詳細設計書2.1.6節）。S-05目次編集タブ・S-17ページ編集で共通利用する想定だが、
-// 今回はS-17でのみ初実装する。単一選択・複数選択・並び替え・記述式・コード記述式・記録型の6種すべてを編集できる。
+// 今回はS-17でのみ初実装する。単一選択・複数選択・並び替え・記述式・コード記述式・スコア記録型の6種すべてを編集できる。
 export default function QuestionEditCard({
   question,
   index,
@@ -71,7 +71,7 @@ export default function QuestionEditCard({
         <Select value={question.type} onChange={changeType} options={TYPE_OPTIONS} className="w-40" />
         {isScoreLog && (
           <p className="text-[11px] text-slate-400">
-            ※記録型は正解・不正解の概念がなく、必須にしても合否判定・ドボンには一切影響しません（自己申告の数値をそのまま記録するだけです）。
+            ※スコア記録型は正解・不正解の概念がなく、必須にしても合否判定・ドボンには一切影響しません（自己申告の数値をそのまま記録するだけです）。
           </p>
         )}
       </div>
@@ -135,7 +135,7 @@ export default function QuestionEditCard({
           <label className="text-xs font-semibold text-slate-500">ドボン問題</label>
           <label
             className={`flex items-center gap-1 text-xs ${isScoreLog ? 'opacity-40' : ''}`}
-            title={isScoreLog ? '記録型には設定できません' : undefined}
+            title={isScoreLog ? 'スコア記録型には設定できません' : undefined}
           >
             <input
               type="checkbox"

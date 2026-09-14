@@ -18,6 +18,7 @@ import PersonalReport from './pages/PersonalReport'
 import Dashboard from './pages/Dashboard'
 import ProfileEdit from './pages/ProfileEdit'
 import Grading from './pages/Grading'
+import QuestionAnswers from './pages/QuestionAnswers'
 import CliKeyOnboarding from './pages/CliKeyOnboarding'
 import AppShell from './components/layout/AppShell'
 
@@ -53,6 +54,7 @@ export default function App() {
         <Route path="/materials" element={<MaterialsSearch />} />
         <Route path="/materials/:materialId" element={<MaterialView />} />
         <Route path="/materials/:materialId/pages/:nodeId" element={<MaterialPageView />} />
+        <Route path="/materials/:materialId/questions/:questionId/answers" element={<QuestionAnswers />} />
         <Route path="/projects/:projectId/materials/edit" element={<MaterialsList />} />
         <Route path="/projects/:projectId/materials/:materialId/edit" element={<MaterialEdit />} />
         <Route path="/projects/:projectId/materials/:materialId/preview" element={<MaterialPreview />} />

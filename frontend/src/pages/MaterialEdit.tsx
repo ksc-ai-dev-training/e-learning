@@ -1592,14 +1592,12 @@ export default function MaterialEdit() {
                           </td>
                           <td className="px-3 py-2 text-slate-700">{item.prompt}</td>
                           <td className="px-3 py-2">
-                            <button
-                              type="button"
-                              disabled
-                              title="準備中（S-19実装後に有効化）"
-                              className="rounded-md border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-400 disabled:cursor-not-allowed"
+                            <Link
+                              to={`/materials/${savedId}/questions/${item.question_id}/answers`}
+                              className="rounded-md border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50"
                             >
                               詳細を見る
-                            </button>
+                            </Link>
                           </td>
                         </tr>
                       ))}

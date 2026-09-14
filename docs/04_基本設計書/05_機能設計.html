@@ -155,7 +155,7 @@
 
   <h3>5.22 F-22 AI個人フィードバック</h3>
   <p><strong>処理概要:</strong> 受講者ごとの回答傾向から、理解不足の点や次に学ぶとよい教材を本人に示す（対応要求: REQ-F-18）。個人学習レポート画面（S-09）を開いたとき、または受講完了時に非同期で生成し、T-17 <code>ai_personal_feedback</code> に保存する。</p>
-  <p class="rev-new"><strong>記録型（<code>type='score_log'</code>）の推移コメント（v1.17）:</strong> 正誤の概念がないため、通常のつまずき分析（F-21）ではなく本機能の入力データに、対象者のスコア推移（<code>answers.response.score</code>の時系列）を加える。生成タイミングは通常のF-22と同じくS-09を開いたときとし、記録するたびに都度生成することはしない（例:「タイピング練習のスコアが着実に上がっています。直近3回で45→52→58 WPM」）。</p>
+  <p class="rev-new"><strong>スコア記録型（<code>type='score_log'</code>）の推移コメント（v1.17）:</strong> 正誤の概念がないため、通常のつまずき分析（F-21）ではなく本機能の入力データに、対象者のスコア推移（<code>answers.response.score</code>の時系列）を加える。生成タイミングは通常のF-22と同じくS-09を開いたときとし、記録するたびに都度生成することはしない（例:「タイピング練習のスコアが着実に上がっています。直近3回で45→52→58 WPM」）。</p>
   <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
     <tbody><tr><td>S-09</td><td>A-51, A-52</td><td>T-12〜T-14, T-17, T-19</td></tr></tbody></table>
 

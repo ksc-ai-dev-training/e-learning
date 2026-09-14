@@ -292,7 +292,7 @@ async def start_attempt(id: int, body: StartAttemptIn, user: CurrentUser = Depen
                 )
                 correct_ids = {a["question_id"] for a in prev_answers if a["is_correct"]}
                 carried_over = sorted(correct_ids)
-                # 記録型（score_log）は正誤の概念が無くis_correctが常にNULLのため、上のcorrect_idsには
+                # スコア記録型（score_log）は正誤の概念が無くis_correctが常にNULLのため、上のcorrect_idsには
                 # 絶対に入らず「誤答のみ」でも毎回出題され続けてしまっていた（2026-09-11、ユーザー報告
                 # により発見・修正）。合否判定にも一切算入されない設問なので、正解扱いで繰り越す
                 # （carried_over_question_ids）必要も無く、単に今回の出題対象から除外するだけでよい。
@@ -332,7 +332,7 @@ async def start_attempt(id: int, body: StartAttemptIn, user: CurrentUser = Depen
     # 正解済み設問（carried_over_question_ids）もquestion_orderへ合流させ、その回答も合わせて
     # 返す。そうしないと合格後に見返したとき、実際に解き直した設問しか表示されず、以前から
     # 正解していた設問の回答が見えなくなってしまう（2026-09-11、ユーザー報告により発見・修正）。
-    # ページ内の並びは現在のquestions（sort_order順）に揃え、記録型（score_log）は元々「誤答のみ」の
+    # ページ内の並びは現在のquestions（sort_order順）に揃え、スコア記録型（score_log）は元々「誤答のみ」の
     # 対象外なのでここでも含めない。
     if attempt["submitted_at"] is not None and attempt["carried_over_question_ids"]:
         carried_over_set = set(attempt["carried_over_question_ids"])
@@ -649,6 +649,66 @@ async def review_answer(answer_id: int, body: AnswerReviewIn, user: CurrentUser 
     )
     await _recompute_attempt_result(pool, row["attempt_id"])
     return {"detail": "採点結果を保存しました"}
+
+
+@router.get("/questions/{question_id}/answers")
+async def get_question_answers(question_id: int, user: CurrentUser = Depends(require_auth)):
+    """A-73: 指定した設問への全受講者の回答一覧を取得する（S-19「設問別の回答・結果一覧」の
+    読み取り専用診断ビュー用）。氏名付きで個々の回答を返すため、対象教材が紐づくプロジェクトの
+    管理者・編集者、またはadminに限定する（3.5節）。選択肢ごとの回答分布・正答率等の集計は
+    フロントエンド側で本APIが返す生の回答一覧から種別に応じて組み立てる（2026-09-14新規実装。
+    設計時点のA-73は基本設計書v1.22で先行定義されていたが、実装は本バージョンが初めて）。"""
+    pool = get_pool()
+    q_row = await pool.fetchrow(
+        """SELECT q.id, q.type, q.prompt, q.options, q.correct_answer, q.grading_mode, q.score_unit, q.node_id,
+                  m.id AS material_id, m.title AS material_title, m.project_id
+           FROM questions q
+           JOIN material_nodes n ON n.id = q.node_id
+           JOIN materials m ON m.id = n.material_id
+           WHERE q.id = $1""",
+        question_id,
+    )
+    if q_row is None:
+        raise HTTPException(404, detail="設問が見つかりません")
+    await check_project_role(user, q_row["project_id"], "editor")
+
+    node_rows = await pool.fetch(
+        "SELECT id, parent_node_id, title FROM material_nodes WHERE material_id = $1", q_row["material_id"]
+    )
+    nodes_by_id = {n["id"]: n for n in node_rows}
+    node_path = _build_node_path(q_row["node_id"], nodes_by_id)
+
+    answer_rows = await pool.fetch(
+        """SELECT u.id AS user_id, u.name AS user_name, a.response, a.is_correct,
+                  a.ai_score_pct, a.ai_feedback, a.reviewed_at, qa.submitted_at
+           FROM answers a
+           JOIN quiz_attempts qa ON qa.id = a.attempt_id
+           JOIN users u ON u.id = qa.user_id
+           WHERE a.question_id = $1 AND qa.submitted_at IS NOT NULL
+           ORDER BY qa.submitted_at DESC""",
+        question_id,
+    )
+    items = []
+    for r in answer_rows:
+        d = dict(r)
+        d["response"] = json.loads(d["response"]) if d["response"] is not None else None
+        items.append(d)
+
+    return {
+        "question": {
+            "id": q_row["id"],
+            "type": q_row["type"],
+            "prompt": q_row["prompt"],
+            "options": json.loads(q_row["options"]) if q_row["options"] is not None else None,
+            "correct_answer": json.loads(q_row["correct_answer"]) if q_row["correct_answer"] is not None else None,
+            "grading_mode": q_row["grading_mode"],
+            "score_unit": q_row["score_unit"],
+            "material_id": q_row["material_id"],
+            "material_title": q_row["material_title"],
+            "node_path": node_path,
+        },
+        "items": items,
+    }
 
 
 def _build_node_path(node_id: int, nodes_by_id: dict) -> str:
@@ -1032,7 +1092,7 @@ async def start_wrong_questions_attempt(id: int, body: WrongQuestionsIn, user: C
 async def get_attempt_summary(id: int, user: CurrentUser = Depends(require_auth)):
     """A-86: S-04「前回の受験結果パネル」「採点結果パネル」向け。attempt_scopeで定まる
     スコープ群ごとに、自分の最新graded試行（提出済みのもの。無ければそのスコープは省略する）と、
-    その回答（記録型を除く全種別。AI講評込み）をまとめて返す（2026-09-11、選択式が除外されていた
+    その回答（スコア記録型を除く全種別。AI講評込み）をまとめて返す（2026-09-11、選択式が除外されていた
     不具合を修正し、手動採点結果も同じ仕組みで表示するようパネル名を「採点結果」に改称した）。"""
     pool = get_pool()
     await _require_view_access(pool, id, user)

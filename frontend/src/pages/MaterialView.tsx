@@ -83,7 +83,7 @@ export default function MaterialView() {
   const [startingWrongOnly, setStartingWrongOnly] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
 
-  // 採点結果パネル: attemptSummaryの各スコープの回答（記録型を除く）を横断集約する
+  // 採点結果パネル: attemptSummaryの各スコープの回答（スコア記録型を除く）を横断集約する
   // （2026-09-11、選択式が除外されていた不具合を修正し、手動採点結果も表示するようパネル名を改称）
   const gradedAnswers = attemptSummary.flatMap((entry) =>
     entry.answers.map((a) => ({ ...a, scope_label: entry.scope_label })),
