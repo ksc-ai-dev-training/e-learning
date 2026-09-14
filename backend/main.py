@@ -1,7 +1,7 @@
 # FastAPIアプリ生成、ルーター登録、起動設定（詳細設計書 2章）
 import asyncio
 import os
-from contextlib import asynccontextmanager
+from contextlib import AsyncExitStack, asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse
@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 
 import database
 import job_sweep
+from mcp_server import mcp_asgi_app
 from routers import assignments, auth, dashboard, learning, materials, organization, reports, settings, uploads, users
 
 
@@ -16,7 +17,12 @@ from routers import assignments, auth, dashboard, learning, materials, organizat
 async def lifespan(app: FastAPI):
     await database.init_pool()
     sweep_task = asyncio.create_task(job_sweep.run_periodic_sweep())
-    yield
+    # MCPサーバー（mcp_asgi_app）はASGIのマウント先として登録するだけでは自身のlifespan
+    # （セッションマネージャーの起動・後片付け）が呼ばれないため、親アプリのlifespan内で
+    # 明示的にenter_async_contextする（2026-09-14、MCPサーバー新設に伴い対応）。
+    async with AsyncExitStack() as mcp_stack:
+        await mcp_stack.enter_async_context(mcp_asgi_app.router.lifespan_context(mcp_asgi_app))
+        yield
     sweep_task.cancel()
     await database.close_pool()
 
@@ -36,6 +42,7 @@ app.include_router(settings.router)
 app.include_router(reports.router)
 app.include_router(reports.org_router)
 app.include_router(dashboard.router)
+app.mount("/mcp", mcp_asgi_app)
 
 
 @app.get("/healthz", include_in_schema=False)

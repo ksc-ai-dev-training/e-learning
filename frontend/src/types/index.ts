@@ -7,6 +7,14 @@ export interface Me {
   name: string
   role: Role
   picture_url: string | null
+  needs_cli_key_prompt: boolean
+}
+
+// GET /api/auth/cli/tokens のitems（プロフィール画面の鍵管理用）
+export interface CliTokenItem {
+  id: number
+  created_at: string
+  revoked: boolean
 }
 
 // A-50 GET /api/reports/personal/{user_id} のレスポンス（S-09 個人学習レポート）
@@ -451,7 +459,7 @@ export interface IncomingMaterialShare {
 export interface MaterialRevision {
   id: number
   changed_by_name: string
-  changed_via: 'web' | 'claude_code'
+  changed_via: 'web' | 'claude_code' | 'mcp'
   change_summary: string | null
   created_at: string
 }

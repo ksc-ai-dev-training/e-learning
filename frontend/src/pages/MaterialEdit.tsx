@@ -1790,7 +1790,7 @@ export default function MaterialEdit() {
                               <td className="px-3 py-2">{r.changed_by_name}</td>
                               <td className="px-3 py-2">{r.change_summary}</td>
                               <td className="px-3 py-2 text-slate-500">
-                                {r.changed_via === 'web' ? '画面' : 'Claude Code'}
+                                {r.changed_via === 'web' ? '画面' : r.changed_via === 'mcp' ? 'MCP' : 'Claude Code'}
                               </td>
                             </tr>
                           ))}

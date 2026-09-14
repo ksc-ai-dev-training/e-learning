@@ -3,6 +3,7 @@ import hmac
 import logging
 import os
 import secrets
+import uuid
 from urllib.parse import urlencode
 
 import google_auth
@@ -166,6 +167,66 @@ async def auth_cli_revoke(user: CurrentUser = Depends(require_auth)):
     return {"detail": "トークンを失効しました"}
 
 
+@router.post("/cli/token")
+async def auth_cli_self_issue(request: Request, user: CurrentUser = Depends(require_auth)):
+    """新規: ログイン中のWebセッションから自分用のCLIトークンを自己発行する（Claude Code連携・
+    MCPサーバ共通の認証に使う）。CLIトークンでさらにCLIトークンを発行させない点はA-63と同じガード。
+    発行と同時に案内画面（初回ログイン時のセルフ発行の案内）を「対応済み」にする。
+    manabi_urlはFRONTEND_URL環境変数ではなく実際にこのAPIへアクセスしたオリジン（request.base_url）
+    から求める。本番は単一オリジン構成（main.py）のため両者は一致するが、ローカル開発では
+    フロントエンド（Vite）とバックエンドのポートが異なり、MCPサーバは常にバックエンド側にある
+    ため、FRONTEND_URLを使うと接続先の案内が誤ったポートになってしまう（2026-09-14、実機確認で発見）。"""
+    if user.token_type == "cli":
+        raise HTTPException(400, detail="通常ログイン中のセッションでのみ実行できます")
+    jti = uuid.uuid4().hex
+    token = issue_jwt(user.id, user.role, token_type="cli", jti=jti, expires_seconds=CLI_TOKEN_EXPIRES_SECONDS)
+    async with get_pool().acquire() as conn:
+        async with conn.transaction():
+            await conn.execute("INSERT INTO cli_tokens (user_id, jti) VALUES ($1, $2)", user.id, jti)
+            await conn.execute("UPDATE users SET cli_key_prompt_seen_at = now() WHERE id = $1", user.id)
+    return {"token": token, "manabi_url": str(request.base_url).rstrip("/")}
+
+
+@router.post("/cli/prompt-dismiss")
+async def auth_cli_prompt_dismiss(user: CurrentUser = Depends(require_auth)):
+    """新規: 初回ログイン時のセルフ発行案内画面で「後で設定する」を選んだ場合に呼ぶ。
+    鍵は発行せず、案内済みの記録だけを残す。"""
+    await get_pool().execute(
+        "UPDATE users SET cli_key_prompt_seen_at = now() WHERE id = $1", user.id,
+    )
+    return {"detail": "後で設定するに変更しました"}
+
+
+@router.get("/cli/tokens")
+async def list_cli_tokens(user: CurrentUser = Depends(require_auth)):
+    """新規: 自分が発行したCLIトークンの一覧（プロフィール画面の鍵管理用）。失効しているかどうかは
+    cli_token_revocations（jtiで突き合わせ）を正として判定し、cli_tokens側に独自の状態は持たない。"""
+    rows = await get_pool().fetch(
+        """SELECT ct.id, ct.created_at, (r.jti IS NOT NULL) AS revoked
+           FROM cli_tokens ct
+           LEFT JOIN cli_token_revocations r ON r.jti = ct.jti
+           WHERE ct.user_id = $1
+           ORDER BY ct.created_at DESC""",
+        user.id,
+    )
+    return {"items": [dict(r) for r in rows]}
+
+
+@router.delete("/cli/tokens/{id}")
+async def revoke_cli_token_by_id(id: int, user: CurrentUser = Depends(require_auth)):
+    """新規: 発行済みの鍵一覧から、対象の鍵そのものを提示せずに個別に失効させる。既存のA-63
+    （/cli/revoke、自分が今使っているトークン自身をBearerとして提示して失効）とは異なり、
+    通常のログインセッションから、過去に発行した任意の鍵を指定して失効できる。"""
+    row = await get_pool().fetchrow("SELECT jti FROM cli_tokens WHERE id = $1 AND user_id = $2", id, user.id)
+    if row is None:
+        raise HTTPException(404, detail="鍵が見つかりません")
+    await get_pool().execute(
+        "INSERT INTO cli_token_revocations (jti, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+        row["jti"], user.id,
+    )
+    return {"detail": "失効しました"}
+
+
 class DevLoginRequest(BaseModel):
     email: str
 
@@ -226,6 +287,7 @@ async def me(user: CurrentUser = Depends(require_auth)):
     return {
         "id": user.id, "email": user.email, "name": user.name,
         "role": user.role, "picture_url": picture_url,
+        "needs_cli_key_prompt": user.cli_key_prompt_seen_at is None,
     }
 
 

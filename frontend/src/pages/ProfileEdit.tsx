@@ -6,9 +6,12 @@ import Panel from '../components/ui/Panel'
 import TextInput from '../components/ui/TextInput'
 import { useMe } from '../hooks/useMe'
 import { useMyMemberships } from '../hooks/useMyMemberships'
+import { useCliTokens } from '../hooks/useCliTokens'
 import { ApiError } from '../lib/api'
+import { formatDateTimeJst } from '../lib/datetime'
 import { respondToInvite } from '../lib/projectActions'
 import { resetProfileIcon, updateProfileName, uploadProfileIcon } from '../lib/profileActions'
+import { issueCliKey, revokeCliKey } from '../lib/cliKeyActions'
 
 // S-15 プロフィール編集（基本設計書4.14a節）。表示名編集・アイコンのアップロード／Googleの
 // プロフィール画像への差し戻し・所属プロジェクト一覧・招待されているプロジェクトへの承諾/辞退を
@@ -30,6 +33,13 @@ export default function ProfileEdit() {
 
   const [respondingId, setRespondingId] = useState<number | null>(null)
   const [respondError, setRespondError] = useState<string | null>(null)
+
+  const { tokens: cliTokens, isLoading: cliTokensLoading, mutate: mutateCliTokens } = useCliTokens()
+  const [issuingKey, setIssuingKey] = useState(false)
+  const [keyError, setKeyError] = useState<string | null>(null)
+  const [issuedKey, setIssuedKey] = useState<{ token: string; manabi_url: string } | null>(null)
+  const [keyCopied, setKeyCopied] = useState(false)
+  const [revokingId, setRevokingId] = useState<number | null>(null)
 
   useEffect(() => {
     if (me) setName(me.name)
@@ -85,6 +95,40 @@ export default function ProfileEdit() {
       setIconError(err instanceof ApiError ? err.message : '削除に失敗しました')
     } finally {
       setUploadingIcon(false)
+    }
+  }
+
+  const handleIssueKey = async () => {
+    setKeyError(null)
+    setKeyCopied(false)
+    setIssuingKey(true)
+    try {
+      const result = await issueCliKey()
+      setIssuedKey(result)
+      await mutateCliTokens()
+    } catch (err) {
+      setKeyError(err instanceof ApiError ? err.message : '発行に失敗しました')
+    } finally {
+      setIssuingKey(false)
+    }
+  }
+
+  const handleCopyKey = async () => {
+    if (!issuedKey) return
+    await navigator.clipboard.writeText(issuedKey.token)
+    setKeyCopied(true)
+  }
+
+  const handleRevokeKey = async (id: number) => {
+    setKeyError(null)
+    setRevokingId(id)
+    try {
+      await revokeCliKey(id)
+      await mutateCliTokens()
+    } catch (err) {
+      setKeyError(err instanceof ApiError ? err.message : '失効に失敗しました')
+    } finally {
+      setRevokingId(null)
     }
   }
 
@@ -165,6 +209,67 @@ export default function ProfileEdit() {
             <div className="flex items-center gap-3">
               <span className="w-20 flex-shrink-0 text-xs font-semibold text-slate-500">システムロール</span>
               <Badge variant={me.role === 'admin' ? 'admin' : 'learner'} />
+            </div>
+          </div>
+        </Panel>
+
+        <Panel title="APIキー（Claude Code連携）">
+          <div className="flex flex-col gap-3 p-4 text-sm">
+            <p className="text-xs text-slate-500">
+              Claude Codeで教材を作成・編集する場合に使う鍵です。発行するたびに新しい鍵が発行されます
+              （古い鍵は失効しません。不要になった鍵はご自身で失効してください）。
+            </p>
+            {!issuedKey ? (
+              <div>
+                <Button variant="secondary" onClick={handleIssueKey} disabled={issuingKey}>
+                  {issuingKey ? '発行中...' : '発行する'}
+                </Button>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 overflow-x-auto rounded border border-slate-200 bg-slate-50 px-3 py-2 text-xs">
+                    {issuedKey.token}
+                  </code>
+                  <Button variant="secondary" onClick={handleCopyKey}>
+                    {keyCopied ? 'コピーしました' : 'コピー'}
+                  </Button>
+                </div>
+                <p className="text-xs text-slate-500">
+                  接続先: <code>{issuedKey.manabi_url}/mcp</code>
+                </p>
+              </>
+            )}
+            {keyError && <p className="text-xs text-red-600">{keyError}</p>}
+
+            <div className="mt-1 border-t border-slate-100 pt-3">
+              <p className="mb-2 text-xs font-semibold text-slate-500">発行済みの鍵</p>
+              {cliTokensLoading ? (
+                <p className="py-3 text-center text-xs text-slate-400">読み込み中...</p>
+              ) : cliTokens.length === 0 ? (
+                <p className="py-3 text-center text-xs text-slate-400">発行した鍵はありません。</p>
+              ) : (
+                <ul className="divide-y divide-slate-100">
+                  {cliTokens.map((t) => (
+                    <li key={t.id} className="flex items-center justify-between py-2 text-xs">
+                      <span className="text-slate-600">
+                        {formatDateTimeJst(t.created_at)}に発行
+                        {t.revoked && <span className="ml-2 text-slate-400">（失効済み）</span>}
+                      </span>
+                      {!t.revoked && (
+                        <button
+                          type="button"
+                          disabled={revokingId === t.id}
+                          onClick={() => handleRevokeKey(t.id)}
+                          className="font-semibold text-red-700 hover:underline disabled:opacity-50"
+                        >
+                          {revokingId === t.id ? '失効中...' : '失効する'}
+                        </button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           </div>
         </Panel>

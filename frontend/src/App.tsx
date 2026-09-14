@@ -18,11 +18,12 @@ import PersonalReport from './pages/PersonalReport'
 import Dashboard from './pages/Dashboard'
 import ProfileEdit from './pages/ProfileEdit'
 import Grading from './pages/Grading'
+import CliKeyOnboarding from './pages/CliKeyOnboarding'
 import AppShell from './components/layout/AppShell'
 
 // ルーティング定義・認証ガード。
 export default function App() {
-  const { me, isLoading } = useMe()
+  const { me, isLoading, mutate } = useMe()
 
   if (isLoading) {
     return <div className="p-8 text-center text-sm text-slate-400">読み込み中...</div>
@@ -35,6 +36,12 @@ export default function App() {
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     )
+  }
+
+  // 初回ログイン直後、Claude Code連携用APIキーのセルフ発行案内を一度だけ挟む（スキップ可。
+  // 2026-09-14）。通常画面（AppShell）はまだ無いため、単独の画面として描画する。
+  if (me.needs_cli_key_prompt) {
+    return <CliKeyOnboarding onDone={() => mutate()} />
   }
 
   return (

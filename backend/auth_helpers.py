@@ -32,6 +32,7 @@ class CurrentUser:
     picture_url: str | None
     token_type: str = "session"
     jti: str | None = None
+    cli_key_prompt_seen_at: datetime | None = None
 
 
 def issue_jwt(
@@ -60,14 +61,9 @@ def verify_jwt(token: str) -> dict:
         raise HTTPException(401, detail="認証が必要です")
 
 
-async def require_auth(request: Request) -> CurrentUser:
-    token = request.cookies.get(SESSION_COOKIE)
-    if token is None:
-        auth_header = request.headers.get("Authorization", "")
-        if auth_header.startswith("Bearer "):
-            token = auth_header[len("Bearer "):]
-    if token is None:
-        raise HTTPException(401, detail="認証が必要です")
+async def resolve_current_user_from_token(token: str) -> CurrentUser:
+    """トークン検証→CLI失効チェック→ユーザー行取得までを行う。require_auth（Cookie/Bearer両対応）と
+    MCPサーバ（Bearerのみ、FastAPIの依存性注入を経由しない）の双方から共有する（2026-09-14新設）。"""
     payload = verify_jwt(token)
     if payload.get("token_type") == "cli":
         jti = payload.get("jti")
@@ -77,7 +73,7 @@ async def require_auth(request: Request) -> CurrentUser:
         if revoked:
             raise HTTPException(401, detail="失効済みのCLIトークンです")
     row = await get_pool().fetchrow(
-        "SELECT id, email, name, role, is_active, picture_url FROM users WHERE id = $1",
+        "SELECT id, email, name, role, is_active, picture_url, cli_key_prompt_seen_at FROM users WHERE id = $1",
         int(payload["sub"]),
     )
     if row is None or not row["is_active"]:
@@ -86,7 +82,19 @@ async def require_auth(request: Request) -> CurrentUser:
         id=row["id"], email=row["email"], name=row["name"],
         role=row["role"], picture_url=row["picture_url"],
         token_type=payload.get("token_type", "session"), jti=payload.get("jti"),
+        cli_key_prompt_seen_at=row["cli_key_prompt_seen_at"],
     )
+
+
+async def require_auth(request: Request) -> CurrentUser:
+    token = request.cookies.get(SESSION_COOKIE)
+    if token is None:
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            token = auth_header[len("Bearer "):]
+    if token is None:
+        raise HTTPException(401, detail="認証が必要です")
+    return await resolve_current_user_from_token(token)
 
 
 def require_roles(*roles: str):

@@ -69,6 +69,10 @@ ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE users DROP COLUMN IF EXISTS slack_user_id;
 ALTER TABLE users DROP COLUMN IF EXISTS slack_access_token;
 ALTER TABLE users DROP COLUMN IF EXISTS slack_connected_at;
+-- Claude Code連携（F-05）のCLIトークンをセルフサービスで発行できるようにするための案内画面
+-- （初回ログイン直後に一度だけ表示、スキップ可）を、まだ見せた/対応させたことがあるかの記録。
+-- NULLのまま追加するため既存ユーザーも含めて次回ログイン時に一度だけ表示される（2026-09-14）。
+ALTER TABLE users ADD COLUMN IF NOT EXISTS cli_key_prompt_seen_at TIMESTAMPTZ;
 
 -- T-03 projects
 CREATE TABLE IF NOT EXISTS projects (
@@ -384,6 +388,11 @@ CREATE TABLE IF NOT EXISTS material_revisions (
 CREATE INDEX IF NOT EXISTS idx_material_revisions_material_id
     ON material_revisions (material_id, created_at DESC);
 ALTER TABLE material_revisions ENABLE ROW LEVEL SECURITY;
+-- MCPサーバー（backend/mcp_server.py）経由のput_material_sourceを、Claude Code CLI直接連携
+-- （'claude_code'）と区別して記録できるようにする（2026-09-14）。
+ALTER TABLE material_revisions DROP CONSTRAINT IF EXISTS material_revisions_changed_via_check;
+ALTER TABLE material_revisions ADD CONSTRAINT material_revisions_changed_via_check
+    CHECK (changed_via IN ('web', 'claude_code', 'mcp'));
 
 -- T-26 surveys（受講後アンケート。node_id=NULLは教材全体、設定時は対象の章）
 CREATE TABLE IF NOT EXISTS surveys (
@@ -439,6 +448,20 @@ CREATE TABLE IF NOT EXISTS cli_token_revocations (
     revoked_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ALTER TABLE cli_token_revocations ENABLE ROW LEVEL SECURITY;
+
+-- T-33 cli_tokens（発行済みCLIトークンの記録。cli_token_revocationsが「失効させたもの」だけを
+-- 持つのに対し、こちらは「発行したもの全て」を持つ。セルフサービスの鍵一覧・個別失効UI
+-- （プロフィール画面）のために新設。JWT自体はステートレスなためトークンの中身は保存せず、
+-- 識別に使うjtiと発行時刻のみ持つ。失効しているかどうかは、この行が持つ独自のフラグではなく、
+-- 常にcli_token_revocations（jtiで突き合わせ）を正とする＝二重管理・食い違いを防ぐ（2026-09-14）。
+CREATE TABLE IF NOT EXISTS cli_tokens (
+    id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    user_id     BIGINT NOT NULL REFERENCES users(id),
+    jti         TEXT NOT NULL UNIQUE,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_cli_tokens_user_id ON cli_tokens (user_id);
+ALTER TABLE cli_tokens ENABLE ROW LEVEL SECURITY;
 
 -- T-22 material_project_shares（F-26 教材のプロジェクト間共有。複製モデル、基本設計書5.27節）。
 -- statusが'accepted'になった時点で共有先プロジェクトへ教材の複製が新規作成される（この行自体は

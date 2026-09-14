@@ -755,13 +755,25 @@ async def get_material_source(
 async def put_material_source(
     id: int, request: Request, user: CurrentUser = Depends(require_material_role(min_role="editor"))
 ):
-    """A-20: 目次構造の全置換保存（詳細設計書7.3節）。目次ツリー編集（章・小見出しの追加/削除/並び替え）は
+    """A-20: 目次構造の全置換保存（詳細設計書7.3節）。リクエストボディ・ヘッダーを読み取り、
+    実処理は_put_material_source_implに委譲する（MCPサーバのput_material_sourceツールからも
+    Requestオブジェクトを介さず直接呼べるようにするための切り出し。2026-09-14）。"""
+    text = (await request.body()).decode("utf-8")
+    expected_updated_at = request.headers.get("x-expected-updated-at")
+    return await _put_material_source_impl(id, text, user, expected_updated_at)
+
+
+async def _put_material_source_impl(
+    id: int, text: str, user: CurrentUser, expected_updated_at: str | None, changed_via: str | None = None
+) -> Response:
+    """changed_viaを省略すると、user.token_typeから'claude_code'/'web'を自動判定する（従来どおり）。
+    MCPサーバー（mcp_server.py）はこの自動判定と区別するため、明示的に'mcp'を渡す（2026-09-14）。
+    目次ツリー編集（章・小見出しの追加/削除/並び替え）は
     このAPIを都度呼ぶ形にする（Claude Code連携A-19/A-20と同じ書き込み経路。7章参照）。
     複数人での同時編集による無条件上書き事故を防ぐため、`X-Expected-Updated-At`ヘッダーで
     クライアントが把握している時点のupdated_atを送らせ、現在のDBの値と食い違えば409で拒否する
-    （楽観的ロック。2026-09-10）。Claude Code CLI連携（A-19/A-20往復）はこのヘッダーを送らないため、
-    ヘッダー省略時は従来通り無条件で保存する。"""
-    text = (await request.body()).decode("utf-8")
+    （楽観的ロック。2026-09-10）。Claude Code CLI連携（A-19/A-20往復）・MCPサーバ経由の呼び出しは
+    このヘッダーを送らないため、省略時は従来通り無条件で保存する。"""
     try:
         meta, nodes = parse_source(text)
     except MaterialParseError as e:
@@ -774,7 +786,6 @@ async def put_material_source(
             if material_row is None:
                 raise HTTPException(404, detail="教材が見つかりません")
 
-            expected_updated_at = request.headers.get("x-expected-updated-at")
             expected_dt = None
             if expected_updated_at is not None:
                 try:
@@ -900,7 +911,8 @@ async def put_material_source(
                 summary_parts.append(f"問題を{q_added}件追加/{q_updated}件更新/{q_deleted}件削除")
             change_summary = "、".join(summary_parts) or "教材情報を更新"
 
-            changed_via = "claude_code" if user.token_type == "cli" else "web"
+            if changed_via is None:
+                changed_via = "claude_code" if user.token_type == "cli" else "web"
             await conn.execute(
                 """INSERT INTO material_revisions (material_id, source_snapshot, changed_by, changed_via, change_summary)
                    VALUES ($1, $2, $3, $4, $5)""",
