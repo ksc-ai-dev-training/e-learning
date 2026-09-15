@@ -159,8 +159,22 @@
           <span class="badge">設問3に回答すると解放されます</span>
         </div>
         <div class="question-text">辞書 d の値をすべて合計して返す関数 sum_values(d) を書いてください。空の辞書を渡した場合は 0 を返すようにしてください。</div>
-        <textarea class="code-answer" disabled placeholder="設問3に回答すると入力できるようになります&#10;&#10;def sum_values(d):&#10;    ..."></textarea>
-        <p class="field-help" style="margin-top:6px">※ コード記述式はAIまたはプロジェクト担当者が採点します（教材の設定による）。結果を待たずに次の設問へ進められます。</p>
+        <div class="code-editor" data-disabled="true">
+          <div class="code-editor-gutter">1</div>
+          <div class="code-editor-body" style="color:var(--text-subtle)">設問3に回答すると入力できるようになります</div>
+        </div>
+        <p class="field-help" style="margin-top:6px">※ コード記述式はAIまたはプロジェクト担当者が採点します（教材の設定による）。結果を待たずに次の設問へ進められます。行番号ガター・シンタックスハイライト付きのエディタで、Tabキーでインデント、Enterキーで前の行のインデントを引き継ぎます（2026-09-15、CodeAnswerEditor.tsxとして実装）。</p>
+      </div>
+
+      <!-- 参考: 設問4が解放され、実際に入力した場合の表示イメージ（本教材の受講フローには含まれない補足） -->
+      <div class="preview-pane" style="margin-top:-8px;margin-bottom:20px">
+        <div class="preview-label">参考: 回答中（解放後）の表示イメージ</div>
+        <div class="code-editor">
+          <div class="code-editor-gutter">1
+2</div>
+          <div class="code-editor-body"><span class="tok-keyword">def</span> <span class="tok-function">sum_values</span>(d):
+    <span class="tok-keyword">return</span> <span class="tok-function">sum</span>(d.values()) <span class="tok-keyword">if</span> d <span class="tok-keyword">else</span> <span class="tok-number">0</span></div>
+        </div>
       </div>
 
       <div class="form-actions">

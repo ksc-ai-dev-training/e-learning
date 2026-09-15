@@ -7,6 +7,7 @@ import Button from '../ui/Button'
 import TextArea from '../ui/TextArea'
 import TextInput from '../ui/TextInput'
 import AnswerReorderList from './AnswerReorderList'
+import CodeAnswerEditor from './CodeAnswerEditor'
 
 function StatusBadge({ answer, questionType }: { answer: Answer; questionType: Question['type'] }) {
   // スコア記録（score_log）は正誤・採点の概念を持たず、is_correct・ai_score_pctは常にnullのまま
@@ -218,14 +219,24 @@ export default function AnswerQuestionCard({
               {question.code_language}
             </span>
           )}
-          <TextArea
-            value={textValue}
-            onChange={(e) => setTextValue(e.target.value)}
-            disabled={disabled || submitting}
-            rows={question.type === 'code' ? 6 : 3}
-            className={question.type === 'code' ? 'font-mono text-[13px] leading-relaxed' : ''}
-            placeholder={disabled ? undefined : '回答を入力してください'}
-          />
+          {question.type === 'code' ? (
+            <CodeAnswerEditor
+              value={textValue}
+              onChange={setTextValue}
+              disabled={disabled || submitting}
+              language={question.code_language}
+              rows={6}
+              placeholder={disabled ? undefined : '回答を入力してください'}
+            />
+          ) : (
+            <TextArea
+              value={textValue}
+              onChange={(e) => setTextValue(e.target.value)}
+              disabled={disabled || submitting}
+              rows={3}
+              placeholder={disabled ? undefined : '回答を入力してください'}
+            />
+          )}
           {!disabled && (
             <Button variant="secondary" onClick={() => submit(textValue)} disabled={submitting || !textValue.trim()} className="self-start">
               {submitting ? '送信中…' : '回答する'}

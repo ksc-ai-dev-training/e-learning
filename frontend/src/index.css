@@ -21,3 +21,31 @@ button:disabled,
 [aria-disabled='true'] {
   cursor: default;
 }
+
+/* コード記述式の回答欄（CodeAnswerEditor）用のPrism.jsトークン配色。
+   Prismの公式テーマCSSは使わず、アプリのカラーパレットに合わせて自前で定義する。 */
+.token.keyword {
+  color: #a626a4;
+}
+.token.string {
+  color: #50a14f;
+}
+.token.comment {
+  color: #9aa1ad;
+  font-style: italic;
+}
+.token.function {
+  color: #4078f2;
+}
+.token.number,
+.token.boolean {
+  color: #986801;
+}
+.token.operator,
+.token.punctuation {
+  color: #383a42;
+}
+.token.class-name,
+.token.builtin {
+  color: #a626a4;
+}
