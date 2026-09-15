@@ -82,17 +82,44 @@ function QuestionSummary({ question, items }: { question: QuestionAnswersRespons
     return (
       <>
         {typeLabel} ／ 採点方式: {gradingLabel} ／{' '}
-        {gradedCount > 0 ? `正答率 ${Math.round((correctCount / gradedCount) * 100)}%（${correctCount}/${gradedCount}件、回答済み）` : `回答${items.length}件`}
+        {gradedCount > 0 ? `正答率 ${roundPct((correctCount / gradedCount) * 100)}%（${correctCount}/${gradedCount}件、回答済み）` : `回答${items.length}件`}
       </>
     )
   }
   const correctCount = items.filter((i) => i.is_correct === true).length
-  const rate = items.length > 0 ? Math.round((correctCount / items.length) * 100) : 0
+  const rate = items.length > 0 ? roundPct((correctCount / items.length) * 100) : 0
   return (
     <>
       {typeLabel} ／ 正答率 {rate}%（回答{items.length}件）
     </>
   )
+}
+
+// 正答率などのパーセント表示は、S-05問題一覧の集計（backend materials.py `round(x, 1)`）と
+// 桁数を揃えるため、小数第1位までに丸める（Math.round(x)による整数丸めだと同じ数値でも
+// 一覧と詳細で表示される数字が食い違って見えるため）。
+function roundPct(value: number): number {
+  return Math.round(value * 10) / 10
+}
+
+// 単一選択は「回答者は必ずどれか1つを選ぶ」排他的な選択肢のため、各行を独立に四捨五入すると
+// 合計が100%からずれて見える（例: 88%+13%+0%=101%）。最大剰余法（Hamilton法）で切り捨てた
+// 分から余りが大きい順に1%ずつ配分し、常に合計100%になるようにする。複数選択は「その選択肢を
+// 選んだ人の割合」という独立した指標なので、各選択肢の合計が100%を超えるのが正しい挙動であり
+// この配分は行わない。
+function distributeSinglePercentages(counts: number[], total: number): number[] {
+  if (total === 0) return counts.map(() => 0)
+  const raw = counts.map((c) => (c / total) * 100)
+  const floors = raw.map(Math.floor)
+  const remainder = 100 - floors.reduce((a, b) => a + b, 0)
+  const order = raw
+    .map((v, i) => ({ i, frac: v - Math.floor(v) }))
+    .sort((a, b) => b.frac - a.frac)
+  const result = [...floors]
+  for (let k = 0; k < remainder; k++) {
+    result[order[k].i] += 1
+  }
+  return result
 }
 
 function responseLabel(response: unknown): string {
@@ -157,6 +184,11 @@ function ChoiceDistribution({
   }
 
   const total = items.length
+  const optionCounts = options.map((opt) => counts.get(opt) ?? 0)
+  // 単一選択のみ合計が100%になるよう配分し直す（複数選択は選択肢ごとの選択率が独立の指標なので
+  // 合計が100%を超えて構わない。上のコメント参照）。
+  const singlePercentages =
+    question.type === 'single' ? distributeSinglePercentages(optionCounts, total) : null
   return (
     <table className="w-full text-sm">
       <thead>
@@ -168,9 +200,9 @@ function ChoiceDistribution({
         </tr>
       </thead>
       <tbody>
-        {options.map((opt) => {
-          const count = counts.get(opt) ?? 0
-          const pct = total > 0 ? Math.round((count / total) * 100) : 0
+        {options.map((opt, i) => {
+          const count = optionCounts[i]
+          const pct = singlePercentages ? singlePercentages[i] : total > 0 ? Math.round((count / total) * 100) : 0
           return (
             <tr key={opt} className="border-b border-slate-50">
               <td className="px-3 py-2 text-slate-700">{opt}</td>
