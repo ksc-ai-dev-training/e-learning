@@ -622,12 +622,13 @@ class AnswerReviewIn(BaseModel):
 
 @router.put("/answers/{answer_id}/review")
 async def review_answer(answer_id: int, body: AnswerReviewIn, user: CurrentUser = Depends(require_auth)):
-    """A-74: 設問1件の採点結果を確定・修正する（S-20「採点する」）。grading_mode='ai'の設問
-    （AI採点結果の訂正）・'manual'の設問（担当者による新規採点）のいずれも本APIで扱う。
-    is_correct・ai_feedback（担当者の講評として保存）を更新し、reviewed_by・reviewed_atを設定する。
-    ai_score_pctは変更しない（AIが算出した参考値としてそのまま保持し、人手の判断はis_correctのみで
-    表現する）。更新後は_recompute_attempt_resultを呼び、他に未採点が無ければここで合否が確定する
-    （「採点中」状態からの確定を含む）。"""
+    """A-74: 設問1件の採点結果を下書き保存する（S-20、教材×受講者×提出日〔＝1受験記録〕単位の
+    まとめ採点の一部）。draft_is_correct・draft_ai_feedbackへ保存するのみで、本採用の
+    is_correct・ai_feedback・reviewed_by・reviewed_atには一切触れない。受講者側の「採点中」表示は
+    is_correctがNULLかどうかだけで切り替わる仕様のため、ここで直接is_correctへ書き込むと下書きの
+    時点で受講者に正誤が漏れてしまう（2026-09-15、まとめ採点機能の実装前レビューで発見）。
+    受験記録内の対象設問がすべて下書き入力済みになり、finalize_attempt_gradingが呼ばれて初めて
+    本採用の列へコピーされ、受講者に見えるようになる。"""
     pool = get_pool()
     row = await pool.fetchrow(
         """SELECT a.attempt_id, m.project_id
@@ -642,13 +643,113 @@ async def review_answer(answer_id: int, body: AnswerReviewIn, user: CurrentUser 
     await check_project_role(user, row["project_id"], "editor")
 
     await pool.execute(
-        """UPDATE answers SET is_correct = $1, ai_feedback = $2, reviewed_by = $3, reviewed_at = now(),
-               updated_at = now()
-           WHERE id = $4""",
-        body.is_correct, body.ai_feedback, user.id, answer_id,
+        "UPDATE answers SET draft_is_correct = $1, draft_ai_feedback = $2, updated_at = now() WHERE id = $3",
+        body.is_correct, body.ai_feedback, answer_id,
     )
-    await _recompute_attempt_result(pool, row["attempt_id"])
-    return {"detail": "採点結果を保存しました"}
+    return {"detail": "下書きを保存しました"}
+
+
+@router.get("/attempts/{attempt_id}/grading")
+async def get_attempt_grading(attempt_id: int, user: CurrentUser = Depends(require_auth)):
+    """新規（S-20まとめ採点）: 1受験記録分の、手動採点で未確定（reviewed_by未設定）の設問一覧を
+    下書き（あれば）付きで返す。「教材×受講者×提出日」のカードを開いたときに使う。"""
+    pool = get_pool()
+    attempt_row = await pool.fetchrow(
+        """SELECT qa.id, qa.user_id, u.name AS user_name, qa.submitted_at,
+                  m.id AS material_id, m.title AS material_title, m.project_id, p.name AS project_name,
+                  m.grading_mode AS material_grading_mode
+           FROM quiz_attempts qa
+           JOIN users u ON u.id = qa.user_id
+           JOIN materials m ON m.id = qa.material_id
+           JOIN projects p ON p.id = m.project_id
+           WHERE qa.id = $1""",
+        attempt_id,
+    )
+    if attempt_row is None:
+        raise HTTPException(404, detail="受験記録が見つかりません")
+    await check_project_role(user, attempt_row["project_id"], "editor")
+
+    rows = await pool.fetch(
+        """SELECT a.id AS answer_id, q.id AS question_id, q.prompt, q.node_id, q.scoring_criteria,
+                  a.response, a.draft_is_correct, a.draft_ai_feedback
+           FROM answers a
+           JOIN questions q ON q.id = a.question_id
+           WHERE a.attempt_id = $1 AND COALESCE(q.grading_mode, $2) = 'manual' AND a.reviewed_by IS NULL
+             AND q.type IN ('free_text', 'code')
+           ORDER BY q.sort_order, q.id""",
+        attempt_id, attempt_row["material_grading_mode"],
+    )
+    node_rows = await pool.fetch(
+        "SELECT id, parent_node_id, title FROM material_nodes WHERE material_id = $1",
+        attempt_row["material_id"],
+    )
+    nodes_by_id = {n["id"]: n for n in node_rows}
+
+    items = [
+        {
+            "answer_id": r["answer_id"],
+            "question_id": r["question_id"],
+            "node_path": _build_node_path(r["node_id"], nodes_by_id),
+            "prompt": r["prompt"],
+            "scoring_criteria": r["scoring_criteria"],
+            "response": json.loads(r["response"]) if r["response"] else None,
+            "draft_is_correct": r["draft_is_correct"],
+            "draft_ai_feedback": r["draft_ai_feedback"],
+        }
+        for r in rows
+    ]
+    return {
+        "attempt_id": attempt_row["id"],
+        "user_id": attempt_row["user_id"],
+        "user_name": attempt_row["user_name"],
+        "submitted_at": attempt_row["submitted_at"],
+        "material_id": attempt_row["material_id"],
+        "material_title": attempt_row["material_title"],
+        "project_name": attempt_row["project_name"],
+        "items": items,
+    }
+
+
+@router.post("/attempts/{attempt_id}/grading/finalize")
+async def finalize_attempt_grading(attempt_id: int, user: CurrentUser = Depends(require_auth)):
+    """新規（S-20まとめ採点）: 受験記録内の手動採点対象がすべて下書き入力済みであることを確認し、
+    まとめて本採用（is_correct・ai_feedback・reviewed_by・reviewed_at）へ反映して受講者に公開する。
+    1件でも下書き未入力（draft_is_correct IS NULL）が残っていれば400で拒否し、部分的な送信は
+    許可しない（どの設問が未採点のまま公開されたか分からなくなることを防ぐため）。"""
+    pool = get_pool()
+    attempt_row = await pool.fetchrow(
+        """SELECT qa.id, m.project_id, m.grading_mode AS material_grading_mode
+           FROM quiz_attempts qa JOIN materials m ON m.id = qa.material_id
+           WHERE qa.id = $1""",
+        attempt_id,
+    )
+    if attempt_row is None:
+        raise HTTPException(404, detail="受験記録が見つかりません")
+    await check_project_role(user, attempt_row["project_id"], "editor")
+
+    pending_ids = await pool.fetch(
+        """SELECT a.id, a.draft_is_correct
+           FROM answers a
+           JOIN questions q ON q.id = a.question_id
+           WHERE a.attempt_id = $1 AND COALESCE(q.grading_mode, $2) = 'manual' AND a.reviewed_by IS NULL
+             AND q.type IN ('free_text', 'code')""",
+        attempt_id, attempt_row["material_grading_mode"],
+    )
+    if len(pending_ids) == 0:
+        raise HTTPException(400, detail="採点対象の設問がありません")
+    if any(r["draft_is_correct"] is None for r in pending_ids):
+        raise HTTPException(400, detail="すべての設問を採点してから送信してください")
+
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            await conn.execute(
+                """UPDATE answers SET is_correct = draft_is_correct, ai_feedback = draft_ai_feedback,
+                       reviewed_by = $1, reviewed_at = now(), updated_at = now()
+                   WHERE id = ANY($2::bigint[])""",
+                user.id, [r["id"] for r in pending_ids],
+            )
+    await _recompute_attempt_result(pool, attempt_id)
+    return {"detail": "採点結果を送信しました"}
 
 
 @router.get("/questions/{question_id}/answers")
@@ -729,15 +830,23 @@ async def get_grading_queue(
     scope: Literal["mine", "all"] = "mine",
     user: CurrentUser = Depends(require_auth),
 ):
-    """A-83: 手動採点の未処理分を横断取得する（S-20）。grading_mode='manual'かつreviewed_by
-    未設定の回答を、自分が編集者以上として参加するプロジェクトの範囲で教材ごとにグループ化して返す。
-    scope='all'はsystem adminのみ有効（それ以外を指定した場合は無視して'mine'として扱う）。"""
+    """A-83: 手動採点の未処理分を横断取得する（S-20）。実質的な採点方式（設問のgrading_modeが
+    NULLの場合は教材既定＝materials.grading_modeに従う。job_sweep.pyの滞留ジョブ再実行や
+    submit_attemptの判定と同じCOALESCE規則）が'manual'かつreviewed_by未設定の回答を、
+    自分が編集者以上として参加するプロジェクトの範囲で教材ごとにグループ化し、さらに教材の中を
+    「受験記録（教材×受講者×提出日）」単位のカードにまとめて返す
+    （2026-09-15、1問ずつではなく受験記録単位でまとめて採点したいというユーザー要望により変更。
+    以前は教材の中に回答が1件ずつフラットに並んでいた。同日、実装後レビューで発覚:
+    設問のgrading_modeを教材既定に任せている場合に、このクエリが元々q.grading_mode='manual'の
+    単純一致だったため対象から漏れ、該当回答が永久にAI採点も手動採点キューにも乗らず結果が
+    確定しないまま取り残される不具合があり、COALESCEへ修正した）。scope='all'はsystem admin
+    のみ有効（それ以外を指定した場合は無視して'mine'として扱う）。"""
     pool = get_pool()
     effective_scope_all = scope == "all" and user.role == "admin"
 
     conditions = [
-        "q.grading_mode = 'manual'", "a.reviewed_by IS NULL", "qa.submitted_at IS NOT NULL",
-        "m.is_archived = false",
+        "COALESCE(q.grading_mode, m.grading_mode) = 'manual'", "a.reviewed_by IS NULL",
+        "qa.submitted_at IS NOT NULL", "m.is_archived = false",
     ]
     params: list = []
 
@@ -758,9 +867,10 @@ async def get_grading_queue(
         conditions.append(f"m.id = {add_param(material_id)}")
 
     rows = await pool.fetch(
-        f"""SELECT a.id AS answer_id, q.id AS question_id, q.prompt, q.node_id,
-                   m.id AS material_id, m.title AS material_title, p.name AS project_name,
-                   u.name AS user_name, a.response, qa.submitted_at
+        f"""SELECT a.id AS answer_id, a.draft_is_correct, q.id AS question_id,
+                   qa.id AS attempt_id, qa.user_id, qa.submitted_at,
+                   m.id AS material_id, m.title AS material_title, m.project_id, p.name AS project_name,
+                   u.name AS user_name
             FROM answers a
             JOIN questions q ON q.id = a.question_id
             JOIN quiz_attempts qa ON qa.id = a.attempt_id
@@ -773,37 +883,36 @@ async def get_grading_queue(
         *params,
     )
 
-    material_ids = {r["material_id"] for r in rows}
-    nodes_by_id: dict[int, dict] = {}
-    if material_ids:
-        node_rows = await pool.fetch(
-            "SELECT id, parent_node_id, title FROM material_nodes WHERE material_id = ANY($1::bigint[])",
-            list(material_ids),
-        )
-        nodes_by_id = {n["id"]: n for n in node_rows}
-
     materials: dict[int, dict] = {}
+    attempts: dict[int, dict] = {}
     for r in rows:
         m = materials.setdefault(
             r["material_id"],
             {
                 "material_id": r["material_id"],
                 "material_title": r["material_title"],
+                "project_id": r["project_id"],
                 "project_name": r["project_name"],
                 "pending_count": 0,
-                "answers": [],
+                "attempts": [],
             },
         )
         m["pending_count"] += 1
-        m["answers"].append({
-            "answer_id": r["answer_id"],
-            "question_id": r["question_id"],
-            "node_path": _build_node_path(r["node_id"], nodes_by_id),
-            "prompt": r["prompt"],
-            "user_name": r["user_name"],
-            "response_excerpt": json.loads(r["response"]) if r["response"] else "",
-            "submitted_at": r["submitted_at"],
-        })
+        at = attempts.get(r["attempt_id"])
+        if at is None:
+            at = {
+                "attempt_id": r["attempt_id"],
+                "user_id": r["user_id"],
+                "user_name": r["user_name"],
+                "submitted_at": r["submitted_at"],
+                "total_count": 0,
+                "draft_count": 0,
+            }
+            attempts[r["attempt_id"]] = at
+            m["attempts"].append(at)
+        at["total_count"] += 1
+        if r["draft_is_correct"] is not None:
+            at["draft_count"] += 1
 
     total_pending = len(rows)
     oldest_submitted_at = min((r["submitted_at"] for r in rows), default=None)

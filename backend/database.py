@@ -327,6 +327,15 @@ CREATE INDEX IF NOT EXISTS idx_answers_attempt_id ON answers (attempt_id);
 CREATE INDEX IF NOT EXISTS idx_answers_question_id ON answers (question_id);
 ALTER TABLE answers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE answers ADD COLUMN IF NOT EXISTS result_seen_at TIMESTAMPTZ;
+-- S-20採点画面の「教材×受講者×提出日」単位まとめ採点（F-32）用。手動採点の判断を一旦下書きとして
+-- 保存できるようにする列。is_correct/ai_feedback（受講者にも見える本採用の値）とは別に持たせる。
+-- is_correctは値がNULLかどうかだけで受講者側の「採点中」表示が切り替わる仕様のため、下書き中の
+-- 判断をis_correctへ直接書くと、その場で受講者に正誤が漏れてしまう（2026-09-15、実装前レビューで
+-- 発見）。受験記録内の対象設問がすべて下書き入力済みになって「送信」されたときに初めて、
+-- draft_is_correct/draft_ai_feedbackの内容をis_correct/ai_feedbackへコピーし、reviewed_by・
+-- reviewed_atを設定する（backend/routers/learning.pyのfinalize_attempt_grading参照）。
+ALTER TABLE answers ADD COLUMN IF NOT EXISTS draft_is_correct BOOLEAN;
+ALTER TABLE answers ADD COLUMN IF NOT EXISTS draft_ai_feedback TEXT;
 
 -- T-19 ai_usage_logs（AI利用ログ）。F-08/F-20〜F-23共通で`ai_client.py`が呼び出しのたびに1行書き込む。
 -- 質問・回答の内容そのものは保存しない（Keireki T-09と同方針）

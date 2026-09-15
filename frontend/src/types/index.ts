@@ -282,23 +282,24 @@ export interface AttemptSummaryEntry {
   }[]
 }
 
-// A-83 GET /api/grading-queue のレスポンス（S-20 採点）
-export interface GradingQueueAnswer {
-  answer_id: number
-  question_id: number
-  node_path: string
-  prompt: string
+// A-83 GET /api/grading-queue のレスポンス（S-20 採点）。教材の中を「受験記録（教材×受講者×
+// 提出日）」単位のカードにまとめて返す（2026-09-15、まとめ採点対応）。
+export interface GradingQueueAttempt {
+  attempt_id: number
+  user_id: number
   user_name: string
-  response_excerpt: string
   submitted_at: string
+  total_count: number
+  draft_count: number
 }
 
 export interface GradingQueueMaterial {
   material_id: number
   material_title: string
+  project_id: number
   project_name: string
   pending_count: number
-  answers: GradingQueueAnswer[]
+  attempts: GradingQueueAttempt[]
 }
 
 export interface GradingQueueResponse {
@@ -308,6 +309,29 @@ export interface GradingQueueResponse {
     oldest_submitted_at: string | null
   }
   materials: GradingQueueMaterial[]
+}
+
+// GET /api/attempts/{attempt_id}/grading のレスポンス（S-20 まとめ採点カードの詳細）
+export interface AttemptGradingItem {
+  answer_id: number
+  question_id: number
+  node_path: string
+  prompt: string
+  scoring_criteria: string | null
+  response: unknown
+  draft_is_correct: boolean | null
+  draft_ai_feedback: string | null
+}
+
+export interface AttemptGradingResponse {
+  attempt_id: number
+  user_id: number
+  user_name: string
+  submitted_at: string
+  material_id: number
+  material_title: string
+  project_name: string
+  items: AttemptGradingItem[]
 }
 
 // A-87 GET /materials/{id}/practice-attempts のitems（S-04 練習タブの実施履歴）
