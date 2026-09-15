@@ -94,7 +94,7 @@ export default function MaterialsList() {
 
   return (
     <div className="flex flex-1 flex-col">
-      <PageHeader title={`教材編集${project ? ` — ${project.name}` : ''}`} />
+      <PageHeader title={`教材作成・編集${project ? ` — ${project.name}` : ''}`} />
       <div className="px-8 py-6">
         <p className="mb-4 text-[11.5px] text-slate-400">
           <Link to="/materials/edit-projects" className="text-blue-800 hover:underline">
@@ -199,16 +199,16 @@ export default function MaterialsList() {
                 {filtered.map((m) => (
                   <tr key={m.id} className="border-b border-slate-100 last:border-0">
                     <td className="px-3 py-2">
-                      {m.is_archived ? (
-                        <span className="text-slate-400">{m.title}</span>
-                      ) : (
-                        <Link
-                          to={`/projects/${id}/materials/${m.id}/edit`}
-                          className="text-slate-800 hover:text-blue-800 hover:underline"
-                        >
-                          {m.title}
-                        </Link>
-                      )}
+                      <Link
+                        to={`/projects/${id}/materials/${m.id}/edit`}
+                        className={
+                          m.is_archived
+                            ? 'text-slate-400 hover:text-blue-800 hover:underline'
+                            : 'text-slate-800 hover:text-blue-800 hover:underline'
+                        }
+                      >
+                        {m.title}
+                      </Link>
                       {m.tags.length > 0 && (
                         <div className="mt-0.5 text-[11px] text-slate-400">
                           {m.tags.map((t) => `#${t}`).join(' ')}

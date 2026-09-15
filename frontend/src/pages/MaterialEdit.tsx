@@ -692,7 +692,12 @@ export default function MaterialEdit() {
         </Button>
       )}
       {savedId !== null && material?.is_archived && (
-        <Button variant="secondary" onClick={doRestore} disabled={archiving}>
+        <Button
+          variant="secondary"
+          onClick={doRestore}
+          disabled={archiving || dirty}
+          title={dirty ? `保存していない変更があります。先に「${saveButtonLabel}」を押してください` : undefined}
+        >
           {archiving ? '復元中...' : '復元'}
         </Button>
       )}
@@ -700,8 +705,12 @@ export default function MaterialEdit() {
         <Button
           variant="danger-ghost"
           onClick={() => setArchiveModalOpen(true)}
-          disabled={archiving}
-          title="教材一覧・検索から非表示にします（データは削除されず、いつでも復元できます）"
+          disabled={archiving || dirty}
+          title={
+            dirty
+              ? `保存していない変更があります。先に「${saveButtonLabel}」を押してください`
+              : '教材一覧・検索から非表示にします（データは削除されず、いつでも復元できます）'
+          }
         >
           アーカイブ
         </Button>

@@ -559,13 +559,18 @@ async def archive_material(id: int, user: CurrentUser = Depends(require_material
 
 @detail_router.put("/{id}/restore")
 async def restore_material(id: int, user: CurrentUser = Depends(require_material_role(min_role="editor"))):
-    """新規（A-85）: アーカイブ済み教材を一覧・検索に戻す。"""
+    """新規（A-85）: アーカイブ済み教材を一覧・検索に戻す。復元しても即座には再公開せず、
+    必ず下書き（status='draft'）に落とす。アーカイブ中に内容を直しかけている場合、以前の仕様
+    （復元＝即座に公開状態へ戻る）だと直しかけの内容がそのまま公開されてしまう事故につながるため
+    （2026-09-15、ユーザー指摘）。再公開するには、S-05の「公開する」を改めて明示的に押す必要がある
+    （配信設定の確認モーダルも通常の初回公開と同じく表示される）。"""
     pool = get_pool()
     row = await _require_owner_or_project_admin(pool, id, user)
     if not row["is_archived"]:
         raise HTTPException(409, detail="この教材はアーカイブされていません")
     updated = await pool.fetchrow(
-        """UPDATE materials SET is_archived = false, archived_at = NULL, archived_by = NULL, updated_at = now()
+        """UPDATE materials SET is_archived = false, archived_at = NULL, archived_by = NULL,
+                                 status = 'draft', updated_at = now()
            WHERE id = $1
            RETURNING id, project_id, title, description, tags, status, sort_order,
                      attempt_scope, retake_scope, pass_score_pct, retake_allowed, retake_limit,
@@ -576,18 +581,40 @@ async def restore_material(id: int, user: CurrentUser = Depends(require_material
     return _material_dict(updated)
 
 
+async def _has_learning_history(pool, material_id: int) -> bool:
+    """教材の受講実績（受験記録・進捗・アンケート回答）が1件でもあるかどうか。物理削除の可否判定に使う。"""
+    return await pool.fetchval(
+        """SELECT EXISTS(
+             SELECT 1 FROM quiz_attempts WHERE material_id = $1
+             UNION ALL
+             SELECT 1 FROM enrollment_progress WHERE material_id = $1
+             UNION ALL
+             SELECT 1 FROM survey_responses sr
+               JOIN surveys s ON s.id = sr.survey_id WHERE s.material_id = $1
+           )""",
+        material_id,
+    )
+
+
 @detail_router.delete("/{id}", status_code=204)
 async def delete_material(id: int, user: CurrentUser = Depends(require_material_role(min_role="editor"))):
-    """A-18: 教材の物理削除。一度も公開したことのない下書き（status='draft'）のみ対象とする。
-    目次・ページ・設問・添付ファイル・改訂履歴はCASCADEで削除される（受験記録・アンケート回答も
-    同様だが、下書きは受講対象になり得ないため実際には発生しない）。公開済みの教材はアーカイブ
-    （A-84）のみを案内し、この物理削除は400で拒否する（一度でも公開された教材は、既に受講記録が
-    生じている可能性を否定できないため）。"""
+    """A-18: 教材の物理削除。下書き（status='draft'）のみ対象とする。目次・ページ・設問・
+    添付ファイル・改訂履歴はCASCADEで削除される（受験記録・アンケート回答も同様）。公開済みの教材は
+    アーカイブ（A-84）のみを案内し、この物理削除は400で拒否する。
+    以前は「下書き＝一度も公開されたことがない＝受講実績があるはずがない」という前提で、
+    status='draft'であることのみを確認していた。しかしA-85（復元）を「復元しても常にdraftへ戻す」
+    仕様に変更したことで、一度公開されて実際に受講実績がある教材も、アーカイブ→復元を経由すると
+    status='draft'になり得るようになった。この前提が崩れたため、statusに関わらず受講実績の有無を
+    直接確認するようにした（2026-09-15、A-85仕様変更に伴う安全対策）。"""
     pool = get_pool()
     row = await _require_owner_or_project_admin(pool, id, user)
     if row["status"] != "draft":
         raise HTTPException(
             400, detail="公開済みの教材は削除できません。不要な場合はアーカイブをご利用ください"
+        )
+    if await _has_learning_history(pool, id):
+        raise HTTPException(
+            400, detail="この教材には受講実績があるため削除できません。不要な場合はアーカイブをご利用ください"
         )
     await pool.execute("DELETE FROM materials WHERE id = $1", id)
 

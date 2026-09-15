@@ -167,6 +167,9 @@ export default function AssignmentEditPanel({
         <span className="text-sm font-semibold text-blue-900">配信設定を編集 — {material.title}</span>
       </div>
       <div className="flex flex-col gap-4 p-4">
+        <p className="rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-500">
+          ※ この教材の配信を停止したい（アーカイブしたい）場合は、この画面ではなく「教材作成・編集」の教材編集画面から操作してください。
+        </p>
         {isLoading ? (
           <p className="text-sm text-slate-400">読み込み中...</p>
         ) : (

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>S-14 教材編集：教材一覧 | Manabi 画面モックアップ</title>
+<title>S-14 教材作成・編集：教材一覧 | Manabi 画面モックアップ</title>
 <link rel="stylesheet" href="mock.css">
 <style>
   .branch-actions { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; }
@@ -39,7 +39,7 @@
       <div class="nav-divider"></div>
       <a class="nav-item active" href="S-13_material-edit-project-select.html">
         <span class="nav-icon nav-icon-violet"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></span>
-        教材編集
+        教材作成・編集
       </a>
       <a class="nav-item" href="S-20_grading-queue.html">
         <span class="nav-icon nav-icon-violet"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></span>
@@ -82,7 +82,7 @@
   <div class="main">
     <header class="page-header">
       <div class="page-title-group">
-        <h1>教材編集 — LCC CRM刷新</h1>
+        <h1>教材作成・編集 — LCC CRM刷新</h1>
         <span class="screen-id">S-14</span>
       </div>
     </header>
@@ -177,7 +177,7 @@
         ※ 「複製」は本一覧ではなく教材編集画面（S-05）のヘッダーから行います。教材1冊分（目次構造〔章・小見出し・ページ〕と各ページの説明文・問題）をそのままコピーした新しい下書きが作成され、目次編集画面が開きます。年度更新など、既存教材をベースに作り直したい場合に使います（例: 「新人研修2026」を複製して「新人研修2027」の下書きを作る）。複製元の公開状態・改訂履歴は引き継がず、複製後の教材は常に下書きから始まります。
       </div>
       <div class="table-notes" style="margin-top:4px">
-        ※ 「状態」で「アーカイブ済み」を選ぶと、下の一覧はアーカイブ済み教材のみに切り替わり、「操作」列が追加されて「復元」のみ行えます。アーカイブ済み教材（S-05の「アーカイブ」ボタンから設定）は教材一覧・検索から非表示になりますが、内容・受験記録・アンケート回答は削除されずそのまま保持されます。以下はその表示例です。
+        ※ 「状態」で「アーカイブ済み」を選ぶと、下の一覧はアーカイブ済み教材のみに切り替わり、「操作」列が追加されて「復元」が行えます。アーカイブ済み教材（S-05の「アーカイブ」ボタンから設定）は教材一覧・検索から非表示になりますが、内容・受験記録・アンケート回答は削除されずそのまま保持され、タイトルをクリックすればアーカイブ中でも中身の閲覧・編集ができます。「復元」を押すと一覧・検索に戻りますが、即座に公開状態には戻らず、必ず下書きとして戻ります（内容を確認し、改めて「公開する」を押すと再公開されます）。以下はその表示例です。
       </div>
 
       <div class="table-wrap" style="margin-top:8px">
@@ -194,7 +194,7 @@
           <tbody>
             <tr>
               <td>
-                <span class="cell-main" style="display:block;color:var(--text-subtle)">旧研修（2024年度版）</span>
+                <a class="cell-main" href="S-05_material-edit.html" style="text-decoration:none;color:var(--text-subtle);display:block">旧研修（2024年度版）</a>
               </td>
               <td><span class="badge badge-status-archived">アーカイブ済み</span></td>
               <td class="num">2章・5ページ</td>

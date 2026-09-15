@@ -74,7 +74,7 @@
       <div class="nav-divider"></div>
       <a class="nav-item active" href="S-13_material-edit-project-select.html">
         <span class="nav-icon nav-icon-violet"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></span>
-        教材編集
+        教材作成・編集
       </a>
       <a class="nav-item" href="S-20_grading-queue.html">
         <span class="nav-icon nav-icon-violet"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></span>
@@ -147,7 +147,7 @@
     <div class="page-body">
 
       <p class="tab-note">※ この画面には対象教材が紐づくプロジェクトの管理者・編集者（3.5節）、または admin がアクセスできます。教材は必ずいずれかのプロジェクトに属するため（F-25）、アクセス可否・編集権限は常にプロジェクトのローカルロールのみで判定されます。個人所有の教材（オーナー・共同編集者モデル）はv1.5で廃止されました。</p>
-      <p class="tab-note">※ ヘッダー右上のボタンは教材の状態で一部入れ替わる（F-30）。公開中はここに示す「アーカイブ」を表示し、下書きのときは代わりに「削除」（完全な物理削除、元に戻せない）を表示、アーカイブ済みのときは「アーカイブ」の位置に「復元」を表示する。「公開する」も下書きのときのみ表示する。</p>
+      <p class="tab-note">※ ヘッダー右上のボタンは教材の状態で一部入れ替わる（F-30）。公開中はここに示す「アーカイブ」を表示し、下書きのときは代わりに「削除」（完全な物理削除、元に戻せない。受講実績が1件でもある教材は削除できない）を表示、アーカイブ済みのときは「アーカイブ」の位置に「復元」を表示する。「公開する」も下書きのときのみ表示する。アーカイブ中の教材も目次編集画面を開いて中身を閲覧・編集できる。「復元」を押しても即座には公開状態に戻らず、必ず下書きに戻る（内容を確認したうえで改めて「公開する」を押す）。「アーカイブ」「復元」ボタンは、保存していない変更がある間は無効化される（他のボタンと同様）。</p>
 
       <!-- タブ -->
       <div class="tabs" role="tablist">
@@ -616,7 +616,7 @@
       <button class="modal-close" type="button" onclick="closeArchiveModal()">×</button>
     </div>
     <div class="modal-body">
-      <p style="font-size:13px;line-height:1.7;margin:0 0 10px">「新人向けGit入門」を教材一覧・検索から非表示にします。目次・ページ・設問・添付ファイルは削除されず、受験記録やアンケート回答がある場合もそのまま保持されます。S-14の「状態」絞り込みで「アーカイブ済み」を選ぶといつでも一覧に戻して復元できます。</p>
+      <p style="font-size:13px;line-height:1.7;margin:0 0 10px">「新人向けGit入門」を教材一覧・検索から非表示にします。目次・ページ・設問・添付ファイルは削除されず、受験記録やアンケート回答がある場合もそのまま保持されます。S-14の「状態」絞り込みで「アーカイブ済み」を選べば、アーカイブ中でも中身を見る・直すことができます。「復元」を押すといつでも一覧に戻せますが、即座には公開されず下書きとして戻るため、直した内容を確認してから改めて「公開する」を押してください。</p>
       <div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:6px;padding:10px 12px;font-size:12.5px;line-height:1.6">公開中の教材をアーカイブすると、受講者からもこの教材が見えなくなります。</div>
     </div>
     <div class="modal-footer">

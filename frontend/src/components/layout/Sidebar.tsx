@@ -84,7 +84,7 @@ const NAV_ITEMS = [
   },
   {
     href: '/materials/edit-projects',
-    label: '教材編集',
+    label: '教材作成・編集',
     icon: Pencil,
     implemented: true,
     accent: 'violet' as Accent,
