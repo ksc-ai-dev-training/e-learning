@@ -452,7 +452,7 @@ function QuestionGradingCard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const handleJudgeChange = (value: boolean) => {
+  const handleJudgeChange = (value: boolean | null) => {
     setIsCorrect(value)
     onJudgeChange(value)
     if (debounceRef.current) clearTimeout(debounceRef.current)
@@ -490,12 +490,30 @@ function QuestionGradingCard({
       </div>
       <div className="mb-2 flex items-center gap-4">
         <span className="text-xs font-semibold text-slate-500">正誤判定</span>
+        {/* ネイティブのradioはクリックだけでは選択解除できないため、既に選択済みの方を
+            もう一度クリックしたときはonClickで検知して未判定（null）に戻す（2026-09-16、
+            ユーザー要望。誤って選んだ場合や判断を保留し直したい場合に使う）。onChangeは
+            通常どおり別の選択肢へ切り替えたときのみ発火する。 */}
         <label className="flex items-center gap-1 text-xs">
-          <input type="radio" checked={isCorrect === true} onChange={() => handleJudgeChange(true)} />
+          <input
+            type="radio"
+            checked={isCorrect === true}
+            onChange={() => handleJudgeChange(true)}
+            onClick={() => {
+              if (isCorrect === true) handleJudgeChange(null)
+            }}
+          />
           正解
         </label>
         <label className="flex items-center gap-1 text-xs">
-          <input type="radio" checked={isCorrect === false} onChange={() => handleJudgeChange(false)} />
+          <input
+            type="radio"
+            checked={isCorrect === false}
+            onChange={() => handleJudgeChange(false)}
+            onClick={() => {
+              if (isCorrect === false) handleJudgeChange(null)
+            }}
+          />
           不正解
         </label>
       </div>

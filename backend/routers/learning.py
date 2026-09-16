@@ -631,9 +631,11 @@ async def review_answer(answer_id: int, body: AnswerReviewIn, user: CurrentUser 
     本採用の列へコピーされ、受講者に見えるようになる。
 
     is_correctは省略可（2026-09-16、フロントエンドの明示的な「仮保存」ボタンを廃止し正誤ラジオ・
-    フィードバック欄それぞれの入力を都度自動保存する方式に変更したのに合わせた）。フィードバック文
-    だけ書いて正誤判定はまだ、という保存も行えるようにするため、is_correctがNoneの場合は
-    draft_is_correctを上書きしない（既存の判定値を保持したままフィードバックだけ更新する）。
+    フィードバック欄それぞれの入力を都度自動保存する方式に変更したのに合わせた）。is_correctが
+    Noneの場合はdraft_is_correctにもNoneをそのまま書き込む（同日、正誤ラジオを再クリックして
+    未判定に戻せるようにした際、書き込んだ値をNoneのまま渡すようにしたため。以前はNoneの場合
+    既存の判定値を保持する仕様だったが、フロントエンドは常にその設問の「今の」判定値〔未判定なら
+    None〕を渡す設計のため、上書きしない特別扱いは不要と判断し廃止した）。
 
     採点はシステムadminでも実際のプロジェクトロール（エディタ以上）を要求する
     （bypass_system_admin=False。2026-09-16、教材内容の編集と同じ「コンテンツ操作」として扱い、
@@ -652,16 +654,10 @@ async def review_answer(answer_id: int, body: AnswerReviewIn, user: CurrentUser 
         raise HTTPException(404, detail="回答が見つかりません")
     await check_project_role(user, row["project_id"], "editor", bypass_system_admin=False)
 
-    if body.is_correct is None:
-        await pool.execute(
-            "UPDATE answers SET draft_ai_feedback = $1, updated_at = now() WHERE id = $2",
-            body.ai_feedback, answer_id,
-        )
-    else:
-        await pool.execute(
-            "UPDATE answers SET draft_is_correct = $1, draft_ai_feedback = $2, updated_at = now() WHERE id = $3",
-            body.is_correct, body.ai_feedback, answer_id,
-        )
+    await pool.execute(
+        "UPDATE answers SET draft_is_correct = $1, draft_ai_feedback = $2, updated_at = now() WHERE id = $3",
+        body.is_correct, body.ai_feedback, answer_id,
+    )
     return {"detail": "保存しました"}
 
 
@@ -873,13 +869,22 @@ async def get_grading_queue(
     設問のgrading_modeを教材既定に任せている場合に、このクエリが元々q.grading_mode='manual'の
     単純一致だったため対象から漏れ、該当回答が永久にAI採点も手動採点キューにも乗らず結果が
     確定しないまま取り残される不具合があり、COALESCEへ修正した）。scope='all'はsystem admin
-    のみ有効（それ以外を指定した場合は無視して'mine'として扱う）。"""
+    のみ有効（それ以外を指定した場合は無視して'mine'として扱う）。
+
+    2026-09-16、実装後レビューで発見: この一覧取得だけget_attempt_grading・finalize_attempt_grading
+    と異なりq.type IN ('free_text', 'code')の絞り込みが抜けており、教材既定の採点方式が'manual'の
+    教材では、手動採点の概念が無いscore_log（記録型。正誤判定という概念が無い）や単一選択・複数選択・
+    並び替え（提出時に自動採点済みでa.reviewed_byが常にNULLのまま）まで「採点待ち」として一覧・件数に
+    混入していた。その結果、一覧では受験記録カードに未採点があるように見えるのに、実際に開くと
+    （get_attempt_gradingはこの型絞り込みを最初から正しく行っていたため）1件も対象が無く
+    「採点待ちの設問はありません」と表示される不整合が発生していた。他の2箇所と同じ型絞り込みを
+    追加して揃えた。"""
     pool = get_pool()
     effective_scope_all = scope == "all" and user.role == "admin"
 
     conditions = [
         "COALESCE(q.grading_mode, m.grading_mode) = 'manual'", "a.reviewed_by IS NULL",
-        "qa.submitted_at IS NOT NULL", "m.is_archived = false",
+        "qa.submitted_at IS NOT NULL", "m.is_archived = false", "q.type IN ('free_text', 'code')",
     ]
     params: list = []
 
