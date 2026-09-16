@@ -1,9 +1,12 @@
 import { apiFetch } from './api'
 
-// A-74: 設問1件の採点結果を下書き保存する（S-20まとめ採点カード内の1問）。受講者にはまだ見えない。
+// A-74: 設問1件の採点結果を自動保存する（S-20まとめ採点カード内の1問）。受講者にはまだ見えない。
+// 2026-09-16、明示的な「仮保存」ボタンを廃止し自動保存化したのに合わせ、is_correct未選択の
+// 状態でもフィードバック文だけ保存できるようnullを許容するようにした（is_correctがnullの場合、
+// バックエンドは既存の下書き正誤判定を上書きせずフィードバックのみ更新する）。
 export function saveDraftReview(
   answerId: number,
-  body: { is_correct: boolean; ai_feedback: string },
+  body: { is_correct: boolean | null; ai_feedback: string },
 ): Promise<{ detail: string }> {
   return apiFetch(`/api/answers/${answerId}/review`, {
     method: 'PUT',

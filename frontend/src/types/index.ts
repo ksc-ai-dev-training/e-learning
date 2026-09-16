@@ -318,6 +318,7 @@ export interface AttemptGradingItem {
   node_path: string
   prompt: string
   scoring_criteria: string | null
+  required: boolean
   response: unknown
   draft_is_correct: boolean | null
   draft_ai_feedback: string | null

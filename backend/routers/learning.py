@@ -616,19 +616,24 @@ async def _grade_and_store_answer(answer_id: int) -> None:
 
 
 class AnswerReviewIn(BaseModel):
-    is_correct: bool
+    is_correct: bool | None = None
     ai_feedback: str
 
 
 @router.put("/answers/{answer_id}/review")
 async def review_answer(answer_id: int, body: AnswerReviewIn, user: CurrentUser = Depends(require_auth)):
-    """A-74: 設問1件の採点結果を下書き保存する（S-20、教材×受講者×提出日〔＝1受験記録〕単位の
+    """A-74: 設問1件の採点結果を自動保存する（S-20、教材×受講者×提出日〔＝1受験記録〕単位の
     まとめ採点の一部）。draft_is_correct・draft_ai_feedbackへ保存するのみで、本採用の
     is_correct・ai_feedback・reviewed_by・reviewed_atには一切触れない。受講者側の「採点中」表示は
     is_correctがNULLかどうかだけで切り替わる仕様のため、ここで直接is_correctへ書き込むと下書きの
     時点で受講者に正誤が漏れてしまう（2026-09-15、まとめ採点機能の実装前レビューで発見）。
     受験記録内の対象設問がすべて下書き入力済みになり、finalize_attempt_gradingが呼ばれて初めて
-    本採用の列へコピーされ、受講者に見えるようになる。"""
+    本採用の列へコピーされ、受講者に見えるようになる。
+
+    is_correctは省略可（2026-09-16、フロントエンドの明示的な「仮保存」ボタンを廃止し正誤ラジオ・
+    フィードバック欄それぞれの入力を都度自動保存する方式に変更したのに合わせた）。フィードバック文
+    だけ書いて正誤判定はまだ、という保存も行えるようにするため、is_correctがNoneの場合は
+    draft_is_correctを上書きしない（既存の判定値を保持したままフィードバックだけ更新する）。"""
     pool = get_pool()
     row = await pool.fetchrow(
         """SELECT a.attempt_id, m.project_id
@@ -642,11 +647,17 @@ async def review_answer(answer_id: int, body: AnswerReviewIn, user: CurrentUser 
         raise HTTPException(404, detail="回答が見つかりません")
     await check_project_role(user, row["project_id"], "editor")
 
-    await pool.execute(
-        "UPDATE answers SET draft_is_correct = $1, draft_ai_feedback = $2, updated_at = now() WHERE id = $3",
-        body.is_correct, body.ai_feedback, answer_id,
-    )
-    return {"detail": "下書きを保存しました"}
+    if body.is_correct is None:
+        await pool.execute(
+            "UPDATE answers SET draft_ai_feedback = $1, updated_at = now() WHERE id = $2",
+            body.ai_feedback, answer_id,
+        )
+    else:
+        await pool.execute(
+            "UPDATE answers SET draft_is_correct = $1, draft_ai_feedback = $2, updated_at = now() WHERE id = $3",
+            body.is_correct, body.ai_feedback, answer_id,
+        )
+    return {"detail": "保存しました"}
 
 
 @router.get("/attempts/{attempt_id}/grading")
@@ -671,7 +682,7 @@ async def get_attempt_grading(attempt_id: int, user: CurrentUser = Depends(requi
 
     rows = await pool.fetch(
         """SELECT a.id AS answer_id, q.id AS question_id, q.prompt, q.node_id, q.scoring_criteria,
-                  a.response, a.draft_is_correct, a.draft_ai_feedback
+                  q.required, a.response, a.draft_is_correct, a.draft_ai_feedback
            FROM answers a
            JOIN questions q ON q.id = a.question_id
            WHERE a.attempt_id = $1 AND COALESCE(q.grading_mode, $2) = 'manual' AND a.reviewed_by IS NULL
@@ -692,6 +703,7 @@ async def get_attempt_grading(attempt_id: int, user: CurrentUser = Depends(requi
             "node_path": _build_node_path(r["node_id"], nodes_by_id),
             "prompt": r["prompt"],
             "scoring_criteria": r["scoring_criteria"],
+            "required": r["required"],
             "response": json.loads(r["response"]) if r["response"] else None,
             "draft_is_correct": r["draft_is_correct"],
             "draft_ai_feedback": r["draft_ai_feedback"],
@@ -712,10 +724,16 @@ async def get_attempt_grading(attempt_id: int, user: CurrentUser = Depends(requi
 
 @router.post("/attempts/{attempt_id}/grading/finalize")
 async def finalize_attempt_grading(attempt_id: int, user: CurrentUser = Depends(require_auth)):
-    """新規（S-20まとめ採点）: 受験記録内の手動採点対象がすべて下書き入力済みであることを確認し、
+    """新規（S-20まとめ採点）: 受験記録内の手動採点対象のうち、必須設問（questions.required=true）が
+    すべて下書き入力済みであることを確認し、その時点で判定済みの設問（必須＋判定済みの任意）だけを
     まとめて本採用（is_correct・ai_feedback・reviewed_by・reviewed_at）へ反映して受講者に公開する。
-    1件でも下書き未入力（draft_is_correct IS NULL）が残っていれば400で拒否し、部分的な送信は
-    許可しない（どの設問が未採点のまま公開されたか分からなくなることを防ぐため）。"""
+
+    2026-09-16、必須/任意で挙動を分けた。以前は1件でも下書き未入力（draft_is_correct IS NULL）が
+    残っていれば全体を400で拒否していたが、「必須問題は送信をブロックしたいが、任意問題は未採点の
+    まま送信できてよい（確認を挟めば十分）」というユーザー要望を受けて変更した。任意設問のうち
+    未判定のまま残ったものは、この受験記録の採点キューに引き続き残る（reviewed_byを設定しない）。
+    必須設問を1件でも部分的に送信することは許可しない（どの必須設問が未採点のまま公開されたか
+    分からなくなることを防ぐため、この点は変更していない）。"""
     pool = get_pool()
     attempt_row = await pool.fetchrow(
         """SELECT qa.id, m.project_id, m.grading_mode AS material_grading_mode
@@ -727,18 +745,22 @@ async def finalize_attempt_grading(attempt_id: int, user: CurrentUser = Depends(
         raise HTTPException(404, detail="受験記録が見つかりません")
     await check_project_role(user, attempt_row["project_id"], "editor")
 
-    pending_ids = await pool.fetch(
-        """SELECT a.id, a.draft_is_correct
+    pending = await pool.fetch(
+        """SELECT a.id, a.draft_is_correct, q.required
            FROM answers a
            JOIN questions q ON q.id = a.question_id
            WHERE a.attempt_id = $1 AND COALESCE(q.grading_mode, $2) = 'manual' AND a.reviewed_by IS NULL
              AND q.type IN ('free_text', 'code')""",
         attempt_id, attempt_row["material_grading_mode"],
     )
-    if len(pending_ids) == 0:
+    if len(pending) == 0:
         raise HTTPException(400, detail="採点対象の設問がありません")
-    if any(r["draft_is_correct"] is None for r in pending_ids):
-        raise HTTPException(400, detail="すべての設問を採点してから送信してください")
+    if any(r["draft_is_correct"] is None and r["required"] for r in pending):
+        raise HTTPException(400, detail="必須設問をすべて採点してから送信してください")
+
+    to_finalize_ids = [r["id"] for r in pending if r["draft_is_correct"] is not None]
+    if not to_finalize_ids:
+        raise HTTPException(400, detail="採点済みの設問がありません")
 
     async with pool.acquire() as conn:
         async with conn.transaction():
@@ -746,7 +768,7 @@ async def finalize_attempt_grading(attempt_id: int, user: CurrentUser = Depends(
                 """UPDATE answers SET is_correct = draft_is_correct, ai_feedback = draft_ai_feedback,
                        reviewed_by = $1, reviewed_at = now(), updated_at = now()
                    WHERE id = ANY($2::bigint[])""",
-                user.id, [r["id"] for r in pending_ids],
+                user.id, to_finalize_ids,
             )
     await _recompute_attempt_result(pool, attempt_id)
     return {"detail": "採点結果を送信しました"}

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import PageHeader from '../components/layout/PageHeader'
 import Panel from '../components/ui/Panel'
 import Select from '../components/ui/Select'
@@ -61,8 +61,9 @@ export default function Grading() {
         <p className="mb-4 max-w-3xl text-sm text-slate-500">
           記述式・コード記述式の設問のうち<strong>採点方式が「プロジェクト担当者が手動採点」で、まだ採点していない回答</strong>
           を、教材ごと・受験記録（受講者・提出日）ごとにまとめて表示します。カードを開くとその受験記録内の未採点設問がまとめて採点でき、
-          <strong>すべての設問を採点して「採点結果を送信」するまで受講者には一切表示されません</strong>
-          。途中まで採点した内容は下書きとして保存され、次にカードを開いたときに引き継がれます。設問の傾向を見て内容を見直したい場合はS-05「問題一覧」タブ→S-19（設問別の回答・結果一覧）を使ってください。
+          正誤判定・フィードバックは入力するたびに自動保存されるため、次にカードを開いたときに引き継がれます。
+          <strong>必須設問をすべて採点して「採点結果を送信」するまで受講者には一切表示されません</strong>
+          （任意設問は未採点のまま送信することもできます）。設問の傾向を見て内容を見直したい場合は「教材作成・編集」→「問題一覧タブ」を使ってください。
         </p>
 
         <div className="mb-4 flex flex-wrap items-end gap-4">
@@ -159,9 +160,10 @@ function StatTile({ label, value, warn }: { label: string; value: string; warn?:
 }
 
 // 受験記録1件分の採点待ち設問をまとめて表示・採点するモーダル（S-20カードを開いたとき）。
-// 各設問は「仮保存」で下書き（draft_is_correct/draft_ai_feedback）として保存されるだけで
-// 受講者には見えない。全設問が仮保存済みになって初めて「採点結果を送信」が押せるようになり、
-// 押すとまとめて本採用され受講者に公開される。
+// 各設問の正誤判定・フィードバックは入力するたびに自動保存され（draft_is_correct/draft_ai_feedback）、
+// 受講者にはまだ見えない。必須設問がすべて判定済みになると「採点結果を送信」が押せるようになり、
+// 押すとその時点で判定済みの設問（必須＋判定済みの任意）がまとめて本採用され受講者に公開される
+// （2026-09-16、明示的な「仮保存」ボタンを廃止し自動保存化。あわせて送信条件を必須設問のみに緩和）。
 function AttemptGradingModal({
   material,
   attempt,
@@ -174,22 +176,49 @@ function AttemptGradingModal({
   onFinalized: () => void
 }) {
   const { data, isLoading } = useAttemptGrading(attempt.attempt_id)
-  const [savedIds, setSavedIds] = useState<Set<number>>(new Set())
+  // 各設問の「現在の」正誤判定値。子カードが変更するたびにここへ即時反映し、送信ボタンの
+  // 必須/任意判定に使う。
+  const [liveJudgments, setLiveJudgments] = useState<Record<number, boolean | null>>({})
+  // 保存が失敗したまま残っているカードがないか（answer_idごと）。2026-09-16、再レビューで発見:
+  // 正誤判定はクリックした時点で楽観的にliveJudgmentsへ反映するため、通信エラーで実際には
+  // サーバーに保存されていなくても「採点済み」として送信できてしまい、バックエンド側の検証で
+  // 初めて（かつ理由が伝わりにくい形で）拒否される問題があった。保存に失敗したカードが1件でも
+  // 残っている間は送信自体をブロックし、どのカードが失敗しているかは各カードの表示に任せる。
+  const [saveErrors, setSaveErrors] = useState<Record<number, boolean>>({})
+  const hasSaveError = Object.values(saveErrors).some(Boolean)
   const [finalizing, setFinalizing] = useState(false)
   const [finalizeError, setFinalizeError] = useState<string | null>(null)
+  const [confirmDialog, setConfirmDialog] = useState<'blocked' | 'confirm-optional' | null>(null)
+  // 各カードのデバウンス中フィードバック保存を即時実行するための関数を、カード側からここへ登録して
+  // もらう（answer_idごと）。送信・閉じるの直前に全カード分をまとめて呼び、入力後すぐに送信/離脱
+  // した場合でもデバウンス待ちの内容を消さずに済むようにする（2026-09-16、実装後レビューで発見:
+  // useEffectのクリーンアップがタイマーをclearTimeoutするだけでpersistを呼んでおらず、
+  // 入力から700ms以内にモーダルを閉じる／送信すると直前の入力が保存されずに失われていた）。
+  const flushFnsRef = useRef<Map<number, () => Promise<void>>>(new Map())
+  const flushAllPending = async () => {
+    await Promise.all(Array.from(flushFnsRef.current.values()).map((fn) => fn()))
+  }
 
-  // サーバーから返ってきた下書き済みの設問は、初回表示時点で既に「仮保存済み」として扱う
-  // （前回途中まで採点していた分の引き継ぎ）。data?.itemsは`?? []`で毎回新しい配列参照になるため、
-  // 依存配列にはdata自体を入れる（items変数を入れるとuseMemoが常に再計算されてしまう）。
+  // data?.itemsは`?? []`で毎回新しい配列参照になるため、依存配列にはdata自体を入れる
+  // （items変数を入れるとuseMemoが常に再計算されてしまう）。
   const items = useMemo(() => data?.items ?? [], [data])
-  const initiallySaved = useMemo(
-    () => new Set(items.filter((i) => i.draft_is_correct !== null).map((i) => i.answer_id)),
+  const initialJudgments = useMemo(
+    () => Object.fromEntries(items.map((i) => [i.answer_id, i.draft_is_correct])),
     [items],
   )
-  const savedCount = items.filter((i) => savedIds.has(i.answer_id) || initiallySaved.has(i.answer_id)).length
-  const allSaved = items.length > 0 && savedCount === items.length
+  const judgmentFor = (answerId: number): boolean | null =>
+    answerId in liveJudgments ? liveJudgments[answerId] : (initialJudgments[answerId] ?? null)
 
-  const handleFinalize = async () => {
+  const judgedCount = items.filter((i) => judgmentFor(i.answer_id) !== null).length
+  const requiredUnjudged = items.filter((i) => i.required && judgmentFor(i.answer_id) === null)
+  const optionalUnjudged = items.filter((i) => !i.required && judgmentFor(i.answer_id) === null)
+  // 全設問が任意で1問も採点していない場合、送信対象が0件になりバックエンドが400を返すだけで
+  // 何も起きない（実装後レビューで発見: 「未採点のまま送信しますか？」の確認を挟んだ直後に
+  // 理由の分かりにくいエラーが出るだけの遠回りな体験になっていた）。この場合は最初から送信不可にし、
+  // 理由を明示する。
+  const nothingJudgedYet = items.length > 0 && judgedCount === 0
+
+  const runFinalize = async () => {
     setFinalizing(true)
     setFinalizeError(null)
     try {
@@ -200,6 +229,29 @@ function AttemptGradingModal({
     } finally {
       setFinalizing(false)
     }
+  }
+
+  const handleFinalizeClick = async () => {
+    // 直前に入力したフィードバックがデバウンス待ちのまま残っていないか、送信前に必ず確定させる
+    setFinalizing(true)
+    await flushAllPending()
+    setFinalizing(false)
+    if (requiredUnjudged.length > 0) {
+      setConfirmDialog('blocked')
+      return
+    }
+    if (optionalUnjudged.length > 0) {
+      setConfirmDialog('confirm-optional')
+      return
+    }
+    void runFinalize()
+  }
+
+  const handleClose = () => {
+    // 閉じる場合も同様に、デバウンス待ちのフィードバックを取りこぼさないよう送信しておく
+    // （完了を待たずにモーダルは閉じてよい。次に開いたときには保存済みの内容が反映される）
+    void flushAllPending()
+    onClose()
   }
 
   return (
@@ -214,7 +266,7 @@ function AttemptGradingModal({
               提出日: {formatDateTimeJst(attempt.submitted_at)}
             </div>
           </div>
-          <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600">
+          <button type="button" onClick={handleClose} className="text-slate-400 hover:text-slate-600">
             ×
           </button>
         </div>
@@ -230,8 +282,16 @@ function AttemptGradingModal({
                 <QuestionGradingCard
                   key={item.answer_id}
                   item={item}
-                  saved={savedIds.has(item.answer_id) || initiallySaved.has(item.answer_id)}
-                  onSaved={() => setSavedIds((prev) => new Set(prev).add(item.answer_id))}
+                  onJudgeChange={(isCorrect) =>
+                    setLiveJudgments((prev) => ({ ...prev, [item.answer_id]: isCorrect }))
+                  }
+                  onSaveErrorChange={(hasError) =>
+                    setSaveErrors((prev) => ({ ...prev, [item.answer_id]: hasError }))
+                  }
+                  registerFlush={(fn) => {
+                    flushFnsRef.current.set(item.answer_id, fn)
+                    return () => flushFnsRef.current.delete(item.answer_id)
+                  }}
                 />
               ))}
             </div>
@@ -242,71 +302,185 @@ function AttemptGradingModal({
           {finalizeError && <p className="mb-2 text-xs text-red-600">{finalizeError}</p>}
           <div className="flex items-center justify-between gap-3">
             <span className="text-xs text-slate-500">
-              {savedCount}/{items.length}問 仮保存済み
-              {!allSaved && '（すべて仮保存すると送信できます）'}
+              {judgedCount}/{items.length}問 採点済み
+              {requiredUnjudged.length > 0 && '（必須設問が未採点のため送信できません）'}
+              {requiredUnjudged.length === 0 && nothingJudgedYet && '（1問も採点していないため送信できません）'}
+              {requiredUnjudged.length === 0 && !nothingJudgedYet && hasSaveError &&
+                '（保存に失敗した設問があります。入力し直してから送信してください）'}
             </span>
             <div className="flex gap-2">
-              <Button variant="secondary" onClick={onClose} disabled={finalizing}>
+              <Button variant="secondary" onClick={handleClose} disabled={finalizing}>
                 閉じる（続きは後で）
               </Button>
-              <Button onClick={handleFinalize} disabled={!allSaved || finalizing}>
+              <Button
+                onClick={() => void handleFinalizeClick()}
+                disabled={items.length === 0 || nothingJudgedYet || hasSaveError || finalizing}
+              >
                 {finalizing ? '送信中…' : '採点結果を送信'}
               </Button>
             </div>
           </div>
         </div>
       </div>
+
+      {confirmDialog === 'blocked' && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-sm rounded-md bg-white p-5 shadow-lg">
+            <p className="mb-3 text-sm font-semibold text-slate-800">必須設問が未採点です</p>
+            <p className="mb-4 text-xs text-slate-500">
+              以下の必須設問の正誤判定が済んでいないため送信できません。すべて判定してから改めて送信してください。
+            </p>
+            <ul className="mb-4 list-disc pl-4 text-xs text-slate-600">
+              {requiredUnjudged.map((i) => (
+                <li key={i.answer_id}>{i.node_path} ／ 設問「{i.prompt}」</li>
+              ))}
+            </ul>
+            <div className="flex justify-end">
+              <Button variant="secondary" onClick={() => setConfirmDialog(null)}>
+                閉じる
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmDialog === 'confirm-optional' && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-sm rounded-md bg-white p-5 shadow-lg">
+            <p className="mb-3 text-sm font-semibold text-slate-800">
+              {optionalUnjudged.length}問の任意設問が未採点です
+            </p>
+            <p className="mb-4 text-xs text-slate-500">
+              未採点のまま送信すると、これらの設問はこのまま採点待ちとして残ります（後でこのカードを開いて改めて採点できます）。このまま送信しますか？
+            </p>
+            <div className="flex justify-end gap-2">
+              <Button variant="secondary" onClick={() => setConfirmDialog(null)}>
+                キャンセル
+              </Button>
+              <Button
+                onClick={() => {
+                  setConfirmDialog(null)
+                  void runFinalize()
+                }}
+              >
+                送信する
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
+// 保存後に一定時間だけ「保存済み」を表示し、その後は何も表示しない（保存操作を継続的に主張しない）
+const SAVED_INDICATOR_MS = 2000
+
 function QuestionGradingCard({
   item,
-  saved,
-  onSaved,
+  onJudgeChange,
+  onSaveErrorChange,
+  registerFlush,
 }: {
   item: {
     answer_id: number
     node_path: string
     prompt: string
     scoring_criteria: string | null
+    required: boolean
     response: unknown
     draft_is_correct: boolean | null
     draft_ai_feedback: string | null
   }
-  saved: boolean
-  onSaved: () => void
+  onJudgeChange: (isCorrect: boolean | null) => void
+  onSaveErrorChange: (hasError: boolean) => void
+  registerFlush: (flush: () => Promise<void>) => () => void
 }) {
   const [isCorrect, setIsCorrect] = useState<boolean | null>(item.draft_is_correct)
   const [feedback, setFeedback] = useState(item.draft_ai_feedback ?? '')
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const savedIndicatorRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // アンマウント時・親からの一括flush時にも常に最新のisCorrect/feedbackを読めるようにするためのref
+  // （useEffectのクリーンアップはマウント時点のクロージャのままなので、stateを直接参照すると古い値
+  // を送ってしまう）。
+  const latestRef = useRef({ isCorrect, feedback })
+  latestRef.current = { isCorrect, feedback }
 
-  const handleSave = async () => {
-    if (isCorrect === null) return
-    setSaving(true)
-    setError(null)
+  const persist = async (nextIsCorrect: boolean | null, nextFeedback: string) => {
+    setSaveState('saving')
     try {
-      await saveDraftReview(item.answer_id, { is_correct: isCorrect, ai_feedback: feedback })
-      onSaved()
+      await saveDraftReview(item.answer_id, { is_correct: nextIsCorrect, ai_feedback: nextFeedback })
+      setSaveState('saved')
+      onSaveErrorChange(false)
+      if (savedIndicatorRef.current) clearTimeout(savedIndicatorRef.current)
+      savedIndicatorRef.current = setTimeout(() => setSaveState('idle'), SAVED_INDICATOR_MS)
     } catch {
-      setError('仮保存に失敗しました')
-    } finally {
-      setSaving(false)
+      setSaveState('error')
+      onSaveErrorChange(true)
     }
+  }
+
+  // デバウンス待ちのフィードバック保存を即座に実行する（送信・離脱の直前や、この設問の入力欄が
+  // フォーカスを失ったときに呼ぶ）。2026-09-16、実装後レビューで発見: 以前はモーダルを閉じる／
+  // 送信するタイミングでタイマーをclearTimeoutするだけでpersistを呼んでおらず、入力から700ms以内に
+  // 離脱すると直前のフィードバック入力が保存されずに失われていた不具合の修正。
+  const flushPending = async () => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current)
+      debounceRef.current = null
+      await persist(latestRef.current.isCorrect, latestRef.current.feedback)
+    }
+  }
+
+  useEffect(() => {
+    const unregister = registerFlush(flushPending)
+    return () => {
+      unregister()
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current)
+        // アンマウント時は待てないため確定は待たずに投げる（fire-and-forget）。呼び出し元
+        // （送信・閉じるボタン）は先にflushAllPendingを待ってからこのモーダルを閉じるため、
+        // 通常この分岐に来るのは「保存前にブラウザ自体を閉じた」等の想定外の離脱時のみ。
+        void persist(latestRef.current.isCorrect, latestRef.current.feedback)
+      }
+      if (savedIndicatorRef.current) clearTimeout(savedIndicatorRef.current)
+      // このカードがエラー状態のまま消えても親のsaveErrorsに残り続け、以後ずっと送信不可のまま
+      // になってしまうため、アンマウント時に必ずクリアする（2026-09-16、再レビューで発見）。
+      onSaveErrorChange(false)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const handleJudgeChange = (value: boolean) => {
+    setIsCorrect(value)
+    onJudgeChange(value)
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    void persist(value, feedback)
+  }
+
+  const scheduleFeedbackSave = (value: string) => {
+    setFeedback(value)
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => void persist(isCorrect, value), 700)
   }
 
   const responseText = Array.isArray(item.response) ? item.response.join('、') : String(item.response ?? '（未回答）')
 
   return (
-    <div className={`rounded-md border p-3.5 ${saved ? 'border-slate-200' : 'border-blue-300 ring-1 ring-blue-100'}`}>
+    <div className={`rounded-md border p-3.5 ${isCorrect !== null ? 'border-slate-200' : 'border-blue-300 ring-1 ring-blue-100'}`}>
       <div className="mb-1.5 flex items-center justify-between">
         <span className="text-[11.5px] text-slate-400">
           {item.node_path} ／ 設問「{item.prompt}」
+          {!item.required && (
+            <span className="ml-1.5 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">任意</span>
+          )}
         </span>
-        {saved && (
-          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-500">仮保存済み</span>
-        )}
+        <span className="text-[11px] font-semibold">
+          {saveState === 'saving' && <span className="text-slate-400">保存中…</span>}
+          {saveState === 'saved' && <span className="text-emerald-600">保存済み</span>}
+          {saveState === 'error' && <span className="text-red-600">保存に失敗しました</span>}
+        </span>
       </div>
       {item.scoring_criteria && (
         <div className="mb-2 text-[11.5px] text-slate-400">採点基準: {item.scoring_criteria}</div>
@@ -317,25 +491,22 @@ function QuestionGradingCard({
       <div className="mb-2 flex items-center gap-4">
         <span className="text-xs font-semibold text-slate-500">正誤判定</span>
         <label className="flex items-center gap-1 text-xs">
-          <input type="radio" checked={isCorrect === true} onChange={() => setIsCorrect(true)} />
+          <input type="radio" checked={isCorrect === true} onChange={() => handleJudgeChange(true)} />
           正解
         </label>
         <label className="flex items-center gap-1 text-xs">
-          <input type="radio" checked={isCorrect === false} onChange={() => setIsCorrect(false)} />
+          <input type="radio" checked={isCorrect === false} onChange={() => handleJudgeChange(false)} />
           不正解
         </label>
       </div>
       <TextArea
         value={feedback}
-        onChange={(e) => setFeedback(e.target.value)}
+        onChange={(e) => scheduleFeedbackSave(e.target.value)}
+        onBlur={() => void flushPending()}
         rows={2}
         placeholder="受講者へのフィードバックを入力してください（結果送信後に表示されます）"
-        className="mb-2 w-full"
+        className="w-full"
       />
-      {error && <p className="mb-2 text-xs text-red-600">{error}</p>}
-      <Button variant="secondary" className="h-8 px-2.5 text-xs" onClick={handleSave} disabled={isCorrect === null || saving}>
-        {saving ? '保存中…' : 'この設問を仮保存'}
-      </Button>
     </div>
   )
 }
