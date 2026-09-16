@@ -667,7 +667,7 @@ export default function MaterialEdit() {
 
   const headerActions = (
     <>
-      <Button variant="primary" onClick={saveDraft} disabled={saving}>
+      <Button variant="primary" onClick={() => saveDraft()} disabled={saving}>
         {saveButtonLabel}
       </Button>
       {savedId !== null && (
