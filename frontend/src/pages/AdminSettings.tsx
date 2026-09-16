@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 import PageHeader from '../components/layout/PageHeader'
 import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
@@ -88,17 +88,56 @@ export default function AdminSettings() {
 }
 
 function UsersTab({ myUserId }: { myUserId: number }) {
+  const navigate = useNavigate()
+  const { mutate: mutateMe } = useMe()
   const [query, setQuery] = useState('')
   const { users, isLoading, mutate } = useUsers(query)
   const [rowError, setRowError] = useState<string | null>(null)
+  // ロール変更は誤操作防止のため自動保存にせず、選択した値をここに保持しておき「保存」を
+  // 押すまで反映しない（2026-09-16、ユーザー要望）。保存中は行ごとにボタンを無効化する。
+  const [pendingRoles, setPendingRoles] = useState<Record<number, Role>>({})
+  const [savingIds, setSavingIds] = useState<Set<number>>(new Set())
 
-  const handleRoleChange = async (userId: number, role: Role) => {
+  const selectPendingRole = (userId: number, role: Role) => {
+    setPendingRoles((prev) => ({ ...prev, [userId]: role }))
+  }
+  const cancelPendingRole = (userId: number) => {
+    setPendingRoles((prev) => {
+      const next = { ...prev }
+      delete next[userId]
+      return next
+    })
+  }
+
+  const saveRole = async (userId: number) => {
+    const role = pendingRoles[userId]
+    if (role === undefined) return
     setRowError(null)
+    setSavingIds((prev) => new Set(prev).add(userId))
     try {
       await updateUser(userId, { role })
+      cancelPendingRole(userId)
+      // 自分自身をsystem管理者から降格した場合、この一覧自体がsystem管理者専用（GET /api/users
+      // はrole='admin'を要求）のため、通常どおりmutate()で再取得すると403になり、画面には
+      // 保存前の古い状態が残り続けてしまう（保存自体は成功しているのに反映されて見えない）。
+      // useMe()を更新してこの画面から退出させることで対処する（2026-09-16、自己降格を許可した
+      // ことで新たに発生する状態のため、実機確認で発見）。navigate()を先に呼び、この画面が
+      // アンマウントされた後にmutateMe()するようにする（逆順だと、useMe()の更新がこの画面の
+      // 「システム管理者のみ利用できます」ガードに一瞬引っかかってから遷移する可能性がある）。
+      if (userId === myUserId && role !== 'admin') {
+        navigate('/')
+        await mutateMe()
+        return
+      }
       await mutate()
     } catch (e) {
       setRowError(e instanceof ApiError ? e.message : 'ロールの変更に失敗しました')
+    } finally {
+      setSavingIds((prev) => {
+        const next = new Set(prev)
+        next.delete(userId)
+        return next
+      })
     }
   }
 
@@ -115,7 +154,7 @@ function UsersTab({ myUserId }: { myUserId: number }) {
   return (
     <div>
       <p className="mb-4 text-xs text-slate-500">
-        全社員のロール（一般/システム管理者）と有効/無効を管理します。自分自身の降格・無効化はできません。システム管理者が最後の1人になる変更もできません。
+        全社員のロール（一般/システム管理者）と有効/無効を管理します。ロールは選択後「保存」を押すまで反映されません。自分自身の降格も、他に有効なシステム管理者が1人以上いれば行えます（自分自身の無効化はできません）。システム管理者が不在になる変更はできません。
       </p>
 
       <div className="mb-3 max-w-xs">
@@ -163,14 +202,34 @@ function UsersTab({ myUserId }: { myUserId: number }) {
                       <td className="px-3 py-2 text-slate-500">{u.email}</td>
                       <td className="px-3 py-2">
                         <Select
-                          value={u.role}
-                          disabled={isSelf}
-                          onChange={(v) => handleRoleChange(u.id, v as Role)}
+                          value={pendingRoles[u.id] ?? u.role}
+                          disabled={savingIds.has(u.id)}
+                          onChange={(v) => selectPendingRole(u.id, v as Role)}
                           options={[
                             { value: 'member', label: '一般' },
                             { value: 'admin', label: 'システム管理者' },
                           ]}
                         />
+                        {pendingRoles[u.id] !== undefined && pendingRoles[u.id] !== u.role && (
+                          <div className="mt-1 flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => saveRole(u.id)}
+                              disabled={savingIds.has(u.id)}
+                              className="text-xs font-semibold text-blue-700 hover:underline disabled:cursor-not-allowed disabled:text-slate-400"
+                            >
+                              {savingIds.has(u.id) ? '保存中...' : '保存'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => cancelPendingRole(u.id)}
+                              disabled={savingIds.has(u.id)}
+                              className="text-xs text-slate-400 hover:underline"
+                            >
+                              取消
+                            </button>
+                          </div>
+                        )}
                       </td>
                       <td className="px-3 py-2">
                         <Badge variant={u.is_active ? 'user-active' : 'user-inactive'} />

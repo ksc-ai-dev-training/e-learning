@@ -85,7 +85,13 @@ class UserUpdate(BaseModel):
 
 @router.put("/{id}")
 async def update_user(id: int, body: UserUpdate, user: CurrentUser = Depends(require_roles("admin"))):
-    """A-54: ロール変更・有効/無効切替。自分自身のadmin降格・無効化は拒否する（画面設計書4.12節）。
+    """A-54: ロール変更・有効/無効切替。自分自身の無効化は理由を問わず拒否する（自分で自分を
+    ロックアウトしてしまう事故防止）。自分自身の降格（admin→member）は、他に有効なadminが
+    1人以上いれば許可する（2026-09-16、ユーザー要望。プロジェクト内ロール〔organization.py〕は
+    元々自分自身かどうかを区別せず「最後の1人でなければ許可」という設計だったため、それに揃えた。
+    画面側は保存ボタン方式〔自動保存ではない〕になっているため、誤操作で自分を降格してしまう
+    リスクも小さい）。
+
     設計書には明記が無いが、システムadminが実質1人しかいない状態でその最後の1人を降格・無効化
     できてしまうと、以後システム全体でadminが不在になり管理機能自体が使えなくなるため、プロジェクトの
     「唯一の管理者は降格・削除不可」（organization.py）と同じ考え方でこのガードも追加した
@@ -98,9 +104,10 @@ async def update_user(id: int, body: UserUpdate, user: CurrentUser = Depends(req
     件数を読んでしまい、両方とも許可されてadminが0人になってしまう（F-26のA-65で見つけた
     二重承認の競合と同じ種類の不具合）。行ロック（SELECT ... FOR UPDATE）で対象行と
     現役admin行を先に確定させることで解消した。"""
+    if id == user.id and body.is_active is False:
+        raise HTTPException(400, detail="自分自身を無効化することはできません")
+
     demoting_or_deactivating = (body.role is not None and body.role != "admin") or body.is_active is False
-    if id == user.id and demoting_or_deactivating:
-        raise HTTPException(400, detail="自分自身の権限は変更できません")
 
     pool = get_pool()
     async with pool.acquire() as conn:

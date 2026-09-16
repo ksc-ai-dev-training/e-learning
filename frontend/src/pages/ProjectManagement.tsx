@@ -460,7 +460,6 @@ function ProjectManagementBody({
             mutateMemberships={mutateMemberships}
             myUserId={myUserId}
             canManage={isProjectAdmin}
-            isSystemAdmin={isSystemAdmin}
           />
         )}
 
@@ -478,7 +477,6 @@ function MembersTab({
   mutateMemberships,
   myUserId,
   canManage,
-  isSystemAdmin,
 }: {
   projectId: number
   isCompanyWide: boolean
@@ -490,14 +488,11 @@ function MembersTab({
   // 受験状況/未受講必修教材の閲覧を一切できず、メンバー一覧の閲覧のみに制限する（2026-09-09、
   // S-12を編集者・受講者にも「閲覧のみ」で開放する要望への対応。呼び出し元の
   // ProjectManagementBodyで算出済みのisProjectAdminをそのまま受け取る）。
+  // 自分自身の行のロール変更もcanManageだけで許可する（2026-09-16、ユーザー要望。以前はシステム
+  // adminだけ自分の行を編集可能にしていたが、A-13は元々「対象が最後の1人の管理者でなければ許可」
+  // という、自分自身かどうかを区別しない設計だったため、実プロジェクトの管理者自身にも同じ扱いに
+  // 揃えた。ロール変更が保存ボタン方式〔自動保存ではない〕になったことで誤操作のリスクも下がっている）。
   canManage: boolean
-  // システムadminかどうか。自分自身の行のロール変更は、実プロジェクト管理者であっても
-  // 誤操作防止のため引き続き無効化するが、システムadminだけは自分のロールを変更できるように
-  // する（2026-09-16、ユーザー要望。実プロジェクトの実際のメンバーではないプロジェクトで
-  // 教材編集等を行うために自分をeditor以上へ昇格させたい、という自己サービス的な用途）。
-  // バックエンド（A-13）は元々システムadminに無条件許可を与えているため、ここはフロントエンドの
-  // 表示制御のみで対応する。
-  isSystemAdmin: boolean
 }) {
   const [pendingRemove, setPendingRemove] = useState<number | null>(null)
   const [rowError, setRowError] = useState<string | null>(null)
@@ -515,13 +510,39 @@ function MembersTab({
   // 全社員が擬似的にeditorになる場合でもこのボタン自体が見えない。2026-09-03）。
   const canManageAttempts = canManage
 
-  const handleRoleChange = async (userId: number, role: ProjectRole) => {
+  // ロール変更は誤操作防止のため自動保存にせず、選択した値をここに保持しておき「保存」を
+  // 押すまで反映しない（2026-09-16、ユーザー要望）。
+  const [pendingRoles, setPendingRoles] = useState<Record<number, ProjectRole>>({})
+  const [savingIds, setSavingIds] = useState<Set<number>>(new Set())
+
+  const selectPendingRole = (userId: number, role: ProjectRole) => {
+    setPendingRoles((prev) => ({ ...prev, [userId]: role }))
+  }
+  const cancelPendingRole = (userId: number) => {
+    setPendingRoles((prev) => {
+      const next = { ...prev }
+      delete next[userId]
+      return next
+    })
+  }
+
+  const saveRole = async (userId: number) => {
+    const role = pendingRoles[userId]
+    if (role === undefined) return
     setRowError(null)
+    setSavingIds((prev) => new Set(prev).add(userId))
     try {
       await changeMemberRole(projectId, userId, role)
+      cancelPendingRole(userId)
       await mutateMemberships()
     } catch (e) {
       setRowError(e instanceof ApiError ? e.message : 'ロールの変更に失敗しました')
+    } finally {
+      setSavingIds((prev) => {
+        const next = new Set(prev)
+        next.delete(userId)
+        return next
+      })
     }
   }
 
@@ -557,6 +578,7 @@ function MembersTab({
       <p className="mb-4 text-xs text-slate-500">
         メンバーの招待・削除、ロール（管理者/編集者/受講者）の設定は、このプロジェクトの管理者が行います。
         追加は招待制です。招待した時点ではまだ権限は発生せず、招待された本人が承諾して初めてメンバーとして有効になります。
+        ロールは選択後「保存」を押すまで反映されません。自分自身の降格も、他に有効な管理者が1人以上いれば行えます。
       </p>
 
       {rowError && <p className="mb-3 text-sm text-red-600">{rowError}</p>}
@@ -592,11 +614,31 @@ function MembersTab({
                       </td>
                       <td className="px-3 py-2">
                         <Select
-                          value={m.role}
-                          disabled={m.status !== 'active' || (isSelf ? !isSystemAdmin : !canManage)}
-                          onChange={(v) => handleRoleChange(m.user_id, v as ProjectRole)}
+                          value={pendingRoles[m.user_id] ?? m.role}
+                          disabled={m.status !== 'active' || !canManage || savingIds.has(m.user_id)}
+                          onChange={(v) => selectPendingRole(m.user_id, v as ProjectRole)}
                           options={roleOptions(isCompanyWide && m.role !== 'admin')}
                         />
+                        {pendingRoles[m.user_id] !== undefined && pendingRoles[m.user_id] !== m.role && (
+                          <div className="mt-1 flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => saveRole(m.user_id)}
+                              disabled={savingIds.has(m.user_id)}
+                              className="text-xs font-semibold text-blue-700 hover:underline disabled:cursor-not-allowed disabled:text-slate-400"
+                            >
+                              {savingIds.has(m.user_id) ? '保存中...' : '保存'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => cancelPendingRole(m.user_id)}
+                              disabled={savingIds.has(m.user_id)}
+                              className="text-xs text-slate-400 hover:underline"
+                            >
+                              取消
+                            </button>
+                          </div>
+                        )}
                       </td>
                       <td className="px-3 py-2">
                         <Badge variant={m.status === 'active' ? 'member-active' : m.status === 'invited' ? 'member-invited' : 'member-declined'} />
