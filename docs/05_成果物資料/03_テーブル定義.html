@@ -258,6 +258,8 @@
       <tr><td>reviewed_by</td><td>BIGINT</td><td>YES</td><td>—</td><td>FK→users。採点結果を修正／入力したプロジェクト管理者・編集者</td></tr>
       <tr><td>reviewed_at</td><td>TIMESTAMPTZ</td><td>YES</td><td>—</td><td></td></tr>
       <tr class="rev-new"><td>result_seen_at</td><td>TIMESTAMPTZ</td><td>YES</td><td>—</td><td>本人が採点結果パネル（S-04）を開いて確認した日時（2026-09-11新設、A-98）。<code>reviewed_at</code>設定済みかつ<code>result_seen_at IS NULL OR result_seen_at &lt; reviewed_at</code>の行がある教材を、マイ学習「採点結果」タブ（A-39 <code>pending_review</code>）に表示する</td></tr>
+      <tr class="rev-new"><td>draft_is_correct</td><td>BOOLEAN</td><td>YES</td><td>—</td><td>2026-09-15新設。S-20まとめ採点カードでの下書き正誤判定。<code>is_correct</code>とは別に持たせているのは、受講者側の「採点中」表示が<code>is_correct IS NULL</code>かどうかだけで切り替わるため、下書き段階でここに直接書くと受講者に正誤が漏れてしまうため（A-74で保存、A-100で<code>is_correct</code>へコピー）</td></tr>
+      <tr class="rev-new"><td>draft_ai_feedback</td><td>TEXT</td><td>YES</td><td>—</td><td>2026-09-15新設。<code>draft_is_correct</code>と対になる下書き講評テキスト。A-100で<code>ai_feedback</code>へコピーする</td></tr>
       <tr><td>created_at / updated_at</td><td>TIMESTAMPTZ</td><td>NO</td><td>now()</td><td></td></tr>
     </tbody>
   </table>
@@ -887,7 +889,7 @@ ALTER TABLE surveys ENABLE ROW LEVEL SECURITY;</code></pre>
 
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）詳細設計書 v1.87</span>
+    <span>社内学習管理システム（Manabi）詳細設計書 v1.89</span>
     <span>コガソフトウェア株式会社 / 2026-09-08</span>
   </footer>
 
