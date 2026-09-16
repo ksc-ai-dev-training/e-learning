@@ -381,30 +381,22 @@ export default function MaterialView() {
                 </div>
                 <div className="divide-y divide-slate-100">
                   {gradedAnswers.map((a) => {
-                    // 記述式・コード記述式はAI/手動採点の点数（採点待ちは「採点中」）、それ以外
-                    // （単一選択・複数選択・並び替え）は保存時に同期採点済みのため正解/不正解を表示する。
-                    // 記述式・コード記述式はAI採点済み（ai_score_pctあり）ならその点数を表示するが、
-                    // 手動採点（grading_mode='manual'）はA-74でis_correctのみ設定しai_score_pctは
-                    // 更新しない設計のため、ai_score_pctだけを見ると手動採点済みの回答がいつまでも
-                    // 「採点中」のまま表示されてしまう不具合があった（2026-09-11、ユーザー報告により
-                    // 発見・修正）。ai_score_pctが無い場合はis_correctの有無で判定する。
-                    const isAiGraded = a.type === 'free_text' || a.type === 'code'
+                    // 記述式・コード記述式・単一選択・複数選択・並び替えいずれもis_correctの正誤で
+                    // 「正解」「不正解」「採点中」（未確定）を表示する（2026-09-16、AI採点・手動採点とも
+                    // 統一。以前はAI採点済み〔ai_score_pctあり〕の場合だけ点数（例:「0点」）を表示して
+                    // いたが、AI採点は部分点を付けない設計（ai_client.pyのプロンプトで明示、correct=trueなら
+                    // 常に100・falseなら常に0）のため点数表示に情報量が無いうえ、バッジの色をこの点数の
+                    // 有無だけで緑固定にしていたため0点〔不正解〕のAI採点結果も正解と同じ緑色で表示されて
+                    // しまうバグがあった〔ユーザー報告により発見〕。is_correctのみで判定する形に統一して
+                    // 両方解消した）。
                     const badgeText =
-                      isAiGraded && a.ai_score_pct !== null
-                        ? `${Math.round(a.ai_score_pct)}点`
-                        : a.is_correct !== null
-                          ? a.is_correct
-                            ? '正解'
-                            : '不正解'
-                          : '採点中'
+                      a.is_correct !== null ? (a.is_correct ? '正解' : '不正解') : '採点中'
                     const badgeClass =
-                      isAiGraded && a.ai_score_pct !== null
-                        ? 'bg-green-100 text-green-700'
-                        : a.is_correct !== null
-                          ? a.is_correct
-                            ? 'bg-green-100 text-green-700'
-                            : 'bg-red-100 text-red-700'
-                          : 'bg-slate-100 text-slate-500'
+                      a.is_correct !== null
+                        ? a.is_correct
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-red-100 text-red-700'
+                        : 'bg-slate-100 text-slate-500'
                     const expanded = expandedGradedAnswerIds.has(a.question_id)
                     return (
                       <button
