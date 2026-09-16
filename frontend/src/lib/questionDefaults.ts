@@ -29,6 +29,7 @@ export function emptyQuestionForType(type: QuestionType): Question {
     prompt: '',
     options: type === 'single' || type === 'multi' ? ['', ''] : null,
     correct_answer: type === 'reorder' ? ['', ''] : type === 'multi' ? [] : null,
+    has_correct_answer: type === 'reorder',
     scoring_criteria: type === 'free_text' || type === 'code' ? '' : null,
     code_language: type === 'code' ? '' : null,
     required: true,

@@ -7,6 +7,8 @@ import type { Question } from '../../types'
 export interface PageContentFieldsProps {
   // 保存前（materialId未確定）の新規ページ編集ではnull。MarkdownHtmlEditorのプレビュー可否に使う。
   materialId: number | null
+  // 設問のgrading_modeが「教材既定に従う」の場合に採用する教材側の既定値（AI採点基準欄の表示判定用）
+  materialGradingMode: 'ai' | 'manual'
   title: string
   onTitleChange: (v: string) => void
   includeExplanation: boolean
@@ -34,6 +36,7 @@ export interface PageContentFieldsProps {
 // 要件が異なるため含めない（新規ページには実IDが無く添付ファイルを登録できないため）。
 export default function PageContentFields({
   materialId,
+  materialGradingMode,
   title,
   onTitleChange,
   includeExplanation,
@@ -125,6 +128,7 @@ export default function PageContentFields({
                 key={i}
                 question={q}
                 index={i}
+                materialGradingMode={materialGradingMode}
                 onChange={(nq) => updateQuestion(i, nq)}
                 onDelete={() => deleteQuestion(i)}
               />

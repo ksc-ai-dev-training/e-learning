@@ -26,11 +26,15 @@ const TYPE_OPTIONS: { value: QuestionType; label: string }[] = (
 export default function QuestionEditCard({
   question,
   index,
+  materialGradingMode,
   onChange,
   onDelete,
 }: {
   question: Question
   index: number
+  // この設問のgrading_modeが未指定（教材既定に従う）の場合に採用する、教材側の既定値。
+  // AI採点基準（scoring_criteria）入力欄を表示するかどうかの判定にのみ使う。
+  materialGradingMode: 'ai' | 'manual'
   onChange: (q: Question) => void
   onDelete: () => void
 }) {
@@ -38,6 +42,7 @@ export default function QuestionEditCard({
   const isScoreLog = question.type === 'score_log'
   const gradingOverridable = supportsGradingModeOverride(question.type)
   const feedbackDisabled = gradingOverridable && question.grading_mode === 'manual'
+  const effectiveGradingMode = question.grading_mode ?? materialGradingMode
 
   const changeType = (value: string) =>
     onChange({
@@ -90,7 +95,7 @@ export default function QuestionEditCard({
       )}
       {question.type === 'reorder' && <ReorderEditor question={question} onChange={onChange} />}
       {(question.type === 'free_text' || question.type === 'code') && (
-        <FreeTextCodeEditor question={question} onChange={onChange} />
+        <FreeTextCodeEditor question={question} onChange={onChange} showScoringCriteria={effectiveGradingMode === 'ai'} />
       )}
       {isScoreLog && <ScoreLogEditor question={question} onChange={onChange} />}
 
@@ -208,6 +213,10 @@ function OptionsEditor({ question, onChange }: { question: Question; onChange: (
       onChange({ ...question, correct_answer: value })
     }
   }
+  // 単一選択のラジオボタンはクリックだけでは選択解除できないため、既に正解になっている選択肢を
+  // 再クリックしたときだけ明示的に解除する（「記録」「任意」は正解を設定しなくてもよいため。
+  // 2026-09-16）。複数選択はチェックボックスなのでクリックで自然にトグルでき、この処理は不要。
+  const clearSingleCorrect = () => onChange({ ...question, correct_answer: null })
 
   const addOption = () => onChange({ ...question, options: [...options, ''] })
 
@@ -228,7 +237,12 @@ function OptionsEditor({ question, onChange }: { question: Question; onChange: (
       <label className="text-xs font-semibold text-slate-500">選択肢（正解にチェック）</label>
       {options.map((opt, i) => (
         <div key={i} className="flex items-center gap-2">
-          <input type={isMulti ? 'checkbox' : 'radio'} checked={correctSet.has(opt)} onChange={() => toggleCorrect(i)} />
+          <input
+            type={isMulti ? 'checkbox' : 'radio'}
+            checked={correctSet.has(opt)}
+            onChange={() => toggleCorrect(i)}
+            onClick={!isMulti ? () => { if (correctSet.has(opt)) clearSingleCorrect() } : undefined}
+          />
           <TextInput value={opt} onChange={(e) => updateOption(i, e.target.value)} className="flex-1" />
           <button
             type="button"
@@ -246,11 +260,24 @@ function OptionsEditor({ question, onChange }: { question: Question; onChange: (
       >
         + 選択肢を追加
       </button>
+      {!question.counted && (
+        <p className="text-[11px] text-slate-400">
+          ※「記録」「任意」は正解を設定しなくても保存できます（意見・見解を選ばせるだけのアンケート的な設問として使えます）。
+        </p>
+      )}
     </div>
   )
 }
 
-function FreeTextCodeEditor({ question, onChange }: { question: Question; onChange: (q: Question) => void }) {
+function FreeTextCodeEditor({
+  question,
+  showScoringCriteria,
+  onChange,
+}: {
+  question: Question
+  showScoringCriteria: boolean
+  onChange: (q: Question) => void
+}) {
   return (
     <div className="mb-2 flex flex-col gap-2">
       {question.type === 'code' && (
@@ -264,15 +291,21 @@ function FreeTextCodeEditor({ question, onChange }: { question: Question; onChan
           />
         </div>
       )}
-      <div className="flex flex-col gap-1">
-        <label className="text-xs font-semibold text-slate-500">AI採点基準</label>
-        <TextArea
-          value={question.scoring_criteria ?? ''}
-          onChange={(e) => onChange({ ...question, scoring_criteria: e.target.value })}
-          rows={3}
-          placeholder="模範解答・採点の観点を記述してください"
-        />
-      </div>
+      {showScoringCriteria ? (
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-semibold text-slate-500">AI採点基準</label>
+          <TextArea
+            value={question.scoring_criteria ?? ''}
+            onChange={(e) => onChange({ ...question, scoring_criteria: e.target.value })}
+            rows={3}
+            placeholder="模範解答・採点の観点を記述してください"
+          />
+        </div>
+      ) : (
+        <p className="text-[11px] text-slate-400">
+          ※採点方式が手動のため、AI採点基準の入力は不要です。
+        </p>
+      )}
     </div>
   )
 }

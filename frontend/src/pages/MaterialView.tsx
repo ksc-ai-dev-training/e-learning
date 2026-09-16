@@ -388,11 +388,21 @@ export default function MaterialView() {
                     // 常に100・falseなら常に0）のため点数表示に情報量が無いうえ、バッジの色をこの点数の
                     // 有無だけで緑固定にしていたため0点〔不正解〕のAI採点結果も正解と同じ緑色で表示されて
                     // しまうバグがあった〔ユーザー報告により発見〕。is_correctのみで判定する形に統一して
-                    // 両方解消した）。
-                    const badgeText =
-                      a.is_correct !== null ? (a.is_correct ? '正解' : '不正解') : '採点中'
-                    const badgeClass =
-                      a.is_correct !== null
+                    // 両方解消した）。ただし単一選択・複数選択の「記録」「任意」は正解未設定を
+                    // 許容するため、is_correctがnullでも「採点中」ではなく「回答記録済み」と表示する
+                    // （正解が無いので採点自体がいつまで経っても行われない。2026-09-16）。
+                    const ungraded =
+                      (a.type === 'single' || a.type === 'multi') && !a.has_correct_answer
+                    const badgeText = ungraded
+                      ? '回答記録済み'
+                      : a.is_correct !== null
+                        ? a.is_correct
+                          ? '正解'
+                          : '不正解'
+                        : '採点中'
+                    const badgeClass = ungraded
+                      ? 'bg-slate-100 text-slate-500'
+                      : a.is_correct !== null
                         ? a.is_correct
                           ? 'bg-green-100 text-green-700'
                           : 'bg-red-100 text-red-700'

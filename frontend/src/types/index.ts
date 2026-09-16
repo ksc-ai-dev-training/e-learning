@@ -186,6 +186,9 @@ export interface Question {
   prompt: string
   options: string[] | null
   correct_answer: string | string[] | null
+  // 単一選択・複数選択の「記録」「任意」は正解未設定を許容するため、correct_answerの中身が
+  // 見えない受講者側でも「正解が設定されているか」を判定できるよう常に送られるフラグ
+  has_correct_answer: boolean
   scoring_criteria: string | null
   code_language: string | null
   required: boolean
@@ -277,6 +280,9 @@ export interface AttemptSummaryEntry {
     type: Exclude<QuestionType, 'score_log'>
     response: unknown
     is_correct: boolean | null
+    // 単一選択・複数選択の「記録」「任意」は正解未設定を許容するため、is_correctがnullでも
+    // 「採点中」なのか「そもそも採点しない設問」なのかを区別するために使う（2026-09-16）
+    has_correct_answer: boolean
     ai_score_pct: number | null
     ai_feedback: string | null
   }[]

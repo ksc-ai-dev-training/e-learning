@@ -1060,7 +1060,11 @@ export default function MaterialEdit() {
             <span className="text-sm font-semibold text-slate-700">受講後アンケート（教材全体）</span>
           </div>
           <div className="flex items-center justify-between gap-3 p-4">
-            {surveyFor(null) ? (
+            {savedId === null ? (
+              <span className="text-sm text-slate-400">
+                先に「下書き保存」を行うとアンケートを設置できます
+              </span>
+            ) : surveyFor(null) ? (
               <span className="text-sm text-slate-600">
                 「{surveyFor(null)!.title}」を設置中{surveyFor(null)!.is_active ? '' : '（現在OFF）'}
               </span>
@@ -1327,6 +1331,7 @@ export default function MaterialEdit() {
                               <div className="ml-6">
                                 <InlinePageEditor
                                   materialId={savedId}
+                                  materialGradingMode={gradingMode}
                                   initialPage={child}
                                   confirmLabel="変更を反映する"
                                   onConfirm={confirmInlinePage}
@@ -1484,6 +1489,7 @@ export default function MaterialEdit() {
                                     <div className="ml-6">
                                       <InlinePageEditor
                                         materialId={savedId}
+                                        materialGradingMode={gradingMode}
                                         initialPage={page}
                                         confirmLabel="変更を反映する"
                                         onConfirm={confirmInlinePage}
@@ -1506,6 +1512,7 @@ export default function MaterialEdit() {
                                 <div className="ml-6">
                                   <InlinePageEditor
                                     materialId={savedId}
+                                    materialGradingMode={gradingMode}
                                     onConfirm={confirmInlinePage}
                                     onCancel={closeInlinePageEditor}
                                   />
@@ -1537,6 +1544,7 @@ export default function MaterialEdit() {
                       {inlineTarget?.mode === 'new' && inlineTarget.chapterIdx === ci && inlineTarget.sectionIdx === null && (
                         <InlinePageEditor
                           materialId={savedId}
+                          materialGradingMode={gradingMode}
                           onConfirm={confirmInlinePage}
                           onCancel={closeInlinePageEditor}
                         />

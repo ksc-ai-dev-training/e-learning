@@ -447,6 +447,13 @@ class SaveAnswerIn(BaseModel):
 
 
 def _grade_deterministic(qtype: str, correct_answer, response) -> bool | None:
+    # 単一選択・複数選択は「記録」「任意」（counted=false）に限り正解未設定を許容する
+    # （2026-09-16）。その場合は自動採点自体を行わず、is_correctはNULLのまま
+    # （＝score_logと同じ「回答記録のみ」）にする。
+    if qtype == "single" and correct_answer is None:
+        return None
+    if qtype == "multi" and not correct_answer:
+        return None
     if qtype == "single":
         return response == correct_answer
     if qtype == "multi":
@@ -1268,7 +1275,8 @@ async def get_attempt_summary(id: int, user: CurrentUser = Depends(require_auth)
             user.id, id, g["scope_node_id"],
         )
         answers = await pool.fetch(
-            """SELECT a.question_id, q.prompt, q.type, a.response, a.is_correct, a.ai_score_pct, a.ai_feedback
+            """SELECT a.question_id, q.prompt, q.type, q.correct_answer, a.response, a.is_correct,
+                      a.ai_score_pct, a.ai_feedback
                FROM answers a JOIN questions q ON q.id = a.question_id
                WHERE a.attempt_id = $1 AND q.type != 'score_log'""",
             attempt["id"],
@@ -1284,7 +1292,8 @@ async def get_attempt_summary(id: int, user: CurrentUser = Depends(require_auth)
         if carried_over_ids:
             carried_answers = await pool.fetch(
                 """SELECT DISTINCT ON (a.question_id)
-                          a.question_id, q.prompt, q.type, a.response, a.is_correct, a.ai_score_pct, a.ai_feedback
+                          a.question_id, q.prompt, q.type, q.correct_answer, a.response, a.is_correct,
+                          a.ai_score_pct, a.ai_feedback
                    FROM answers a
                    JOIN questions q ON q.id = a.question_id
                    JOIN quiz_attempts qa2 ON qa2.id = a.attempt_id
@@ -1309,6 +1318,13 @@ async def get_attempt_summary(id: int, user: CurrentUser = Depends(require_auth)
         for a in answers:
             d = dict(a)
             d["response"] = json.loads(d["response"]) if d["response"] else None
+            correct_answer = json.loads(d["correct_answer"]) if d["correct_answer"] is not None else None
+            # 単一選択・複数選択の「記録」「任意」は正解未設定を許容するため、「採点中」（is_correctが
+            # まだ確定していないだけ）と「そもそも採点しない設問」を受講者が見分けられるよう
+            # has_correct_answerを返す。実際の正解の中身（correct_answer）は他の設問と同様に
+            # 受講者へは返さない（2026-09-16）。
+            d["has_correct_answer"] = bool(correct_answer) if d["type"] == "multi" else correct_answer is not None
+            del d["correct_answer"]
             answer_dicts.append(d)
         entries.append({
             "scope_node_id": g["scope_node_id"],

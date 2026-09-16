@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import PageHeader from '../components/layout/PageHeader'
 import AttachmentList from '../components/material/AttachmentList'
@@ -89,6 +89,13 @@ export default function MaterialPageEdit() {
   const [attachmentError, setAttachmentError] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([])
+  // 保存ボタンは説明文・設問・添付ファイルの後、画面の一番下にあるため、そこでブロックされた
+  // バリデーションエラーは画面上部に出ても気づけない（InlinePageEditor.tsxと同じ問題。
+  // 2026-09-16、ユーザー報告）。エラーが出た瞬間にその位置まで自動でスクロールする。
+  const errorRef = useRef<HTMLParagraphElement>(null)
+  useEffect(() => {
+    if (error) errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [error])
 
   useEffect(() => {
     if (!material || initialized) return
@@ -134,6 +141,7 @@ export default function MaterialPageEdit() {
       questions,
       quizMode,
       poolDrawCount,
+      materialGradingMode: material?.grading_mode ?? 'ai',
     })
     if (validationError) {
       setError(validationError)
@@ -329,11 +337,12 @@ export default function MaterialPageEdit() {
         )}
 
         {error && (
-          <p className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+          <p ref={errorRef} className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
         )}
 
         <PageContentFields
           materialId={Number(materialId)}
+          materialGradingMode={material?.grading_mode ?? 'ai'}
           title={title}
           onTitleChange={setTitle}
           includeExplanation={includeExplanation}

@@ -104,7 +104,7 @@ export default function MaterialsList() {
           このプロジェクトの教材（下書きを含む）を一覧表示します。
         </p>
 
-        <details className="mb-4 rounded-md border border-slate-200">
+        <details className="mb-4 rounded-md border border-slate-200" open>
           <summary className="cursor-pointer px-4 py-2.5 text-sm font-semibold text-slate-600">
             絞り込み <span className="ml-1 text-xs font-normal text-slate-400">クリックで開閉</span>
           </summary>

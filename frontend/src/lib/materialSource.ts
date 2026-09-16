@@ -81,7 +81,10 @@ function serializeQuestion(q: Question): string {
   if (q.options && q.options.length > 0) {
     lines.push(`options:${yamlList(q.options)}`)
   }
-  if (q.correct_answer !== null) {
+  // 複数選択の「記録」「任意」は正解未設定を許容し、その場合q.correct_answerは空配列になる
+  // （questionDefaults.tsのemptyQuestionForType参照）。空配列のまま書き出すと「正解: 空配列」という
+  // 状態がソースに残ってしまうため、未設定（省略）と同じ扱いにする（2026-09-16）。
+  if (q.correct_answer !== null && !(Array.isArray(q.correct_answer) && q.correct_answer.length === 0)) {
     if (Array.isArray(q.correct_answer)) {
       lines.push(`correct_answer:${yamlList(q.correct_answer)}`)
     } else {

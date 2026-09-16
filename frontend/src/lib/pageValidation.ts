@@ -8,9 +8,12 @@ export interface PageContentInput {
   questions: Question[]
   quizMode: 'all' | 'pool'
   poolDrawCount: number | null
+  // 設問のgrading_modeが「教材既定に従う」の場合に採用する教材側の既定値
+  // （AI採点基準の必須判定に使う。QuestionEditCard.tsxの表示条件と揃える）
+  materialGradingMode: 'ai' | 'manual'
 }
 
-function validateQuestions(qs: Question[]): string | null {
+function validateQuestions(qs: Question[], materialGradingMode: 'ai' | 'manual'): string | null {
   for (let i = 0; i < qs.length; i++) {
     const q = qs[i]
     if (!q.prompt.trim()) {
@@ -21,10 +24,14 @@ function validateQuestions(qs: Question[]): string | null {
       if (options.length < 2) {
         return `設問${i + 1}: 選択肢を2つ以上入力してください`
       }
-      const hasCorrect =
-        q.type === 'multi' ? ((q.correct_answer as string[] | null) ?? []).length > 0 : !!q.correct_answer
-      if (!hasCorrect) {
-        return `設問${i + 1}: 正解を選んでください`
+      // 「記録」「任意」（counted=false）は、答えの決まっていない意見・見解を書かせる設問にも
+      // 使えるよう正解を設定しなくてもよい（2026-09-16）。「必須」（counted=true）は従来どおり必須。
+      if (q.counted) {
+        const hasCorrect =
+          q.type === 'multi' ? ((q.correct_answer as string[] | null) ?? []).length > 0 : !!q.correct_answer
+        if (!hasCorrect) {
+          return `設問${i + 1}: 正解を選んでください`
+        }
       }
     }
     if (q.type === 'reorder') {
@@ -34,7 +41,10 @@ function validateQuestions(qs: Question[]): string | null {
       }
     }
     if (q.type === 'free_text' || q.type === 'code') {
-      if (!q.scoring_criteria?.trim()) {
+      // 採点基準はAI採点にのみ使うため、実効的な採点方式（設問側の上書き、無指定なら教材既定）が
+      // 手動の場合は不要（バックエンドのupsert_questions_for_nodeと同じ判定。2026-09-16）。
+      const effectiveGradingMode = q.grading_mode ?? materialGradingMode
+      if (effectiveGradingMode === 'ai' && !q.scoring_criteria?.trim()) {
         return `設問${i + 1}: AI採点基準を入力してください`
       }
       if (q.type === 'code' && !q.code_language?.trim()) {
@@ -61,7 +71,7 @@ export function validatePageContent(input: PageContentInput): string | null {
     if (input.questions.length === 0) {
       return '問題を1つ以上追加してください'
     }
-    const qError = validateQuestions(input.questions)
+    const qError = validateQuestions(input.questions, input.materialGradingMode)
     if (qError) return qError
     if (input.quizMode === 'pool' && (!input.poolDrawCount || input.poolDrawCount < 1)) {
       return '出題プールの抽出数を1以上で入力してください'

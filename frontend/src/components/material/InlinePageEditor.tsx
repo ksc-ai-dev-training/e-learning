@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Button from '../ui/Button'
 import PageContentFields from './PageContentFields'
 import type { EditableNode } from '../../lib/materialSource'
@@ -8,6 +8,8 @@ import type { Question } from '../../types'
 interface InlinePageEditorProps {
   // 教材がまだ保存されていない新規作成中はnull（PageContentFieldsへそのまま渡す）
   materialId: number | null
+  // 教材設定タブで編集中（未保存分含む）の採点方式既定値。PageContentFieldsへそのまま渡す
+  materialGradingMode: 'ai' | 'manual'
   // 指定時は既存の（まだサーバー未保存の）ページを編集するモードになり、フィールドの初期値を
   // このページの内容で埋める。未指定なら空の新規ページとして開始する（2026-09-09）。
   initialPage?: EditableNode
@@ -24,6 +26,7 @@ interface InlinePageEditorProps {
 // （保存後に「編集する」から追加してもらう）。
 export default function InlinePageEditor({
   materialId,
+  materialGradingMode,
   initialPage,
   confirmLabel = 'このページを追加する',
   onConfirm,
@@ -41,6 +44,13 @@ export default function InlinePageEditor({
     initialPage?.questions?.map((q) => q.pool_group !== null) ?? [],
   )
   const [error, setError] = useState<string | null>(null)
+  // 設問を複数追加した長いページで「このページを追加する」（一番下）を押したときにブロックされると、
+  // エラー文言はこのパネルの一番上に出るため、スクロールが下にあると表示に気づけない
+  // （2026-09-16、ユーザー報告）。エラーが出た瞬間にその位置まで自動でスクロールする。
+  const errorRef = useRef<HTMLParagraphElement>(null)
+  useEffect(() => {
+    if (error) errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [error])
 
   const confirm = () => {
     const validationError = validatePageContent({
@@ -51,6 +61,7 @@ export default function InlinePageEditor({
       questions,
       quizMode,
       poolDrawCount,
+      materialGradingMode,
     })
     if (validationError) {
       setError(validationError)
@@ -83,11 +94,12 @@ export default function InlinePageEditor({
       </div>
 
       {error && (
-        <p className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{error}</p>
+        <p ref={errorRef} className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{error}</p>
       )}
 
       <PageContentFields
         materialId={materialId}
+        materialGradingMode={materialGradingMode}
         title={title}
         onTitleChange={setTitle}
         includeExplanation={includeExplanation}

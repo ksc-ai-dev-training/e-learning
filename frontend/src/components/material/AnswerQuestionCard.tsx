@@ -9,12 +9,22 @@ import TextInput from '../ui/TextInput'
 import AnswerReorderList from './AnswerReorderList'
 import CodeAnswerEditor from './CodeAnswerEditor'
 
-function StatusBadge({ answer, questionType }: { answer: Answer; questionType: Question['type'] }) {
+function StatusBadge({
+  answer,
+  questionType,
+  hasCorrectAnswer,
+}: {
+  answer: Answer
+  questionType: Question['type']
+  hasCorrectAnswer: boolean
+}) {
   // スコア記録（score_log）は正誤・採点の概念を持たず、is_correct・ai_score_pctは常にnullのまま
   // 更新されることがない（合否判定からも常に除外される）。「採点中」「採点済み」のような
   // 採点を示唆する文言を出すと、いつまでも採点されない状態を誤解させるため、単に「回答済み」とだけ
-  // 表示する（2026-09-11、ユーザー指摘）。
-  if (questionType === 'score_log') {
+  // 表示する（2026-09-11、ユーザー指摘）。単一選択・複数選択の「記録」「任意」も、正解が
+  // 設定されていなければ同様に自動採点自体が行われず、is_correctは常にnullのままになる
+  // （2026-09-16、アンケート的運用への対応）。
+  if (questionType === 'score_log' || ((questionType === 'single' || questionType === 'multi') && !hasCorrectAnswer)) {
     return <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-500">回答済み</span>
   }
   if (answer.is_correct === true) {
@@ -128,7 +138,9 @@ export default function AnswerQuestionCard({
             設問{index}に回答すると解放されます
           </span>
         )}
-        {!locked && answered && revealResult && <StatusBadge answer={answer} questionType={question.type} />}
+        {!locked && answered && revealResult && (
+          <StatusBadge answer={answer} questionType={question.type} hasCorrectAnswer={question.has_correct_answer} />
+        )}
         {!locked && answered && !revealResult && (
           <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-500">
             回答済み

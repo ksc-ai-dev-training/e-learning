@@ -237,6 +237,10 @@ async def _fetch_tree(executor, material_id: int, *, strip_answers: bool = False
         d["options"] = json.loads(d["options"]) if d["options"] is not None else None
         d["correct_answer"] = json.loads(d["correct_answer"]) if d["correct_answer"] is not None else None
         d["pool_group"] = d.pop("pool_group_id")
+        # 正解が設定されているかどうかは、strip_answers=Trueで実際のcorrect_answerを隠す受講者にも
+        # 伝える必要がある（単一選択・複数選択の「記録」「任意」は正解未設定を許容するため、
+        # 「採点中」と「そもそも採点しない」を受講者側の表示で区別できるようにする。2026-09-16）。
+        d["has_correct_answer"] = bool(d["correct_answer"]) if d["type"] == "multi" else d["correct_answer"] is not None
         if strip_answers:
             # 並び替え（reorder）はcorrect_answerが並び替え対象の項目そのものを保持する
             # （QuestionEditCardのReorderEditorがoptionsを使わない設計のため）。correct_answerを
@@ -295,14 +299,24 @@ class QuestionIn(BaseModel):
         if self.type in ("single", "multi"):
             if not self.options:
                 raise ValueError(f"種別「{self.type}」には選択肢（options）が必須です")
-            if self.correct_answer is None:
-                raise ValueError(f"種別「{self.type}」には正解（correct_answer）が必須です")
+            # 「記録」「任意」（counted=false）は、答えの決まっていない意見・見解を書かせる設問にも
+            # 単一選択・複数選択のUIを使えるよう、正解を設定しなくてもよいことにする（自動採点自体を
+            # 行わず、is_correctは常にNULLのまま＝スコア記録型と同様の「回答記録のみ」として扱う。
+            # 2026-09-16、ユーザー要望）。counted=true（必須・スコア算入対象）は従来どおり必須。
+            has_correct = bool(self.correct_answer) if self.type == "multi" else self.correct_answer is not None
+            if self.counted and not has_correct:
+                raise ValueError(
+                    f"種別「{self.type}」には正解（correct_answer）が必須です（「記録」「任意」の場合は省略できます）"
+                )
         elif self.type == "reorder":
             if not isinstance(self.correct_answer, list) or len(self.correct_answer) < 2:
                 raise ValueError("並び替え（reorder）の正解は2件以上の配列で指定してください")
         elif self.type in ("free_text", "code"):
-            if not self.scoring_criteria:
-                raise ValueError(f"種別「{self.type}」には採点基準（scoring_criteria）が必須です")
+            # 採点基準（scoring_criteria）はAI採点プロンプトにのみ使うため、実際に採点する方式が
+            # AIかどうか（設問側のgrading_mode上書き、無指定なら教材既定）で必須かどうかが変わる。
+            # 教材既定はこの時点では分からない（教材単位の情報のため）ので、ここでは型の整合性のみ
+            # 見て、必須チェック自体はupsert_questions_for_node側で教材のgrading_modeと突き合わせて行う
+            # （2026-09-16、手動採点の設問にまで採点基準の入力を強制していたとの指摘を受け対応）。
             if self.type == "code" and not self.code_language:
                 raise ValueError("コード記述式（code）には言語（code_language）が必須です")
         elif self.type == "score_log":
@@ -318,6 +332,16 @@ async def upsert_questions_for_node(
 ) -> dict:
     """当該node_idの問題を送信内容で全置換する（A-20のページ全置換処理・A-31から共通で呼ぶ。
     詳細設計書07_教材連携詳細.html 7.3節「A-31と同一のロジックを適用する」に対応）。"""
+    material_grading_mode = await conn.fetchval(
+        "SELECT grading_mode FROM materials WHERE id = $1", material_id
+    )
+    for q in questions:
+        if q.type in ("free_text", "code"):
+            effective_mode = q.grading_mode or material_grading_mode
+            if effective_mode == "ai" and not q.scoring_criteria:
+                raise HTTPException(
+                    422, detail=f"種別「{q.type}」はAI採点のため採点基準（scoring_criteria）が必須です"
+                )
     existing_ids = {
         r["id"] for r in await conn.fetch("SELECT id FROM questions WHERE node_id = $1", node_id)
     }

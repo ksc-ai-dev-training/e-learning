@@ -4,6 +4,7 @@ import os
 from contextlib import AsyncExitStack, asynccontextmanager
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -76,6 +77,38 @@ async def healthz():
     except Exception:
         return JSONResponse(status_code=503, content={"status": "unhealthy"}, headers=no_store)
     return JSONResponse(content={"status": "ok", "env": database.APP_ENV}, headers=no_store)
+
+
+def _translate_validation_error(err: dict) -> str:
+    """PydanticのRequestValidationErrorは既定で英語（"String should have at most 100
+    characters"等）のため、他のエラー（HTTPExceptionのdetail）と同じく画面にそのまま出しても
+    読めない。頻出する型だけ日本語に置き換え、未知の型は元のmsgのままフォールバックする
+    （2026-09-16、プロジェクト名の文字数超過エラーが英語のまま表示されるとの指摘を受け対応）。"""
+    etype = err.get("type")
+    ctx = err.get("ctx", {})
+    if etype == "string_too_long":
+        return f"{ctx.get('max_length')}文字以内で入力してください"
+    if etype == "string_too_short":
+        return f"{ctx.get('min_length')}文字以上で入力してください"
+    if etype == "missing":
+        return "入力してください"
+    if etype == "value_error":
+        # model_validatorが`raise ValueError("...")`したメッセージ自体は既に日本語で書いて
+        # いる（QuestionIn._validate_by_type等）が、pydantic v2はmsgの先頭に固定で
+        # "Value error, "という英語プレフィックスを付ける仕様のため、それだけ取り除く
+        # （2026-09-16、このハンドラ新設時の見直しで発見。PUT /questions等FastAPIが自動で
+        # bodyをパースするエンドポイントでraise ValueErrorすると、このプレフィックスが
+        # そのまま日本語メッセージの前に残ってしまっていた）。
+        msg = err.get("msg", "")
+        prefix = "Value error, "
+        return msg[len(prefix):] if msg.startswith(prefix) else msg
+    return err.get("msg", "入力内容を確認してください")
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    messages = [_translate_validation_error(err) for err in exc.errors()]
+    return JSONResponse(status_code=422, content={"detail": " / ".join(messages)})
 
 
 @app.exception_handler(Exception)
