@@ -226,7 +226,7 @@ export default function MaterialEdit() {
   // （以前は操作のたびに自動保存していたが、保存押下時にまとめて確定する方式に変更した）。
   // 呼び出し元（ページ編集への自動保存等）が成否を判定できるよう、成功時true・失敗時falseを
   // 返す（2026-09-09）。
-  const saveDraft = async (): Promise<boolean> => {
+  const saveDraft = async (options?: { skipRedirectAfterCreate?: boolean }): Promise<boolean> => {
     setError(null)
     setSavedMessage(null)
     if (title.trim().length === 0) {
@@ -269,14 +269,21 @@ export default function MaterialEdit() {
         )
         await apiFetchText(`/api/materials/${created.id}/source`, source)
         setSavedId(created.id)
+        setDirty(false)
         // 保存直後のこのnavigateは自分自身が起こす画面遷移（新規作成後の作成済みURLへの
         // 置き換え）であって、保存していない変更の破棄ではない。setDirty(false)だけでは
         // useBlockerの判定関数がレンダーを経てからでないと更新されず、この直後の同期的な
         // navigate()には間に合わない（Reactのstate更新は非同期のため）ので、bypassOnce()で
         // 同期的にもブロックを解除しておく（2026-09-09、setDirty(false)だけでは不十分と判明し修正）。
-        setDirty(false)
-        unsavedBlocker.bypassOnce()
-        navigate(`/projects/${projectId}/materials/${created.id}/edit`, { replace: true })
+        // skipRedirectAfterCreateは「保存して移動」から呼ばれた場合のみtrueにする（2026-09-16、
+        // 実装後レビューで発見: この直後のnavigateが常に実行されるため、「保存して移動」で
+        // 別の行き先へ遷移しようとしても新規作成された教材自身の編集画面に上書きされ、
+        // 本来の移動先へ行けなくなっていた）。呼び出し元がunsavedBlocker.proceed()で
+        // 本来の行き先へ遷移する。
+        if (!options?.skipRedirectAfterCreate) {
+          unsavedBlocker.bypassOnce()
+          navigate(`/projects/${projectId}/materials/${created.id}/edit`, { replace: true })
+        }
       } else if (material) {
         const source = buildMaterialSource(withMeta(material), chapters)
         await apiFetchText(`/api/materials/${savedId}/source`, source, {
@@ -1828,7 +1835,21 @@ export default function MaterialEdit() {
       )}
 
       {unsavedBlocker.state === 'blocked' && (
-        <UnsavedChangesModal onStay={() => unsavedBlocker.reset()} onDiscard={() => unsavedBlocker.proceed()} />
+        <UnsavedChangesModal
+          onStay={() => unsavedBlocker.reset()}
+          onDiscard={() => unsavedBlocker.proceed()}
+          saving={saving}
+          onSaveAndLeave={async () => {
+            const ok = await saveDraft({ skipRedirectAfterCreate: true })
+            if (ok) {
+              unsavedBlocker.proceed()
+            } else {
+              // 保存に失敗した場合はモーダルだけ閉じて留まる。saveDraft側で設定されたエラーは
+              // 通常の保存失敗表示（ヘッダー付近のエラー文言）でそのまま見える。
+              unsavedBlocker.reset()
+            }
+          }}
+        />
       )}
 
       {publishModalOpen && assignmentTarget && (
