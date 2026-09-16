@@ -64,7 +64,12 @@ const NAV_ITEMS = [
     icon: Home,
     implemented: true,
     accent: 'blue' as Accent,
-    match: (p: string, search: string) => p === '/' || (/^\/materials\/\d+(\/|$)/.test(p) && search.includes('from=my-learning')),
+    // S-04/S-16（/materials/:id、/materials/:id/pages/:nodeId）だけに絞る。以前は
+    // /^\/materials\/\d+(\/|$)/という広すぎる正規表現で、S-19「設問別の回答・結果一覧」
+    // （/materials/:id/questions/:qid/answers、教材編集からしか辿り着けない画面）まで
+    // 誤って一致し、教材編集中なのにサイドバーの「教材一覧・検索」が光ってしまう不具合が
+    // あった（2026-09-16、ユーザー報告により発見）。
+    match: (p: string, search: string) => p === '/' || (/^\/materials\/\d+(\/pages\/\d+)?$/.test(p) && search.includes('from=my-learning')),
   },
   {
     href: '/materials',
@@ -72,7 +77,7 @@ const NAV_ITEMS = [
     icon: BookOpen,
     implemented: true,
     accent: 'blue' as Accent,
-    match: (p: string, search: string) => p === '/materials' || (/^\/materials\/\d+(\/|$)/.test(p) && !search.includes('from=my-learning')),
+    match: (p: string, search: string) => p === '/materials' || (/^\/materials\/\d+(\/pages\/\d+)?$/.test(p) && !search.includes('from=my-learning')),
   },
   {
     href: '/reports/me',
@@ -89,7 +94,12 @@ const NAV_ITEMS = [
     implemented: true,
     accent: 'violet' as Accent,
     dividerBefore: true,
-    match: (p: string) => p === '/materials/edit-projects' || /^\/projects\/[^/]+\/materials(\/|$)/.test(p),
+    // S-19「設問別の回答・結果一覧」（/materials/:id/questions/:qid/answers）も、教材編集の
+    // 「問題一覧」タブからしか辿り着けない画面のためここに含める（2026-09-16）
+    match: (p: string) =>
+      p === '/materials/edit-projects' ||
+      /^\/projects\/[^/]+\/materials(\/|$)/.test(p) ||
+      /^\/materials\/\d+\/questions\/\d+\/answers$/.test(p),
   },
   {
     href: '/grading',

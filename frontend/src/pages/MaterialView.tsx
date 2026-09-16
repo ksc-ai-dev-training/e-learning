@@ -14,7 +14,7 @@ import { chapterAccentClass } from '../lib/chapterAccent'
 import { formatDateJst, formatDateTimeJst, formatDurationMinutes } from '../lib/datetime'
 import { openAttachmentDownload } from '../lib/attachmentActions'
 import { pageKindLabel, toEditableChapters } from '../lib/materialTree'
-import { flattenPages, type FlatPage } from '../lib/pageNav'
+import { flattenPages, resolveScopeNodeId, type FlatPage } from '../lib/pageNav'
 import { startAttempt, startWrongQuestionsAttempt } from '../lib/attemptActions'
 import { ackGradingResults } from '../lib/gradingActions'
 import { andFromQuery, backTarget, fromQuery } from '../lib/backLink'
@@ -159,9 +159,21 @@ export default function MaterialView() {
   // 合格済みスコープの閲覧専用化により以後更新されないため、常に先頭ページから読み直す
   // 「再度受講」に切り替える（2026-09-03、ユーザー要望）。
   const isCompleted = material.progress?.status === 'completed'
+  // attempt_scope='page'/'chapter'/'section'の教材では、あるスコープに不合格のまま先へ進み、
+  // 後続の別スコープに合格していることがあり得る。その場合current_node_id（最後に到達した
+  // スコープ）は既に合格済みの後続スコープを指すため、「続きから受講」がその不合格スコープを
+  // 素通りしてしまい、目次から手動でそのページを探さない限り再受験する導線が無くなっていた
+  // （2026-09-16、ユーザー報告により発見）。文書順で最初に見つかった不合格スコープのページが
+  // あれば、current_node_idより優先してそこへ誘導する。
+  const failedScopeIds = new Set(
+    attemptSummary.filter((e) => e.attempt.passed === false).map((e) => e.scope_node_id),
+  )
+  const firstFailedPage = flatPages.find((p) =>
+    failedScopeIds.has(resolveScopeNodeId(flatPages, material.attempt_scope, p.node.id)),
+  )
   const resumeTargetNodeId = isCompleted
     ? (flatPages[0]?.node.id ?? null)
-    : (currentNodeId ?? flatPages[0]?.node.id ?? null)
+    : (firstFailedPage?.node.id ?? currentNodeId ?? flatPages[0]?.node.id ?? null)
   const resumeLabel = !material.progress || material.progress.status === 'not_started'
     ? '受講を開始'
     : isCompleted
@@ -338,10 +350,22 @@ export default function MaterialView() {
             {attemptSummary.map((entry) => (
               <section
                 key={entry.scope_node_id ?? 'material'}
-                className={`mb-4 rounded-md border overflow-hidden ${entry.attempt.passed === false ? 'border-red-200' : 'border-slate-200'}`}
+                className={`mb-4 rounded-md border overflow-hidden ${
+                  entry.attempt.passed === false
+                    ? 'border-red-200'
+                    : entry.attempt.passed === true
+                      ? 'border-green-200'
+                      : 'border-slate-200'
+                }`}
               >
                 <div
-                  className={`flex items-center justify-between px-4 py-2.5 ${entry.attempt.passed === false ? 'bg-red-50' : 'bg-slate-50'}`}
+                  className={`flex items-center justify-between px-4 py-2.5 ${
+                    entry.attempt.passed === false
+                      ? 'bg-red-50'
+                      : entry.attempt.passed === true
+                        ? 'bg-green-50'
+                        : 'bg-slate-50'
+                  }`}
                 >
                   <span className="text-sm font-semibold text-slate-700">{entry.scope_label}</span>
                   <span
