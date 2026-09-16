@@ -83,10 +83,13 @@ async def list_assignments(
 
 @router.get("/materials/{id}/assignments")
 async def get_material_assignments(
-    id: int, user: CurrentUser = Depends(require_material_role(min_role="editor"))
+    id: int,
+    user: CurrentUser = Depends(require_material_role(min_role="editor", bypass_system_admin=True)),
 ):
     """A-37: 特定教材の配信設定行を取得する（S-06編集パネルの初期表示用）。編集者にも開放
-    （2026-09-10、A-17公開操作等との権限の非対称を解消）。"""
+    （2026-09-10、A-17公開操作等との権限の非対称を解消）。配信設定はadminが全教材を対象にできる
+    既定の設計（基本設計書4.8節）のため、2026-09-16のrequire_material_role既定変更後も
+    bypass_system_admin=Trueを明示して従来どおりの挙動を維持する。"""
     pool = get_pool()
     assignment_map = await _fetch_assignment_rows(pool, [id])
     return {"items": assignment_map.get(id, [])}
@@ -106,10 +109,14 @@ class AssignmentsUpdate(BaseModel):
 
 @router.put("/materials/{id}/assignments")
 async def update_material_assignments(
-    id: int, body: AssignmentsUpdate, user: CurrentUser = Depends(require_material_role(min_role="editor"))
+    id: int,
+    body: AssignmentsUpdate,
+    user: CurrentUser = Depends(require_material_role(min_role="editor", bypass_system_admin=True)),
 ):
     """A-38: 教材の配信設定を全置換する（A-31と同じ全置換セマンティクス）。編集者にも開放
-    （2026-09-10、A-17公開操作等との権限の非対称を解消）。プロジェクトスコープの
+    （2026-09-10、A-17公開操作等との権限の非対称を解消）。配信設定はadminが全教材を対象にできる
+    既定の設計（基本設計書4.8節）のため、2026-09-16のrequire_material_role既定変更後も
+    bypass_system_admin=Trueを明示して従来どおりの挙動を維持する。プロジェクトスコープの
     scope_idは教材自身のproject_idに固定、個人スコープのscope_idはそのプロジェクトの現役メンバーに
     限る（他プロジェクトへの一方的な配信を防ぐ、基本設計書5.9節）。全社Wikiに属する教材は
     required=trueの行を1つでも含めば拒否する（常に任意固定、5.9節「設計判断」参照）。同様に

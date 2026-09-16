@@ -43,7 +43,12 @@ async def _require_view_access(pool, id: int, user: CurrentUser) -> dict:
     プロジェクト管理者・システムadmin限定）と、受講対象者（公開済みのみ。require_material_access
     の2条件＝プロジェクトの現役メンバー・個人指定の配信、詳細設計書5.3節）の両方を許可する。
     S-04（教材受講：目次）着手時に受講対象者向けアクセスを追加した。プロジェクト離任後の猶予期間
-    （5.5節）はhas_active_project_role経由で、受講対象者側（learner相当）のみに適用される。"""
+    （5.5節）はhas_active_project_role経由で、受講対象者側（learner相当）のみに適用される。
+
+    is_editorの判定にシステムadminの無条件許可は含めない（2026-09-16。require_material_role
+    〔A-17/A-19/A-20等〕と同じ理由。実際にはeditor以上でないと保存系APIが403になるのに、この
+    画面だけ編集可能に見えてしまう不整合を避けるため、S-05を開く時点から実際のプロジェクトロールで
+    判定する）。"""
     row = await pool.fetchrow(
         """SELECT m.project_id, m.status, m.created_by, p.is_company_wide
            FROM materials m JOIN projects p ON p.id = m.project_id
@@ -53,7 +58,7 @@ async def _require_view_access(pool, id: int, user: CurrentUser) -> dict:
     if row is None:
         raise HTTPException(404, detail="教材が見つかりません")
 
-    is_editor = user.role == "admin" or await has_active_project_role(row["project_id"], user.id, "editor")
+    is_editor = await has_active_project_role(row["project_id"], user.id, "editor")
 
     if is_editor:
         if row["status"] == "draft" and row["created_by"] != user.id:
@@ -412,7 +417,10 @@ async def create_material(body: MaterialCreate, user: CurrentUser = Depends(requ
         project_id = await get_pool().fetchval(
             "SELECT id FROM projects WHERE is_company_wide = true LIMIT 1"
         )
-    await check_project_role(user, project_id, min_role="editor")
+    # 教材の新規作成も「教材内容の編集」の一種のため、システムadminでも実際のプロジェクトロールを
+    # 要求する（require_material_role・_require_view_accessと同じ2026-09-16の例外。ここを素通しにすると
+    # 作成はできるのにその後のA-19/A-20が403になる矛盾した状態が生まれるため）。
+    await check_project_role(user, project_id, min_role="editor", bypass_system_admin=False)
     row = await get_pool().fetchrow(
         """INSERT INTO materials (project_id, title, description, tags, created_by)
            VALUES ($1, $2, $3, $4, $5)

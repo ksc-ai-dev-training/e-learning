@@ -345,9 +345,16 @@ async def update_member(
     id: int, user_id: int, body: MemberUpdate, user: CurrentUser = Depends(require_auth)
 ):
     """A-13: メンバーのロール変更、またはプロジェクトからの削除（left_at=now()を設定する論理削除。
-    招待中のまま削除も可）。唯一の管理者の削除・降格は400（基本設計書4.2節callout参照）。"""
+    招待中のまま削除も可）。唯一の管理者の削除・降格は400（基本設計書4.2節callout参照）。
+
+    本人が自分自身をaction='remove'で退出させる場合はプロジェクト管理者権限を要求しない
+    （2026-09-16新設、自己退出。S-12を一般メンバーにも閲覧開放したが、その画面から実際に行える
+    操作は各タブの閲覧と自分の退出のみに留める、というユーザー要望による）。それ以外
+    （他人の削除・自分を含む誰かのロール変更）は引き続きプロジェクト管理者限定。"""
     pool = get_pool()
-    await check_project_role(user, id, min_role="admin")
+    is_self_leave = user_id == user.id and body.action == "remove"
+    if not is_self_leave:
+        await check_project_role(user, id, min_role="admin")
     await _reject_admin_role_for_company_wide(pool, id, body.role)
     row = await pool.fetchrow(
         "SELECT role, status, left_at FROM project_memberships WHERE project_id = $1 AND user_id = $2",

@@ -643,7 +643,7 @@ export default function MaterialEdit() {
   if (!isNew && materialError) {
     const message =
       materialError instanceof ApiError && materialError.status === 403
-        ? 'この教材を閲覧できません。全社Wikiプロジェクトの下書きは作成者とプロジェクト管理者のみ閲覧できます。'
+        ? materialError.message || 'この教材を閲覧する権限がありません。'
         : '教材を取得できませんでした。'
     return (
       <div className="flex flex-1 flex-col">

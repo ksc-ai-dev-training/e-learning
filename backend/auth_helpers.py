@@ -133,13 +133,22 @@ async def has_active_project_role(project_id: int, user_id: int, min_role: str) 
     return row["left_at"] + timedelta(days=grace_days) >= datetime.now(timezone.utc)
 
 
-async def check_project_role(user: CurrentUser, project_id: int, min_role: str) -> None:
-    """プロジェクトのローカルロールを判定する（詳細設計書5.2節）。システムadminは常に許可。
+async def check_project_role(
+    user: CurrentUser, project_id: int, min_role: str, *, bypass_system_admin: bool = True
+) -> None:
+    """プロジェクトのローカルロールを判定する（詳細設計書5.2節）。システムadminは既定で常に許可。
 
     project_idがパスパラメータでない場合（例: A-16のようにリクエストボディに含まれる場合）に
     エンドポイント内から直接呼び出す。パスパラメータの場合は`require_project_role`を使う。
+
+    bypass_system_adminをFalseにすると、システムadminであっても実際のプロジェクトロールで判定する。
+    教材内容の編集（require_material_role）専用の例外。「システム管理者でもそのプロジェクトの
+    エディタ以上でなければ教材内容を編集できないようにしてほしい」というユーザー要望を受け
+    2026-09-16に追加した。それ以外の全呼び出し元（採点・プロジェクト管理・ダッシュボード等）の
+    admin無条件許可は意図的に変更していない（同ユーザーが別途「採点権限が無くても採点できてしまう」
+    点は「変更せずに必要なら今度修正する」と明示的に据え置いた経緯があるため）。
     """
-    if user.role == "admin":
+    if user.role == "admin" and bypass_system_admin:
         return
     if not await has_active_project_role(project_id, user.id, min_role):
         raise HTTPException(403, detail="この操作を行う権限がありません")
@@ -192,10 +201,15 @@ async def is_company_wide_draft_restricted(user: CurrentUser, project_id: int, i
     return project_role != "admin"
 
 
-def require_material_role(min_role: str):
+def require_material_role(min_role: str, *, bypass_system_admin: bool = False):
     """教材IDから所属プロジェクトを引いてローカルロールを判定する（A-15/A-17/A-18/A-20等）。
     全社公開プロジェクトの下書きは、作成者・プロジェクト管理者・システムadmin以外は403にする
     （is_company_wide_draft_restricted、5.2節）。
+
+    既定（bypass_system_admin=False）では、教材内容の編集はシステムadminでも実際の
+    プロジェクトロール（エディタ以上）を要求する（2026-09-16、ユーザー要望）。ただしS-06配信設定
+    （assignments.py）は「adminは全教材を対象にできる」という別の既定設計（基本設計書4.8節）が
+    元々あるため、そちらの2箇所の呼び出しのみbypass_system_admin=Trueを明示して従来どおりとする。
 
     パスパラメータ `id`（教材ID）を持つルート（例: /api/materials/{id}）で使う。
     """
@@ -208,7 +222,7 @@ def require_material_role(min_role: str):
         )
         if row is None:
             raise HTTPException(404, detail="教材が見つかりません")
-        await check_project_role(user, row["project_id"], min_role)
+        await check_project_role(user, row["project_id"], min_role, bypass_system_admin=bypass_system_admin)
         if row["status"] == "draft" and row["created_by"] != user.id:
             if await is_company_wide_draft_restricted(user, row["project_id"], row["is_company_wide"]):
                 raise HTTPException(403, detail="この下書きを閲覧できるのは作成者とプロジェクト管理者のみです")

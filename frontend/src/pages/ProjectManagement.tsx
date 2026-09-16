@@ -517,11 +517,13 @@ function MembersTab({
 
   const handleRemove = async (userId: number) => {
     setRowError(null)
+    const isLeavingSelf = userId === myUserId
     try {
       await removeMember(projectId, userId)
       await mutateMemberships()
     } catch (e) {
-      setRowError(e instanceof ApiError ? e.message : '削除に失敗しました')
+      const fallback = isLeavingSelf ? '退出に失敗しました' : '削除に失敗しました'
+      setRowError(e instanceof ApiError ? e.message : fallback)
     } finally {
       setPendingRemove(null)
     }
@@ -612,7 +614,40 @@ function MembersTab({
                             </button>
                           </>
                         )}
-                        {!canManage || isSelf ? (
+                        {isSelf ? (
+                          m.status !== 'active' ? (
+                            <span className="text-xs text-slate-400">—</span>
+                          ) : pendingRemove === m.user_id ? (
+                            <span className="flex items-center gap-1 text-xs">
+                              本当に退出しますか？
+                              <button
+                                type="button"
+                                onClick={() => handleRemove(m.user_id)}
+                                className="rounded bg-red-600 px-2 py-1 font-semibold text-white hover:bg-red-700"
+                              >
+                                退出する
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setPendingRemove(null)}
+                                className="rounded border border-slate-300 px-2 py-1 text-slate-500 hover:bg-slate-100"
+                              >
+                                キャンセル
+                              </button>
+                            </span>
+                          ) : (
+                            // 2026-09-16新設: 自分自身の行はプロジェクト管理者でなくても退出だけは行える
+                            // （S-12を閲覧専用開放した一般メンバーが実際に操作できる唯一の項目。管理者が
+                            // 不在になる唯一の管理者は、handleRemoveが呼ぶA-13側で400になる）
+                            <button
+                              type="button"
+                              onClick={() => setPendingRemove(m.user_id)}
+                              className="text-xs font-semibold text-red-700 hover:underline"
+                            >
+                              退出する
+                            </button>
+                          )
+                        ) : !canManage ? (
                           <span className="text-xs text-slate-400">—</span>
                         ) : pendingRemove === m.user_id ? (
                           <span className="flex items-center gap-1 text-xs">
