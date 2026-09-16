@@ -8,6 +8,26 @@ export class ApiError extends Error {
   }
 }
 
+// エラーレスポンスのdetailからユーザーに見せられる文字列を取り出す。アプリ独自のHTTPException
+// （detailは常に文字列）だけでなく、FastAPIが自動生成するリクエストバリデーションエラー
+// （422。detailは{"type","loc","msg",...}の配列）にも対応する（2026-09-16、ユーザー報告により
+// 発見・修正。プロジェクト名の文字数上限を超えて保存すると、配列のdetailをそのままError
+// メッセージにしていたためJavaScriptの既定のtoString化で「[object Object]」と表示されていた）。
+function extractErrorDetail(body: unknown): string | null {
+  if (typeof body !== 'object' || body === null || !('detail' in body)) return null
+  const detail = (body as { detail: unknown }).detail
+  if (typeof detail === 'string') return detail
+  if (Array.isArray(detail)) {
+    const messages = detail
+      .map((item) =>
+        item && typeof item === 'object' && 'msg' in item ? String((item as { msg: unknown }).msg) : null,
+      )
+      .filter((m): m is string => m !== null)
+    if (messages.length > 0) return messages.join(' / ')
+  }
+  return null
+}
+
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
     credentials: 'same-origin',
@@ -21,7 +41,8 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
     let detail = 'エラーが発生しました'
     try {
       const body = await res.json()
-      if (body.detail) detail = body.detail
+      const extracted = extractErrorDetail(body)
+      if (extracted) detail = extracted
     } catch {
       // JSONでないレスポンスは汎用メッセージのまま
     }
@@ -50,7 +71,8 @@ export async function apiFetchText(
     let detail = 'エラーが発生しました'
     try {
       const errBody = await res.json()
-      if (errBody.detail) detail = errBody.detail
+      const extracted = extractErrorDetail(errBody)
+      if (extracted) detail = extracted
     } catch {
       // JSONでないレスポンスは汎用メッセージのまま
     }

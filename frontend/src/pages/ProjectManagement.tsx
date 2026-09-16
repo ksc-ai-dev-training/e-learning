@@ -316,6 +316,7 @@ function ProjectManagementBody({
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
                   disabled={!isProjectAdmin}
+                  maxLength={100}
                 />
               </div>
               <div className="flex flex-col gap-1">
