@@ -527,14 +527,20 @@ async def get_material_preview_tree(
 
 async def _require_owner_or_project_admin(pool, id: int, user: CurrentUser) -> dict:
     """アーカイブ/復元/削除は、作成者本人またはプロジェクト管理者のみ実行できる（教材一覧から
-    非表示になる・完全に消える影響範囲がプロジェクトメンバー全員に及ぶため、通常の編集より一段厳しくする）。"""
+    非表示になる・完全に消える影響範囲がプロジェクトメンバー全員に及ぶため、通常の編集より一段厳しくする）。
+
+    システムadminでも実際のプロジェクトロール（管理者）を要求する（bypass_system_admin=False。
+    2026-09-16、ユーザー要望により修正。外側のrequire_material_role〔エディタ以上必須〕は既に
+    実ロールを要求していたが、この内側の管理者判定だけシステムadminの無条件許可が残っており、
+    実際にはそのプロジェクトの「エディタ」でしかないシステムadminでもアーカイブ・削除
+    〔本来は管理者限定の操作〕まで行えてしまう不整合があった）。"""
     row = await pool.fetchrow(
         "SELECT project_id, created_by, is_archived, status FROM materials WHERE id = $1", id
     )
     if row is None:
         raise HTTPException(404, detail="教材が見つかりません")
     if row["created_by"] != user.id:
-        await check_project_role(user, row["project_id"], min_role="admin")
+        await check_project_role(user, row["project_id"], min_role="admin", bypass_system_admin=False)
     return row
 
 

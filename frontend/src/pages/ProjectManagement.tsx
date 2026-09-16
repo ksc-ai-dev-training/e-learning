@@ -459,6 +459,7 @@ function ProjectManagementBody({
             mutateMemberships={mutateMemberships}
             myUserId={myUserId}
             canManage={isProjectAdmin}
+            isSystemAdmin={isSystemAdmin}
           />
         )}
 
@@ -476,6 +477,7 @@ function MembersTab({
   mutateMemberships,
   myUserId,
   canManage,
+  isSystemAdmin,
 }: {
   projectId: number
   isCompanyWide: boolean
@@ -488,6 +490,13 @@ function MembersTab({
   // S-12を編集者・受講者にも「閲覧のみ」で開放する要望への対応。呼び出し元の
   // ProjectManagementBodyで算出済みのisProjectAdminをそのまま受け取る）。
   canManage: boolean
+  // システムadminかどうか。自分自身の行のロール変更は、実プロジェクト管理者であっても
+  // 誤操作防止のため引き続き無効化するが、システムadminだけは自分のロールを変更できるように
+  // する（2026-09-16、ユーザー要望。実プロジェクトの実際のメンバーではないプロジェクトで
+  // 教材編集等を行うために自分をeditor以上へ昇格させたい、という自己サービス的な用途）。
+  // バックエンド（A-13）は元々システムadminに無条件許可を与えているため、ここはフロントエンドの
+  // 表示制御のみで対応する。
+  isSystemAdmin: boolean
 }) {
   const [pendingRemove, setPendingRemove] = useState<number | null>(null)
   const [rowError, setRowError] = useState<string | null>(null)
@@ -583,7 +592,7 @@ function MembersTab({
                       <td className="px-3 py-2">
                         <Select
                           value={m.role}
-                          disabled={!canManage || isSelf || m.status !== 'active'}
+                          disabled={m.status !== 'active' || (isSelf ? !isSystemAdmin : !canManage)}
                           onChange={(v) => handleRoleChange(m.user_id, v as ProjectRole)}
                           options={roleOptions(isCompanyWide && m.role !== 'admin')}
                         />

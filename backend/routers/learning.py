@@ -633,7 +633,12 @@ async def review_answer(answer_id: int, body: AnswerReviewIn, user: CurrentUser 
     is_correctは省略可（2026-09-16、フロントエンドの明示的な「仮保存」ボタンを廃止し正誤ラジオ・
     フィードバック欄それぞれの入力を都度自動保存する方式に変更したのに合わせた）。フィードバック文
     だけ書いて正誤判定はまだ、という保存も行えるようにするため、is_correctがNoneの場合は
-    draft_is_correctを上書きしない（既存の判定値を保持したままフィードバックだけ更新する）。"""
+    draft_is_correctを上書きしない（既存の判定値を保持したままフィードバックだけ更新する）。
+
+    採点はシステムadminでも実際のプロジェクトロール（エディタ以上）を要求する
+    （bypass_system_admin=False。2026-09-16、教材内容の編集と同じ「コンテンツ操作」として扱い、
+    一貫性を持たせるようユーザー要望により変更。以前は「採点権限が無くても採点できてしまう」点を
+    指摘されつつ一旦据え置いていた）。"""
     pool = get_pool()
     row = await pool.fetchrow(
         """SELECT a.attempt_id, m.project_id
@@ -645,7 +650,7 @@ async def review_answer(answer_id: int, body: AnswerReviewIn, user: CurrentUser 
     )
     if row is None:
         raise HTTPException(404, detail="回答が見つかりません")
-    await check_project_role(user, row["project_id"], "editor")
+    await check_project_role(user, row["project_id"], "editor", bypass_system_admin=False)
 
     if body.is_correct is None:
         await pool.execute(
@@ -663,7 +668,10 @@ async def review_answer(answer_id: int, body: AnswerReviewIn, user: CurrentUser 
 @router.get("/attempts/{attempt_id}/grading")
 async def get_attempt_grading(attempt_id: int, user: CurrentUser = Depends(require_auth)):
     """新規（S-20まとめ採点）: 1受験記録分の、手動採点で未確定（reviewed_by未設定）の設問一覧を
-    下書き（あれば）付きで返す。「教材×受講者×提出日」のカードを開いたときに使う。"""
+    下書き（あれば）付きで返す。「教材×受講者×提出日」のカードを開いたときに使う。
+
+    採点はシステムadminでも実際のプロジェクトロール（エディタ以上）を要求する
+    （bypass_system_admin=False。2026-09-16、教材内容の編集と同じ扱いに揃えた）。"""
     pool = get_pool()
     attempt_row = await pool.fetchrow(
         """SELECT qa.id, qa.user_id, u.name AS user_name, qa.submitted_at,
@@ -678,7 +686,7 @@ async def get_attempt_grading(attempt_id: int, user: CurrentUser = Depends(requi
     )
     if attempt_row is None:
         raise HTTPException(404, detail="受験記録が見つかりません")
-    await check_project_role(user, attempt_row["project_id"], "editor")
+    await check_project_role(user, attempt_row["project_id"], "editor", bypass_system_admin=False)
 
     rows = await pool.fetch(
         """SELECT a.id AS answer_id, q.id AS question_id, q.prompt, q.node_id, q.scoring_criteria,
@@ -733,7 +741,10 @@ async def finalize_attempt_grading(attempt_id: int, user: CurrentUser = Depends(
     まま送信できてよい（確認を挟めば十分）」というユーザー要望を受けて変更した。任意設問のうち
     未判定のまま残ったものは、この受験記録の採点キューに引き続き残る（reviewed_byを設定しない）。
     必須設問を1件でも部分的に送信することは許可しない（どの必須設問が未採点のまま公開されたか
-    分からなくなることを防ぐため、この点は変更していない）。"""
+    分からなくなることを防ぐため、この点は変更していない）。
+
+    採点はシステムadminでも実際のプロジェクトロール（エディタ以上）を要求する
+    （bypass_system_admin=False。2026-09-16、教材内容の編集と同じ扱いに揃えた）。"""
     pool = get_pool()
     attempt_row = await pool.fetchrow(
         """SELECT qa.id, m.project_id, m.grading_mode AS material_grading_mode
@@ -743,7 +754,7 @@ async def finalize_attempt_grading(attempt_id: int, user: CurrentUser = Depends(
     )
     if attempt_row is None:
         raise HTTPException(404, detail="受験記録が見つかりません")
-    await check_project_role(user, attempt_row["project_id"], "editor")
+    await check_project_role(user, attempt_row["project_id"], "editor", bypass_system_admin=False)
 
     pending = await pool.fetch(
         """SELECT a.id, a.draft_is_correct, q.required
