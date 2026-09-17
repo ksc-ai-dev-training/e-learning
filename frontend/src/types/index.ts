@@ -258,6 +258,16 @@ export interface Answer {
   reviewed_at: string | null
 }
 
+// A-43 GET /attempts/{id} が返すanswers（練習・誤答＆難問抽出の実施履歴「詳細」表示向け。
+// 2026-09-17）。設問情報を結合済みで、正解の中身は返さずhas_correct_answerのみ返す
+// （get_attempt_summaryと同じ考え方）。
+export interface AttemptAnswerDetail extends Answer {
+  prompt: string
+  type: QuestionType
+  is_critical: boolean
+  has_correct_answer: boolean
+}
+
 // A-86 GET /materials/{id}/attempt-summary のitems（S-04 前回の受験結果パネル・採点結果パネル）
 export interface AttemptSummaryEntry {
   scope_node_id: number | null

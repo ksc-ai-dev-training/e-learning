@@ -161,7 +161,8 @@ def _build_system_prompt(scoring_criteria: str, feedback_style: str, ai_context:
     parts = [
         "あなたは社内学習管理システムの採点担当AIです。受講者の回答を採点基準に照らして採点し、"
         "submit_gradingツールで結果を提出してください。部分点はありません（correctがtrueならscore_pctは100、"
-        "falseなら0）。",
+        "falseなら0）。採点基準に明記されていない要求（具体性・詳しさ・分量など）を勝手に追加して"
+        "不正解にしないでください。採点基準を満たしていれば、素っ気ない・簡潔な回答でも正解としてください。",
         f"採点基準: {scoring_criteria}",
         _FEEDBACK_STYLE_INSTRUCTIONS.get(feedback_style, _FEEDBACK_STYLE_INSTRUCTIONS["show_answer"]),
     ]

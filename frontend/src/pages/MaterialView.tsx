@@ -8,6 +8,7 @@ import SurveyModal from '../components/material/SurveyModal'
 import { useMaterial } from '../hooks/useMaterial'
 import { useMaterialAttachments } from '../hooks/useMaterialAttachments'
 import { useAttemptSummary } from '../hooks/useAttemptSummary'
+import { useAttemptDetail } from '../hooks/useAttemptDetail'
 import { usePracticeAttempts } from '../hooks/usePracticeAttempts'
 import { useSurveys } from '../hooks/useSurveys'
 import { chapterAccentClass } from '../lib/chapterAccent'
@@ -20,7 +21,7 @@ import { ackGradingResults } from '../lib/gradingActions'
 import { andFromQuery, backTarget, fromQuery } from '../lib/backLink'
 import { ApiError } from '../lib/api'
 import type { EditableNode } from '../lib/materialSource'
-import type { QuizAttempt, Survey } from '../types'
+import type { PracticeAttemptSummary, QuizAttempt, Survey } from '../types'
 
 const TABS = [
   { key: 'toc', label: '目次' },
@@ -36,6 +37,112 @@ function formatResponse(response: unknown, type: string): string {
   if (response === null || response === undefined) return '（未回答）'
   if (Array.isArray(response)) return response.map(String).join(type === 'reorder' ? ' → ' : '、')
   return String(response)
+}
+
+// 練習・誤答＆難問抽出の実施履歴「詳細」向け正誤バッジ（2026-09-17新設）。
+// has_correct_answerはget_attempt側で型ごとに意味を揃えてある（単一選択・複数選択は正解未設定か、
+// 記述式・コード記述式は採点基準未設定か、score_logは常にfalse）ため、ここでは型を問わず一律で
+// 「正誤の概念が無い＝回答記録済み」として扱ってよい。
+function answerStatusBadge(a: { type: string; has_correct_answer: boolean; is_correct: boolean | null }) {
+  if (!a.has_correct_answer) return { text: '回答記録済み', className: 'bg-slate-100 text-slate-500' }
+  if (a.is_correct === true) return { text: '正解', className: 'bg-green-100 text-green-700' }
+  if (a.is_correct === false) return { text: '不正解', className: 'bg-red-100 text-red-700' }
+  return { text: '採点中', className: 'bg-slate-100 text-slate-500' }
+}
+
+// 実施履歴の「詳細」を開いたときだけ受験記録を取得して表示する（2026-09-17新設。
+// 目次へ戻るボタンのある提出直後のページはAI採点の完了を待たず「採点中」のまま遷移するため、
+// 後から正誤・AI講評を確認する導線として実施履歴に追加した）。
+function PracticeAttemptDetailPanel({ attemptId }: { attemptId: number }) {
+  const { attempt, isLoading } = useAttemptDetail(attemptId)
+  if (isLoading || !attempt) {
+    return <p className="text-xs text-slate-400">読み込み中...</p>
+  }
+  return (
+    <div className="flex flex-col gap-2">
+      {attempt.answers.map((a) => {
+        const badge = answerStatusBadge(a)
+        return (
+          <div key={a.question_id} className="rounded-md border border-slate-200 bg-white p-2.5">
+            <div className="flex items-start gap-2">
+              <span className={`flex-shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${badge.className}`}>
+                {badge.text}
+              </span>
+              <div className="min-w-0 flex-1 text-[12.5px] font-semibold text-slate-700">{a.prompt}</div>
+            </div>
+            <div className="mt-1.5 text-xs text-slate-600">
+              <span className="font-semibold text-slate-400">回答: </span>
+              {formatResponse(a.response, a.type)}
+            </div>
+            {a.ai_feedback && <div className="mt-1 text-xs text-slate-500">{a.ai_feedback}</div>}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// 練習・誤答＆難問抽出タブ共通の実施履歴テーブル（2026-09-17、誤答＆難問抽出タブに実施履歴が
+// 無かったため練習タブと共通化して新設。行ごとに「詳細」で採点結果を後から確認できる）。
+function PracticeHistoryTable({
+  items,
+  emptyText,
+  expandedAttemptId,
+  onToggle,
+}: {
+  items: PracticeAttemptSummary[]
+  emptyText: string
+  expandedAttemptId: number | null
+  onToggle: (attemptId: number) => void
+}) {
+  if (items.length === 0) {
+    return <p className="p-4 text-center text-sm text-slate-400">{emptyText}</p>
+  }
+  return (
+    <table className="w-full text-sm">
+      <thead>
+        <tr className="border-b border-slate-100 text-xs text-slate-400">
+          <th className="px-4 py-2 text-left font-normal">実施日時</th>
+          <th className="px-4 py-2 text-right font-normal">正答数</th>
+          <th className="px-4 py-2 text-right font-normal">所要時間</th>
+          <th className="px-4 py-2 text-right font-normal">詳細</th>
+        </tr>
+      </thead>
+      <tbody>
+        {items.flatMap((p) => {
+          const expanded = expandedAttemptId === p.id
+          const rows = [
+            <tr key={p.id} className="border-b border-slate-50">
+              <td className="px-4 py-2">{formatDateTimeJst(p.submitted_at)}</td>
+              <td className="px-4 py-2 text-right">
+                {p.correct_count} / {p.total_count}
+              </td>
+              <td className="px-4 py-2 text-right">{formatDurationMinutes(p.duration_seconds)}</td>
+              <td className="px-4 py-2 text-right">
+                <button
+                  type="button"
+                  className="text-xs font-semibold text-blue-700 hover:underline"
+                  onClick={() => onToggle(p.id)}
+                >
+                  {expanded ? '閉じる' : '詳細'}
+                </button>
+              </td>
+            </tr>,
+          ]
+          if (expanded) {
+            rows.push(
+              <tr key={`${p.id}-detail`} className="border-b border-slate-50 bg-slate-50">
+                <td colSpan={4} className="px-4 py-3">
+                  <PracticeAttemptDetailPanel attemptId={p.id} />
+                </td>
+              </tr>,
+            )
+          }
+          return rows
+        })}
+      </tbody>
+    </table>
+  )
 }
 
 // S-04 教材受講：目次（詳細設計書10.4節）。
@@ -62,7 +169,12 @@ export default function MaterialView() {
 
   const { items: attemptSummary } = useAttemptSummary(activeTab === 'toc' ? id : null)
   const gradingResultRef = useRef<HTMLDivElement | null>(null)
-  const { items: practiceAttempts } = usePracticeAttempts(activeTab === 'practice' ? id : null)
+  const { items: practiceAttempts } = usePracticeAttempts(activeTab === 'practice' ? id : null, 'repeat')
+  const { items: wrongOnlyAttempts } = usePracticeAttempts(activeTab === 'wrong_only' ? id : null, 'wrong_only')
+  // 実施履歴「詳細」: タブをまたいで開くものは無いため状態は1つで共有する
+  const [expandedPracticeAttemptId, setExpandedPracticeAttemptId] = useState<number | null>(null)
+  const toggleExpandedPracticeAttempt = (attemptId: number) =>
+    setExpandedPracticeAttemptId((prev) => (prev === attemptId ? null : attemptId))
   const { surveys } = useSurveys(activeTab === 'toc' ? id : null)
   const [dismissedSurveyIds, setDismissedSurveyIds] = useState<Set<number>>(new Set())
   // 採点結果パネル: クリックで設問を開き、自分が実際に提出した回答内容を確認できるようにする
@@ -613,30 +725,12 @@ export default function MaterialView() {
                 <span className="text-sm font-semibold text-slate-700">これまでの実施履歴</span>
                 <span className="text-xs text-slate-400">{practiceAttempts.length}回実施</span>
               </div>
-              {practiceAttempts.length === 0 ? (
-                <p className="p-4 text-center text-sm text-slate-400">まだ実施していません。</p>
-              ) : (
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-100 text-xs text-slate-400">
-                      <th className="px-4 py-2 text-left font-normal">実施日時</th>
-                      <th className="px-4 py-2 text-right font-normal">正答数</th>
-                      <th className="px-4 py-2 text-right font-normal">所要時間</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {practiceAttempts.map((p) => (
-                      <tr key={p.id} className="border-b border-slate-50">
-                        <td className="px-4 py-2">{formatDateTimeJst(p.submitted_at)}</td>
-                        <td className="px-4 py-2 text-right">
-                          {p.correct_count} / {p.total_count}
-                        </td>
-                        <td className="px-4 py-2 text-right">{formatDurationMinutes(p.duration_seconds)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
+              <PracticeHistoryTable
+                items={practiceAttempts}
+                emptyText="まだ実施していません。"
+                expandedAttemptId={expandedPracticeAttemptId}
+                onToggle={toggleExpandedPracticeAttempt}
+              />
             </section>
             {actionError && <p className="mb-3 text-sm text-red-600">{actionError}</p>}
             <Button onClick={handleStartPractice} disabled={startingPractice}>
@@ -673,6 +767,18 @@ export default function MaterialView() {
                 正答率が低い設問（正答率50%未満）も、自分が一度は解いたことのあるものに限り合わせて抽出対象になります。
               </p>
             </div>
+            <section className="mb-5 rounded-md border border-slate-200">
+              <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2.5">
+                <span className="text-sm font-semibold text-slate-700">これまでの実施履歴</span>
+                <span className="text-xs text-slate-400">{wrongOnlyAttempts.length}回実施</span>
+              </div>
+              <PracticeHistoryTable
+                items={wrongOnlyAttempts}
+                emptyText="まだ実施していません。"
+                expandedAttemptId={expandedPracticeAttemptId}
+                onToggle={toggleExpandedPracticeAttempt}
+              />
+            </section>
             {actionError && <p className="mb-3 text-sm text-red-600">{actionError}</p>}
             <Button onClick={handleStartWrongOnly} disabled={startingWrongOnly}>
               {startingWrongOnly ? '開始中…' : '誤答・難問を解く'}

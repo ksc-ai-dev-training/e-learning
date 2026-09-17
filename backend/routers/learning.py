@@ -593,14 +593,19 @@ async def _grade_and_store_answer(answer_id: int) -> None:
         answer_id,
     )
     if row is None or row["scoring_criteria"] is None:
+        # 採点基準が無い設問はそもそも正誤の概念が無い自己申告的な設問（「記録」型）とみなし、
+        # practice/wrong_onlyでも汎用基準による代用採点はしない（2026-09-17、ユーザー指摘により撤回。
+        # 「感想を教えてください」等、唯一の正解が無い設問に無理やり正解/不正解を付けてしまっていた。
+        # is_correctはNULLのままにし、フロントは「回答記録済み」として扱う。get_attempt参照）。
         return
+    scoring_criteria = row["scoring_criteria"]
     response_text = json.loads(row["response"]) if row["response"] else ""
     feedback_style = row["q_feedback_style"] or row["default_feedback_style"]
     try:
         result = await ai_client.grade_answer(
             prompt=row["prompt"],
             response_text=str(response_text),
-            scoring_criteria=row["scoring_criteria"],
+            scoring_criteria=scoring_criteria,
             feedback_style=feedback_style,
             ai_context=row["ai_context"],
             is_code=row["type"] == "code",
@@ -674,7 +679,12 @@ async def get_attempt_grading(attempt_id: int, user: CurrentUser = Depends(requi
     下書き（あれば）付きで返す。「教材×受講者×提出日」のカードを開いたときに使う。
 
     採点はシステムadminでも実際のプロジェクトロール（エディタ以上）を要求する
-    （bypass_system_admin=False。2026-09-16、教材内容の編集と同じ扱いに揃えた）。"""
+    （bypass_system_admin=False。2026-09-16、教材内容の編集と同じ扱いに揃えた）。
+
+    qa.mode = 'graded'に限定する（2026-09-17追加）。練習・誤答＆難問抽出は採点基準未設定の
+    設問をそもそもAI採点しない方針にしたため、is_correct・reviewed_byとも永久にNULLのままになり
+    得る。この絞り込みが無いと、そうした練習側の受験記録が本来の対象（通常受講の手動採点待ち）に
+    紛れて開けてしまう。"""
     pool = get_pool()
     attempt_row = await pool.fetchrow(
         """SELECT qa.id, qa.user_id, u.name AS user_name, qa.submitted_at,
@@ -684,7 +694,7 @@ async def get_attempt_grading(attempt_id: int, user: CurrentUser = Depends(requi
            JOIN users u ON u.id = qa.user_id
            JOIN materials m ON m.id = qa.material_id
            JOIN projects p ON p.id = m.project_id
-           WHERE qa.id = $1""",
+           WHERE qa.id = $1 AND qa.mode = 'graded'""",
         attempt_id,
     )
     if attempt_row is None:
@@ -697,7 +707,7 @@ async def get_attempt_grading(attempt_id: int, user: CurrentUser = Depends(requi
            FROM answers a
            JOIN questions q ON q.id = a.question_id
            WHERE a.attempt_id = $1 AND COALESCE(q.grading_mode, $2) = 'manual' AND a.reviewed_by IS NULL
-             AND q.type IN ('free_text', 'code')
+             AND a.is_correct IS NULL AND q.type IN ('free_text', 'code')
            ORDER BY q.sort_order, q.id""",
         attempt_id, attempt_row["material_grading_mode"],
     )
@@ -747,12 +757,14 @@ async def finalize_attempt_grading(attempt_id: int, user: CurrentUser = Depends(
     分からなくなることを防ぐため、この点は変更していない）。
 
     採点はシステムadminでも実際のプロジェクトロール（エディタ以上）を要求する
-    （bypass_system_admin=False。2026-09-16、教材内容の編集と同じ扱いに揃えた）。"""
+    （bypass_system_admin=False。2026-09-16、教材内容の編集と同じ扱いに揃えた）。
+
+    qa.mode = 'graded'に限定する（2026-09-17追加。get_attempt_gradingと同じ理由）。"""
     pool = get_pool()
     attempt_row = await pool.fetchrow(
         """SELECT qa.id, m.project_id, m.grading_mode AS material_grading_mode
            FROM quiz_attempts qa JOIN materials m ON m.id = qa.material_id
-           WHERE qa.id = $1""",
+           WHERE qa.id = $1 AND qa.mode = 'graded'""",
         attempt_id,
     )
     if attempt_row is None:
@@ -764,7 +776,7 @@ async def finalize_attempt_grading(attempt_id: int, user: CurrentUser = Depends(
            FROM answers a
            JOIN questions q ON q.id = a.question_id
            WHERE a.attempt_id = $1 AND COALESCE(q.grading_mode, $2) = 'manual' AND a.reviewed_by IS NULL
-             AND q.type IN ('free_text', 'code')""",
+             AND a.is_correct IS NULL AND q.type IN ('free_text', 'code')""",
         attempt_id, attempt_row["material_grading_mode"],
     )
     if len(pending) == 0:
@@ -891,6 +903,11 @@ async def get_grading_queue(
 
     conditions = [
         "COALESCE(q.grading_mode, m.grading_mode) = 'manual'", "a.reviewed_by IS NULL",
+        "a.is_correct IS NULL",
+        # 練習・誤答＆難問抽出（qa.mode='practice'）は合否に影響せず人手の採点キューへは回さない方針
+        # （2026-09-17）。採点基準未設定の「記録」型設問はis_correctが永久にNULLのままになり得るため、
+        # 上のa.is_correct IS NULLだけでは締め出せず、qa.modeで明示的に除外する必要がある。
+        "qa.mode = 'graded'",
         "qa.submitted_at IS NOT NULL", "m.is_archived = false", "q.type IN ('free_text', 'code')",
     ]
     params: list = []
@@ -1021,7 +1038,8 @@ async def _update_enrollment_progress(
 @router.post("/attempts/{attempt_id}/submit")
 async def submit_attempt(attempt_id: int, user: CurrentUser = Depends(require_auth)):
     """A-42: 提出。選択式は即時採点済み、記述式・コード記述式はAI採点を非同期起動する
-    （grading_mode='manual'の場合はS-20の手動採点まで未採点のまま）。"""
+    （grading_mode='manual'の場合はS-20の手動採点まで未採点のまま。ただし練習・誤答＆難問抽出
+    〔mode='practice'〕はgrading_modeに関わらず常にAI採点する。2026-09-17）。"""
     pool = get_pool()
     attempt = await pool.fetchrow("SELECT * FROM quiz_attempts WHERE id = $1", attempt_id)
     if attempt is None:
@@ -1043,7 +1061,13 @@ async def submit_attempt(attempt_id: int, user: CurrentUser = Depends(require_au
     )
     for p in pending:
         effective_mode = p["q_grading_mode"] or material["grading_mode"]
-        if effective_mode == "ai":
+        # 練習・誤答＆難問抽出（mode='practice'。practice_kindでrepeat/wrong_onlyを区別）は合否に
+        # 影響しないため、教材・設問側の採点方式が'manual'でも人手の採点キューへは回さず、AIに簡易
+        # 採点させる（2026-09-17、ユーザー要望。「手動採点＝人でないと判断できない基準」を練習の
+        # 都度人に依頼するのは運用コストに見合わないため）。ただし採点基準が未設定の設問は
+        # _grade_and_store_answer側でそもそも採点しない判断をする（「記録」型、下記参照）ため、
+        # ここでは無条件にタスクを起動してよい。
+        if effective_mode == "ai" or attempt["mode"] == "practice":
             asyncio.create_task(_grade_and_store_answer(p["id"]))
 
     await _recompute_attempt_result(pool, attempt_id)
@@ -1072,7 +1096,7 @@ async def get_attempt(attempt_id: int, user: CurrentUser = Depends(require_auth)
             raise HTTPException(403, detail="この受験記録を閲覧する権限がありません")
 
     answers = await pool.fetch(
-        """SELECT a.*, q.prompt, q.type, q.is_critical
+        """SELECT a.*, q.prompt, q.type, q.is_critical, q.correct_answer, q.scoring_criteria
            FROM answers a JOIN questions q ON q.id = a.question_id
            WHERE a.attempt_id = $1 ORDER BY q.sort_order""",
         attempt_id,
@@ -1082,9 +1106,28 @@ async def get_attempt(attempt_id: int, user: CurrentUser = Depends(require_auth)
     result["carried_over_question_ids"] = (
         json.loads(result["carried_over_question_ids"]) if result["carried_over_question_ids"] else []
     )
-    result["answers"] = [
-        {**dict(a), "response": json.loads(a["response"]) if a["response"] else None} for a in answers
-    ]
+    answer_dicts = []
+    for a in answers:
+        d = dict(a)
+        d["response"] = json.loads(d["response"]) if d["response"] else None
+        correct_answer = json.loads(d["correct_answer"]) if d["correct_answer"] is not None else None
+        # 単一選択・複数選択の「記録」「任意」は正解未設定を許容するため、get_attempt_summaryと同様に
+        # 「採点中」と「そもそも採点しない設問」を呼び出し側が見分けられるようhas_correct_answerを返す
+        # （練習・誤答＆難問抽出タブの実施履歴「詳細」表示向け、2026-09-17）。記述式・コード記述式は
+        # correct_answerを使わないため、代わりにscoring_criteriaの有無で判定する（採点基準が無い
+        # ＝そもそも正誤の概念が無い自己申告的な設問で、practice/wrong_onlyでは今後もAI採点しない
+        # ため、is_correctが永久にNULLのままでも「採点中」ではなく「回答記録済み」として区別する）。
+        # 実際の正解・採点基準の中身自体は他の設問と同様に返さない。
+        if d["type"] == "score_log":
+            d["has_correct_answer"] = False
+        elif d["type"] in ("free_text", "code"):
+            d["has_correct_answer"] = d["scoring_criteria"] is not None
+        else:
+            d["has_correct_answer"] = bool(correct_answer) if d["type"] == "multi" else correct_answer is not None
+        del d["correct_answer"]
+        del d["scoring_criteria"]
+        answer_dicts.append(d)
+    result["answers"] = answer_dicts
     return result
 
 
@@ -1537,23 +1580,42 @@ async def send_project_slack_reminder(project_id: int, user: CurrentUser = Depen
 
 
 @router.get("/materials/{id}/practice-attempts")
-async def list_practice_attempts(id: int, user: CurrentUser = Depends(require_auth)):
-    """A-87: 反復演習タブの実施履歴。自分のmode='practice', practice_kind='repeat'な
-    提出済み試行を新しい順で返す。"""
+async def list_practice_attempts(
+    id: int, practice_kind: Literal["repeat", "wrong_only"] = "repeat", user: CurrentUser = Depends(require_auth)
+):
+    """A-87: 反復演習・誤答＆難問抽出タブの実施履歴。自分のmode='practice'な提出済み試行を
+    practice_kindで絞り込み、新しい順で返す（2026-09-17、誤答＆難問抽出タブにも同じ実施履歴を
+    出すためpractice_kindをクエリパラメータ化。既定値'repeat'は従来の反復演習タブ向けの挙動と同じ）。"""
     pool = get_pool()
     await _require_view_access(pool, id, user)
+    # 正誤の概念が無い設問（score_log、正解未設定の単一選択・複数選択、採点基準未設定の記述式・
+    # コード記述式＝「記録」型）はis_correctが永久にNULLのままで採点されないため、正答数の分母
+    # （total_count）から除外する。含めると、例えば5問中1問が「記録」型の場合に残り4問が全問正解
+    # でも「3/5」のように実際より低く表示されてしまっていた（2026-09-17、ユーザー指摘により修正）。
+    # PostgreSQLはAND/ORの評価順序を保証しないため（他の型の行でjsonb_array_length(correct_answer)が
+    # 非配列に対して呼ばれエラーになる可能性を排除できない）、CASE（各WHENが排他的に評価されることが
+    # 保証される）で書く。
+    gradable_clause = """(CASE q.type
+        WHEN 'multi' THEN q.correct_answer IS NOT NULL AND jsonb_array_length(q.correct_answer) > 0
+        WHEN 'single' THEN q.correct_answer IS NOT NULL
+        WHEN 'reorder' THEN q.correct_answer IS NOT NULL
+        WHEN 'free_text' THEN q.scoring_criteria IS NOT NULL
+        WHEN 'code' THEN q.scoring_criteria IS NOT NULL
+        ELSE false
+    END)"""
     rows = await pool.fetch(
-        """SELECT qa.id, qa.score_pct, qa.submitted_at,
+        f"""SELECT qa.id, qa.score_pct, qa.submitted_at,
                   EXTRACT(EPOCH FROM (qa.submitted_at - qa.started_at))::int AS duration_seconds,
                   (SELECT COUNT(*) FROM answers a JOIN questions q ON q.id = a.question_id
-                    WHERE a.attempt_id = qa.id AND q.type != 'score_log' AND q.required AND q.counted) AS total_count,
+                    WHERE a.attempt_id = qa.id AND q.required AND q.counted AND {gradable_clause}) AS total_count,
                   (SELECT COUNT(*) FROM answers a JOIN questions q ON q.id = a.question_id
-                    WHERE a.attempt_id = qa.id AND q.type != 'score_log' AND q.required AND q.counted AND a.is_correct = true) AS correct_count
+                    WHERE a.attempt_id = qa.id AND q.required AND q.counted AND a.is_correct = true
+                      AND {gradable_clause}) AS correct_count
            FROM quiz_attempts qa
            WHERE qa.user_id = $1 AND qa.material_id = $2 AND qa.mode = 'practice'
-             AND qa.practice_kind = 'repeat' AND qa.submitted_at IS NOT NULL
+             AND qa.practice_kind = $3 AND qa.submitted_at IS NOT NULL
            ORDER BY qa.submitted_at DESC""",
-        user.id, id,
+        user.id, id, practice_kind,
     )
     return {"items": [dict(r) for r in rows]}
 

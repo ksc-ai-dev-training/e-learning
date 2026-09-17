@@ -1,5 +1,5 @@
 import { apiFetch } from './api'
-import type { Answer, MaterialNode, QuizAttempt } from '../types'
+import type { Answer, AttemptAnswerDetail, MaterialNode, QuizAttempt } from '../types'
 
 // A-40: 受験開始（未提出の試行があれば再開）。S-16のページ遷移のたびに呼び、続きから受講を実現する
 export function startAttempt(
@@ -32,7 +32,7 @@ export function submitAttempt(attemptId: number): Promise<QuizAttempt> {
 }
 
 // A-43: 結果取得。本人なら未提出でも取得できる（誤答＆難問抽出モードの状態再取得に使う）
-export function getAttempt(attemptId: number): Promise<QuizAttempt & { answers: Answer[] }> {
+export function getAttempt(attemptId: number): Promise<QuizAttempt & { answers: AttemptAnswerDetail[] }> {
   return apiFetch(`/api/attempts/${attemptId}`)
 }
 
