@@ -377,7 +377,7 @@ export default function MaterialView() {
                           : 'bg-slate-100 text-slate-500'
                     }`}
                   >
-                    {entry.attempt.passed === true ? '合格' : entry.attempt.passed === false ? '不合格' : '提出済み'}
+                    {entry.attempt.passed === true ? '合格' : entry.attempt.passed === false ? '不合格' : '合否対象外（参考）'}
                   </span>
                 </div>
                 <div className="px-4 py-3 text-xs text-slate-500">
@@ -432,6 +432,10 @@ export default function MaterialView() {
                           : 'bg-red-100 text-red-700'
                         : 'bg-slate-100 text-slate-500'
                     const expanded = expandedGradedAnswerIds.has(a.question_id)
+                    // 合否（score_pct）に反映されるのはrequired && countedの設問のみ（learning.pyの
+                    // gradable判定と同じ条件）。この画面からは見えなかったため、正誤バッジと並べて表示する
+                    // （2026-09-17、ユーザー指摘により追加）。
+                    const countsTowardPassFail = a.required && a.counted
                     return (
                       <button
                         key={a.question_id}
@@ -441,6 +445,13 @@ export default function MaterialView() {
                       >
                         <span className={`flex-shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${badgeClass}`}>
                           {badgeText}
+                        </span>
+                        <span
+                          className={`flex-shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                            countsTowardPassFail ? 'bg-blue-50 text-blue-600' : 'bg-slate-100 text-slate-400'
+                          }`}
+                        >
+                          {countsTowardPassFail ? '合否対象' : '合否対象外'}
                         </span>
                         <div className="min-w-0 flex-1">
                           <div className="text-[12.5px] font-semibold text-slate-700">
@@ -577,7 +588,7 @@ export default function MaterialView() {
                 {resumeTargetNodeId !== null && (
                   <Link
                     to={`/materials/${id}/pages/${resumeTargetNodeId}${returnQuery}`}
-                    className="rounded-md bg-blue-900 px-3.5 py-2 text-sm font-semibold text-white hover:bg-blue-800"
+                    className="whitespace-nowrap rounded-md bg-blue-900 px-3.5 py-2 text-sm font-semibold text-white hover:bg-blue-800"
                   >
                     {resumeLabel}
                   </Link>

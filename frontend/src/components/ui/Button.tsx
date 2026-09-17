@@ -16,7 +16,7 @@ export default function Button({ variant = 'primary', className = '', ...rest }:
   return (
     <button
       type="button"
-      className={`h-9 rounded-md px-3.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50 ${VARIANT_CLASSES[variant]} ${className}`}
+      className={`h-9 whitespace-nowrap rounded-md px-3.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50 ${VARIANT_CLASSES[variant]} ${className}`}
       {...rest}
     />
   )

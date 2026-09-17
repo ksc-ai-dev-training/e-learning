@@ -1275,7 +1275,7 @@ async def get_attempt_summary(id: int, user: CurrentUser = Depends(require_auth)
             user.id, id, g["scope_node_id"],
         )
         answers = await pool.fetch(
-            """SELECT a.question_id, q.prompt, q.type, q.correct_answer, a.response, a.is_correct,
+            """SELECT a.question_id, q.prompt, q.type, q.correct_answer, q.required, q.counted, a.response, a.is_correct,
                       a.ai_score_pct, a.ai_feedback
                FROM answers a JOIN questions q ON q.id = a.question_id
                WHERE a.attempt_id = $1 AND q.type != 'score_log'""",
@@ -1292,7 +1292,7 @@ async def get_attempt_summary(id: int, user: CurrentUser = Depends(require_auth)
         if carried_over_ids:
             carried_answers = await pool.fetch(
                 """SELECT DISTINCT ON (a.question_id)
-                          a.question_id, q.prompt, q.type, q.correct_answer, a.response, a.is_correct,
+                          a.question_id, q.prompt, q.type, q.correct_answer, q.required, q.counted, a.response, a.is_correct,
                           a.ai_score_pct, a.ai_feedback
                    FROM answers a
                    JOIN questions q ON q.id = a.question_id

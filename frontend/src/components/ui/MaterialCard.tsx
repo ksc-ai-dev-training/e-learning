@@ -78,7 +78,7 @@ export default function MaterialCard({ item, actionLabel, to, urgent = false }: 
       <div className="flex-shrink-0">
         <Link
           to={to}
-          className={`rounded-md px-3 py-1.5 text-[13px] font-semibold ${
+          className={`whitespace-nowrap rounded-md px-3 py-1.5 text-[13px] font-semibold ${
             overdue
               ? 'bg-red-800 text-white ring-2 ring-red-300 hover:bg-red-900 dark:ring-red-700'
               : urgent

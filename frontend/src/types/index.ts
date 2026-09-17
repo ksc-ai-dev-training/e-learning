@@ -278,6 +278,11 @@ export interface AttemptSummaryEntry {
     prompt: string
     // スコア記録型（score_log）は正誤の概念が無いため対象外（2026-09-11、選択式も含めるよう拡張）
     type: Exclude<QuestionType, 'score_log'>
+    // required && counted のときのみ合否（score_pct）に反映される（backend/routers/learning.pyの
+    // gradable判定と同じ条件）。片方でもfalseなら正誤に関わらず合否には影響しない
+    // （2026-09-17、採点結果パネルでどれが合否対象か分かりにくいというユーザー指摘により追加）
+    required: boolean
+    counted: boolean
     response: unknown
     is_correct: boolean | null
     // 単一選択・複数選択の「記録」「任意」は正解未設定を許容するため、is_correctがnullでも
