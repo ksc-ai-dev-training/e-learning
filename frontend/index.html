@@ -5,6 +5,15 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Manabi | 社内学習管理システム</title>
+    <script>
+      // 描画前にダークモード設定を反映し、切替直後の一瞬だけ元の配色に戻る
+      // ちらつき（FOUC）を防ぐ（2026-09-17）。
+      try {
+        if (localStorage.getItem('manabi-theme') === 'dark') {
+          document.documentElement.classList.add('dark')
+        }
+      } catch {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

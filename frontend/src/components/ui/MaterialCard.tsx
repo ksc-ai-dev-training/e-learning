@@ -35,11 +35,15 @@ export default function MaterialCard({ item, actionLabel, to, urgent = false }: 
   const overdue = urgent && item.due_at ? daysUntil(item.due_at) < 0 : false
   return (
     <div
-      className={`flex flex-wrap items-center gap-4 border-b border-slate-100 px-4 py-3 last:border-b-0 sm:flex-nowrap ${
-        overdue ? 'border-l-4 border-l-red-600 bg-red-100/70' : urgent ? 'bg-red-50/40' : ''
+      className={`flex flex-wrap items-center gap-4 border-b border-slate-100 px-4 py-3 last:border-b-0 dark:border-slate-800 sm:flex-nowrap ${
+        overdue
+          ? 'border-l-4 border-l-red-600 bg-red-100/70 dark:bg-red-950/40'
+          : urgent
+            ? 'bg-red-50/40 dark:bg-red-950/20'
+            : ''
       }`}
     >
-      <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-400">
+      <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-300">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
           <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
@@ -47,8 +51,8 @@ export default function MaterialCard({ item, actionLabel, to, urgent = false }: 
       </div>
 
       <div className="min-w-0 flex-1 basis-full sm:basis-0">
-        <div className="truncate text-sm font-semibold text-slate-800">{item.title}</div>
-        <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[12px] text-slate-500">
+        <div className="truncate text-[15px] font-semibold text-slate-800 dark:text-slate-50">{item.title}</div>
+        <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[13px] text-slate-500 dark:text-slate-300">
           <Badge variant={item.required ? 'required' : 'optional'} />
           {item.required && item.due_at && urgent && (
             <Badge variant={overdue ? 'overdue-critical' : 'overdue'}>
@@ -60,7 +64,7 @@ export default function MaterialCard({ item, actionLabel, to, urgent = false }: 
           {passed && item.completed_at && <Badge variant="complete">合格済み（{formatDateJst(item.completed_at)}）</Badge>}
           <Chip>{item.project_name}</Chip>
           {item.tags.slice(0, 3).map((tag) => (
-            <span key={tag} className="text-indigo-600">
+            <span key={tag} className="text-indigo-600 dark:text-indigo-300">
               #{tag}
             </span>
           ))}
@@ -74,14 +78,14 @@ export default function MaterialCard({ item, actionLabel, to, urgent = false }: 
       <div className="flex-shrink-0">
         <Link
           to={to}
-          className={`rounded-md px-3 py-1.5 text-xs font-semibold ${
+          className={`rounded-md px-3 py-1.5 text-[13px] font-semibold ${
             overdue
-              ? 'bg-red-800 text-white ring-2 ring-red-300 hover:bg-red-900'
+              ? 'bg-red-800 text-white ring-2 ring-red-300 hover:bg-red-900 dark:ring-red-700'
               : urgent
                 ? 'bg-red-700 text-white hover:bg-red-800'
                 : passed
-                  ? 'border border-slate-300 bg-white text-slate-600 hover:bg-slate-50'
-                  : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                  ? 'border border-slate-300 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700'
+                  : 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:hover:bg-slate-700'
           }`}
         >
           {actionLabel}

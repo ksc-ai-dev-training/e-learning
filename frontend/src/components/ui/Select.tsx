@@ -26,7 +26,7 @@ export default function Select({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       disabled={disabled}
-      className={`h-9 rounded-md border border-slate-300 bg-white px-2 text-sm focus:border-blue-700 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 ${className}`}
+      className={`h-9 rounded-md border border-slate-300 bg-white px-2 text-sm focus:border-blue-700 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-blue-500 dark:disabled:bg-slate-900 dark:disabled:text-slate-500 ${className}`}
     >
       {options.map((o) => (
         <option key={o.value} value={o.value}>

@@ -15,9 +15,12 @@ import {
   UserPen,
   LogOut,
   Settings,
+  Moon,
+  Sun,
 } from 'lucide-react'
 import { apiFetch } from '../../lib/api'
 import { useMe } from '../../hooks/useMe'
+import { useTheme } from '../../lib/theme'
 import type { Me } from '../../types'
 
 const COLLAPSED_KEY = 'manabi-sidebar-collapsed'
@@ -40,20 +43,21 @@ const COLLAPSED_KEY = 'manabi-sidebar-collapsed'
 // グループに分けて、薄い区切り線とグループごとのアイコン色で視覚的にまとめる
 // （2026-09-09、ユーザー指定の並び順・グループ配色）。
 const ACCENT_ICON_CLASS = {
-  blue: 'text-blue-500',
-  violet: 'text-violet-500',
-  emerald: 'text-emerald-500',
-  amber: 'text-amber-500',
+  blue: 'text-blue-500 dark:text-blue-400',
+  violet: 'text-violet-500 dark:text-violet-400',
+  emerald: 'text-emerald-500 dark:text-emerald-400',
+  amber: 'text-amber-500 dark:text-amber-400',
 } as const
 // 選択中の項目の強調表示。ブロックごとにアイコン色を付けたことで、選択中を示す既存の
 // 一律「薄い青背景」がどのブロックでもほぼ同じに見え、区別しづらくなっていたため、
 // 選択中もブロックのアクセントカラーに合わせ、左端に太めのボーダーも付けて強調する
-// （2026-09-09、ユーザー指摘）。
+// （2026-09-09、ユーザー指摘）。ダーク時は薄い色背景+濃い文字だと目立たないため、
+// 濃い色背景+明るい文字に反転する（2026-09-17）。
 const ACCENT_ACTIVE_CLASS = {
-  blue: 'border-l-blue-600 bg-blue-50 text-blue-900',
-  violet: 'border-l-violet-600 bg-violet-50 text-violet-900',
-  emerald: 'border-l-emerald-600 bg-emerald-50 text-emerald-900',
-  amber: 'border-l-amber-600 bg-amber-50 text-amber-900',
+  blue: 'border-l-blue-600 bg-blue-50 text-blue-900 dark:bg-blue-900/60 dark:text-blue-100',
+  violet: 'border-l-violet-600 bg-violet-50 text-violet-900 dark:bg-violet-900/60 dark:text-violet-100',
+  emerald: 'border-l-emerald-600 bg-emerald-50 text-emerald-900 dark:bg-emerald-900/60 dark:text-emerald-100',
+  amber: 'border-l-amber-600 bg-amber-50 text-amber-900 dark:bg-amber-900/60 dark:text-amber-100',
 } as const
 type Accent = keyof typeof ACCENT_ICON_CLASS
 
@@ -164,6 +168,7 @@ const NAV_ITEMS = [
 export default function Sidebar({ me }: { me: Me }) {
   const location = useLocation()
   const { mutate } = useMe()
+  const { theme, toggleTheme } = useTheme()
   // 開閉状態はlocalStorageに保存し、リロード後も維持する（keirekiのLayout.tsxと同方針）
   const [collapsed, setCollapsed] = useState<boolean>(
     () => localStorage.getItem(COLLAPSED_KEY) === '1',
@@ -182,20 +187,20 @@ export default function Sidebar({ me }: { me: Me }) {
 
   return (
     <aside
-      className={`relative flex h-screen flex-shrink-0 flex-col border-r border-slate-200 bg-slate-50 transition-[width] duration-150 ${
+      className={`relative flex h-screen flex-shrink-0 flex-col border-r border-slate-200 bg-slate-50 transition-[width] duration-150 dark:border-slate-800 dark:bg-slate-900 ${
         collapsed ? 'w-14' : 'w-60'
       }`}
     >
       <button
         onClick={toggle}
         title={collapsed ? 'サイドバーを開く' : 'サイドバーを閉じる'}
-        className="absolute -right-3 top-1/2 z-10 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 shadow-sm hover:text-slate-700"
+        className="absolute -right-3 top-1/2 z-10 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 shadow-sm hover:text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
       >
         {collapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronLeft className="h-3.5 w-3.5" />}
       </button>
 
       <div
-        className={`flex items-center border-b border-slate-200 py-4 ${
+        className={`flex items-center border-b border-slate-200 py-4 dark:border-slate-800 ${
           collapsed ? 'justify-center px-0' : 'gap-2.5 px-4'
         }`}
       >
@@ -204,15 +209,15 @@ export default function Sidebar({ me }: { me: Me }) {
         </div>
         {!collapsed && (
           <div>
-            <div className="text-[15px] font-bold leading-tight">Manabi</div>
-            <div className="text-[10.5px] leading-tight text-slate-400">社内学習管理システム</div>
+            <div className="text-[15px] font-bold leading-tight dark:text-slate-100">Manabi</div>
+            <div className="text-[12px] leading-tight text-slate-400">社内学習管理システム</div>
           </div>
         )}
       </div>
 
       <nav className={`flex-1 overflow-y-auto overflow-x-hidden p-2 ${collapsed ? 'px-1.5' : ''}`}>
         {!collapsed && (
-          <div className="px-2.5 pb-1 pt-1.5 text-[10.5px] font-semibold tracking-wide text-slate-400">
+          <div className="px-2.5 pb-1 pt-1.5 text-[12px] font-semibold tracking-wide text-slate-400">
             メニュー
           </div>
         )}
@@ -235,12 +240,12 @@ export default function Sidebar({ me }: { me: Me }) {
             item.implemented
               ? isActive
                 ? `${ACCENT_ACTIVE_CLASS[item.accent]} font-semibold`
-                : 'border-l-transparent text-slate-500 hover:bg-slate-100 hover:text-slate-800'
+                : 'border-l-transparent text-slate-500 hover:bg-slate-100 hover:text-slate-800 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100'
               : 'border-l-transparent cursor-default text-slate-300'
           }`
           return (
             <div key={item.href}>
-              {item.dividerBefore && <div className="my-1.5 border-t border-slate-200" />}
+              {item.dividerBefore && <div className="my-1.5 border-t border-slate-200 dark:border-slate-800" />}
               {item.implemented ? (
                 <Link to={item.href} title={collapsed ? item.label : undefined} className={className}>
                   {body}
@@ -255,15 +260,15 @@ export default function Sidebar({ me }: { me: Me }) {
         })}
       </nav>
 
-      <div className={`border-t border-slate-200 py-3 ${collapsed ? 'px-1' : 'px-3'}`}>
+      <div className={`border-t border-slate-200 py-3 dark:border-slate-800 ${collapsed ? 'px-1' : 'px-3'}`}>
         <div className={`flex items-center gap-2.5 ${collapsed ? 'justify-center' : ''}`} title={collapsed ? `${me.name}（${me.email}）` : undefined}>
           <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-semibold text-blue-900">
             {me.name.slice(0, 1)}
           </span>
           {!collapsed && (
             <div className="min-w-0">
-              <div className="truncate text-[12.5px] font-semibold leading-tight">{me.name}</div>
-              <div className="truncate text-[10.5px] leading-tight text-slate-400">{me.email}</div>
+              <div className="truncate text-[13.5px] font-semibold leading-tight dark:text-slate-100">{me.name}</div>
+              <div className="truncate text-[12px] leading-tight text-slate-400">{me.email}</div>
             </div>
           )}
         </div>
@@ -271,17 +276,29 @@ export default function Sidebar({ me }: { me: Me }) {
           <Link
             to="/profile"
             title={collapsed ? 'プロフィール編集' : undefined}
-            className={`flex h-[30px] items-center gap-2 rounded-md border border-slate-200 bg-white text-xs text-slate-500 hover:bg-slate-100 hover:text-slate-800 ${
+            className={`flex h-[30px] items-center gap-2 rounded-md border border-slate-200 bg-white text-xs text-slate-500 hover:bg-slate-100 hover:text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100 ${
               collapsed ? 'w-[30px] justify-center' : 'w-full px-2.5'
             }`}
           >
             <UserPen className="h-3.5 w-3.5 flex-shrink-0" />
             {!collapsed && <span>プロフィール編集</span>}
           </Link>
+          {/* ダークモード切替（2026-09-17新設）。現時点ではサイドバー等の共通枠のみ対応済みで、
+              各画面本体は今後段階的に対応する。 */}
+          <button
+            onClick={toggleTheme}
+            title={collapsed ? (theme === 'dark' ? 'ライトモードに切り替え' : 'ダークモードに切り替え') : undefined}
+            className={`flex h-[30px] items-center gap-2 rounded-md border border-slate-200 bg-white text-xs text-slate-500 hover:bg-slate-100 hover:text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100 ${
+              collapsed ? 'w-[30px] justify-center' : 'w-full px-2.5'
+            }`}
+          >
+            {theme === 'dark' ? <Sun className="h-3.5 w-3.5 flex-shrink-0" /> : <Moon className="h-3.5 w-3.5 flex-shrink-0" />}
+            {!collapsed && <span>{theme === 'dark' ? 'ライトモード' : 'ダークモード'}</span>}
+          </button>
           <button
             onClick={logout}
             title={collapsed ? 'ログアウト' : undefined}
-            className={`flex h-[30px] items-center gap-2 rounded-md border border-slate-200 bg-white text-xs text-slate-500 hover:bg-slate-100 hover:text-slate-800 ${
+            className={`flex h-[30px] items-center gap-2 rounded-md border border-slate-200 bg-white text-xs text-slate-500 hover:bg-slate-100 hover:text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100 ${
               collapsed ? 'w-[30px] justify-center' : 'w-full px-2.5'
             }`}
           >

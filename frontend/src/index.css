@@ -1,7 +1,23 @@
 @import "tailwindcss";
 
+/* ダークモードをOS設定(prefers-color-scheme)ではなく、明示的なボタン切り替えで
+   制御するためのカスタムバリアント。html要素の.darkクラスの有無で切り替わる
+   （2026-09-17。まずはサイドバー等の共通枠のみ対応し、各画面は順次対応していく）。 */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* アプリ全体でtext-xsが多用されており、全体的に文字が小さいというフィードバックを受けて
+   サイズそのものを底上げする（2026-09-17）。個別ファイルをすべて回るのではなく、
+   text-xsユーティリティの定義自体を1段階大きくすることで、ダーク・ライト問わず
+   アプリ全体に一括で反映させる。 */
+@theme {
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: 1.25rem;
+}
+
+/* ダーク背景はslate-950（ほぼ黒）だと沈みすぎて文字が見づらいというフィードバックを受け、
+   青みを残したslate-900に変更（2026-09-17）。 */
 body {
-  @apply bg-slate-100 text-slate-800;
+  @apply bg-slate-100 text-slate-800 dark:bg-slate-900 dark:text-slate-100;
 }
 
 /* クリックできる要素は一律で指カーソルにする（個別に cursor-pointer を付け忘れないため）。

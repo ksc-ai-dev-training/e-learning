@@ -32,8 +32,8 @@ export default function MyLearningToggle({ materialId, registered, onToggled }: 
       disabled={loading}
       className={`flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-semibold disabled:opacity-50 ${
         registered
-          ? 'border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100'
-          : 'border-slate-300 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-700'
+          ? 'border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200 dark:hover:bg-blue-900/50'
+          : 'border-slate-300 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100'
       }`}
     >
       <Bookmark className="h-3.5 w-3.5" fill={registered ? 'currentColor' : 'none'} />

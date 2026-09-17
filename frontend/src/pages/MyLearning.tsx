@@ -131,7 +131,7 @@ export default function MyLearning() {
         actions={
           <Link
             to="/materials"
-            className="rounded-md border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            className="rounded-md border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
           >
             教材を探す
           </Link>
@@ -144,19 +144,19 @@ export default function MyLearning() {
               key={tab.id ?? 'all'}
               type="button"
               onClick={() => setActiveProjectId(tab.id)}
-              className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold ${
+              className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] font-semibold ${
                 activeProjectId === tab.id
-                  ? 'border-blue-700 bg-blue-50 text-blue-800'
-                  : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50'
+                  ? 'border-blue-700 bg-blue-50 text-blue-800 dark:border-blue-700 dark:bg-blue-950/50 dark:text-blue-100'
+                  : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800'
               }`}
             >
               {tab.name}
-              <span className="text-slate-400">{tab.count}件</span>
+              <span className="text-slate-400 dark:text-slate-400">{tab.count}件</span>
             </button>
           ))}
         </div>
 
-        <div className="mb-5 flex gap-1 border-b border-slate-200" role="tablist">
+        <div className="mb-5 flex gap-1 border-b border-slate-200 dark:border-slate-800" role="tablist">
           {(
             [
               { key: 'assigned', label: '必修・任意', count: 0 },
@@ -169,12 +169,14 @@ export default function MyLearning() {
               type="button"
               onClick={() => setViewTab(tab.key)}
               className={`flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-semibold ${
-                viewTab === tab.key ? 'border-blue-700 text-blue-800' : 'border-transparent text-slate-500'
+                viewTab === tab.key
+                  ? 'border-blue-700 text-blue-800 dark:border-blue-500 dark:text-blue-300'
+                  : 'border-transparent text-slate-500 dark:text-slate-300'
               }`}
             >
               {tab.label}
               {tab.count > 0 && (
-                <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[11px] font-bold text-amber-800">
+                <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[11px] font-bold text-amber-800 dark:bg-amber-950/50 dark:text-amber-300">
                   {tab.count}
                 </span>
               )}

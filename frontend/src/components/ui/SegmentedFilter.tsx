@@ -22,7 +22,7 @@ export default function SegmentedFilter<T extends string>({
     <div
       role="tablist"
       aria-label={ariaLabel}
-      className="inline-flex gap-0.5 rounded-md border border-slate-300 bg-white p-0.5"
+      className="inline-flex gap-0.5 rounded-md border border-slate-300 bg-white p-0.5 dark:border-slate-700 dark:bg-slate-900"
     >
       {options.map((opt) => (
         <button
@@ -31,8 +31,10 @@ export default function SegmentedFilter<T extends string>({
           role="tab"
           aria-selected={value === opt.value}
           onClick={() => onChange(opt.value)}
-          className={`rounded px-2 py-1 text-xs font-semibold ${
-            value === opt.value ? 'bg-blue-700 text-white' : 'text-slate-600 hover:bg-slate-100'
+          className={`rounded px-2 py-1 text-[13px] font-semibold ${
+            value === opt.value
+              ? 'bg-blue-700 text-white'
+              : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
           }`}
         >
           {opt.label}

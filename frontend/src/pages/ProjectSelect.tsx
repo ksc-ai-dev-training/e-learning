@@ -15,12 +15,12 @@ export default function ProjectSelect() {
     <div className="flex flex-1 flex-col">
       <PageHeader title="教材作成・編集" />
       <div className="px-8 py-6">
-        <p className="mb-4 text-[11.5px] text-slate-400">
+        <p className="mb-4 text-[13px] text-slate-400 dark:text-slate-400">
           編集する教材が属するプロジェクトを選ぶ。全社員が「全社Wiki」の編集者を自動的に持つため、このメニューは常に表示される。
         </p>
 
         <div className="mb-4 flex max-w-xs flex-col gap-1">
-          <label htmlFor="project-search" className="text-xs font-semibold text-slate-500">
+          <label htmlFor="project-search" className="text-xs font-semibold text-slate-500 dark:text-slate-300">
             プロジェクト名で検索
           </label>
           <TextInput

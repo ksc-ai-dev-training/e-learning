@@ -6,10 +6,10 @@ export default function ProgressBar({ pct, tone = 'default' }: { pct: number; to
     tone === 'complete' ? 'bg-green-600' : tone === 'warn' ? 'bg-amber-500' : 'bg-blue-700'
   return (
     <div className="flex items-center gap-2">
-      <div className="h-1.5 w-24 overflow-hidden rounded-full bg-slate-100">
+      <div className="h-1.5 w-24 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
         <div className={`h-full ${fillClass}`} style={{ width: `${Math.min(100, Math.max(0, pct))}%` }} />
       </div>
-      <span className="flex w-12 flex-shrink-0 items-center justify-end gap-0.5 text-xs text-slate-500">
+      <span className="flex w-14 flex-shrink-0 items-center justify-end gap-0.5 text-[13px] text-slate-500 dark:text-slate-300">
         {tone === 'complete' && (
           <svg
             width="12"

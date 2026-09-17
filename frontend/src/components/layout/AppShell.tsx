@@ -7,7 +7,7 @@ export default function AppShell({ me, children }: { me: Me; children: ReactNode
   return (
     <div className="flex h-screen overflow-hidden">
       <Sidebar me={me} />
-      <div className="flex min-w-0 flex-1 flex-col overflow-y-auto bg-white">{children}</div>
+      <div className="flex min-w-0 flex-1 flex-col overflow-y-auto bg-white dark:bg-slate-900">{children}</div>
     </div>
   )
 }

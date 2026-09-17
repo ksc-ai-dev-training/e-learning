@@ -134,8 +134,8 @@ export default function MaterialsSearch() {
             onClick={() => selectProject(null)}
             className={`rounded-md border px-3 py-1.5 text-sm font-semibold ${
               selectedProjectId === null
-                ? 'border-blue-800 bg-blue-900 text-white'
-                : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50'
+                ? 'border-blue-800 bg-blue-900 text-white dark:border-blue-700 dark:bg-blue-800'
+                : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800'
             }`}
           >
             すべて
@@ -147,8 +147,8 @@ export default function MaterialsSearch() {
               onClick={() => selectProject(p.id)}
               className={`rounded-md border px-3 py-1.5 text-sm font-semibold ${
                 selectedProjectId === p.id
-                  ? 'border-blue-800 bg-blue-900 text-white'
-                  : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50'
+                  ? 'border-blue-800 bg-blue-900 text-white dark:border-blue-700 dark:bg-blue-800'
+                  : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800'
               }`}
             >
               {p.is_company_wide ? '📌 ' : ''}
@@ -160,14 +160,14 @@ export default function MaterialsSearch() {
           ))}
         </div>
 
-        <details className="mb-4 rounded-md border border-slate-200" open>
-          <summary className="cursor-pointer px-4 py-2.5 text-sm font-semibold text-slate-600">
+        <details className="mb-4 rounded-md border border-slate-200 dark:border-slate-800" open>
+          <summary className="cursor-pointer px-4 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-200">
             検索条件 <span className="ml-1 text-xs font-normal text-slate-400">クリックで開閉</span>
           </summary>
-          <div className="border-t border-slate-200 p-4">
+          <div className="border-t border-slate-200 p-4 dark:border-slate-800">
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-1">
-                <label htmlFor="m-keyword" className="text-xs font-semibold text-slate-500">
+                <label htmlFor="m-keyword" className="text-xs font-semibold text-slate-500 dark:text-slate-300">
                   キーワード
                 </label>
                 <TextInput
@@ -179,7 +179,7 @@ export default function MaterialsSearch() {
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <label htmlFor="m-required" className="text-xs font-semibold text-slate-500">
+                <label htmlFor="m-required" className="text-xs font-semibold text-slate-500 dark:text-slate-300">
                   区分
                 </label>
                 <Select
@@ -193,7 +193,7 @@ export default function MaterialsSearch() {
 
             {availableTags.length > 0 && (
               <div className="mt-3 flex flex-col gap-1.5">
-                <span className="text-xs font-semibold text-slate-500">タグ（クリックで絞り込み、複数選択でOR条件）</span>
+                <span className="text-xs font-semibold text-slate-500 dark:text-slate-300">タグ（クリックで絞り込み、複数選択でOR条件）</span>
                 <div className="flex flex-wrap gap-1.5">
                   {availableTags.map((tag) => {
                     const selected = form.tags.includes(tag)
@@ -204,8 +204,8 @@ export default function MaterialsSearch() {
                         onClick={() => toggleTag(tag)}
                         className={`rounded-full border px-2.5 py-1 text-xs font-medium ${
                           selected
-                            ? 'border-blue-700 bg-blue-50 text-blue-800'
-                            : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50'
+                            ? 'border-blue-700 bg-blue-50 text-blue-800 dark:border-blue-700 dark:bg-blue-950/50 dark:text-blue-100'
+                            : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800'
                         }`}
                       >
                         #{tag}
@@ -217,7 +217,7 @@ export default function MaterialsSearch() {
             )}
 
             <div className="mt-3.5 flex flex-col gap-1.5">
-              <label className="flex items-center gap-1.5 text-sm text-slate-700">
+              <label className="flex items-center gap-1.5 text-sm text-slate-700 dark:text-slate-200">
                 <input
                   type="checkbox"
                   checked={form.incompleteOnly}
@@ -225,7 +225,7 @@ export default function MaterialsSearch() {
                 />
                 未受講のみ表示
               </label>
-              <label className="flex items-center gap-1.5 text-sm text-slate-700">
+              <label className="flex items-center gap-1.5 text-sm text-slate-700 dark:text-slate-200">
                 <input
                   type="checkbox"
                   checked={form.myAssignmentsOnly}
@@ -235,7 +235,7 @@ export default function MaterialsSearch() {
               </label>
             </div>
 
-            <div className="mt-3.5 flex items-center gap-2.5 border-t border-slate-100 pt-3.5">
+            <div className="mt-3.5 flex items-center gap-2.5 border-t border-slate-100 pt-3.5 dark:border-slate-800">
               <Button variant="primary" onClick={applyFilter}>
                 検索
               </Button>
@@ -247,19 +247,19 @@ export default function MaterialsSearch() {
         </details>
 
         {isLoading && <p className="text-sm text-slate-400">読み込み中...</p>}
-        {error && <p className="text-sm text-red-600">教材一覧を取得できませんでした</p>}
+        {error && <p className="text-sm text-red-600 dark:text-red-400">教材一覧を取得できませんでした</p>}
 
         {!isLoading && !error && items.length === 0 && (
-          <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400">
+          <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400 dark:border-slate-800 dark:bg-slate-900">
             条件に一致する教材がありません。
           </p>
         )}
 
         {items.length > 0 && (
-          <div className="overflow-x-auto rounded-md border border-slate-200">
+          <div className="overflow-x-auto rounded-md border border-slate-200 dark:border-slate-800">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs text-slate-500">
+                <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
                   <th className="px-3 py-2 font-semibold">教材</th>
                   <th className="px-3 py-2 font-semibold">プロジェクト</th>
                   <th className="px-3 py-2 font-semibold">タグ</th>
@@ -270,10 +270,10 @@ export default function MaterialsSearch() {
               </thead>
               <tbody>
                 {items.map((m) => (
-                  <tr key={m.id} className="border-b border-slate-100 last:border-0">
+                  <tr key={m.id} className="border-b border-slate-100 last:border-0 dark:border-slate-800">
                     <td className="px-3 py-2">
-                      <div className="text-slate-800">{m.title}</div>
-                      <div className="mt-0.5 text-[11px] text-slate-400">
+                      <div className="text-slate-800 dark:text-slate-100">{m.title}</div>
+                      <div className="mt-0.5 text-[13px] text-slate-400">
                         {m.chapter_count}章・{m.page_count}ページ
                         {m.question_count > 0 && (
                           <>
@@ -283,7 +283,7 @@ export default function MaterialsSearch() {
                         )}
                       </div>
                     </td>
-                    <td className="px-3 py-2 text-slate-600">
+                    <td className="px-3 py-2 text-slate-600 dark:text-slate-300">
                       {m.is_company_wide ? '📌 ' : ''}
                       {m.project_name}
                     </td>
@@ -293,7 +293,7 @@ export default function MaterialsSearch() {
                           {m.tags.map((t) => (
                             <span
                               key={t}
-                              className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] text-slate-600"
+                              className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[13px] text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
                             >
                               #{t}
                             </span>
@@ -304,7 +304,7 @@ export default function MaterialsSearch() {
                     <td className="px-3 py-2">
                       <Badge variant={m.required ? 'required' : 'optional'} />
                     </td>
-                    <td className="px-3 py-2 text-slate-500">{formatDateJst(m.updated_at)}</td>
+                    <td className="px-3 py-2 text-slate-500 dark:text-slate-300">{formatDateJst(m.updated_at)}</td>
                     <td className="px-3 py-2">
                       <div className="flex flex-col items-start gap-1.5">
                         <Button variant="secondary" onClick={() => navigate(`/materials/${m.id}`)}>
@@ -328,7 +328,7 @@ export default function MaterialsSearch() {
           </div>
         )}
 
-        <div className="mt-4 flex items-center justify-between text-sm text-slate-500">
+        <div className="mt-4 flex items-center justify-between text-sm text-slate-500 dark:text-slate-300">
           <div className="flex items-center gap-2">
             <span className="text-xs text-slate-400">表示件数</span>
             <Select
@@ -349,7 +349,7 @@ export default function MaterialsSearch() {
             >
               «
             </Button>
-            <span className="px-2 text-xs text-slate-500">
+            <span className="px-2 text-xs text-slate-500 dark:text-slate-300">
               {page} / {totalPages}
             </span>
             <Button
