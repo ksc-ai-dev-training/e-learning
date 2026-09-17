@@ -94,7 +94,13 @@ export default function MyLearning() {
 
   const filteredRequired = filterByProject(required)
   const urgentRequired = filteredRequired.filter(isUrgent)
+  // 必修教材ゾーン内では、受講完了済みをリストの下側に回す（2026-09-17、ユーザー要望。
+  // 「すべて」表示で未受講・受講済みが混ざると、対応が必要な未受講のものが埋もれて見づらいため）。
+  // Array.prototype.sortは安定ソートのため、完了/未完了それぞれのグループ内の並び順はAPIが
+  // 返した元の順序のまま保たれる。
   const visibleRequired = applyStatusFilter(filteredRequired, requiredFilter)
+    .slice()
+    .sort((a, b) => Number(a.progress_status === 'completed') - Number(b.progress_status === 'completed'))
   const filteredOptional = filterByProject(optional)
   const visibleOptional = applyStatusFilter(filteredOptional, optionalFilter)
   const filteredPendingReview = filterByProject(pendingReview)

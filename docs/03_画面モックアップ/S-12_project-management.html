@@ -154,7 +154,7 @@
           <div class="panel-body">
             <div class="field">
               <label>プロジェクト名</label>
-              <input type="text" value="LCC CRM刷新">
+              <input type="text" value="LCC CRM刷新" maxlength="100">
             </div>
             <div class="field">
               <label>説明</label>
@@ -212,7 +212,7 @@
 
       <!-- メンバー管理タブ -->
       <div class="tab-panel" id="panel-members">
-        <p class="tab-note">メンバーの招待・削除、ロール（管理者/編集者/受講者）の設定は、このプロジェクトの管理者が行います。ただし追加は<strong>招待制</strong>です。招待した時点ではまだ権限は発生せず、招待された本人が承諾（S-15）して初めてメンバーとして有効になります。プロジェクトのローカルロールは、システム全体のロール（member/admin）とは別の軸です。</p>
+        <p class="tab-note">メンバーの招待・削除、ロール（管理者/編集者/受講者）の設定は、このプロジェクトの管理者が行います。ただし追加は<strong>招待制</strong>です。招待した時点ではまだ権限は発生せず、招待された本人が承諾（S-15）して初めてメンバーとして有効になります。プロジェクトのローカルロールは、システム全体のロール（member/admin）とは別の軸です。ロールは選択後「保存」を押すまで反映されません。自分自身の降格も、他に有効な管理者が1人以上いれば行えます（2026-09-17）。</p>
         <p class="tab-note">「受験状況」「未受講の必修教材」の2ボタンは、このプロジェクトのadmin、またはシステムadminにのみ表示されます（参加済みメンバーが対象。招待中は対象外）。</p>
 
         <div class="table-wrap">
@@ -225,11 +225,19 @@
                 <td><div style="display:flex;align-items:center;gap:9px"><span class="avatar">山</span><span class="cell-main">山田 花子（あなた）</span></div></td>
                 <td><span class="badge badge-role role-member">member</span></td>
                 <td>
-                  <select disabled title="自分自身のロールはここでは変更できません">
+                  <!-- 2026-09-17、自分自身の行もロール変更可能にした（このプロジェクトの管理者
+                       〔またはシステムadmin〕であれば、他のメンバーと同様に自分の行も対象。他に
+                       管理者が1人以上いれば降格を許可する。保存ボタン方式のため選択直後は反映されず
+                       「保存」を押して確定する） -->
+                  <select id="q-self-project-role" onchange="document.getElementById('self-project-role-actions').style.display = this.value==='管理者' ? 'none' : 'flex'">
                     <option>受講者</option>
                     <option>編集者</option>
                     <option selected>管理者</option>
                   </select>
+                  <div id="self-project-role-actions" style="display:none;margin-top:4px;gap:8px">
+                    <button class="btn btn-primary btn-sm" type="button">保存</button>
+                    <button class="btn btn-ghost btn-sm" type="button">取消</button>
+                  </div>
                 </td>
                 <td><span class="badge badge-status-on">参加済み</span></td>
                 <td>2026-03-01</td>
@@ -237,7 +245,9 @@
                   <div style="display:flex;align-items:center;gap:6px">
                     <button class="btn btn-ghost btn-sm" type="button">受験状況</button>
                     <button class="btn btn-ghost btn-sm" type="button">未受講の必修教材</button>
-                    <span style="color:var(--text-subtle);font-size:12px" title="自分自身は削除できません">-</span>
+                    <!-- 2026-09-16新設: 自分自身の行はプロジェクト管理者でなくても退出だけは行える
+                         （唯一の管理者の自己退出は「管理者が不在になる」チェックで拒否される） -->
+                    <button class="btn btn-danger-ghost btn-sm" type="button">退出する</button>
                   </div>
                 </td>
               </tr>

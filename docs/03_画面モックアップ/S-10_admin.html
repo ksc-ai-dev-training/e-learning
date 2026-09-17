@@ -104,7 +104,7 @@
 
       <!-- ユーザー管理タブ -->
       <div class="tab-panel active" id="panel-users">
-        <p style="margin-bottom:14px;font-size:12px;color:var(--text-muted)">全社員のロール（一般/システム管理者）と有効/無効を管理します。自分自身の降格・無効化はできません。システム管理者が最後の1人になる変更もできません。</p>
+        <p style="margin-bottom:14px;font-size:12px;color:var(--text-muted)">全社員のロール（一般/システム管理者）と有効/無効を管理します。ロールは選択後「保存」を押すまで反映されません。自分自身の降格も、他に有効なシステム管理者が1人以上いれば行えます（自分自身の無効化はできません）。システム管理者が不在になる変更はできません。</p>
         <div class="toolbar">
           <div class="search-box">
             <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -134,13 +134,20 @@
                 </td>
                 <td>t.chida@kogasoftware.com</td>
                 <td>
-                  <select disabled title="自分自身のロール変更・無効化はできません">
+                  <!-- 2026-09-17、自分自身の行もロール変更可能にした（他に有効なシステム管理者が
+                       いれば降格を許可。保存ボタン方式のため選択直後は反映されず「保存」を押して
+                       確定する。ここでは記録用に選択済み〔member〕・未保存の状態を示している） -->
+                  <select id="q-self-role" onchange="document.getElementById('self-role-actions').style.display = this.value==='admin' ? 'none' : 'flex'">
                     <option>member</option>
                     <option selected>admin</option>
                   </select>
+                  <div id="self-role-actions" style="display:none;margin-top:4px;gap:8px">
+                    <button class="btn btn-primary btn-sm" type="button">保存</button>
+                    <button class="btn btn-ghost btn-sm" type="button">取消</button>
+                  </div>
                 </td>
                 <td>
-                  <label class="toggle" title="自分自身のロール変更・無効化はできません">
+                  <label class="toggle" title="自分自身の無効化はできません">
                     <input type="checkbox" checked disabled>
                     <span class="track"></span>
                     <span class="toggle-text">有効</span>

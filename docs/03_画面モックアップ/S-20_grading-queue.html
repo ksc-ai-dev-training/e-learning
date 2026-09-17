@@ -253,7 +253,7 @@
       <button class="modal-close" type="button" onclick="closeGradingModal()">×</button>
     </div>
     <div class="modal-body" style="display:flex;flex-direction:column;gap:14px">
-      <p style="font-size:12px;color:var(--text-subtle);margin:0">この受験記録内の未採点設問をまとめて採点します。設問ごとに「仮保存」でき、下書きは受講者には表示されません。<strong>すべて仮保存すると「採点結果を送信」で確定・公開できます。</strong></p>
+      <p style="font-size:12px;color:var(--text-subtle);margin:0">この受験記録内の未採点設問をまとめて採点します。<strong>正誤判定は選択した瞬間に、フィードバックは入力を止めると自動的に下書き保存されます</strong>（2026-09-17、「この設問を仮保存」ボタンは廃止）。下書きは受講者には表示されません。<strong>必須設問がすべて判定済みになると「採点結果を送信」で確定・公開できます</strong>（任意設問だけ未判定の場合は確認のうえ送信できます）。正誤判定は、選択済みの方を再クリックすると未判定に戻せます。</p>
 
       <!-- 仮保存済みの設問（枠が薄いグレー、「仮保存済み」バッジ付き。値は変更・上書き保存も可能） -->
       <div style="border:1px solid var(--border);border-radius:6px;padding:14px">
@@ -268,8 +268,7 @@
           <label class="radio-line"><input type="radio" name="grade-result-1" checked> 正解</label>
           <label class="radio-line"><input type="radio" name="grade-result-1"> 不正解</label>
         </div>
-        <textarea rows="2" placeholder="フィードバック（結果送信後に表示）" style="margin-bottom:8px">よく理解できています。</textarea>
-        <button class="btn btn-secondary btn-sm" type="button">この設問を仮保存</button>
+        <textarea rows="2" placeholder="フィードバック（結果送信後に表示）">よく理解できています。</textarea>
       </div>
 
       <!-- 未採点の設問（枠が青、まだ正誤判定を選んでいないため「仮保存」ボタンは無効） -->
@@ -285,11 +284,10 @@
           <label class="radio-line"><input type="radio" name="grade-result-2"> 不正解</label>
         </div>
         <textarea rows="2" placeholder="フィードバック（結果送信後に表示）"></textarea>
-        <button class="btn btn-secondary btn-sm" type="button" disabled style="margin-top:8px">この設問を仮保存</button>
       </div>
     </div>
     <div class="modal-footer" style="justify-content:space-between">
-      <span style="font-size:12px;color:var(--text-subtle)">1/2問 仮保存済み（すべて仮保存すると送信できます）</span>
+      <span style="font-size:12px;color:var(--text-subtle)">1/2問 判定済み（自動保存。すべて判定すると送信できます）</span>
       <div style="display:flex;gap:8px">
         <button class="btn btn-secondary" type="button" onclick="closeGradingModal()">閉じる（続きは後で）</button>
         <button class="btn btn-primary" type="button" disabled onclick="closeGradingModal()">採点結果を送信</button>
@@ -302,8 +300,8 @@
 
 <script>
 // 採点モーダルの開閉（静的モック確認用の最小限のJS。実装時はカードごとに教材・受験記録・設問一覧を
-// 出し分け、「この設問を仮保存」は正誤判定を選ぶまで無効、「採点結果を送信」は受験記録内の全設問が
-// 仮保存済みになるまで無効のままとする）
+// 出し分け、正誤判定・フィードバックは自動保存〔2026-09-17〕、「採点結果を送信」は必須設問が
+// すべて判定済みになるまで無効のままとする）
 function openGradingModal() {
   document.getElementById('grading-modal').classList.add('open');
 }

@@ -231,14 +231,18 @@ git checkout -b feature/add-login
                 </div>
               </div>
               <button class="add-row-btn" type="button" style="margin-top:8px">+ 選択肢を追加</button>
+              <!-- 2026-09-16、「記録」「任意」は正解を1つも選ばずに保存できる（答えの決まっていない
+                   意見・見解を書かせるアンケート的な設問向け）。正解を選択した状態から同じ選択肢を
+                   再クリックすると未設定に戻せる（ネイティブのラジオはクリックだけでは解除できないため） -->
+              <span class="field-help" id="q1-correct-optional-hint" style="display:none">※「記録」「任意」は正解を設定しなくても保存できます（意見・見解を選ばせるだけのアンケート的な設問として使えます）。</span>
             </div>
             <div class="field-row" style="margin-top:10px">
               <div>
                 <label>回答</label>
                 <div class="radio-group">
-                  <label class="radio-line"><input type="radio" name="q1-required" checked> 必須</label>
-                  <label class="radio-line"><input type="radio" name="q1-required"> 記録（採点なし）</label>
-                  <label class="radio-line"><input type="radio" name="q1-required"> 任意（スキップ可）</label>
+                  <label class="radio-line"><input type="radio" name="q1-required" checked onchange="document.getElementById('q1-correct-optional-hint').style.display='none'"> 必須</label>
+                  <label class="radio-line"><input type="radio" name="q1-required" onchange="document.getElementById('q1-correct-optional-hint').style.display=''"> 記録（採点なし）</label>
+                  <label class="radio-line"><input type="radio" name="q1-required" onchange="document.getElementById('q1-correct-optional-hint').style.display=''"> 任意（スキップ可）</label>
                 </div>
                 <span class="field-help">※「記録」は回答必須のままスコア・合否判定には算入しません（採点・AIフィードバック自体は行われます）。「任意」は回答自体を省略できます（同じく算入されません）。</span>
               </div>
@@ -279,9 +283,13 @@ git checkout -b feature/add-login
               <label>設問文</label>
               <textarea rows="2">よいプルリクエストの説明文に含めるべき情報を2つ挙げて説明してください。</textarea>
             </div>
-            <div class="field">
+            <!-- 2026-09-16、採点方式が手動のときはAI採点基準を非表示にし代わりに案内文を出す（下のselectのonchange参照） -->
+            <div class="field" id="q2-scoring-criteria">
               <label>AI採点基準</label>
               <textarea rows="3" placeholder="模範解答・採点の観点を記述してください">変更の目的（なぜその変更が必要か）と、動作確認の方法（どう確認したか）が含まれていれば正解。箇条書きでも可。</textarea>
+            </div>
+            <div class="field" id="q2-scoring-criteria-hint" style="display:none">
+              <span class="field-help">※採点方式が手動のため、AI採点基準の入力は不要です。</span>
             </div>
             <div class="field-row">
               <div>
@@ -301,7 +309,7 @@ git checkout -b feature/add-login
             </div>
             <div class="field">
               <label>採点方式（この設問のみ上書き）</label>
-              <select id="q2-grading-mode" onchange="document.getElementById('q2-feedback-style').style.opacity = this.selectedIndex===0 ? '1' : '0.5'">
+              <select id="q2-grading-mode" onchange="document.getElementById('q2-feedback-style').style.opacity = this.selectedIndex===0 ? '1' : '0.5'; document.getElementById('q2-scoring-criteria').style.display = this.selectedIndex===2 ? 'none' : ''; document.getElementById('q2-scoring-criteria-hint').style.display = this.selectedIndex===2 ? '' : 'none'">
                 <option>教材既定に従う</option>
                 <option selected>AI自動採点</option>
                 <option>手動採点</option>

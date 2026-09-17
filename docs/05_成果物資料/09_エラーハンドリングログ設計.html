@@ -16,6 +16,9 @@
 
   <h3>9.1 エラーレスポンス形式</h3>
   <p>全APIのエラーは<code>{"detail": "メッセージ"}</code>に統一する（LCC CRM・Keireki踏襲）。FastAPIの<code>HTTPException</code>標準形式のため、ハンドラは<code>raise HTTPException(status_code, detail="...")</code>のみを使用する。<code>detail</code>は利用者向けの日本語メッセージとし、スタックトレース等の内部情報は含めない。未捕捉例外は汎用ハンドラで500 <code>{"detail": "サーバーエラーが発生しました"}</code>に変換し、詳細はサーバーログにのみ出力する。</p>
+  <div class="callout rev-new">
+    <strong>422（Pydantic自動バリデーション）の日本語化（2026-09-16）:</strong> 上記の「<code>detail</code>は常に日本語メッセージの文字列」という統一は、アプリ自身が<code>raise HTTPException</code>する分にはそのとおりだったが、FastAPIがリクエストボディのパースに失敗した際に<strong>自動生成する</strong>422（<code>RequestValidationError</code>）は、既定では<code>detail</code>が<code>{"type","loc","msg","input","ctx"}</code>の配列で返り、しかも<code>msg</code>自体が英語（例: <code>"String should have at most 100 characters"</code>）だった。プロジェクト名を100文字超で保存しようとするとエラー表示が「[object Object]」になる不具合（配列をそのままJSの<code>Error</code>に渡し既定の<code>toString()</code>化された結果）が実際に報告されたのを機に、<code>main.py</code>にグローバルな<code>@app.exception_handler(RequestValidationError)</code>を追加し、<code>type</code>ごとに日本語メッセージへ変換したうえで<code>{"detail": "メッセージ1 / メッセージ2"}</code>という、他のエラーと同じ「文字列1本」の形へ揃えた（<code>string_too_long</code>→「N文字以内で入力してください」、<code>string_too_short</code>→「N文字以上で入力してください」、<code>missing</code>→「入力してください」、未知の<code>type</code>は<code>msg</code>をそのままフォールバック）。あわせて、Pydantic v2はモデルバリデータが<code>raise ValueError("...")</code>した際、<code>msg</code>の先頭に固定で英語の<code>"Value error, "</code>というプレフィックスを付ける仕様のため、そのままだと「Value error, 種別「single」には正解が必須です」のように日本語メッセージの前に英語が残ってしまう。<code>type == "value_error"</code>のときだけこのプレフィックスを除去する処理を加え、アプリ内の全<code>raise ValueError</code>（<code>QuestionIn</code>の各種検証・表示名の空白チェック等16箇所）に効くことを確認した。このハンドラは<code>PUT /source</code>（A-20）のように、アプリ自身が本文を手動パースして<code>MaterialParseError</code>→<code>HTTPException</code>に変換している経路には掛からない（元々<code>detail</code>が文字列のため無関係）。FastAPIが直接ボディをPydanticモデルへ自動パースする経路（例: <code>PUT /api/materials/{id}/questions</code>）でのみ意味を持つ。
+  </div>
   <table>
     <thead><tr><th>コード</th><th>意味</th><th>代表例</th></tr></thead>
     <tbody>
@@ -24,7 +27,7 @@
       <tr><td>403</td><td>権限不足</td><td>受講対象外の教材へのアクセス（learning.py全般）、招待未承諾のプロジェクトへの編集操作、他人の招待への応答（A-67）、他ユーザーの<code>storage_key</code>を指定したアイコン確定（A-75）</td></tr>
       <tr><td>404</td><td>対象なし、またはAI非同期ジョブが処理中（pending）</td><td>存在しない<code>material_id</code>/<code>user_id</code>、A-35/A-49/A-52の未完了時</td></tr>
       <tr><td>413</td><td>アップロードサイズ超過</td><td>A-27で<code>MAX_ATTACHMENT_SIZE_MB</code>（既定200MB）を超えるファイル、A-76で<code>MAX_ICON_SIZE_MB</code>（既定2MB）を超える画像</td></tr>
-      <tr><td>422</td><td>Pydanticバリデーションエラー</td><td>型不一致・形式違反。A-20/A-31はフロントマター・問題ブロックのスキーマ違反（7.2節）</td></tr>
+      <tr><td>422</td><td>Pydanticバリデーションエラー<span class="rev-new">（2026-09-16以降、グローバルハンドラで日本語の<code>detail</code>文字列1本に変換。上記callout参照）</span></td><td>型不一致・形式違反。A-20/A-31はフロントマター・問題ブロックのスキーマ違反（7.2節）</td></tr>
       <tr><td>502</td><td>外部サービス（Claude API・Slack Webhook）の呼び出し失敗</td><td>A-32（同期AIレビュー）のリトライ全滅時、A-57（Slackテスト送信）の失敗時</td></tr>
     </tbody>
   </table>
@@ -61,8 +64,8 @@
 
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）詳細設計書 v1.80</span>
-    <span>コガソフトウェア株式会社 / 2026-09-08</span>
+    <span>社内学習管理システム（Manabi）詳細設計書 v1.90</span>
+    <span>コガソフトウェア株式会社 / 2026-09-17</span>
   </footer>
 
 </div>

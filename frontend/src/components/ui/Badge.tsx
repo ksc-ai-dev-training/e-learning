@@ -3,7 +3,8 @@ import type { ReactNode } from 'react'
 // 色分けラベル（詳細設計書2.1.2節）。variantは使う場所が増えるたびに追加する。
 // 現状: 'published' / 'draft' / 'archived'（教材のstatus表示、S-14）、'admin' / 'editor' / 'learner'（プロジェクトのローカルロール表示、S-05）、
 // 'required' / 'optional'（教材の区分表示、S-03）、'ai-warning' / 'ai-info'（AIレビュー結果の重要度、S-05）、
-// 'complete' / 'overdue'（受講完了・期限接近の強調表示、S-02。日付を含む動的な文言のためchildrenで上書きする）、
+// 'complete' / 'overdue' / 'overdue-critical'（受講完了・期限接近・期限超過の強調表示、S-02。日付を含む
+// 動的な文言のためchildrenで上書きする。'overdue-critical'は期限を過ぎたものだけに使う濃色バッジ。2026-09-17新設）、
 // 'member-active' / 'member-invited' / 'member-declined'（プロジェクトメンバーの参加状態、S-12）、
 // 'project-active' / 'project-stopped'（プロジェクト自体の状態、S-11・S-12の「自分の全プロジェクト一覧」）、
 // 'share-pending' / 'share-accepted'（教材のプロジェクト間共有の状態、S-12教材の共有タブ。F-26）、
@@ -22,6 +23,7 @@ const VARIANT_CLASSES: Record<string, string> = {
   'ai-info': 'bg-slate-100 text-slate-500 border-slate-300',
   complete: 'bg-green-50 text-green-700 border-green-200',
   overdue: 'bg-red-50 text-red-700 border-red-200',
+  'overdue-critical': 'bg-red-600 text-white border-red-700',
   'member-active': 'bg-green-50 text-green-700 border-green-200',
   'member-invited': 'bg-amber-50 text-amber-700 border-amber-200',
   'member-declined': 'bg-slate-100 text-slate-500 border-slate-300',
