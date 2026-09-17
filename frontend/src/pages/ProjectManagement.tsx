@@ -4,6 +4,7 @@ import PageHeader from '../components/layout/PageHeader'
 import MyProjectsPanel from '../components/project/MyProjectsPanel'
 import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
+import SlackIcon from '../components/ui/SlackIcon'
 import Select from '../components/ui/Select'
 import TextArea from '../components/ui/TextArea'
 import TextInput from '../components/ui/TextInput'
@@ -32,13 +33,14 @@ import {
 import { createMaterialShare, deleteMaterialShare, respondMaterialShare } from '../lib/shareActions'
 import type { MaterialSource, ProjectRole } from '../types'
 
-// 全社Wikiの管理者はシステム管理者のみとし、招待・ロール変更（A-12/A-13）では新たに
-// 付与できない（基本設計書5.26節）。バックエンドが400で拒否するため、選択肢自体を出さない。
-function roleOptions(isCompanyWide: boolean) {
+// 全社ライブラリのadmin付与も他プロジェクトと同じ通常ルール（プロジェクトadminのみが付与可）に
+// 従うようになった（2026-09-17、以前は招待・ロール変更〔A-12/A-13〕で全社ライブラリのadminへの
+// 昇格を一律拒否していたが撤回。roleOptionsからも会社規模かどうかの分岐を削除した）。
+function roleOptions() {
   return [
     { value: 'learner', label: '受講者' },
     { value: 'editor', label: '編集者' },
-    ...(isCompanyWide ? [] : [{ value: 'admin', label: '管理者' }]),
+    { value: 'admin', label: '管理者' },
   ]
 }
 
@@ -52,7 +54,7 @@ type TabKey = (typeof TABS)[number]['key']
 // S-12 プロジェクト管理（詳細設計書10.12節相当）。プロジェクト情報・メンバー管理・教材の共有
 // （F-26、複製モデル）の3タブを実装済み。
 //
-// 「複数プロジェクトを管理していると常に全社Wikiがデフォルトで開いてしまう」「停止したプロジェクトが
+// 「複数プロジェクトを管理していると常に全社ライブラリがデフォルトで開いてしまう」「停止したプロジェクトが
 // 管理画面に出てこず復活させられない」「管理画面にもプロジェクト一覧・状態変更がほしい」という
 // ユーザーフィードバックを受け（2026-09-01）、:projectIdが無いとき最初の管理対象へ自動遷移していた
 // 従来の挙動をやめた。管理者であるプロジェクトが1件しかない場合も含め、常に「自分の全プロジェクト
@@ -388,13 +390,15 @@ function ProjectManagementBody({
             {isProjectAdmin && (
               <div className="mt-4 flex flex-col gap-2 rounded-md border border-slate-200 p-4">
                 <div className="flex items-center gap-3">
-                  <Button
-                    variant="secondary"
+                  <button
+                    type="button"
                     onClick={handleRemind}
                     disabled={reminding || !project.slack_webhook_url}
+                    className="flex h-9 items-center gap-2 whitespace-nowrap rounded-md border border-slate-300 bg-white px-3.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
                   >
+                    <SlackIcon />
                     {reminding ? '送信中...' : '必修教材のリマインドをSlackに送信'}
-                  </Button>
+                  </button>
                   {!project.slack_webhook_url && (
                     <span className="text-xs text-slate-400">Webhook URLを保存すると送信できます</span>
                   )}
@@ -506,8 +510,9 @@ function MembersTab({
   const [remindPanelUser, setRemindPanelUser] = useState<{ userId: number; name: string } | null>(null)
 
   // 受験状況・回数リセットは、このプロジェクトのadmin、またはシステムadminにのみ見せる
-  // （個人学習レポートの管理者判定と同じ基準。全社Wikiはadminロールを誰も持てないため、
-  // 全社員が擬似的にeditorになる場合でもこのボタン自体が見えない。2026-09-03）。
+  // （個人学習レポートの管理者判定と同じ基準。全社ライブラリは以前adminロールを誰も持てなかったため
+  // 全社員が擬似的にeditorになる場合でもこのボタン自体が見えなかったが、2026-09-17にシステムadminを
+  // 全社ライブラリの実際のadminとして登録する方針に変えたため、現在はその人たちに見える。2026-09-03）。
   const canManageAttempts = canManage
 
   // ロール変更は誤操作防止のため自動保存にせず、選択した値をここに保持しておき「保存」を
@@ -617,7 +622,7 @@ function MembersTab({
                           value={pendingRoles[m.user_id] ?? m.role}
                           disabled={m.status !== 'active' || !canManage || savingIds.has(m.user_id)}
                           onChange={(v) => selectPendingRole(m.user_id, v as ProjectRole)}
-                          options={roleOptions(isCompanyWide && m.role !== 'admin')}
+                          options={roleOptions()}
                         />
                         {pendingRoles[m.user_id] !== undefined && pendingRoles[m.user_id] !== m.role && (
                           <div className="mt-1 flex items-center gap-2">
@@ -667,7 +672,12 @@ function MembersTab({
                           </>
                         )}
                         {isSelf ? (
-                          m.status !== 'active' ? (
+                          isCompanyWide ? (
+                            // 全社ライブラリは自己退出できない方針のため（2026-09-17、ユーザー要望。
+                            // バックエンドのupdate_memberも自己退出のみ拒否する）、管理者による
+                            // 削除を依頼する案内のみ表示する。
+                            <span className="text-xs text-slate-400" title="全社ライブラリは自主退出できません。管理者に削除を依頼してください">—</span>
+                          ) : m.status !== 'active' ? (
                             <span className="text-xs text-slate-400">—</span>
                           ) : pendingRemove === m.user_id ? (
                             <span className="flex items-center gap-1 text-xs">
@@ -766,7 +776,7 @@ function MembersTab({
             <Select
               value={inviteRole}
               onChange={(v) => setInviteRole(v as ProjectRole)}
-              options={roleOptions(isCompanyWide)}
+              options={roleOptions()}
             />
             <Button variant="secondary" disabled={selectedCandidateId === null} onClick={handleInvite}>
               招待する

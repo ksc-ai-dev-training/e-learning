@@ -124,7 +124,7 @@ export interface MaterialSearchItem {
   question_types: QuestionType[]
   required: boolean
   progress_status: EnrollmentStatus
-  // マイ学習への登録有無（F-31）。全社Wiki所属の任意教材の行にのみ登録ボタンを出す判定に使う
+  // マイ学習への登録有無（F-31）。全社ライブラリ所属の任意教材の行にのみ登録ボタンを出す判定に使う
   registered: boolean
   updated_at: string
 }

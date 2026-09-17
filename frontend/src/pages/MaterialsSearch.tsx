@@ -307,9 +307,13 @@ export default function MaterialsSearch() {
                     <td className="px-3 py-2 text-slate-500 dark:text-slate-300">{formatDateJst(m.updated_at)}</td>
                     <td className="px-3 py-2">
                       <div className="flex flex-col items-start gap-1.5">
-                        <Button variant="secondary" onClick={() => navigate(`/materials/${m.id}`)}>
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/materials/${m.id}`)}
+                          className="whitespace-nowrap rounded-md border border-slate-300 bg-white px-3 py-1.5 text-[13px] font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:hover:bg-slate-700"
+                        >
                           {actionLabel(m.progress_status)}
-                        </Button>
+                        </button>
                         {m.is_company_wide && !m.required && (
                           <MyLearningToggle
                             materialId={m.id}

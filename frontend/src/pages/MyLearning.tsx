@@ -85,7 +85,7 @@ export default function MyLearning() {
     const tabs = [...byId.values()].sort((a, b) => a.name.localeCompare(b.name, 'ja'))
     const companyWide = tabs.find((t) => t.isCompanyWide)
     const rest = tabs.filter((t) => !t.isCompanyWide)
-    const pinned: ProjectTab = companyWide ?? { id: -1, name: '全社Wiki', isCompanyWide: true, count: 0 }
+    const pinned: ProjectTab = companyWide ?? { id: -1, name: '全社ライブラリ', isCompanyWide: true, count: 0 }
     return [{ id: null, name: 'すべて', isCompanyWide: false, count: allItems.length }, pinned, ...rest]
   }, [allItems])
 
@@ -304,7 +304,7 @@ export default function MyLearning() {
             </div>
 
             <p className="mt-2 text-xs text-slate-400">
-              ※「全社Wiki」タブは常に先頭に固定表示されます。全社Wiki所属の任意教材は、S-03「教材一覧・検索」から
+              ※「全社ライブラリ」タブは常に先頭に固定表示されます。全社ライブラリ所属の任意教材は、S-03「教材一覧・検索」から
               「マイ学習に追加」しない限りここには表示されません。
             </p>
           </>

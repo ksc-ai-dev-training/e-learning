@@ -8,7 +8,7 @@ interface MyLearningToggleProps {
   onToggled: () => void | Promise<void>
 }
 
-// マイ学習への登録/解除トグル（F-31）。全社Wiki所属の任意教材の行にのみ表示する（呼び出し側で判定）。
+// マイ学習への登録/解除トグル（F-31）。全社ライブラリ所属の任意教材の行にのみ表示する（呼び出し側で判定）。
 // 登録済みは塗りつぶしアイコン＋青、未登録は輪郭アイコン＋グレーで状態を一目で区別できるようにする
 // （当初はテキストリンクのみだったが、一覧で登録状態が分かりにくいというフィードバックを受けて変更した。2026-08-31）。
 // S-03（教材一覧・検索）・S-04（教材受講：目次）・S-16（教材受講：ページ）で共通。
@@ -30,13 +30,13 @@ export default function MyLearningToggle({ materialId, registered, onToggled }: 
       type="button"
       onClick={handleClick}
       disabled={loading}
-      className={`flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-semibold disabled:opacity-50 ${
+      className={`flex items-center gap-1 whitespace-nowrap rounded-md border px-2.5 py-1.5 text-[13px] font-semibold disabled:opacity-50 ${
         registered
           ? 'border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200 dark:hover:bg-blue-900/50'
           : 'border-slate-300 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100'
       }`}
     >
-      <Bookmark className="h-3.5 w-3.5" fill={registered ? 'currentColor' : 'none'} />
+      <Bookmark className="h-3 w-3 flex-shrink-0" fill={registered ? 'currentColor' : 'none'} />
       {registered ? 'マイ学習から外す' : 'マイ学習に追加'}
     </button>
   )

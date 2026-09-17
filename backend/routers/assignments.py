@@ -5,7 +5,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from auth_helpers import CurrentUser, require_auth, require_material_role
+from auth_helpers import CurrentUser, has_active_project_role, require_auth, require_material_role
 from database import get_pool
 
 router = APIRouter(prefix="/api", tags=["assignments"])
@@ -118,8 +118,11 @@ async def update_material_assignments(
     既定の設計（基本設計書4.8節）のため、2026-09-16のrequire_material_role既定変更後も
     bypass_system_admin=Trueを明示して従来どおりの挙動を維持する。プロジェクトスコープの
     scope_idは教材自身のproject_idに固定、個人スコープのscope_idはそのプロジェクトの現役メンバーに
-    限る（他プロジェクトへの一方的な配信を防ぐ、基本設計書5.9節）。全社Wikiに属する教材は
-    required=trueの行を1つでも含めば拒否する（常に任意固定、5.9節「設計判断」参照）。同様に
+    限る（他プロジェクトへの一方的な配信を防ぐ、基本設計書5.9節）。全社ライブラリに属する教材は
+    required=trueの行を1つでも含める場合、そのプロジェクト（全社ライブラリ）の実際のadminロールを要求する
+    （2026-09-17、以前は誰であっても一律拒否〔常に任意固定〕していたが、全社ライブラリに実際のプロジェクト
+    adminが存在するようになったため〔システムadminを実データとして登録する方針、database.py参照〕、
+    プロジェクトadminのみ必修を作成できるよう緩和した。editorはこれまで通り不可）。同様に
     scope_type='individual'の行も拒否する（全員がeditorとして自動参加済みのため個人指定が
     無意味なことが判明したため、2026-09-03追加）。
     pass_score_pct・retake_allowed・retake_limitはこのAPIでは扱わない（画面モックアップ
@@ -135,13 +138,14 @@ async def update_material_assignments(
         raise HTTPException(404, detail="教材が見つかりません")
 
     if material["is_company_wide"] and any(a.required for a in body.assignments):
-        raise HTTPException(400, detail="全社Wikiの教材は必修に設定できません（常に任意です）")
+        if not await has_active_project_role(material["project_id"], user.id, "admin"):
+            raise HTTPException(403, detail="全社ライブラリの教材を必修にできるのはプロジェクト管理者のみです")
     if material["is_company_wide"] and any(a.scope_type == "individual" for a in body.assignments):
-        # 全社Wikiは初回ログイン時に全員がeditorとして自動参加する（project_membershipsが
+        # 全社ライブラリは初回ログイン時に全員がeditorとして自動参加する（project_membershipsが
         # 必ず存在する）ため、個人指定は「プロジェクト全体配信」に対して何の効果も持たない
         # （対象判定・必修上書き・F-31登録ゲートのいずれも個人指定の有無を見ていない）。
         # 意味の無い設定を保存させないため拒否する（2026-09-03、ユーザー指摘で調査の上判明）。
-        raise HTTPException(400, detail="全社Wikiの教材は個人指定できません（プロジェクト全体の設定のみです）")
+        raise HTTPException(400, detail="全社ライブラリの教材は個人指定できません（プロジェクト全体の設定のみです）")
 
     for a in body.assignments:
         if a.required and not a.due_at:

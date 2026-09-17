@@ -113,7 +113,7 @@ async def auth_callback(request: Request, code: str | None = None, state: str | 
     pool = get_pool()
     row = await pool.fetchrow("SELECT id, role, is_active FROM users WHERE lower(email) = lower($1)", email)
     if row is None:
-        # 初回登録: role='member'・is_active=trueで作成し、全社Wikiにeditorとして自動参加させる
+        # 初回登録: role='member'・is_active=trueで作成し、全社ライブラリにeditorとして自動参加させる
         async with pool.acquire() as conn:
             async with conn.transaction():
                 row = await conn.fetchrow(

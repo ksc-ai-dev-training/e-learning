@@ -286,16 +286,20 @@ async def run_ai_org_report_job(
 
 class OrgReportRequest(BaseModel):
     scope_type: str
-    scope_id: int | None = None
+    # 「全社」スコープ廃止（2026-09-17）に伴いscope_id=Noneのケースが無くなったため必須にした
+    # （scope_type='company'は無くなり、'project'のみ有効。dashboard.py._parse_scope参照）。
+    scope_id: int
 
 
 @org_router.post("", status_code=202)
 async def request_org_report(body: OrgReportRequest, user: CurrentUser = Depends(require_auth)):
-    """A-48: AI組織レポートの生成をリクエストする（非同期。S-08「レポートを再生成」ボタン）。"""
-    if body.scope_type not in ("company", "project"):
+    """A-48: AI組織レポートの生成をリクエストする（非同期。S-08「レポートを再生成」ボタン）。
+
+    「全社」スコープは廃止した（2026-09-17、dashboard.py._parse_scope参照）。"""
+    if body.scope_type != "project":
         raise HTTPException(422, detail="scope_typeが不正です")
     await require_dashboard_scope(body.scope_type, body.scope_id, user)
-    scope_label = "全社" if body.scope_type == "company" else f"project:{body.scope_id}"
+    scope_label = f"project:{body.scope_id}"
     row = await get_pool().fetchrow(
         """INSERT INTO ai_org_reports (scope_type, scope_id, requested_by) VALUES ($1, $2, $3)
            RETURNING id""",
@@ -310,15 +314,11 @@ async def get_org_report(scope: str, user: CurrentUser = Depends(require_auth)):
     """A-49: 直近のAI組織レポートを取得する。未完了・未リクエストは404（A-52と同方針）。"""
     scope_type, scope_id = _parse_scope(scope)
     await require_dashboard_scope(scope_type, scope_id, user)
-    query = (
-        "SELECT content, requested_at FROM ai_org_reports WHERE scope_type = $1 AND scope_id IS NULL "
-        "ORDER BY created_at DESC LIMIT 1"
-        if scope_type == "company"
-        else "SELECT content, requested_at FROM ai_org_reports WHERE scope_type = $1 AND scope_id = $2 "
-        "ORDER BY created_at DESC LIMIT 1"
+    row = await get_pool().fetchrow(
+        """SELECT content, requested_at FROM ai_org_reports WHERE scope_type = $1 AND scope_id = $2
+           ORDER BY created_at DESC LIMIT 1""",
+        scope_type, scope_id,
     )
-    args = [scope_type] if scope_type == "company" else [scope_type, scope_id]
-    row = await get_pool().fetchrow(query, *args)
     if row is None or row["content"] is None:
         raise HTTPException(404, detail="AI組織レポートはまだ生成されていません")
     content = json.loads(row["content"])

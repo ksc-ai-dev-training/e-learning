@@ -156,9 +156,13 @@ async def check_project_role(
 
 async def is_manager_of_target_user(target_user_id: int, requester: CurrentUser) -> bool:
     """「対象者が所属するプロジェクトの管理者」判定（詳細設計書5.4節）。S-09個人学習レポート・
-    A-50〜A-52で、本人以外に対象者の上長として閲覧できる相手を判定するのに使う。"""
-    if requester.role == "admin":
-        return True
+    A-50〜A-52で、本人以外に対象者の上長として閲覧できる相手を判定するのに使う。
+
+    システムadminの無条件バイパスは廃止した（2026-09-17、権限モデル整理）。個人の学習記録は
+    プロジェクトのローカル管理者（対象者の上長として実際に管理している相手）のみが閲覧できる
+    べきで、プロジェクトに一切関与していないシステムadminにまで無条件で開放する理由は無いという
+    判断による。システムadminであっても、対象者のプロジェクトの実際のローカル管理者であれば
+    下記のループで許可される。"""
     target_project_ids = await get_pool().fetch(
         """SELECT project_id FROM project_memberships
            WHERE user_id = $1 AND status = 'active' AND left_at IS NULL""",
@@ -211,18 +215,31 @@ def require_material_role(min_role: str, *, bypass_system_admin: bool = False):
     （assignments.py）は「adminは全教材を対象にできる」という別の既定設計（基本設計書4.8節）が
     元々あるため、そちらの2箇所の呼び出しのみbypass_system_admin=Trueを明示して従来どおりとする。
 
+    全社ライブラリに属し、かつ現在必修（assignments.requiredが立っている）教材は、要求されたmin_roleが
+    admin未満でも常にadminへ引き上げる（2026-09-17、ユーザー要望）。全社ライブラリは全員が自動でeditorに
+    なるため、通常のmin_role="editor"のままでは事実上誰でも編集できてしまう。必修にする権限
+    （assignments.pyのis_company_wide+required判定）を持つ人＝プロジェクトadmin（システムadmin含む、
+    全社ライブラリの実データとして登録済み）だけに編集権限も揃える。任意のままの全社ライブラリ教材は従来どおり
+    editorにも開放する。
+
     パスパラメータ `id`（教材ID）を持つルート（例: /api/materials/{id}）で使う。
     """
     async def checker(id: int, user: CurrentUser = Depends(require_auth)) -> CurrentUser:
         row = await get_pool().fetchrow(
-            """SELECT m.project_id, m.status, m.created_by, p.is_company_wide
+            """SELECT m.project_id, m.status, m.created_by, p.is_company_wide,
+                      EXISTS (
+                          SELECT 1 FROM assignments a WHERE a.material_id = m.id AND a.required = true
+                      ) AS is_required
                FROM materials m JOIN projects p ON p.id = m.project_id
                WHERE m.id = $1""",
             id,
         )
         if row is None:
             raise HTTPException(404, detail="教材が見つかりません")
-        await check_project_role(user, row["project_id"], min_role, bypass_system_admin=bypass_system_admin)
+        effective_min_role = min_role
+        if row["is_company_wide"] and row["is_required"] and ROLE_RANK[min_role] < ROLE_RANK["admin"]:
+            effective_min_role = "admin"
+        await check_project_role(user, row["project_id"], effective_min_role, bypass_system_admin=bypass_system_admin)
         if row["status"] == "draft" and row["created_by"] != user.id:
             if await is_company_wide_draft_restricted(user, row["project_id"], row["is_company_wide"]):
                 raise HTTPException(403, detail="この下書きを閲覧できるのは作成者とプロジェクト管理者のみです")

@@ -126,7 +126,7 @@ async def search_materials_tool(
     name="create_material",
     description=(
         "教材を新規作成する。利用者が新しい教材の作成を依頼したときに使う。project_idを省略すると"
-        "「全社Wiki」プロジェクトに作成される。作成直後は目次が空の下書き状態になり、章・ページ・"
+        "「全社ライブラリ」プロジェクトに作成される。作成直後は目次が空の下書き状態になり、章・ページ・"
         "設問はget_material_source/put_material_sourceで書き込む。"
     ),
 )

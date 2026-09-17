@@ -584,7 +584,8 @@ async def _grade_and_store_answer(answer_id: int) -> None:
     row = await pool.fetchrow(
         """SELECT a.id, a.attempt_id, a.response,
                   q.prompt, q.scoring_criteria, q.code_language, q.type, q.feedback_style AS q_feedback_style,
-                  m.default_feedback_style, m.ai_context, qa.user_id
+                  m.default_feedback_style, m.ai_context, m.attempt_scope,
+                  qa.user_id, qa.mode, qa.material_id, qa.scope_node_id
            FROM answers a
            JOIN questions q ON q.id = a.question_id
            JOIN quiz_attempts qa ON qa.id = a.attempt_id
@@ -626,10 +627,41 @@ async def _grade_and_store_answer(answer_id: int) -> None:
     )
     await _recompute_attempt_result(pool, row["attempt_id"])
 
+    # submit_attempt時点ではまだこのAI採点が終わっておらずpassedがNULL（採点中）のままだった場合、
+    # enrollment_progress.statusが'in_progress'に固定されたまま、この採点が確定した後も誰も
+    # 再評価しないため永久に「受講完了」にならない不具合があった（2026-09-18、attempt_scope='material'
+    # の完了判定をpassed基準に統一した際に発見。以前はページ到達のみで判定していたため顕在化して
+    # いなかったが、他のスコープでも本来同じ穴があった）。submit_attemptと同じ手順でここでも
+    # enrollment_progressを再評価する。
+    if row["mode"] == "graded":
+        tree = await _fetch_tree(pool, row["material_id"], strip_answers=True)
+        pages = _scope_pages(tree, row["attempt_scope"], row["scope_node_id"])
+        await _update_enrollment_progress(
+            pool, row["user_id"], row["material_id"], row["attempt_scope"], tree, [p["id"] for p in pages]
+        )
+
 
 class AnswerReviewIn(BaseModel):
     is_correct: bool | None = None
     ai_feedback: str
+
+
+async def _can_grade_material(material_id: int, project_id: int, created_by: int, is_company_wide: bool, user: CurrentUser) -> bool:
+    """採点権限判定（2026-09-17）。通常は教材の作成者のみが採点できる（get_grading_queueの
+    docstring参照）。ただし全社ライブラリの必修教材は、必修にする権限＝編集権限（require_material_role
+    参照）と同じ基準で、作成者に限らずプロジェクトadmin（システムadmin含む、全社ライブラリの実データ
+    として登録済み）なら誰でも採点できる。全社必修教材は複数の管理者が共同で保守する運用のため。"""
+    if created_by == user.id:
+        return True
+    if not is_company_wide:
+        return False
+    is_required = await get_pool().fetchval(
+        "SELECT EXISTS (SELECT 1 FROM assignments WHERE material_id = $1 AND required = true)",
+        material_id,
+    )
+    if not is_required:
+        return False
+    return await has_active_project_role(project_id, user.id, "admin")
 
 
 @router.put("/answers/{answer_id}/review")
@@ -649,22 +681,24 @@ async def review_answer(answer_id: int, body: AnswerReviewIn, user: CurrentUser 
     既存の判定値を保持する仕様だったが、フロントエンドは常にその設問の「今の」判定値〔未判定なら
     None〕を渡す設計のため、上書きしない特別扱いは不要と判断し廃止した）。
 
-    採点はシステムadminでも実際のプロジェクトロール（エディタ以上）を要求する
-    （bypass_system_admin=False。2026-09-16、教材内容の編集と同じ「コンテンツ操作」として扱い、
-    一貫性を持たせるようユーザー要望により変更。以前は「採点権限が無くても採点できてしまう」点を
-    指摘されつつ一旦据え置いていた）。"""
+    採点できるのは原則対象教材の作成者（materials.created_by）のみ（2026-09-17、プロジェクト編集者
+    以上なら誰でも採点できる仕様から変更した。get_grading_queueのdocstring参照。全社ライブラリのように
+    全社員が自動でeditorになるプロジェクトだと事実上誰でも採点できてしまっていたため）。全社ライブラリの
+    必修教材はプロジェクトadminも採点できる（_can_grade_material参照）。"""
     pool = get_pool()
     row = await pool.fetchrow(
-        """SELECT a.attempt_id, m.project_id
+        """SELECT a.attempt_id, qa.material_id, m.project_id, m.created_by, p.is_company_wide
            FROM answers a
            JOIN quiz_attempts qa ON qa.id = a.attempt_id
            JOIN materials m ON m.id = qa.material_id
+           JOIN projects p ON p.id = m.project_id
            WHERE a.id = $1""",
         answer_id,
     )
     if row is None:
         raise HTTPException(404, detail="回答が見つかりません")
-    await check_project_role(user, row["project_id"], "editor", bypass_system_admin=False)
+    if not await _can_grade_material(row["material_id"], row["project_id"], row["created_by"], row["is_company_wide"], user):
+        raise HTTPException(403, detail="この教材の採点を行う権限がありません")
 
     await pool.execute(
         "UPDATE answers SET draft_is_correct = $1, draft_ai_feedback = $2, updated_at = now() WHERE id = $3",
@@ -678,8 +712,10 @@ async def get_attempt_grading(attempt_id: int, user: CurrentUser = Depends(requi
     """新規（S-20まとめ採点）: 1受験記録分の、手動採点で未確定（reviewed_by未設定）の設問一覧を
     下書き（あれば）付きで返す。「教材×受講者×提出日」のカードを開いたときに使う。
 
-    採点はシステムadminでも実際のプロジェクトロール（エディタ以上）を要求する
-    （bypass_system_admin=False。2026-09-16、教材内容の編集と同じ扱いに揃えた）。
+    採点できるのは原則対象教材の作成者（materials.created_by）のみ（2026-09-17、プロジェクト編集者
+    以上なら誰でも採点できる仕様から変更した。get_grading_queueのdocstring参照。全社ライブラリのように
+    全社員が自動でeditorになるプロジェクトだと事実上誰でも採点できてしまっていたため）。全社ライブラリの
+    必修教材はプロジェクトadminも採点できる（_can_grade_material参照）。
 
     qa.mode = 'graded'に限定する（2026-09-17追加）。練習・誤答＆難問抽出は採点基準未設定の
     設問をそもそもAI採点しない方針にしたため、is_correct・reviewed_byとも永久にNULLのままになり
@@ -688,8 +724,8 @@ async def get_attempt_grading(attempt_id: int, user: CurrentUser = Depends(requi
     pool = get_pool()
     attempt_row = await pool.fetchrow(
         """SELECT qa.id, qa.user_id, u.name AS user_name, qa.submitted_at,
-                  m.id AS material_id, m.title AS material_title, m.project_id, p.name AS project_name,
-                  m.grading_mode AS material_grading_mode
+                  m.id AS material_id, m.title AS material_title, m.project_id, m.created_by,
+                  p.name AS project_name, p.is_company_wide, m.grading_mode AS material_grading_mode
            FROM quiz_attempts qa
            JOIN users u ON u.id = qa.user_id
            JOIN materials m ON m.id = qa.material_id
@@ -699,7 +735,11 @@ async def get_attempt_grading(attempt_id: int, user: CurrentUser = Depends(requi
     )
     if attempt_row is None:
         raise HTTPException(404, detail="受験記録が見つかりません")
-    await check_project_role(user, attempt_row["project_id"], "editor", bypass_system_admin=False)
+    if not await _can_grade_material(
+        attempt_row["material_id"], attempt_row["project_id"], attempt_row["created_by"],
+        attempt_row["is_company_wide"], user,
+    ):
+        raise HTTPException(403, detail="この教材の採点を行う権限がありません")
 
     rows = await pool.fetch(
         """SELECT a.id AS answer_id, q.id AS question_id, q.prompt, q.node_id, q.scoring_criteria,
@@ -756,20 +796,28 @@ async def finalize_attempt_grading(attempt_id: int, user: CurrentUser = Depends(
     必須設問を1件でも部分的に送信することは許可しない（どの必須設問が未採点のまま公開されたか
     分からなくなることを防ぐため、この点は変更していない）。
 
-    採点はシステムadminでも実際のプロジェクトロール（エディタ以上）を要求する
-    （bypass_system_admin=False。2026-09-16、教材内容の編集と同じ扱いに揃えた）。
+    採点できるのは原則対象教材の作成者（materials.created_by）のみ（2026-09-17、プロジェクト編集者
+    以上なら誰でも採点できる仕様から変更した。get_grading_queueのdocstring参照）。全社ライブラリの
+    必修教材はプロジェクトadminも採点できる（_can_grade_material参照）。
 
     qa.mode = 'graded'に限定する（2026-09-17追加。get_attempt_gradingと同じ理由）。"""
     pool = get_pool()
     attempt_row = await pool.fetchrow(
-        """SELECT qa.id, m.project_id, m.grading_mode AS material_grading_mode
-           FROM quiz_attempts qa JOIN materials m ON m.id = qa.material_id
+        """SELECT qa.id, m.id AS material_id, m.project_id, m.created_by, p.is_company_wide,
+                  m.grading_mode AS material_grading_mode
+           FROM quiz_attempts qa
+           JOIN materials m ON m.id = qa.material_id
+           JOIN projects p ON p.id = m.project_id
            WHERE qa.id = $1 AND qa.mode = 'graded'""",
         attempt_id,
     )
     if attempt_row is None:
         raise HTTPException(404, detail="受験記録が見つかりません")
-    await check_project_role(user, attempt_row["project_id"], "editor", bypass_system_admin=False)
+    if not await _can_grade_material(
+        attempt_row["material_id"], attempt_row["project_id"], attempt_row["created_by"],
+        attempt_row["is_company_wide"], user,
+    ):
+        raise HTTPException(403, detail="この教材の採点を行う権限がありません")
 
     pending = await pool.fetch(
         """SELECT a.id, a.draft_is_correct, q.required
@@ -875,20 +923,30 @@ def _build_node_path(node_id: int, nodes_by_id: dict) -> str:
 async def get_grading_queue(
     project_id: int | None = None,
     material_id: int | None = None,
-    scope: Literal["mine", "all"] = "mine",
     user: CurrentUser = Depends(require_auth),
 ):
     """A-83: 手動採点の未処理分を横断取得する（S-20）。実質的な採点方式（設問のgrading_modeが
     NULLの場合は教材既定＝materials.grading_modeに従う。job_sweep.pyの滞留ジョブ再実行や
     submit_attemptの判定と同じCOALESCE規則）が'manual'かつreviewed_by未設定の回答を、
-    自分が編集者以上として参加するプロジェクトの範囲で教材ごとにグループ化し、さらに教材の中を
-    「受験記録（教材×受講者×提出日）」単位のカードにまとめて返す
+    教材ごとにグループ化し、さらに教材の中を「受験記録（教材×受講者×提出日）」単位のカードに
+    まとめて返す
     （2026-09-15、1問ずつではなく受験記録単位でまとめて採点したいというユーザー要望により変更。
     以前は教材の中に回答が1件ずつフラットに並んでいた。同日、実装後レビューで発覚:
     設問のgrading_modeを教材既定に任せている場合に、このクエリが元々q.grading_mode='manual'の
     単純一致だったため対象から漏れ、該当回答が永久にAI採点も手動採点キューにも乗らず結果が
-    確定しないまま取り残される不具合があり、COALESCEへ修正した）。scope='all'はsystem admin
-    のみ有効（それ以外を指定した場合は無視して'mine'として扱う）。
+    確定しないまま取り残される不具合があり、COALESCEへ修正した）。
+
+    対象は「教材の作成者（materials.created_by）が自分」のものだけにする（2026-09-17、
+    プロジェクト編集者以上なら誰でも見えていた仕様から変更した）。プロジェクト単位（editor以上なら
+    誰でも採点可）だと、全社ライブラリのように全社員が自動でeditorになるプロジェクトでは実質的に
+    全社員がお互いの手動採点キューを見られてしまう穴があった（ユーザー報告により発見）。問題を
+    作った本人が採点するという運用に統一することで、プロジェクトの人数・ロール構成に関わらず
+    一貫した挙動になる。
+
+    例外として、全社ライブラリの必修教材（必修にする権限＝require_material_roleが編集権限として要求する
+    のと同じプロジェクトadmin基準）は、作成者に限らずプロジェクトadmin（システムadmin含む）なら
+    誰でも採点できる（2026-09-17追加）。全社必修教材はプロジェクトadminが共同で保守する運用の
+    ため、採点も編集権限を持つ人全員に開放する。
 
     2026-09-16、実装後レビューで発見: この一覧取得だけget_attempt_grading・finalize_attempt_grading
     と異なりq.type IN ('free_text', 'code')の絞り込みが抜けており、教材既定の採点方式が'manual'の
@@ -899,7 +957,6 @@ async def get_grading_queue(
     「採点待ちの設問はありません」と表示される不整合が発生していた。他の2箇所と同じ型絞り込みを
     追加して揃えた。"""
     pool = get_pool()
-    effective_scope_all = scope == "all" and user.role == "admin"
 
     conditions = [
         "COALESCE(q.grading_mode, m.grading_mode) = 'manual'", "a.reviewed_by IS NULL",
@@ -916,13 +973,14 @@ async def get_grading_queue(
         params.append(value)
         return f"${len(params)}"
 
-    if not effective_scope_all:
-        ph = add_param(user.id)
-        conditions.append(
-            f"EXISTS (SELECT 1 FROM project_memberships pm WHERE pm.project_id = m.project_id "
-            f"AND pm.user_id = {ph} AND pm.status = 'active' AND pm.left_at IS NULL "
-            f"AND pm.role IN ('admin', 'editor'))"
-        )
+    creator_ph = add_param(user.id)
+    admin_ph = add_param(user.id)
+    conditions.append(
+        f"(m.created_by = {creator_ph} OR (p.is_company_wide AND "
+        f"EXISTS (SELECT 1 FROM assignments a2 WHERE a2.material_id = m.id AND a2.required = true) AND "
+        f"EXISTS (SELECT 1 FROM project_memberships pm WHERE pm.project_id = m.project_id "
+        f"AND pm.user_id = {admin_ph} AND pm.status = 'active' AND pm.left_at IS NULL AND pm.role = 'admin')))"
+    )
     if project_id is not None:
         conditions.append(f"m.project_id = {add_param(project_id)}")
     if material_id is not None:
@@ -991,8 +1049,16 @@ async def get_grading_queue(
 async def _update_enrollment_progress(
     pool, user_id: int, material_id: int, attempt_scope: str, tree: list[dict], newly_submitted_page_ids: list[int]
 ) -> None:
-    """6.6節: 提出時の進捗更新。attempt_scope='material'なら全ページ提出済みで完了、
-    それ以外なら該当種別の全ノードが合格済みかどうかで教材全体の完了を決める。"""
+    """6.6節: 提出時の進捗更新。attempt_scopeの各スコープ群（教材全体/章/小見出し/ページ）の
+    最新graded受験がすべて合格済みかどうかで教材全体の完了を決める。
+
+    2026-09-18改訂: 以前はattempt_scope='material'だけ特別扱いし、全ページ提出済みか（ページ到達）
+    のみで完了を決めていたため、合格基準（materials.pass_score_pct）を設定していてもそれが
+    完了判定に一切反映されない欠陥があった（不合格のまま最後まで読み進めれば「受講完了」に
+    なってしまう。ユーザー指摘により発見）。他のスコープと同じロジック（_scope_groups＋直近
+    受験のpassed）に統一した。_recompute_attempt_resultは合格基準未設定の教材ではpassedを
+    常にtrueにする仕様のため、「合格基準の無い教材（説明文のみ含む）は読了＝合格」という
+    従来の挙動は統一後もこのロジックだけで自動的に維持される。"""
     row = await pool.fetchrow(
         "SELECT completed_node_ids FROM enrollment_progress WHERE user_id = $1 AND material_id = $2",
         user_id, material_id,
@@ -1000,27 +1066,26 @@ async def _update_enrollment_progress(
     existing = set(json.loads(row["completed_node_ids"])) if row else set()
     existing |= set(newly_submitted_page_ids)
 
-    if attempt_scope == "material":
-        all_page_ids = {p["id"] for p in _collect_pages(tree)}
-        is_complete = all_page_ids.issubset(existing)
-    else:
-        # _scope_groups は attempt_scope='section' のとき、実際のsectionノードに加えて
-        # 小見出しの無い章直下ページ用の章フォールバック群も返す（A-86と同じロジックを再利用）。
-        # 以前はここだけ_collect_nodes_of_kindで実際のsectionノードしか見ておらず、小見出しの無い
-        # 章の合否が完了判定から漏れていた（2026-09-02、コードレビューで発見・修正）。
-        group_nodes = _scope_groups(tree, attempt_scope)
-        is_complete = True
-        for g in group_nodes:
-            latest = await pool.fetchrow(
-                """SELECT passed FROM quiz_attempts
-                    WHERE user_id = $1 AND material_id = $2 AND scope_node_id = $3
-                      AND mode = 'graded' AND submitted_at IS NOT NULL
-                    ORDER BY attempt_no DESC LIMIT 1""",
-                user_id, material_id, g["scope_node_id"],
-            )
-            if latest is None or not latest["passed"]:
-                is_complete = False
-                break
+    # _scope_groups は attempt_scope='section' のとき、実際のsectionノードに加えて
+    # 小見出しの無い章直下ページ用の章フォールバック群も返す（A-86と同じロジックを再利用）。
+    # 以前はここだけ_collect_nodes_of_kindで実際のsectionノードしか見ておらず、小見出しの無い
+    # 章の合否が完了判定から漏れていた（2026-09-02、コードレビューで発見・修正）。
+    group_nodes = _scope_groups(tree, attempt_scope)
+    is_complete = True
+    for g in group_nodes:
+        # attempt_scope='material'はscope_node_idがNULLになる（_scope_groups参照）ため、
+        # 単純な"= $3"ではNULL同士が一致せず常に不一致になる。IS NOT DISTINCT FROMで揃える
+        # （2026-09-18、material分岐の統合時に発見）。
+        latest = await pool.fetchrow(
+            """SELECT passed FROM quiz_attempts
+                WHERE user_id = $1 AND material_id = $2 AND scope_node_id IS NOT DISTINCT FROM $3
+                  AND mode = 'graded' AND submitted_at IS NOT NULL
+                ORDER BY attempt_no DESC LIMIT 1""",
+            user_id, material_id, g["scope_node_id"],
+        )
+        if latest is None or not latest["passed"]:
+            is_complete = False
+            break
 
     status = "completed" if is_complete else "in_progress"
     await pool.execute(
@@ -1085,12 +1150,16 @@ async def submit_attempt(attempt_id: int, user: CurrentUser = Depends(require_au
 
 @router.get("/attempts/{attempt_id}")
 async def get_attempt(attempt_id: int, user: CurrentUser = Depends(require_auth)):
-    """A-43: 受験記録の結果取得。本人、または対象教材が紐づくプロジェクトの管理者・編集者・adminが見られる。"""
+    """A-43: 受験記録の結果取得。本人、または対象教材が紐づくプロジェクトの管理者・編集者が見られる。
+
+    システムadminの無条件バイパスは廃止した（2026-09-17、権限モデル整理）。個人の回答内容は
+    プロジェクトに実際に関与している編集者以上のみが閲覧できるべきで、システムadminであっても
+    実プロジェクトのeditor以上でなければ他者の受験記録は見られない。"""
     pool = get_pool()
     attempt = await pool.fetchrow("SELECT * FROM quiz_attempts WHERE id = $1", attempt_id)
     if attempt is None:
         raise HTTPException(404, detail="受験記録が見つかりません")
-    if attempt["user_id"] != user.id and user.role != "admin":
+    if attempt["user_id"] != user.id:
         material = await pool.fetchrow("SELECT project_id FROM materials WHERE id = $1", attempt["material_id"])
         if not await has_active_project_role(material["project_id"], user.id, "editor"):
             raise HTTPException(403, detail="この受験記録を閲覧する権限がありません")
@@ -1383,7 +1452,7 @@ async def get_attempt_summary(id: int, user: CurrentUser = Depends(require_auth)
 
 async def _require_project_admin(project_id: int, user: CurrentUser) -> None:
     """このプロジェクトのadmin、またはシステムadminのみ許可する（個人学習レポートの管理者判定
-    〔is_manager_of_target_user〕と同じ基準）。全社Wikiは構造上adminロールを誰にも付与できない
+    〔is_manager_of_target_user〕と同じ基準）。全社ライブラリは構造上adminロールを誰にも付与できない
     ため、editorには決して以下の受験状況・回数リセットを見せない（2026-09-03、ユーザー指摘）。"""
     if user.role == "admin":
         return
@@ -1654,7 +1723,7 @@ async def get_my_learning(history: bool = False, user: CurrentUser = Depends(req
 
     history=falseの既定モード: 対象教材IDを5.3節require_material_accessの2条件（プロジェクトの
     現役メンバー・個人指定の配信）のORで求め、必修/任意に分類して返す。任意教材のうち所属
-    プロジェクトが全社Wiki（is_company_wide=true）のものは、さらにT-30 my_learning_registrations
+    プロジェクトが全社ライブラリ（is_company_wide=true）のものは、さらにT-30 my_learning_registrations
     に本人の登録行が無いと除外する（F-31）。招待制プロジェクトの任意教材・必修教材は登録有無を
     問わず常に含める。
 

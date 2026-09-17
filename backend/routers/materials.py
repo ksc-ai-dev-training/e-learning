@@ -39,7 +39,7 @@ def _material_dict(row) -> dict:
 
 
 async def _require_view_access(pool, id: int, user: CurrentUser) -> dict:
-    """A-15/A-28共通の閲覧権限判定。編集権限者（下書き含む、全社Wiki下書きは作成者・
+    """A-15/A-28共通の閲覧権限判定。編集権限者（下書き含む、全社ライブラリ下書きは作成者・
     プロジェクト管理者・システムadmin限定）と、受講対象者（公開済みのみ。require_material_access
     の2条件＝プロジェクトの現役メンバー・個人指定の配信、詳細設計書5.3節）の両方を許可する。
     S-04（教材受講：目次）着手時に受講対象者向けアクセスを追加した。プロジェクト離任後の猶予期間
@@ -103,7 +103,7 @@ async def search_materials(
     共有された教材はproject_idが共有先プロジェクト自身になる通常の教材として一覧に現れる。
     共有元・共有先を横断する特別な判定は不要（F-26実装時に判明。CLAUDE.md参照）。
 
-    レスポンスの`registered`（T-30 my_learning_registrations、F-31）は、全社Wiki所属の任意教材の
+    レスポンスの`registered`（T-30 my_learning_registrations、F-31）は、全社ライブラリ所属の任意教材の
     行にのみ「マイ学習に追加」/「マイ学習から外す」ボタンを出し分けるためにS-02実装時に追加した。
     my_assignments_onlyは5.3節の2条件（プロジェクトの現役メンバーである・個人指定の配信
     〔assignments, scope_type='individual'〕がある）を判定する。
@@ -444,7 +444,18 @@ async def create_material(body: MaterialCreate, user: CurrentUser = Depends(requ
     # 教材の新規作成も「教材内容の編集」の一種のため、システムadminでも実際のプロジェクトロールを
     # 要求する（require_material_role・_require_view_accessと同じ2026-09-16の例外。ここを素通しにすると
     # 作成はできるのにその後のA-19/A-20が403になる矛盾した状態が生まれるため）。
-    await check_project_role(user, project_id, min_role="editor", bypass_system_admin=False)
+    #
+    # 全社ライブラリは全員が自動でeditorになるため、min_role="editor"のままだと事実上誰でも新規作成
+    # （既存教材の複製も、フロント側では新規作成＋内容コピーとして実装されているため実質同じ経路）
+    # ができてしまっていた。全社ライブラリでの新規作成はプロジェクトadminのみに限定する
+    # （2026-09-17、ユーザー指摘。既存の任意教材の編集自体は引き続き全editorに開放したまま、
+    # 「新規に何を生やせるか」だけを絞る）。
+    is_company_wide = await get_pool().fetchval(
+        "SELECT is_company_wide FROM projects WHERE id = $1", project_id
+    )
+    await check_project_role(
+        user, project_id, min_role="admin" if is_company_wide else "editor", bypass_system_admin=False
+    )
     row = await get_pool().fetchrow(
         """INSERT INTO materials (project_id, title, description, tags, created_by)
            VALUES ($1, $2, $3, $4, $5)
@@ -512,7 +523,7 @@ async def get_material(id: int, user: CurrentUser = Depends(require_auth)):
         else {"status": "not_started", "current_node_id": None, "completed_node_ids": [], "visited_node_ids": []}
     )
 
-    # S-04/S-16向け: マイ学習登録有無（F-31）。全社Wiki所属の任意教材でのみボタンを表示する判定に使う
+    # S-04/S-16向け: マイ学習登録有無（F-31）。全社ライブラリ所属の任意教材でのみボタンを表示する判定に使う
     registered = await pool.fetchval(
         "SELECT EXISTS(SELECT 1 FROM my_learning_registrations WHERE user_id = $1 AND material_id = $2)",
         user.id, id,

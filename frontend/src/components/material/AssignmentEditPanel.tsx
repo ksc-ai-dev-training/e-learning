@@ -3,6 +3,7 @@ import Button from '../ui/Button'
 import Select from '../ui/Select'
 import TextInput from '../ui/TextInput'
 import { useMaterialAssignments } from '../../hooks/useMaterialAssignments'
+import { useMe } from '../../hooks/useMe'
 import { useProjectMemberships } from '../../hooks/useProjectMemberships'
 import { ApiError } from '../../lib/api'
 import { updateMaterialAssignments } from '../../lib/assignmentActions'
@@ -37,9 +38,14 @@ export default function AssignmentEditPanel({
   // 既定は「保存」のまま。
   saveLabel?: string
 }) {
+  const { me } = useMe()
   const { assignments, isLoading } = useMaterialAssignments(material.id)
   const { memberships } = useProjectMemberships(material.project_id)
   const activeMembers = memberships.filter((m) => m.status === 'active' && m.left_at === null)
+  // 全社ライブラリの必修化はプロジェクトadminのみ許可する（2026-09-17、バックエンドと合わせる。
+  // 以前は全社ライブラリ教材は誰であっても一律必修にできなかったが、全社ライブラリに実際のプロジェクトadmin
+  // （システムadminを実データとして登録する方針）が存在するようになったため緩和した）。
+  const isProjectAdmin = activeMembers.some((m) => m.user_id === me?.id && m.role === 'admin')
 
   const [projectEnabled, setProjectEnabled] = useState(false)
   const [projectAssignmentId, setProjectAssignmentId] = useState<number | null>(null)
@@ -110,23 +116,26 @@ export default function AssignmentEditPanel({
     setIndividuals((prev) => prev.filter((i) => i.userId !== userId))
   }
 
-  // 全社Wikiはプロジェクト全体設定を表示・送信しないため、projectEnabledの値によらず
-  // 個人指定の人数のみを対象者数として扱う（2026-09-10）。
-  const projectScopeActive = projectEnabled && !isCompanyWide
+  // 全社ライブラリはプロジェクトadminでない限りプロジェクト全体設定を表示・送信しないため、
+  // projectEnabledの値によらず個人指定の人数のみを対象者数として扱う（2026-09-10、
+  // 2026-09-17にisProjectAdminの例外を追加）。
+  const projectScopeActive = projectEnabled && (!isCompanyWide || isProjectAdmin)
   const targetCount = projectScopeActive ? activeMembers.length : individuals.length
 
   const handleSave = async () => {
     setSaveError(null)
     setSaving(true)
     try {
-      // 全社Wiki教材はプロジェクト全体設定・個人指定とも必修にできない（バックエンドが拒否する）ため、
-      // チェックボックス自体を表示しない代わりに、ここでも常に対象から外す（2026-09-10）。
-      // 個人指定は、payloadに1件でも含まれていると全社Wikiではバックエンドが保存全体を拒否する
-      // （「全社Wikiの教材は個人指定できません」）。過去に作られた個人指定行を1件ずつ「削除」で
-      // 消させないと保存自体ができなくなってしまうため、全社Wikiの場合は個人指定を丸ごとpayloadから
-      // 除外する（保存すれば自動的に削除される。2026-09-10、レビューで発見・修正）。
+      // 全社ライブラリ教材はプロジェクトadmin以外なら全体設定・個人指定とも必修にできない
+      // （バックエンドが拒否する）ため、チェックボックス自体を表示しない代わりに、ここでも
+      // 常に対象から外す（2026-09-10、2026-09-17にisProjectAdminの例外を追加）。
+      // 個人指定は、payloadに1件でも含まれていると全社ライブラリではバックエンドが保存全体を拒否する
+      // （「全社ライブラリの教材は個人指定できません」、こちらはプロジェクトadminであっても対象外。
+      // 全員が自動参加済みで個人指定自体に意味が無いため）。過去に作られた個人指定行を1件ずつ
+      // 「削除」で消させないと保存自体ができなくなってしまうため、全社ライブラリの場合は個人指定を
+      // 丸ごとpayloadから除外する（保存すれば自動的に削除される。2026-09-10、レビューで発見・修正）。
       const payload = [
-        ...(projectEnabled && !isCompanyWide
+        ...(projectEnabled && (!isCompanyWide || isProjectAdmin)
           ? [
               {
                 id: projectAssignmentId,
@@ -174,9 +183,9 @@ export default function AssignmentEditPanel({
           <p className="text-sm text-slate-400">読み込み中...</p>
         ) : (
           <>
-            {isCompanyWide ? (
+            {isCompanyWide && !isProjectAdmin ? (
               <p className="text-xs text-slate-400">
-                全社Wikiは必修にできないため、この設定はありません（プロジェクトメンバー全員が任意で受講できます）。
+                全社ライブラリの必修設定はプロジェクト管理者のみ行えます（それ以外の場合、プロジェクトメンバー全員が任意で受講できます）。
               </p>
             ) : (
               <div className="flex flex-col gap-1.5">
@@ -219,7 +228,7 @@ export default function AssignmentEditPanel({
               <label className="text-xs font-semibold text-slate-500">個人に必修を追加指定</label>
               {isCompanyWide ? (
                 <p className="text-xs text-amber-700">
-                  全社Wikiは全員が自動的に対象になるため、個人指定には効果がありません。以下は過去に設定された行です（新規追加はできません）。この画面で一度「保存」すると自動的に削除されます。
+                  全社ライブラリは全員が自動的に対象になるため、個人指定には効果がありません。以下は過去に設定された行です（新規追加はできません）。この画面で一度「保存」すると自動的に削除されます。
                 </p>
               ) : (
                 <p className="text-xs text-slate-400">

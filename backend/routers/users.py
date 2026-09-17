@@ -26,8 +26,10 @@ async def list_users(
     各ユーザーが管理者（role='admin'）になっているプロジェクトの一覧（admin_projects）を付加する
     （2026-09-09、新設。誰がどのプロジェクトの管理者かをシステム管理者が横断的に把握できるようにする
     要望への対応）。退任済み（left_at設定済み）・招待中（status!='active'）の行は含めない
-    （has_active_project_roleと同じ「現役admin」の基準）。全社Wikiは構造上adminロールを誰も持てない
-    ため、常に含まれない。"""
+    （has_active_project_roleと同じ「現役admin」の基準）。全社ライブラリは以前は構造上adminロールを
+    誰も持てなかったが、2026-09-17にシステムadminを全社ライブラリの実際のadminメンバーとして登録する
+    方針に変更したため（database.pyのバックフィル参照）、システムadminについては全社ライブラリも
+    この一覧に含まれる。"""
     if per_page not in (20, 50, 100):
         raise HTTPException(422, detail="per_pageは20/50/100のいずれかを指定してください")
     if page < 1:
@@ -131,4 +133,17 @@ async def update_user(id: int, body: UserUpdate, user: CurrentUser = Depends(req
                    RETURNING id, name, email, role, is_active, created_at""",
                 body.role, body.is_active, id,
             )
+
+            # システムadminへ新たに昇格した場合、全社ライブラリのadminメンバーシップも実際に付与する
+            # （2026-09-17、権限モデル整理。database.pyの起動時バックフィルと同じ考え方だが、
+            # 昇格はいつでも起こり得るため、その場でも同期させる）。降格時にこの逆〔全社ライブラリ
+            # adminを剥奪〕は行わない（以後は通常のプロジェクト管理〔organization.py〕に委ねる、
+            # ユーザー確認済み）。
+            if body.role == "admin" and existing["role"] != "admin":
+                await conn.execute(
+                    """INSERT INTO project_memberships (project_id, user_id, role, status, joined_at)
+                       SELECT p.id, $1, 'admin', 'active', now() FROM projects p WHERE p.is_company_wide = true
+                       ON CONFLICT (project_id, user_id) DO UPDATE SET role = 'admin', updated_at = now()""",
+                    id,
+                )
     return dict(row)

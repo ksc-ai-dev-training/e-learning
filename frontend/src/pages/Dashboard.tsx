@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import PageHeader from '../components/layout/PageHeader'
 import Button from '../components/ui/Button'
+import SlackIcon from '../components/ui/SlackIcon'
 import StatCard from '../components/ui/StatCard'
-import { useMe } from '../hooks/useMe'
 import { useProjects } from '../hooks/useProjects'
 import { useDashboardStats, useIncompleteUsers, useOrgReport } from '../hooks/useDashboard'
 import { requestOrgReport } from '../lib/dashboardActions'
@@ -12,9 +12,8 @@ import { formatDateJst, formatDateTimeJst } from '../lib/datetime'
 
 const GENERATING_SLOW_AFTER_MS = 3 * 60 * 1000
 
-function parseScope(scope: string): { scope_type: 'company' | 'project'; scope_id: number | null } {
-  if (scope === 'company') return { scope_type: 'company', scope_id: null }
-  return { scope_type: 'project', scope_id: Number(scope.slice('project:'.length)) }
+function parseProjectScopeId(scope: string): number {
+  return Number(scope.slice('project:'.length))
 }
 
 function daysRemainingLabel(dueAt: string | null): string {
@@ -26,19 +25,20 @@ function daysRemainingLabel(dueAt: string | null): string {
   return `あと${days}日`
 }
 
-// S-08 受講状況ダッシュボード（基本設計書4.10節、A-45〜A-46, A-48〜A-49）。閲覧権限はadmin
-// （全社スコープ）と対象プロジェクトの管理者（自プロジェクトのスコープ）のみ（editorは対象外、
-// 2026-09-08ユーザー確認）。モックアップにあった未受講者一覧の行ごと「Slackで催促」ボタンは、
-// Slack連携がプロジェクト単位Incoming Webhook（チャンネル投稿のみ）方式のため実装せず、一覧表示
-// のみとした（個人名をチャンネルに出したくないというユーザー判断、2026-09-08。個別の催促は
-// S-12と同じく運用でカバーする）。
+// S-08 必修教材受講ダッシュボード（基本設計書4.10節、A-45〜A-46, A-48〜A-49）。閲覧権限は
+// 対象プロジェクトの管理者（自プロジェクトのスコープ）のみ（editorは対象外、2026-09-08ユーザー
+// 確認）。モックアップにあった未受講者一覧の行ごと「Slackで催促」ボタンは、Slack連携がプロジェクト
+// 単位Incoming Webhook（チャンネル投稿のみ）方式のため実装せず、一覧表示のみとした（個人名を
+// チャンネルに出したくないというユーザー判断、2026-09-08。個別の催促はS-12と同じく運用でカバーする）。
 // 代わりに、S-12（ProjectManagement.tsx）の「必修教材のリマインドをSlackに送信」
-// （F-12, send_project_slack_reminder）をこの画面からも呼べるようにした（2026-09-09、
-// ユーザー要望）。担当範囲がプロジェクト単位のときのみボタンを表示する。「全社」スコープは
-// 単一のSlackチャンネルに対応しない（プロジェクトごとにWebhook URLを持つ設計のため）うえ、
-// 全社スコープを選べるのはシステムadminのみなので表示しない。
+// （F-12, send_project_slack_reminder）をこの画面からも呼べるようにした（2026-09-09、ユーザー要望）。
+//
+// 「全社」スコープ・全社ライブラリは選択肢から廃止した（2026-09-17）。本画面はもともと必修教材の
+// 受講状況を追うための画面（要件定義書F-19・モックアップとも最初から「必修」限定）で、必修教材は
+// プロジェクト単位の配信設定でしか作れず全社ライブラリは構造上必修を出せないため、プロジェクト横断・
+// 全社ライブラリどちらもこの画面のスコープとして噛み合っていなかった。全社的な集計が必要な場合は
+// 専用のプロジェクトを作る運用方針とする。
 export default function Dashboard() {
-  const { me } = useMe()
   const { projects, isLoading: projectsLoading } = useProjects('admin')
   const [scope, setScope] = useState<string | null>(null)
   const [selectedMaterialId, setSelectedMaterialId] = useState<number | null>(null)
@@ -49,11 +49,9 @@ export default function Dashboard() {
   const [slackResult, setSlackResult] = useState<string | null>(null)
   const [slackError, setSlackError] = useState<string | null>(null)
 
-  const isSystemAdmin = me?.role === 'admin'
-  const scopeOptions = [
-    ...(isSystemAdmin ? [{ value: 'company', label: '全社' }] : []),
-    ...projects.map((p) => ({ value: `project:${p.id}`, label: p.name })),
-  ]
+  const scopeOptions = projects
+    .filter((p) => !p.is_company_wide)
+    .map((p) => ({ value: `project:${p.id}`, label: p.name }))
 
   useEffect(() => {
     if (scope == null && scopeOptions.length > 0) setScope(scopeOptions[0].value)
@@ -78,8 +76,7 @@ export default function Dashboard() {
 
   const handleSendSlack = async () => {
     if (scope == null) return
-    const { scope_type, scope_id } = parseScope(scope)
-    if (scope_type !== 'project' || scope_id === null) return
+    const scope_id = parseProjectScopeId(scope)
     setSlackError(null)
     setSlackResult(null)
     setSendingSlack(true)
@@ -100,8 +97,7 @@ export default function Dashboard() {
     setGenerating(true)
     try {
       await mutateReport(null, false)
-      const { scope_type, scope_id } = parseScope(scope)
-      await requestOrgReport(scope_type, scope_id)
+      await requestOrgReport(parseProjectScopeId(scope))
       await mutateReport()
     } catch (e) {
       setGenerateError(e instanceof ApiError ? e.message : 'レポートの生成開始に失敗しました')
@@ -116,7 +112,7 @@ export default function Dashboard() {
   if (scopeOptions.length === 0) {
     return (
       <div className="flex flex-1 flex-col">
-        <PageHeader title="受講状況ダッシュボード" />
+        <PageHeader title="必修教材受講ダッシュボード" />
         <div className="px-8 py-6">
           <p className="text-sm text-slate-400">
             閲覧できるプロジェクトがありません（プロジェクトの管理者になっているプロジェクトのみ表示できます）。
@@ -132,7 +128,7 @@ export default function Dashboard() {
 
   return (
     <div className="flex flex-1 flex-col">
-      <PageHeader title="受講状況ダッシュボード" />
+      <PageHeader title="必修教材受講ダッシュボード" />
       <div className="px-8 py-6">
         <div className="mb-6 flex items-center gap-2">
           <label className="text-sm text-slate-500" htmlFor="dashboard-scope">
@@ -155,11 +151,17 @@ export default function Dashboard() {
               </option>
             ))}
           </select>
-          {scope != null && parseScope(scope).scope_type === 'project' && (
+          {scope != null && (
             <>
-              <Button variant="secondary" onClick={handleSendSlack} disabled={sendingSlack}>
+              <button
+                type="button"
+                onClick={handleSendSlack}
+                disabled={sendingSlack}
+                className="flex h-9 items-center gap-2 whitespace-nowrap rounded-md border border-slate-300 bg-white px-3.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
+              >
+                <SlackIcon />
                 {sendingSlack ? '送信中...' : '必修教材のリマインドをSlackに送信'}
-              </Button>
+              </button>
               {slackResult && <span className="text-sm text-green-700">{slackResult}</span>}
               {slackError && <span className="text-sm text-red-600">{slackError}</span>}
             </>

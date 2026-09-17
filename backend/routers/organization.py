@@ -20,7 +20,7 @@ class ProjectCreate(BaseModel):
 async def create_project(body: ProjectCreate, user: CurrentUser = Depends(require_auth)):
     """A-09: プロジェクト作成（S-11）。誰でも作成でき、作成者は自動的にそのプロジェクトの
     ローカル管理者（project_memberships.role='admin'）になる。is_company_wideは常にfalseで
-    作成する（is_company_wide=trueの行は全社Wiki1件のみで、マイグレーションでのみ投入する。
+    作成する（is_company_wide=trueの行は全社ライブラリ1件のみで、マイグレーションでのみ投入する。
     基本設計書5.26節）。"""
     pool = get_pool()
     async with pool.acquire() as conn:
@@ -101,7 +101,7 @@ async def list_projects(min_role: str = "editor", user: CurrentUser = Depends(re
 
 
 async def _delete_blocked_reason(pool, project_id: int, is_company_wide: bool, requester_user_id: int) -> str | None:
-    """プロジェクトの完全削除（A-93）を拒否すべき理由を1つ返す（無ければNone）。全社Wikiは常に
+    """プロジェクトの完全削除（A-93）を拒否すべき理由を1つ返す（無ければNone）。全社ライブラリは常に
     不可。自分以外の現役メンバーがいる場合も不可（先にメンバーを外してもらう運用を想定）。A-91の
     can_delete算出とA-93本体の両方から呼ぶ共通ロジック（判定基準を1箇所にまとめるため）。
 
@@ -114,7 +114,7 @@ async def _delete_blocked_reason(pool, project_id: int, is_company_wide: bool, r
     （ユーザー報告により発見。公開済みだが受験記録0件のテスト用プロジェクトが「受講記録が残っている」
     という誤った理由で削除できなかった）。実データの存在を直接見ることで、より正確に判定する。"""
     if is_company_wide:
-        return "全社Wikiは全社員が利用するプロジェクトのため削除できません。停止のみ可能です。"
+        return "全社ライブラリは全社員が利用するプロジェクトのため削除できません。停止のみ可能です。"
     has_learning_records = await pool.fetchval(
         """SELECT EXISTS(
                SELECT 1 FROM materials m
@@ -184,7 +184,7 @@ async def get_project(id: int, user: CurrentUser = Depends(require_auth)):
 
 @router.delete("/{id}", status_code=204)
 async def delete_project(id: int, user: CurrentUser = Depends(require_auth)):
-    """A-93（新規）: プロジェクトの完全削除。判定基準は_delete_blocked_reason参照（全社Wiki不可・
+    """A-93（新規）: プロジェクトの完全削除。判定基準は_delete_blocked_reason参照（全社ライブラリ不可・
     実際の受講記録〔quiz_attempts・enrollment_progress・survey_responses〕が無いこと・自分以外の
     現役メンバーがいないこと）。判定を通過した時点で対象教材に実データが存在しないことは保証されて
     いるため、DELETE FROM materialsだけで目次・設問・添付・改訂履歴・（空の）受験記録・受講進捗・
@@ -215,14 +215,19 @@ class ProjectUpdate(BaseModel):
 async def update_project(id: int, body: ProjectUpdate, user: CurrentUser = Depends(require_auth)):
     """A-10: プロジェクト情報（名称・説明・状態）更新。
 
-    全社Wiki（is_company_wide=true）の名称・説明も変更を許可する。基本設計書5.26節の当初案は
-    「全社Wikiはstatusのみ変更可、name/descriptionは400で拒否」だったが、S-12実装時にユーザーと
-    再検討した結果、この案から撤回した。理由: 全社Wikiの管理者はシステム管理者のみであり
-    （A-12/A-13が全社Wikiに対するrole='admin'の付与・変更を拒否することで担保する。5.26節の
-    本来の防御対象は「システムadminでない人物が全社Wikiの管理者になり名称等を操作できてしまう
-    こと」であり、name/description自体の変更操作を一律禁止する必要は無いと判断した）、
-    その防御さえ機能していれば、システム管理者本人による名称・説明の変更を禁止する積極的な理由は
-    無い（2026-09-01）。"""
+    全社ライブラリ（is_company_wide=true）の名称・説明も変更を許可する。基本設計書5.26節の当初案は
+    「全社ライブラリはstatusのみ変更可、name/descriptionは400で拒否」だったが、S-12実装時にユーザーと
+    再検討した結果、この案から撤回した（2026-09-01）。理由: name/description自体の変更操作を
+    一律禁止する積極的な理由は無く、実際に管理者であるプロジェクトadmin本人による変更を妨げる必要は
+    無いと判断した。
+
+    2026-09-17追記: 当初は「全社ライブラリの管理者は常にシステムadminのみ」（A-12/A-13がそれ以外への
+    role='admin'付与を一律拒否）という前提があったが、権限モデル整理によりこの前提自体を撤回した
+    （システムadminを全社ライブラリの実データとして登録したうえで、以後の管理者追加は通常のプロジェクト
+    運用〔既存adminが招待〕に委ねる方針にした）。そのため現在は、システムadmin以外でも実際に
+    全社ライブラリのプロジェクトadminになった人物は、他プロジェクトの管理者と同様にここで名称・
+    説明を変更できる。これは意図した挙動であり（実際の管理者に管理者相当の操作を許可するのは
+    一貫している）、追加のガードは設けていない。"""
     pool = get_pool()
     await check_project_role(user, id, min_role="admin")
     row = await pool.fetchrow("SELECT is_company_wide, name, description FROM projects WHERE id = $1", id)
@@ -287,19 +292,6 @@ async def list_member_candidates(id: int, q: str | None = None, user: CurrentUse
     return {"items": [dict(r) for r in rows]}
 
 
-async def _reject_admin_role_for_company_wide(pool, project_id: int, role: str | None) -> None:
-    """全社Wikiの管理者はシステム管理者のみとし、通常のメンバー管理API（A-12/A-13）では
-    新たに作成・変更できない（基本設計書5.26節）。A-12（招待）・A-13（ロール変更）の両方から
-    呼ぶ共通ガード。role以外（削除等）を扱う呼び出しではrole=Noneで呼び、常に素通りさせる。"""
-    if role != "admin":
-        return
-    is_company_wide = await pool.fetchval("SELECT is_company_wide FROM projects WHERE id = $1", project_id)
-    if is_company_wide:
-        raise HTTPException(
-            400, detail="全社Wikiの管理者はシステム管理者のみです。編集者・受講者のみ指定できます"
-        )
-
-
 class MemberInvite(BaseModel):
     user_id: int
     role: Literal["admin", "editor", "learner"]
@@ -308,10 +300,13 @@ class MemberInvite(BaseModel):
 @router.post("/{id}/members", status_code=201)
 async def invite_member(id: int, body: MemberInvite, user: CurrentUser = Depends(require_auth)):
     """A-12: メンバーを招待する（status='invited'で作成）。招待した時点では権限は発生せず、
-    招待された本人がA-67で承諾して初めてメンバーとして有効になる。"""
+    招待された本人がA-67で承諾して初めてメンバーとして有効になる。
+
+    全社ライブラリのadmin付与も他プロジェクトと同じ通常ルール（プロジェクトadminのみが付与可）に従う
+    （2026-09-17、以前は全社ライブラリのadminをシステムadmin限定で一律拒否していたが、システムadminを
+    全社ライブラリの実際のadminとして登録する方針にしたため、以後の付与は特別扱いせず通常運用に委ねる）。"""
     pool = get_pool()
     await check_project_role(user, id, min_role="admin")
-    await _reject_admin_role_for_company_wide(pool, id, body.role)
     existing = await pool.fetchval(
         """SELECT 1 FROM project_memberships
             WHERE project_id = $1 AND user_id = $2
@@ -350,12 +345,19 @@ async def update_member(
     本人が自分自身をaction='remove'で退出させる場合はプロジェクト管理者権限を要求しない
     （2026-09-16新設、自己退出。S-12を一般メンバーにも閲覧開放したが、その画面から実際に行える
     操作は各タブの閲覧と自分の退出のみに留める、というユーザー要望による）。それ以外
-    （他人の削除・自分を含む誰かのロール変更）は引き続きプロジェクト管理者限定。"""
+    （他人の削除・自分を含む誰かのロール変更）は引き続きプロジェクト管理者限定。
+
+    全社ライブラリは自己退出（action='remove'をuser_id==user.idで呼ぶ場合）のみ拒否する
+    （2026-09-17、ユーザー要望。「全社ライブラリからの退出は管理者による削除のみとする」意図で、
+    管理者が他者を削除する経路は従来どおり許可する）。"""
     pool = get_pool()
+    if body.action == "remove" and user_id == user.id:
+        is_company_wide = await pool.fetchval("SELECT is_company_wide FROM projects WHERE id = $1", id)
+        if is_company_wide:
+            raise HTTPException(400, detail="全社ライブラリから自主退出することはできません（管理者に削除を依頼してください）")
     is_self_leave = user_id == user.id and body.action == "remove"
     if not is_self_leave:
         await check_project_role(user, id, min_role="admin")
-    await _reject_admin_role_for_company_wide(pool, id, body.role)
     row = await pool.fetchrow(
         "SELECT role, status, left_at FROM project_memberships WHERE project_id = $1 AND user_id = $2",
         id, user_id,

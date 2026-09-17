@@ -246,7 +246,7 @@ ALTER TABLE enrollment_progress ADD COLUMN IF NOT EXISTS visited_node_ids JSONB 
 -- リセット前の古い合格記録を再利用してしまわないよう判定に使う（2026-09-03追加）。
 ALTER TABLE enrollment_progress ADD COLUMN IF NOT EXISTS reset_at TIMESTAMPTZ;
 
--- T-30 my_learning_registrations（マイ学習登録、F-31）。全社Wiki所属の任意教材は、本人がここに
+-- T-30 my_learning_registrations（マイ学習登録、F-31）。全社ライブラリ所属の任意教材は、本人がここに
 -- 登録しない限りA-39（マイ学習一覧）に表示しない（招待制プロジェクトの任意教材・必修教材は対象外）
 CREATE TABLE IF NOT EXISTS my_learning_registrations (
     id           BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -529,6 +529,27 @@ CREATE TABLE IF NOT EXISTS ai_org_reports (
 );
 CREATE INDEX IF NOT EXISTS idx_ai_org_reports_scope ON ai_org_reports (scope_type, scope_id, created_at DESC);
 ALTER TABLE ai_org_reports ENABLE ROW LEVEL SECURITY;
+
+-- 全社ライブラリのadminをシステムadminへ実データとして付与する（2026-09-17、権限モデル整理）。
+-- 従来は「全社ライブラリは構造上adminロールを誰にも付与できず、コード側のバイパス（user.role=='admin'は
+-- 無条件許可）で運用していたが、このバイパスを撤去する方針にしたため、システムadminは全社ライブラリの
+-- adminメンバーシップを実際に持つ必要がある。以後の管理者の追加・変更は全社ライブラリであっても通常の
+-- メンバー管理（プロジェクトadminのみが付与可、organization.py参照）に従う。冪等なUPDATE/INSERTの
+-- ため、システムadminが増える・全社ライブラリの初回参加が遅れる等があっても起動のたびに再実行して問題ない。
+UPDATE project_memberships pm
+SET role = 'admin', updated_at = now()
+FROM users u, projects p
+WHERE pm.user_id = u.id AND pm.project_id = p.id
+  AND u.role = 'admin' AND p.is_company_wide = true
+  AND pm.status = 'active' AND pm.role != 'admin';
+
+INSERT INTO project_memberships (project_id, user_id, role, status, joined_at)
+SELECT p.id, u.id, 'admin', 'active', now()
+FROM users u, projects p
+WHERE u.role = 'admin' AND p.is_company_wide = true
+  AND NOT EXISTS (
+    SELECT 1 FROM project_memberships pm2 WHERE pm2.project_id = p.id AND pm2.user_id = u.id
+  );
 """
 
 

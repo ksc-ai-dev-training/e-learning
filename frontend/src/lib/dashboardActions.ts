@@ -1,12 +1,10 @@
 import { apiFetch } from './api'
 
-// A-48: AI組織レポートの生成をリクエストする（非同期、202）
-export function requestOrgReport(
-  scopeType: 'company' | 'project',
-  scopeId: number | null,
-): Promise<{ status: string; job_id: number }> {
+// A-48: AI組織レポートの生成をリクエストする（非同期、202）。「全社」スコープは廃止したため
+// scope_typeは常に'project'（2026-09-17）。
+export function requestOrgReport(scopeId: number): Promise<{ status: string; job_id: number }> {
   return apiFetch('/api/reports/org', {
     method: 'POST',
-    body: JSON.stringify({ scope_type: scopeType, scope_id: scopeId }),
+    body: JSON.stringify({ scope_type: 'project', scope_id: scopeId }),
   })
 }

@@ -11,9 +11,13 @@ router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 
 
 def _parse_scope(scope: str) -> tuple[str, int | None]:
-    """scopeクエリ（"company" または "project:{id}"）をパースする（A-45）。"""
-    if scope == "company":
-        return "company", None
+    """scopeクエリ（"project:{id}"）をパースする（A-45）。
+
+    「全社」スコープは廃止した（2026-09-17）。S-08はもともと必修教材の受講状況を追うための
+    画面（要件定義書F-19・画面モックアップS-08が最初から「必修」限定）であり、必修教材は
+    プロジェクト単位の配信設定でしか設定できない（全社ライブラリは構造上必修を出せない）ため、
+    「全社」という全プロジェクト横断スコープ自体が実態と噛み合っていなかった。全社的な集計が
+    必要な場合は専用のプロジェクトを作る運用方針とし、この画面はプロジェクトスコープのみを扱う。"""
     if scope.startswith("project:"):
         try:
             return "project", int(scope.removeprefix("project:"))
@@ -23,13 +27,8 @@ def _parse_scope(scope: str) -> tuple[str, int | None]:
 
 
 async def require_dashboard_scope(scope_type: str, scope_id: int | None, user: CurrentUser) -> None:
-    """S-08の閲覧権限（基本設計書4.10節）: 全社スコープはシステムadminのみ、プロジェクトスコープは
-    そのプロジェクトの管理者またはシステムadmin（S-12と同じ_require_project_adminをそのまま使う。
-    editorは対象外、2026-09-08ユーザー確認）。"""
-    if scope_type == "company":
-        if user.role != "admin":
-            raise HTTPException(403, detail="この操作を行う権限がありません")
-        return
+    """S-08の閲覧権限（基本設計書4.10節）: 対象プロジェクトの管理者またはシステムadmin
+    （S-12と同じ_require_project_adminをそのまま使う。editorは対象外、2026-09-08ユーザー確認）。"""
     await _require_project_admin(scope_id, user)
     exists = await get_pool().fetchval("SELECT 1 FROM projects WHERE id = $1", scope_id)
     if not exists:
@@ -37,12 +36,11 @@ async def require_dashboard_scope(scope_type: str, scope_id: int | None, user: C
 
 
 async def _aggregate_dashboard_stats(scope_type: str, scope_id: int | None) -> dict:
-    """A-45の集計本体。プロジェクトスコープは対象プロジェクトの現役メンバー、全社スコープは
-    全プロジェクト横断（教材ごとにその教材が属するプロジェクトのメンバーを対象にする）で集計する。
-    個人名は一切含めない（F-23プロンプトにもそのまま渡せる粒度、基本設計書9.5節）。"""
+    """A-45の集計本体。対象プロジェクトの現役メンバーを対象に集計する。個人名は一切含めない
+    （F-23プロンプトにもそのまま渡せる粒度、基本設計書9.5節）。"""
     pool = get_pool()
-    project_filter = "AND m.project_id = $1" if scope_type == "project" else ""
-    args = [scope_id] if scope_type == "project" else []
+    project_filter = "AND m.project_id = $1"
+    args = [scope_id]
 
     by_material_rows = await pool.fetch(
         f"""SELECT m.id AS material_id, m.title AS material_title, a.due_at,

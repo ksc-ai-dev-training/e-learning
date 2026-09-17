@@ -2,7 +2,8 @@ import useSWR from 'swr'
 import { apiFetch, ApiError } from '../lib/api'
 import type { DashboardStats, IncompleteUser, OrgReport } from '../types'
 
-// A-45: 受講状況ダッシュボードの集計（S-08）。scopeは"company"または"project:{id}"
+// A-45: 必修教材受講ダッシュボードの集計（S-08）。scopeは"project:{id}"（「全社」スコープは
+// 2026-09-17に廃止した）
 export function useDashboardStats(scope: string | null) {
   const { data, error, isLoading } = useSWR<DashboardStats>(
     scope != null ? `/api/dashboard?scope=${encodeURIComponent(scope)}` : null,

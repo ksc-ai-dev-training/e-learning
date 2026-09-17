@@ -4,7 +4,6 @@ import Panel from '../components/ui/Panel'
 import Select from '../components/ui/Select'
 import Button from '../components/ui/Button'
 import TextArea from '../components/ui/TextArea'
-import { useMe } from '../hooks/useMe'
 import { useProjects } from '../hooks/useProjects'
 import { useGradingQueue } from '../hooks/useGradingQueue'
 import { useAttemptGrading } from '../hooks/useAttemptGrading'
@@ -13,17 +12,17 @@ import { formatDateJst, formatDateTimeJst } from '../lib/datetime'
 import { ApiError } from '../lib/api'
 import type { GradingQueueAttempt, GradingQueueMaterial } from '../types'
 
-// S-20 採点（未採点キュー）。記述式・コード記述式のうち採点方式が「プロジェクト担当者が手動採点」で
-// まだ採点していない回答だけを、教材ごと・さらに受験記録（教材×受講者×提出日）ごとにまとめて
-// カード表示する。1問ずつではなく受験記録単位でまとめて採点したいというユーザー要望により、
-// 以前の「教材の中に回答が1件ずつフラットに並ぶ」形式から変更した（2026-09-15）。
+// S-20 採点（未採点キュー）。記述式・コード記述式のうち採点方式が「手動採点」で、まだ採点していない
+// 回答だけを、教材ごと・さらに受験記録（教材×受講者×提出日）ごとにまとめてカード表示する。
+// 1問ずつではなく受験記録単位でまとめて採点したいというユーザー要望により、以前の「教材の中に
+// 回答が1件ずつフラットに並ぶ」形式から変更した（2026-09-15）。
+// 採点できるのは教材の作成者のみ（2026-09-17、プロジェクト編集者なら誰でも採点できる仕様だと、
+// 全社員がeditorになる全社ライブラリで誰でもお互いの回答を見られてしまう穴があったため変更した）。
 // 設問の傾向を見直す場合はS-05「問題一覧」タブ→S-19（設問別の回答・結果一覧）を使う。
 export default function Grading() {
-  const { me } = useMe()
-  const [scopeAll, setScopeAll] = useState(false)
   const { projects } = useProjects('editor')
   const [projectId, setProjectId] = useState<number | null>(null)
-  const { data, isLoading, mutate } = useGradingQueue(scopeAll, projectId)
+  const { data, isLoading, mutate } = useGradingQueue(projectId)
   const [materialFilter, setMaterialFilter] = useState('')
   const [target, setTarget] = useState<{ material: GradingQueueMaterial; attempt: GradingQueueAttempt } | null>(null)
 
@@ -59,11 +58,11 @@ export default function Grading() {
       <PageHeader title="採点" />
       <div className="px-8 py-6">
         <p className="mb-4 max-w-3xl text-sm text-slate-500">
-          記述式・コード記述式の設問のうち<strong>採点方式が「プロジェクト担当者が手動採点」で、まだ採点していない回答</strong>
-          を、教材ごと・受験記録（受講者・提出日）ごとにまとめて表示します。カードを開くとその受験記録内の未採点設問がまとめて採点でき、
+          記述式・コード記述式の設問のうち<strong>採点方式が「手動採点」で、まだ採点していない回答</strong>
+          を、教材ごと・受験記録（受講者・提出日）ごとにまとめて表示します（<strong>採点できるのは教材の作成者のみ</strong>です）。カードを開くとその受験記録内の未採点設問がまとめて採点でき、
           正誤判定・フィードバックは入力するたびに自動保存されるため、次にカードを開いたときに引き継がれます。
           <strong>必須設問をすべて採点して「採点結果を送信」するまで受講者には一切表示されません</strong>
-          （任意設問は未採点のまま送信することもできます）。設問の傾向を見て内容を見直したい場合は「教材作成・編集」→「問題一覧タブ」を使ってください。
+          （任意設問は未採点のまま送信することもできます）。設問の傾向を見て内容を見直したい場合は「教材作成・編集」から該当教材を選択し「問題一覧」タブを使ってください。
         </p>
 
         <div className="mb-4 flex flex-wrap items-end gap-4">
@@ -83,12 +82,6 @@ export default function Grading() {
             <label className="mb-1 block text-xs font-semibold text-slate-500">教材で絞り込み</label>
             <Select value={materialFilter} onChange={setMaterialFilter} options={materialOptions} className="w-56" />
           </div>
-          {me?.role === 'admin' && (
-            <label className="mb-2 flex items-center gap-1.5 text-xs text-slate-600">
-              <input type="checkbox" checked={scopeAll} onChange={(e) => setScopeAll(e.target.checked)} />
-              全プロジェクトを表示
-            </label>
-          )}
         </div>
 
         <div className="mb-5 flex gap-4">
