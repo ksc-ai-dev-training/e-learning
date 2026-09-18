@@ -565,6 +565,21 @@ export default function MaterialView() {
                         >
                           {countsTowardPassFail ? '合否対象' : '合否対象外'}
                         </span>
+                        {/* 自由記述・コード記述式のみ表示（単一選択・複数選択・並び替えは常に自動採点
+                            のためgrading_modeがnullで非表示）。手動採点は結果確定までに管理者の対応待ちが
+                            発生し得ることが一目で分かるよう、AI採点と別の色にする（2026-09-18、ユーザー
+                            指摘によりAI/手動の別が分からないという課題を解消するため追加）。 */}
+                        {a.grading_mode && (
+                          <span
+                            className={`flex-shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                              a.grading_mode === 'manual'
+                                ? 'bg-purple-50 text-purple-600'
+                                : 'bg-cyan-50 text-cyan-600'
+                            }`}
+                          >
+                            {a.grading_mode === 'manual' ? '手動採点' : 'AI採点'}
+                          </span>
+                        )}
                         <div className="min-w-0 flex-1">
                           <div className="text-[12.5px] font-semibold text-slate-700">
                             {a.scope_label} {a.prompt}

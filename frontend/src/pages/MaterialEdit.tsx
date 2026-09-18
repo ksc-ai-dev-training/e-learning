@@ -748,6 +748,9 @@ export default function MaterialEdit() {
     ...material,
     project_name: project?.name ?? '',
     is_company_wide: project?.is_company_wide ?? false,
+    // この画面（S-05）を開けている時点で編集権限は既にあるが、can_archive自体はS-06の
+    // アーカイブ・復元ボタン専用のフィールドでこのモーダル内では使わないため、型を満たすだけの値
+    can_archive: false,
     assignments: [],
   }
 

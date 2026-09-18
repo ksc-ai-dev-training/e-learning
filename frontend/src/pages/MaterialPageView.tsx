@@ -13,7 +13,7 @@ import { getAttempt, markPageVisited, saveAnswer, startAttempt, submitAttempt } 
 import { ApiError } from '../lib/api'
 import { flattenPages, findPageIndex, resolveScopeNodeId, type FlatPage } from '../lib/pageNav'
 import { andFromQuery, backTarget, fromQuery } from '../lib/backLink'
-import type { Answer, QuizAttempt, Survey } from '../types'
+import type { Answer, Question, QuizAttempt, Survey } from '../types'
 
 type PageMode = 'graded' | 'practice' | 'wrong_only'
 
@@ -27,6 +27,26 @@ interface WrongOnlyQueue {
 }
 
 const WRONG_ONLY_QUEUE_KEY = 'wrongOnlyQueue'
+
+// 任意（required=false）または記録専用（counted=false）の設問は合否判定から除外されるため、
+// それらの手動採点・AI採点が終わっていなくてもスコープ全体は「合格」で確定してしまう。この場合
+// StatusBadge（AnswerQuestionCard）は個々の設問カードに「回答済み・採点中」を出すが、
+// AttemptResultPanelの「合格」表示だけを見ると採点済みであるかのように誤解される
+// （2026-09-18、ユーザー報告により発見。「手動採点でまだ採点されていないのに合格と出る」）。
+// StatusBadgeの「採点中」判定条件（is_correct・ai_score_pctとも未確定）と揃え、合否には
+// 影響しないという注記をAttemptResultPanel側に追加するためだけに使う（合否ロジック自体は
+// 変更しない。合格済みスコープは再受験できない仕様上、事後に採点が完了してもこの表示は
+// 残り続けるが、それ自体は仕様どおり）。
+function hasPendingNonGradedAnswer(questions: Question[], answers: Record<number, Answer>): boolean {
+  return questions.some((q) => {
+    if (q.id === null) return false
+    const a = answers[q.id]
+    if (!a) return false
+    if (q.type === 'score_log') return false
+    if ((q.type === 'single' || q.type === 'multi') && !q.has_correct_answer) return false
+    return a.is_correct === null && a.ai_score_pct === null
+  })
+}
 
 function shuffle<T>(items: T[]): T[] {
   const result = [...items]
@@ -204,6 +224,7 @@ export default function MaterialPageView() {
         ? { ...q, options: shuffle(q.correct_answer as string[]) }
         : q,
     )
+  const pendingNonGraded = hasPendingNonGradedAnswer(questions, answers)
 
   const isResolved = (index: number) => {
     const q = questions[index]
@@ -480,7 +501,7 @@ export default function MaterialPageView() {
 
         {submittedResult ? (
           <>
-            <AttemptResultPanel attempt={submittedResult} mode={mode} />
+            <AttemptResultPanel attempt={submittedResult} mode={mode} hasPendingNonGraded={pendingNonGraded} />
             {questions.map((q, i) => (
               // keyにattempt.idも含める。qだけをkeyにすると、以前の受験記録（合格済み・閲覧専用）
               // から新しい受験記録（再受験の解答可能な状態）へ切り替わってもReactが同じ
@@ -513,7 +534,7 @@ export default function MaterialPageView() {
           </>
         ) : alreadySubmitted ? (
           <>
-            <AttemptResultPanel attempt={attempt} mode={mode} />
+            <AttemptResultPanel attempt={attempt} mode={mode} hasPendingNonGraded={pendingNonGraded} />
             {/* 提出済みスコープの読み返し。回答中は採点のズルを防ぐため正誤を隠しているので
                 （AnswerQuestionCardのrevealResult=false）、提出後にここで各設問の正誤・AI採点結果を
                 確認できるようにする（2026-09-09、スコープ提出まで回答を編集可能にする対応の一部）。
@@ -640,7 +661,15 @@ function BackToTocLink({ materialId, from }: { materialId: number; from: string 
   )
 }
 
-function AttemptResultPanel({ attempt, mode }: { attempt: QuizAttempt; mode: PageMode }) {
+function AttemptResultPanel({
+  attempt,
+  mode,
+  hasPendingNonGraded = false,
+}: {
+  attempt: QuizAttempt
+  mode: PageMode
+  hasPendingNonGraded?: boolean
+}) {
   if (mode !== 'graded') {
     return (
       <div className="rounded-md border border-slate-200 bg-slate-50 p-4 text-sm">
@@ -676,6 +705,11 @@ function AttemptResultPanel({ attempt, mode }: { attempt: QuizAttempt; mode: Pag
       {attempt.passed === true && (
         <p className="mt-2 text-sm font-semibold text-green-800">
           合格済みのため再提出はされません。復習のため問題を解き直したい場合は「練習」をご利用ください。
+        </p>
+      )}
+      {attempt.passed !== null && hasPendingNonGraded && (
+        <p className="mt-2 text-xs text-slate-500">
+          ※ 合否には影響しない設問の採点がまだ完了していません。結果は担当者の採点が終わり次第、下の一覧に反映されます。
         </p>
       )}
     </div>

@@ -219,7 +219,7 @@ export default function MyLearning() {
 
             {urgentRequired.length > 0 && (
               <div id="urgent-materials">
-                <Panel title="期限が近い必修教材" count="受講しないと期限超過になります" tone="warn">
+                <Panel title="期限が近い必修教材" count="合格または受講完了しないと期限超過になります" tone="warn">
                   {urgentRequired.map((item) => (
                     <MaterialCard
                       key={item.id}

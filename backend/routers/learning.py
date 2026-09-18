@@ -280,7 +280,7 @@ async def start_attempt(id: int, body: StartAttemptIn, user: CurrentUser = Depen
         carried_over: list[int] = []
         if body.mode == "graded" and material_row["retake_scope"] == "wrong_only":
             prev_attempt = await pool.fetchrow(
-                """SELECT id FROM quiz_attempts
+                """SELECT id, carried_over_question_ids FROM quiz_attempts
                     WHERE user_id = $1 AND material_id = $2 AND mode = 'graded'
                       AND scope_node_id IS NOT DISTINCT FROM $3 AND submitted_at IS NOT NULL
                     ORDER BY attempt_no DESC LIMIT 1""",
@@ -290,7 +290,21 @@ async def start_attempt(id: int, body: StartAttemptIn, user: CurrentUser = Depen
                 prev_answers = await pool.fetch(
                     "SELECT question_id, is_correct FROM answers WHERE attempt_id = $1", prev_attempt["id"]
                 )
-                correct_ids = {a["question_id"] for a in prev_answers if a["is_correct"]}
+                # 直近の提出済み記録が「誤答のみ」で絞り込まれていた場合、前回さらに前から繰り越されて
+                # 出題されなかった設問（prev_attempt自身のcarried_over_question_ids）はprev_attempt自身の
+                # answersに行を持たない（出題していないため）。ここをprev_attempt自身の正解設問だけで
+                # 判定すると、2回連続で不合格になった時点でその繰り越し設問がcorrect_idsから漏れ、
+                # 3回目の出題に復活してしまう（＝「誤答のみ」のはずが2回目の不合格を境に全問出題に
+                # 戻る不具合。2026-09-18、ユーザー報告により発見。material_id=118の実データで、
+                # 1回目不正解→2回目carried_over=[138,139]で絞り込み成功→2回目も不正解→3回目で
+                # carried_over=[]に戻り138・139が復活することを確認した）。prev_attempt自身の
+                # carried_over_question_idsも合流させ、「今までに一度でも正解が確定した設問」の集合を
+                # 世代を跨いで維持する。
+                prev_carried_over = (
+                    set(json.loads(prev_attempt["carried_over_question_ids"]))
+                    if prev_attempt["carried_over_question_ids"] else set()
+                )
+                correct_ids = {a["question_id"] for a in prev_answers if a["is_correct"]} | prev_carried_over
                 carried_over = sorted(correct_ids)
                 # スコア記録型（score_log）は正誤の概念が無くis_correctが常にNULLのため、上のcorrect_idsには
                 # 絶対に入らず「誤答のみ」でも毎回出題され続けてしまっていた（2026-09-11、ユーザー報告
@@ -321,8 +335,15 @@ async def start_attempt(id: int, body: StartAttemptIn, user: CurrentUser = Depen
         json.loads(attempt["carried_over_question_ids"]) if attempt["carried_over_question_ids"] else []
     )
 
+    # ai_score_pct・ai_feedbackも取得する（以前はquestion_id/response/is_correctのみだった）。
+    # フロントエンドのStatusBadge（AnswerQuestionCard）はis_correctがnullの間、
+    # ai_score_pctがnullかどうかで「回答済み・採点中」と「採点済み（点）」を切り分けているが、
+    # この列が最初から応答に含まれず常にundefinedだったため、undefined !== nullでこの判定が
+    # 常にtrueになり、AI採点・手動採点とも未確定のままの回答が「採点済み（点数なし）」と
+    # 誤表示されていた（2026-09-18、手動採点が未確定なのに合格表示になる件を調査中に発見）。
     answers = await pool.fetch(
-        "SELECT question_id, response, is_correct FROM answers WHERE attempt_id = $1", attempt["id"]
+        "SELECT question_id, response, is_correct, ai_score_pct, ai_feedback FROM answers WHERE attempt_id = $1",
+        attempt["id"],
     )
     answers_out = [
         {**dict(a), "response": json.loads(a["response"]) if a["response"] else None} for a in answers
@@ -348,7 +369,8 @@ async def start_attempt(id: int, body: StartAttemptIn, user: CurrentUser = Depen
                 full_order[str(page["id"])] = ids_this_page
         attempt["question_order"] = full_order
         carried_answers = await pool.fetch(
-            """SELECT DISTINCT ON (a.question_id) a.question_id, a.response, a.is_correct
+            """SELECT DISTINCT ON (a.question_id) a.question_id, a.response, a.is_correct,
+                      a.ai_score_pct, a.ai_feedback
                FROM answers a
                JOIN quiz_attempts qa2 ON qa2.id = a.attempt_id
                WHERE a.question_id = ANY($1::bigint[]) AND qa2.user_id = $2 AND qa2.material_id = $3
@@ -358,7 +380,7 @@ async def start_attempt(id: int, body: StartAttemptIn, user: CurrentUser = Depen
         )
         answers_out.extend(
             {"question_id": r["question_id"], "response": json.loads(r["response"]) if r["response"] else None,
-             "is_correct": r["is_correct"]}
+             "is_correct": r["is_correct"], "ai_score_pct": r["ai_score_pct"], "ai_feedback": r["ai_feedback"]}
             for r in carried_answers
         )
 
@@ -803,8 +825,8 @@ async def finalize_attempt_grading(attempt_id: int, user: CurrentUser = Depends(
     qa.mode = 'graded'に限定する（2026-09-17追加。get_attempt_gradingと同じ理由）。"""
     pool = get_pool()
     attempt_row = await pool.fetchrow(
-        """SELECT qa.id, m.id AS material_id, m.project_id, m.created_by, p.is_company_wide,
-                  m.grading_mode AS material_grading_mode
+        """SELECT qa.id, qa.user_id, qa.scope_node_id, m.id AS material_id, m.project_id, m.created_by,
+                  p.is_company_wide, m.grading_mode AS material_grading_mode, m.attempt_scope
            FROM quiz_attempts qa
            JOIN materials m ON m.id = qa.material_id
            JOIN projects p ON p.id = m.project_id
@@ -845,6 +867,18 @@ async def finalize_attempt_grading(attempt_id: int, user: CurrentUser = Depends(
                 user.id, to_finalize_ids,
             )
     await _recompute_attempt_result(pool, attempt_id)
+    # submit_attempt・_grade_and_store_answer（AI採点完了時）は合否再計算のたびにenrollment_progressを
+    # 再評価しているが、本APIにはこの再評価が抜けていた。手動採点でしか合否が確定しない受験記録
+    # （grading_mode='manual'の設問を含むページ等）は、ここで再評価しない限りpassedが本APIで
+    # 初めてtrue/falseに確定してもenrollment_progress.statusがin_progressのまま固定され、
+    # 全スコープ合格後も「復習する」に切り替わらない不具合になっていた（2026-09-18、ユーザー報告
+    # により発見。以前AI採点側で見つけた穴〔_grade_and_store_answerのコメント参照〕と同種）。
+    tree = await _fetch_tree(pool, attempt_row["material_id"], strip_answers=True)
+    pages = _scope_pages(tree, attempt_row["attempt_scope"], attempt_row["scope_node_id"])
+    await _update_enrollment_progress(
+        pool, attempt_row["user_id"], attempt_row["material_id"], attempt_row["attempt_scope"], tree,
+        [p["id"] for p in pages],
+    )
     return {"detail": "採点結果を送信しました"}
 
 
@@ -1387,7 +1421,8 @@ async def get_attempt_summary(id: int, user: CurrentUser = Depends(require_auth)
             user.id, id, g["scope_node_id"],
         )
         answers = await pool.fetch(
-            """SELECT a.question_id, q.prompt, q.type, q.correct_answer, q.required, q.counted, a.response, a.is_correct,
+            """SELECT a.question_id, q.prompt, q.type, q.correct_answer, q.required, q.counted,
+                      q.grading_mode AS question_grading_mode, a.response, a.is_correct,
                       a.ai_score_pct, a.ai_feedback
                FROM answers a JOIN questions q ON q.id = a.question_id
                WHERE a.attempt_id = $1 AND q.type != 'score_log'""",
@@ -1404,7 +1439,8 @@ async def get_attempt_summary(id: int, user: CurrentUser = Depends(require_auth)
         if carried_over_ids:
             carried_answers = await pool.fetch(
                 """SELECT DISTINCT ON (a.question_id)
-                          a.question_id, q.prompt, q.type, q.correct_answer, q.required, q.counted, a.response, a.is_correct,
+                          a.question_id, q.prompt, q.type, q.correct_answer, q.required, q.counted,
+                          q.grading_mode AS question_grading_mode, a.response, a.is_correct,
                           a.ai_score_pct, a.ai_feedback
                    FROM answers a
                    JOIN questions q ON q.id = a.question_id
@@ -1437,6 +1473,15 @@ async def get_attempt_summary(id: int, user: CurrentUser = Depends(require_auth)
             # 受講者へは返さない（2026-09-16）。
             d["has_correct_answer"] = bool(correct_answer) if d["type"] == "multi" else correct_answer is not None
             del d["correct_answer"]
+            # 手動採点・AI採点のどちらで判定されたかは自由記述・コード記述式にしか意味が無い
+            # （単一選択・複数選択・並び替えは常に即時の自動採点）。設問側のgrading_mode上書きが
+            # 無ければ教材既定にフォールバックする、A-40提出時の判定（effective_mode）と同じ規則
+            # （2026-09-18、採点結果パネルでAI/手動の別が分からないというユーザー指摘により追加）。
+            d["grading_mode"] = (
+                (d["question_grading_mode"] or material["grading_mode"])
+                if d["type"] in ("free_text", "code") else None
+            )
+            del d["question_grading_mode"]
             answer_dicts.append(d)
         entries.append({
             "scope_node_id": g["scope_node_id"],

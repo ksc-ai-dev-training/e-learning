@@ -154,10 +154,14 @@ async def search_materials(
             f"EXISTS (SELECT 1 FROM assignments a WHERE a.material_id = m.id AND a.required = {ph})"
         )
     if incomplete_only:
+        # 「未受講のみ」は文字どおり未着手（enrollment_progressの行が無い、またはstatus='not_started'）
+        # のみを対象にする。以前はstatus != 'completed'（in_progressも含む）で判定していたため、
+        # 提出済み・採点中で「受講済み」の感覚のある教材まで「未受講」に混じって表示される不具合が
+        # あった（ユーザー報告で発覚。2026-09-18）。
         ph = add_param(user.id)
         conditions.append(
             f"NOT EXISTS (SELECT 1 FROM enrollment_progress ep "
-            f"WHERE ep.user_id = {ph} AND ep.material_id = m.id AND ep.status = 'completed')"
+            f"WHERE ep.user_id = {ph} AND ep.material_id = m.id AND ep.status != 'not_started')"
         )
     if my_assignments_only:
         ph = add_param(user.id)

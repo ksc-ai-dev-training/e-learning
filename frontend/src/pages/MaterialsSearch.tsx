@@ -10,6 +10,7 @@ import { useMaterialsSearch, EMPTY_SEARCH_PARAMS } from '../hooks/useMaterialsSe
 import type { MaterialSearchParams } from '../hooks/useMaterialsSearch'
 import { useProjects } from '../hooks/useProjects'
 import { formatDateJst } from '../lib/datetime'
+import { projectColorClasses } from '../lib/projectColors'
 import { questionTypeLabel } from '../lib/questionDefaults'
 import type { EnrollmentStatus } from '../types'
 
@@ -270,8 +271,11 @@ export default function MaterialsSearch() {
               </thead>
               <tbody>
                 {items.map((m) => (
-                  <tr key={m.id} className="border-b border-slate-100 last:border-0 dark:border-slate-800">
-                    <td className="px-3 py-2">
+                  <tr
+                    key={m.id}
+                    className="border-b border-slate-200 last:border-0 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800/60"
+                  >
+                    <td className="px-3 py-3">
                       <div className="text-slate-800 dark:text-slate-100">{m.title}</div>
                       <div className="mt-0.5 text-[13px] text-slate-400">
                         {m.chapter_count}章・{m.page_count}ページ
@@ -283,11 +287,15 @@ export default function MaterialsSearch() {
                         )}
                       </div>
                     </td>
-                    <td className="px-3 py-2 text-slate-600 dark:text-slate-300">
-                      {m.is_company_wide ? '📌 ' : ''}
-                      {m.project_name}
+                    <td className="px-3 py-3">
+                      <span
+                        className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[13px] font-medium whitespace-nowrap ${projectColorClasses(m.project_id)}`}
+                      >
+                        {m.is_company_wide ? '📌 ' : ''}
+                        {m.project_name}
+                      </span>
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-3 py-3">
                       {m.tags.length > 0 && (
                         <div className="flex flex-wrap gap-1">
                           {m.tags.map((t) => (
@@ -301,11 +309,11 @@ export default function MaterialsSearch() {
                         </div>
                       )}
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-3 py-3">
                       <Badge variant={m.required ? 'required' : 'optional'} />
                     </td>
-                    <td className="px-3 py-2 text-slate-500 dark:text-slate-300">{formatDateJst(m.updated_at)}</td>
-                    <td className="px-3 py-2">
+                    <td className="px-3 py-3 text-slate-500 dark:text-slate-300">{formatDateJst(m.updated_at)}</td>
+                    <td className="px-3 py-3">
                       <div className="flex flex-col items-start gap-1.5">
                         <button
                           type="button"

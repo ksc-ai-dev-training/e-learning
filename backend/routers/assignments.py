@@ -41,6 +41,7 @@ async def _fetch_assignment_rows(pool, material_ids: list[int]) -> dict[int, lis
 async def list_assignments(
     q: str | None = None,
     status: Literal["draft", "published"] | None = None,
+    include_archived: bool = False,
     user: CurrentUser = Depends(require_auth),
 ):
     """A-36: 配信設定の一覧（S-06）。adminは全教材、それ以外は自分がローカル管理者・編集者を務める
@@ -54,10 +55,15 @@ async def list_assignments(
     このプロジェクトのeditor以上なら全件」だったため、全社ライブラリの必修教材・他人が作成した
     任意教材が一覧には見えるのに実際の保存（A-38、require_material_role）では403になる不整合が
     あった（A-21で発見したのと同じ種類の不具合）。全社ライブラリ以外の通常プロジェクトは
-    従来通り（adminは無条件全件、editorは自分がeditor以上のプロジェクトの教材）。"""
+    従来通り（adminは無条件全件、editorは自分がeditor以上のプロジェクトの教材）。
+
+    include_archived（既定false）はA-21のlist_materials_sourceと同じ意味（2026-09-18新設）。
+    以前は本APIからアーカイブ済み教材へ一切到達できず、教材編集画面（S-05）を経由しないと
+    アーカイブ解除ができなかった（配信設定〔S-06〕で公開条件そのものを扱っているのに、
+    アーカイブ状態の変更だけそこから行えないのは非対称という指摘を受けて追加した）。"""
     pool = get_pool()
     is_system_admin = user.role == "admin"
-    conditions = ["m.is_archived = false"]
+    conditions = [] if include_archived else ["m.is_archived = false"]
     params: list = [user.id]
     user_ph = f"${len(params)}"
     company_wide_ok = (
@@ -87,9 +93,21 @@ async def list_assignments(
         params.append(status)
         conditions.append(f"m.status = ${len(params)}")
 
+    # can_archive: materials.pyの_require_owner_or_project_admin（作成者本人、またはこの教材の
+    # プロジェクトの実際の管理者。全社ライブラリかどうかは問わない共通ルールで、システムadminの
+    # 無条件許可は含まない）と同じ判定をここで一括計算し、一覧側に「実際にアーカイブ・復元できるか」
+    # を返す。全社ライブラリ以外の通常プロジェクトはeditorでも一覧自体には出るが、アーカイブ操作は
+    # 管理者・作成者限定のため、一覧に見えるのにボタンを押すと403になる不整合（A-21・A-36で過去に
+    # 見つけたのと同じ種類の不具合）を防ぐために必要（2026-09-18新設）。
     rows = await pool.fetch(
         f"""SELECT m.id, m.title, m.status, m.project_id, p.name AS project_name,
-                   p.is_company_wide, m.updated_at
+                   p.is_company_wide, m.updated_at, m.is_archived,
+                   (m.created_by = $1 OR EXISTS (
+                       SELECT 1 FROM project_memberships pmarchive
+                        WHERE pmarchive.project_id = m.project_id AND pmarchive.user_id = $1
+                          AND pmarchive.role = 'admin' AND pmarchive.status = 'active'
+                          AND pmarchive.left_at IS NULL
+                   )) AS can_archive
               FROM materials m JOIN projects p ON p.id = m.project_id
              WHERE {' AND '.join(conditions)}
              ORDER BY m.updated_at DESC""",

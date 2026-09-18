@@ -300,6 +300,9 @@ export interface AttemptSummaryEntry {
     has_correct_answer: boolean
     ai_score_pct: number | null
     ai_feedback: string | null
+    // 自由記述・コード記述式のみ'ai'/'manual'（設問側のgrading_mode上書き、無ければ教材既定に
+    // フォールバック）。単一選択・複数選択・並び替えは常に自動採点のためnull（2026-09-18追加）
+    grading_mode: 'ai' | 'manual' | null
   }[]
 }
 
@@ -618,6 +621,10 @@ export interface AssignmentListItem {
   project_name: string
   is_company_wide: boolean
   updated_at: string
+  is_archived: boolean
+  // 作成者本人、またはこの教材のプロジェクトの実際の管理者か（システムadminの無条件許可は含まない）。
+  // アーカイブ・復元ボタンの表示可否に使う（2026-09-18追加）
+  can_archive: boolean
   assignments: Assignment[]
 }
 
