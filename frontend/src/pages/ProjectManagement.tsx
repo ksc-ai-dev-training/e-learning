@@ -11,6 +11,7 @@ import TextInput from '../components/ui/TextInput'
 import { useIncomingShares } from '../hooks/useIncomingShares'
 import { useMaterials } from '../hooks/useMaterials'
 import { useMaterialShares } from '../hooks/useMaterialShares'
+import { useShareableMaterials } from '../hooks/useShareableMaterials'
 import { useMe } from '../hooks/useMe'
 import { useMemberAttemptStatus } from '../hooks/useMemberAttemptStatus'
 import { useMemberCandidates } from '../hooks/useMemberCandidates'
@@ -996,8 +997,65 @@ function AttemptStatusPanel({
 function SharingTab({ projectId, canManage }: { projectId: number; canManage: boolean }) {
   return (
     <div className="flex flex-col gap-8">
+      {/* 2026-09-18新設: 全社ライブラリの必修教材・他人が作成した任意教材は通常の教材一覧
+          （下のOutgoingSharesSectionが使うA-21）には出てこなくなったため（require_material_role
+          と同じ基準に揃えたため）、プロジェクトadminが「必修・任意・作成者を問わず全教材を
+          共有できる」という共有機能本来の仕様（A-60）を実際に使うための別入口を用意する。
+          自分がプロジェクト管理者であるプロジェクト全体を横断して検索する。 */}
+      {canManage && <ShareSearchSection currentProjectId={projectId} />}
       <OutgoingSharesSection projectId={projectId} canManage={canManage} />
       <IncomingSharesSection projectId={projectId} canManage={canManage} />
+    </div>
+  )
+}
+
+function ShareSearchSection({ currentProjectId }: { currentProjectId: number }) {
+  const [query, setQuery] = useState('')
+  const { items: allItems, isLoading } = useShareableMaterials(query)
+  // 現在のプロジェクトの教材は下のOutgoingSharesSectionに既に出ているため、ここでは除外する
+  const items = allItems.filter((m) => m.project_id !== currentProjectId)
+
+  return (
+    <div>
+      <h3 className="mb-2 text-sm font-semibold text-slate-700">教材を検索して共有</h3>
+      <p className="mb-3 text-xs text-slate-500">
+        自分がプロジェクト管理者であるプロジェクト全体から、作成者を問わず教材を検索して共有申請できます（下書きは対象外）。
+      </p>
+      <TextInput
+        placeholder="教材名で検索"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        className="mb-3 w-64"
+      />
+      {isLoading ? (
+        <p className="text-sm text-slate-400">読み込み中...</p>
+      ) : items.length === 0 ? (
+        <p className="text-sm text-slate-400">{query ? '該当する教材がありません。' : '検索対象の教材がありません。'}</p>
+      ) : (
+        <div className="overflow-x-auto rounded-md border border-slate-200">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-100 bg-slate-50 text-left text-xs text-slate-500">
+                <th className="px-3 py-2 font-normal">教材名</th>
+                <th className="px-3 py-2 font-normal">状態</th>
+                <th className="px-3 py-2 font-normal">共有先プロジェクト</th>
+                <th className="px-3 py-2 font-normal">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((m) => (
+                <OutgoingShareRow
+                  key={m.id}
+                  sourceProjectId={m.project_id}
+                  material={{ id: m.id, title: m.title, status: 'published', is_archived: false }}
+                  canManage
+                  extraInfo={`${m.project_name} ／ 作成者: ${m.created_by_name} ／ ${m.is_required ? '必修' : '任意'}`}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   )
 }
@@ -1031,7 +1089,7 @@ function OutgoingSharesSection({ projectId, canManage }: { projectId: number; ca
             </thead>
             <tbody>
               {materials.map((m) => (
-                <OutgoingShareRow key={m.id} projectId={projectId} material={m} canManage={canManage} />
+                <OutgoingShareRow key={m.id} sourceProjectId={projectId} material={m} canManage={canManage} />
               ))}
             </tbody>
           </table>
@@ -1042,13 +1100,19 @@ function OutgoingSharesSection({ projectId, canManage }: { projectId: number; ca
 }
 
 function OutgoingShareRow({
-  projectId,
+  sourceProjectId,
   material,
   canManage,
+  extraInfo,
 }: {
-  projectId: number
-  material: MaterialSource
+  // 2026-09-18、プロジェクト横断の共有検索（ShareSearchSection）からも同じ行を再利用できるよう
+  // 「このプロジェクトの一覧を表示中」という前提のprojectIdから、材料自身の所属プロジェクトIDに
+  // 差し替えた（検索結果は行ごとに所属プロジェクトが異なるため）。
+  sourceProjectId: number
+  material: Pick<MaterialSource, 'id' | 'title' | 'status' | 'is_archived'>
   canManage: boolean
+  // 検索結果からの利用時のみ、どのプロジェクトの誰が作った教材かを併記する
+  extraInfo?: string
 }) {
   const { shares, mutate } = useMaterialShares(material.id)
   const { projects } = useProjects('learner')
@@ -1059,7 +1123,7 @@ function OutgoingShareRow({
   // 却下(rejected)は再申請可能なため候補から除外しない。承認待ち・承認済みの共有先のみ除外する
   const activeShares = shares.filter((s) => s.status !== 'rejected')
   const candidateProjects = projects.filter(
-    (p) => p.id !== projectId && !activeShares.some((s) => s.shared_to_project_id === p.id),
+    (p) => p.id !== sourceProjectId && !activeShares.some((s) => s.shared_to_project_id === p.id),
   )
 
   const handleAdd = async () => {
@@ -1087,7 +1151,10 @@ function OutgoingShareRow({
 
   return (
     <tr className="border-b border-slate-50 align-top last:border-0">
-      <td className="px-3 py-2 text-slate-800">{material.title}</td>
+      <td className="px-3 py-2 text-slate-800">
+        {material.title}
+        {extraInfo && <div className="text-xs font-normal text-slate-400">{extraInfo}</div>}
+      </td>
       <td className="px-3 py-2">
         {/* is_archivedはstatusとは独立したフラグ（statusは'draft'/'published'の2値のみ）のため、
             アーカイブ済みかどうかはis_archivedで判定する（archivedを含める前はstatusのみで

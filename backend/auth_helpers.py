@@ -207,20 +207,33 @@ async def is_company_wide_draft_restricted(user: CurrentUser, project_id: int, i
 
 def require_material_role(min_role: str, *, bypass_system_admin: bool = False):
     """教材IDから所属プロジェクトを引いてローカルロールを判定する（A-15/A-17/A-18/A-20等）。
-    全社公開プロジェクトの下書きは、作成者・プロジェクト管理者・システムadmin以外は403にする
-    （is_company_wide_draft_restricted、5.2節）。
 
     既定（bypass_system_admin=False）では、教材内容の編集はシステムadminでも実際の
     プロジェクトロール（エディタ以上）を要求する（2026-09-16、ユーザー要望）。ただしS-06配信設定
     （assignments.py）は「adminは全教材を対象にできる」という別の既定設計（基本設計書4.8節）が
     元々あるため、そちらの2箇所の呼び出しのみbypass_system_admin=Trueを明示して従来どおりとする。
 
-    全社ライブラリに属し、かつ現在必修（assignments.requiredが立っている）教材は、要求されたmin_roleが
-    admin未満でも常にadminへ引き上げる（2026-09-17、ユーザー要望）。全社ライブラリは全員が自動でeditorに
-    なるため、通常のmin_role="editor"のままでは事実上誰でも編集できてしまう。必修にする権限
-    （assignments.pyのis_company_wide+required判定）を持つ人＝プロジェクトadmin（システムadmin含む、
-    全社ライブラリの実データとして登録済み）だけに編集権限も揃える。任意のままの全社ライブラリ教材は従来どおり
-    editorにも開放する。
+    全社ライブラリ（is_company_wide）は通常のプロジェクトと異なり全員が自動でeditorになる特殊
+    プロジェクトのため、要求されたmin_roleがadmin未満（editor/learner）の場合は下記のように
+    上書きする（2026-09-17〜18、ユーザー要望。教材を「作成者の所有物」として扱い、改善は作成者に
+    委ねるという方針による）。
+
+    - **必修教材**: 常にプロジェクトadmin限定（システムadmin含む、全社ライブラリの実データとして
+      登録済み）。全社必修教材はプロジェクトadminが共同で保守する運用のため、作成者以外の
+      adminも編集できる。
+      → 【admin＝必修教材を編集できる】【editor＝必修教材は編集できない】
+    - **任意教材**: 作成者本人のみ（他のeditorはもちろん、作成者でなければ他のプロジェクトadminも
+      不可）。「全社ライブラリの任意教材は作成者の所有物」という考え方のため、admin/editorの
+      ロール差では判定しない。
+      → 【admin＝自分が作成した任意教材のみ編集できる】【editor＝自分が作成した任意教材のみ
+      編集できる】（結局この2つは同条件。要求されたmin_role自体がadmin以上の場合はこの上書きを
+      行わない＝S-06配信設定〔材料共有のcreate_material_share等〕は従来通りプロジェクトadmin全員が
+      対象、必修か・作成者かを問わない。get_grading_queue等ドキュストリング参照）。
+
+    全社ライブラリ以外の通常プロジェクトの下書きは、作成者・プロジェクト管理者・システムadmin
+    以外は403にする（is_company_wide_draft_restricted、5.2節）が、全社ライブラリ以外では
+    is_company_wide=falseのため常にFalseを返し、editor以上なら誰の下書きでも閲覧・編集できる
+    （2026-09-18、ユーザー確認済み。実機で編集者が他人の下書きを開けることを確認した）。
 
     パスパラメータ `id`（教材ID）を持つルート（例: /api/materials/{id}）で使う。
     """
@@ -236,10 +249,13 @@ def require_material_role(min_role: str, *, bypass_system_admin: bool = False):
         )
         if row is None:
             raise HTTPException(404, detail="教材が見つかりません")
-        effective_min_role = min_role
-        if row["is_company_wide"] and row["is_required"] and ROLE_RANK[min_role] < ROLE_RANK["admin"]:
-            effective_min_role = "admin"
-        await check_project_role(user, row["project_id"], effective_min_role, bypass_system_admin=bypass_system_admin)
+        if row["is_company_wide"] and ROLE_RANK[min_role] < ROLE_RANK["admin"]:
+            if row["is_required"]:
+                await check_project_role(user, row["project_id"], "admin", bypass_system_admin=bypass_system_admin)
+            elif row["created_by"] != user.id:
+                raise HTTPException(403, detail="全社ライブラリの任意教材を編集できるのは作成者のみです")
+        else:
+            await check_project_role(user, row["project_id"], min_role, bypass_system_admin=bypass_system_admin)
         if row["status"] == "draft" and row["created_by"] != user.id:
             if await is_company_wide_draft_restricted(user, row["project_id"], row["is_company_wide"]):
                 raise HTTPException(403, detail="この下書きを閲覧できるのは作成者とプロジェクト管理者のみです")

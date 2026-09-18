@@ -48,9 +48,17 @@ async def _require_view_access(pool, id: int, user: CurrentUser) -> dict:
     is_editorの判定にシステムadminの無条件許可は含めない（2026-09-16。require_material_role
     〔A-17/A-19/A-20等〕と同じ理由。実際にはeditor以上でないと保存系APIが403になるのに、この
     画面だけ編集可能に見えてしまう不整合を避けるため、S-05を開く時点から実際のプロジェクトロールで
-    判定する）。"""
+    判定する）。
+
+    全社ライブラリはrequire_material_roleと同じ基準に揃える（2026-09-18）: 必修教材は
+    プロジェクトadminのみ、任意教材は作成者本人のみをis_editor=Trueとする（他のeditor・他の
+    adminも不可）。それ以外の通常プロジェクトは従来通りeditor以上ならis_editor=True（下書きも
+    含めて閲覧・編集できる）。"""
     row = await pool.fetchrow(
-        """SELECT m.project_id, m.status, m.created_by, p.is_company_wide
+        """SELECT m.project_id, m.status, m.created_by, p.is_company_wide,
+                  EXISTS (
+                      SELECT 1 FROM assignments a WHERE a.material_id = m.id AND a.required = true
+                  ) AS is_required
            FROM materials m JOIN projects p ON p.id = m.project_id
            WHERE m.id = $1""",
         id,
@@ -58,7 +66,13 @@ async def _require_view_access(pool, id: int, user: CurrentUser) -> dict:
     if row is None:
         raise HTTPException(404, detail="教材が見つかりません")
 
-    is_editor = await has_active_project_role(row["project_id"], user.id, "editor")
+    if row["is_company_wide"]:
+        if row["is_required"]:
+            is_editor = await has_active_project_role(row["project_id"], user.id, "admin")
+        else:
+            is_editor = row["created_by"] == user.id
+    else:
+        is_editor = await has_active_project_role(row["project_id"], user.id, "editor")
 
     if is_editor:
         if row["status"] == "draft" and row["created_by"] != user.id:
@@ -390,22 +404,36 @@ async def list_materials_source(
     user: CurrentUser = Depends(require_project_role(min_role="editor")),
 ):
     """A-21: 対象プロジェクトの教材一覧（下書き含む）。S-14の一覧表示・タグ検索・構成列に使う。
-    全社公開プロジェクトでは、作成者・プロジェクト管理者・システムadmin以外には他人の下書きを
-    一覧にも出さない（is_company_wide_draft_restricted、5.2節）。アーカイブ済み（is_archived=true）は
-    既定では除外し、S-14で「アーカイブ済み」を選んだ場合のみinclude_archived=trueで再取得して含める。"""
+
+    全社ライブラリはrequire_material_role/_require_view_accessと同じ基準に揃える（2026-09-18、
+    ユーザー指摘により発見・修正）。以前は「公開済みなら誰の教材でも表示、下書きだけ他人のものを
+    除外」という基準だったため、必修教材が一覧には見えるのに開こうとすると403になる（プロジェクト
+    adminでない場合）という不整合があった。今は
+    - 対象プロジェクトの実際のadmin: 必修教材（誰が作成したものでも）＋自分が作成した任意教材
+    - それ以外（editor）: 自分が作成した教材のみ（必修・任意・下書き・公開済み問わず）
+    のみを一覧に出す（開けない教材を一覧に表示しないため）。
+    全社ライブラリ以外の通常プロジェクトは従来通り、下書きも含めeditor以上なら全件表示する。
+    アーカイブ済み（is_archived=true）は既定では除外し、S-14で「アーカイブ済み」を選んだ場合のみ
+    include_archived=trueで再取得して含める。"""
     pool = get_pool()
     project = await pool.fetchrow("SELECT is_company_wide FROM projects WHERE id = $1", project_id)
-    restricted = await is_company_wide_draft_restricted(
-        user, project_id, project["is_company_wide"] if project else False
-    )
+    is_company_wide = bool(project["is_company_wide"]) if project else False
 
     where = "m.project_id = $1"
     params: list = [project_id]
     if not include_archived:
         where += " AND m.is_archived = false"
-    if restricted:
+    if is_company_wide:
+        is_admin = await has_active_project_role(project_id, user.id, "admin")
         params.append(user.id)
-        where += f" AND (m.status = 'published' OR m.created_by = ${len(params)})"
+        creator_ph = f"${len(params)}"
+        if is_admin:
+            where += (
+                f" AND (m.created_by = {creator_ph} OR EXISTS ("
+                f"SELECT 1 FROM assignments a WHERE a.material_id = m.id AND a.required = true))"
+            )
+        else:
+            where += f" AND m.created_by = {creator_ph}"
 
     rows = await pool.fetch(
         f"""SELECT m.id, m.title, m.status, m.is_archived, m.updated_at, m.tags,
@@ -475,6 +503,50 @@ def _count_pages(nodes: list[dict]) -> int:
             total += 1
         total += _count_pages(n.get("children", []))
     return total
+
+
+@detail_router.get("/shareable")
+async def search_shareable_materials(q: str | None = None, user: CurrentUser = Depends(require_auth)):
+    """新規（2026-09-18）: 共有申請（A-60）の対象教材を、自分がプロジェクトadminであるプロジェクト
+    全体から横断検索する。全社ライブラリの必修教材・他人が作成した任意教材は通常の教材一覧
+    （A-21、list_materials_source）には出てこなくなったため（require_material_roleと同じ基準に
+    揃えたため）、共有機能は「プロジェクトadminなら誰の教材でも共有できる」という元々の仕様
+    （A-60）を実際に使うための入口が別途必要になった。プロジェクトを問わず、自分が管理者である
+    全プロジェクトの教材を対象にする（他人が管理者のプロジェクトの教材は出さない）。
+
+    「/{id}」（id: intの文字列プレースホルダ）より前に登録する必要がある（2026-09-18、実装時に
+    発見・修正）。FastAPI/Starletteはパス中の`{id}`をルーティング段階では単なる文字列ワイルド
+    カードとして扱い、Python側の型ヒント（int）はルート一致後の値検証にしか使われないため、
+    `/{id}`が先に登録されていると`/materials/shareable`もまずそちらにマッチしてしまい、
+    「shareableをintとして解釈できない」という422エラーになる。"""
+    pool = get_pool()
+    conditions = [
+        """EXISTS (
+            SELECT 1 FROM project_memberships pm
+            WHERE pm.project_id = m.project_id AND pm.user_id = $1
+              AND pm.status = 'active' AND pm.left_at IS NULL AND pm.role = 'admin'
+        )""",
+        "m.is_archived = false",
+        "m.status = 'published'",
+    ]
+    params: list = [user.id]
+    if q:
+        params.append(f"%{q}%")
+        conditions.append(f"m.title ILIKE ${len(params)}")
+    rows = await pool.fetch(
+        f"""SELECT m.id, m.title, m.project_id, p.name AS project_name, u.name AS created_by_name,
+                   EXISTS (
+                       SELECT 1 FROM assignments a WHERE a.material_id = m.id AND a.required = true
+                   ) AS is_required
+            FROM materials m
+            JOIN projects p ON p.id = m.project_id
+            JOIN users u ON u.id = m.created_by
+            WHERE {" AND ".join(conditions)}
+            ORDER BY m.updated_at DESC
+            LIMIT 50""",
+        *params,
+    )
+    return {"items": [dict(r) for r in rows]}
 
 
 @detail_router.get("/{id}")
@@ -1551,10 +1623,31 @@ async def _duplicate_material_into_project(conn, material_id: int, target_projec
 
 
 @detail_router.get("/{id}/shares")
-async def list_material_shares(id: int, user: CurrentUser = Depends(require_material_role(min_role="editor"))):
+async def list_material_shares(id: int, user: CurrentUser = Depends(require_auth)):
     """A-59: 教材のプロジェクト間共有一覧取得。閲覧は元プロジェクトの編集者以上まで緩和した
     （2026-09-09。S-12「教材の共有」タブを編集者にも閲覧のみで開放する要望への対応。共有申請の
-    作成〔A-60〕は従来どおり管理者限定のまま、5.27節）。"""
+    作成〔A-60〕は従来どおり管理者限定のまま、5.27節）。
+
+    全社ライブラリはrequire_material_roleを使わず個別に判定する（2026-09-18）。共有の作成
+    〔A-60〕はプロジェクトadminなら必修・任意・作成者を問わず全教材が対象という既存仕様のため、
+    履歴閲覧だけそれより狭い「必修はadmin・任意は作成者のみ」に縛ると、adminが他人の任意教材を
+    共有しようとした際にまず履歴を見られず不整合になる。そのため全社ライブラリはA-60と同じ基準
+    （プロジェクトadminなら誰の教材でも可）に統一し、通常プロジェクトは従来通りeditor以上に
+    開放したままにする。"""
+    pool = get_pool()
+    material = await pool.fetchrow(
+        """SELECT m.project_id, m.created_by, p.is_company_wide
+           FROM materials m JOIN projects p ON p.id = m.project_id WHERE m.id = $1""",
+        id,
+    )
+    if material is None:
+        raise HTTPException(404, detail="教材が見つかりません")
+    if material["is_company_wide"]:
+        is_admin = await has_active_project_role(material["project_id"], user.id, "admin")
+        if not is_admin and material["created_by"] != user.id:
+            raise HTTPException(403, detail="この操作を行う権限がありません")
+    else:
+        await check_project_role(user, material["project_id"], min_role="editor")
     rows = await get_pool().fetch(
         """SELECT s.id, s.shared_to_project_id, p.name AS shared_to_project_name,
                   s.status, s.shared_at, s.responded_at

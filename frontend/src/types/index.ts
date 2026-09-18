@@ -490,6 +490,19 @@ export interface MaterialShare {
   responded_at: string | null
 }
 
+// 新規 GET /api/materials/shareable のitems（2026-09-18、共有申請画面のプロジェクト横断検索）。
+// 自分がプロジェクトadminである全プロジェクトの、公開済み・未アーカイブの教材を対象にする
+// （全社ライブラリの必修教材・他人が作成した任意教材は通常の教材一覧〔A-21〕には出てこなく
+// なったため、共有申請だけは別経路で検索できるようにした）。
+export interface ShareableMaterial {
+  id: number
+  title: string
+  project_id: number
+  project_name: string
+  created_by_name: string
+  is_required: boolean
+}
+
 // A-66 GET /api/projects/{id}/incoming-shares のitems（S-12教材の共有タブ、承認側一覧。F-26）
 export interface IncomingMaterialShare {
   id: number

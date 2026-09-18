@@ -47,18 +47,37 @@ async def list_assignments(
     プロジェクトに属する教材（下書き含む）のみを対象にする。管理対象が無い一般社員は0件を返す
     （画面側で「配信設定できる教材がありません」を表示する）。公開・非公開の切り替え（A-17）等の
     他の教材操作が編集者にも開放されているのに、配信設定（誰向けに必修/任意か）だけ管理者限定なのは
-    権限として非対称という指摘を受け、編集者にも開放した（2026-09-10）。"""
+    権限として非対称という指摘を受け、編集者にも開放した（2026-09-10）。
+
+    全社ライブラリはrequire_material_role/list_materials_source（A-21）と同じ基準に揃える
+    （2026-09-18、ユーザー指摘により発見・修正）。以前は「adminなら無条件で全件、editorでも
+    このプロジェクトのeditor以上なら全件」だったため、全社ライブラリの必修教材・他人が作成した
+    任意教材が一覧には見えるのに実際の保存（A-38、require_material_role）では403になる不整合が
+    あった（A-21で発見したのと同じ種類の不具合）。全社ライブラリ以外の通常プロジェクトは
+    従来通り（adminは無条件全件、editorは自分がeditor以上のプロジェクトの教材）。"""
     pool = get_pool()
     is_system_admin = user.role == "admin"
     conditions = ["m.is_archived = false"]
-    params: list = []
-    if not is_system_admin:
-        params.append(user.id)
+    params: list = [user.id]
+    user_ph = f"${len(params)}"
+    company_wide_ok = (
+        f"(m.created_by = {user_ph} OR ("
+        f"EXISTS (SELECT 1 FROM assignments a2 WHERE a2.material_id = m.id AND a2.required = true) "
+        f"AND EXISTS (SELECT 1 FROM project_memberships pmadmin WHERE pmadmin.project_id = m.project_id "
+        f"AND pmadmin.user_id = {user_ph} AND pmadmin.role = 'admin' AND pmadmin.status = 'active' "
+        f"AND pmadmin.left_at IS NULL)))"
+    )
+    if is_system_admin:
+        conditions.append(f"(NOT p.is_company_wide OR {company_wide_ok})")
+    else:
         conditions.append(
-            f"""EXISTS (
-                SELECT 1 FROM project_memberships pm
-                 WHERE pm.project_id = m.project_id AND pm.user_id = ${len(params)}
-                   AND pm.role IN ('admin', 'editor') AND pm.status = 'active' AND pm.left_at IS NULL
+            f"""(
+                (NOT p.is_company_wide AND EXISTS (
+                    SELECT 1 FROM project_memberships pm
+                     WHERE pm.project_id = m.project_id AND pm.user_id = {user_ph}
+                       AND pm.role IN ('admin', 'editor') AND pm.status = 'active' AND pm.left_at IS NULL
+                ))
+                OR (p.is_company_wide AND {company_wide_ok})
             )"""
         )
     if q:
