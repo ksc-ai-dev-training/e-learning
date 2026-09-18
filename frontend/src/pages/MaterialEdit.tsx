@@ -708,21 +708,23 @@ export default function MaterialEdit() {
           {archiving ? '復元中...' : '復元'}
         </Button>
       )}
-      {savedId !== null && !material?.is_archived && material?.status === 'published' && (
-        <Button
-          variant="danger-ghost"
-          onClick={() => setArchiveModalOpen(true)}
-          disabled={archiving || dirty}
-          title={
-            dirty
-              ? `保存していない変更があります。先に「${saveButtonLabel}」を押してください`
-              : '教材一覧・検索から非表示にします（データは削除されず、いつでも復元できます）'
-          }
-        >
-          アーカイブ
-        </Button>
-      )}
-      {savedId !== null && material?.status === 'draft' && (
+      {savedId !== null &&
+        !material?.is_archived &&
+        (material?.status === 'published' || material?.has_learning_history) && (
+          <Button
+            variant="danger-ghost"
+            onClick={() => setArchiveModalOpen(true)}
+            disabled={archiving || dirty}
+            title={
+              dirty
+                ? `保存していない変更があります。先に「${saveButtonLabel}」を押してください`
+                : '教材一覧・検索から非表示にします（データは削除されず、いつでも復元できます）'
+            }
+          >
+            アーカイブ
+          </Button>
+        )}
+      {savedId !== null && !material?.is_archived && material?.status === 'draft' && !material?.has_learning_history && (
         <Button
           variant="danger-ghost"
           onClick={() => setDeleteModalOpen(true)}
@@ -748,9 +750,12 @@ export default function MaterialEdit() {
     ...material,
     project_name: project?.name ?? '',
     is_company_wide: project?.is_company_wide ?? false,
-    // この画面（S-05）を開けている時点で編集権限は既にあるが、can_archive自体はS-06の
-    // アーカイブ・復元ボタン専用のフィールドでこのモーダル内では使わないため、型を満たすだけの値
+    // この画面（S-05）を開けている時点で編集権限は既にあるが、can_archive・has_learning_history
+    // 自体はS-06のアーカイブ・復元ボタン専用のフィールドでこのモーダル内では使わないため、
+    // 型を満たすだけの値（material.has_learning_historyはoptionalなためundefinedの可能性があり、
+    // AssignmentListItemの必須booleanと型が合わないのでここで明示的に上書きする）
     can_archive: false,
+    has_learning_history: material.has_learning_history ?? false,
     assignments: [],
   }
 
@@ -1101,9 +1106,11 @@ export default function MaterialEdit() {
               <p className="mb-3 text-sm leading-relaxed text-slate-600">
                 「{title}」を教材一覧・検索から非表示にします。目次・ページ・設問・添付ファイルは削除されず、受験記録やアンケート回答がある場合もそのまま保持されます。一覧の「状態」絞り込みで「アーカイブ済み」を選ぶといつでも一覧に戻して復元できます。
               </p>
-              <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs leading-relaxed text-red-800">
-                公開中の教材をアーカイブすると、受講者からもこの教材が見えなくなります。
-              </div>
+              {material?.status === 'published' && (
+                <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs leading-relaxed text-red-800">
+                  公開中の教材をアーカイブすると、受講者からもこの教材が見えなくなります。
+                </div>
+              )}
               <div className="flex justify-end gap-2">
                 <Button variant="secondary" onClick={() => setArchiveModalOpen(false)}>
                   キャンセル

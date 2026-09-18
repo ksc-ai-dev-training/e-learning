@@ -99,6 +99,11 @@ async def list_assignments(
     # を返す。全社ライブラリ以外の通常プロジェクトはeditorでも一覧自体には出るが、アーカイブ操作は
     # 管理者・作成者限定のため、一覧に見えるのにボタンを押すと403になる不整合（A-21・A-36で過去に
     # 見つけたのと同じ種類の不具合）を防ぐために必要（2026-09-18新設）。
+    # has_learning_history: materials.pyの_has_learning_historyと同じ判定。アーカイブ→復元を経て
+    # status='draft'に戻った教材は、受講実績があれば削除できず再アーカイブのみ可能になるため
+    # （2026-09-18、S-05で見つけた「削除もアーカイブもできない」手詰まりと同じ問題がこの一覧の
+    # アーカイブボタン表示条件〔status='published'のみ〕にも残っていたため追加）、
+    # フロントエンドがアーカイブボタンの表示条件に使う。
     rows = await pool.fetch(
         f"""SELECT m.id, m.title, m.status, m.project_id, p.name AS project_name,
                    p.is_company_wide, m.updated_at, m.is_archived,
@@ -107,7 +112,15 @@ async def list_assignments(
                         WHERE pmarchive.project_id = m.project_id AND pmarchive.user_id = $1
                           AND pmarchive.role = 'admin' AND pmarchive.status = 'active'
                           AND pmarchive.left_at IS NULL
-                   )) AS can_archive
+                   )) AS can_archive,
+                   EXISTS (
+                       SELECT 1 FROM quiz_attempts qa WHERE qa.material_id = m.id
+                       UNION ALL
+                       SELECT 1 FROM enrollment_progress ep WHERE ep.material_id = m.id
+                       UNION ALL
+                       SELECT 1 FROM survey_responses sr
+                         JOIN surveys sv ON sv.id = sr.survey_id WHERE sv.material_id = m.id
+                   ) AS has_learning_history
               FROM materials m JOIN projects p ON p.id = m.project_id
              WHERE {' AND '.join(conditions)}
              ORDER BY m.updated_at DESC""",

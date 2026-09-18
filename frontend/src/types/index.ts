@@ -401,6 +401,9 @@ export interface Material {
   // マイ学習登録（F-31）向け。A-15のみが返す（S-02実装時に追加）
   is_company_wide?: boolean
   registered?: boolean
+  // S-05のアーカイブ／削除ボタンの出し分け用。編集権限者向けアクセスのみtrue/falseが入り、
+  // 受講者向けアクセスでは常にfalse（2026-09-18追加）
+  has_learning_history?: boolean
 }
 
 export type ProjectRole = 'admin' | 'editor' | 'learner'
@@ -501,9 +504,9 @@ export interface ShareableMaterial {
   id: number
   title: string
   project_id: number
-  project_name: string
   created_by_name: string
   is_required: boolean
+  is_archived: boolean
 }
 
 // A-66 GET /api/projects/{id}/incoming-shares のitems（S-12教材の共有タブ、承認側一覧。F-26）
@@ -625,6 +628,8 @@ export interface AssignmentListItem {
   // 作成者本人、またはこの教材のプロジェクトの実際の管理者か（システムadminの無条件許可は含まない）。
   // アーカイブ・復元ボタンの表示可否に使う（2026-09-18追加）
   can_archive: boolean
+  // アーカイブ→復元でstatus='draft'に戻った教材の再アーカイブ可否判定に使う（2026-09-18追加）
+  has_learning_history: boolean
   assignments: Assignment[]
 }
 

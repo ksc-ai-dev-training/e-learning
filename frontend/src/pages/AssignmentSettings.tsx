@@ -216,7 +216,9 @@ export default function AssignmentSettings() {
                                 {archivingId === item.id ? '復元中...' : '復元'}
                               </button>
                             )}
-                            {item.can_archive && !item.is_archived && item.status === 'published' && (
+                            {item.can_archive &&
+                              !item.is_archived &&
+                              (item.status === 'published' || item.has_learning_history) && (
                               <button
                                 type="button"
                                 onClick={() => setArchiveTarget(item)}

@@ -1,0 +1,538 @@
+-- Supabase初回セットアップ用SQL（2026-09-18作成）。
+-- database.pyのSCHEMA定数（テーブル定義）+ 初期管理者・全社ライブラリ投入をまとめたもの。
+-- 使い方: 下の「YOUR_EMAIL@kogasoftware.com」「YOUR_NAME」2箇所を実際の値に書き換えてから、
+-- Supabaseダッシュボード → SQL Editor → New query に全文貼り付けて1回で実行する。
+-- 冪等（何度実行しても安全）なので、アプリ更新でこのファイルの内容が変わった場合は
+-- 差分を気にせずそのまま再実行してよい。使い捨てPostgreSQLコンテナで実際に1回目・2回目とも
+-- エラー無く実行できることを確認済み。
+
+-- T-01 users
+CREATE TABLE IF NOT EXISTS users (
+    id                  BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    email               TEXT NOT NULL UNIQUE,
+    name                TEXT NOT NULL,
+    role                TEXT NOT NULL DEFAULT 'member'
+                        CHECK (role IN ('member', 'admin')),
+    picture_url         TEXT,
+    custom_picture_key  TEXT,
+    is_active           BOOLEAN NOT NULL DEFAULT true,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+-- F-12（Slack受講催促通知）: 当初は個人ごとのOAuth連携（本人宛てDM）を実装したが、社内Slack
+-- ワークスペースのカスタムアプリ数上限により新規アプリを作成できず利用できなかった（検討資料/
+-- 20260903_Slack連携方式比較.html参照）。既存のIncoming Webhook（新規アプリ作成不要）を使い、
+-- プロジェクト単位でチャンネルへ通知する方式（下記 projects.slack_webhook_url）に置き換えた
+-- ため、個人連携用のカラムは撤去する（2026-09-04）。
+ALTER TABLE users DROP COLUMN IF EXISTS slack_user_id;
+ALTER TABLE users DROP COLUMN IF EXISTS slack_access_token;
+ALTER TABLE users DROP COLUMN IF EXISTS slack_connected_at;
+-- Claude Code連携（F-05）のCLIトークンをセルフサービスで発行できるようにするための案内画面
+-- （初回ログイン直後に一度だけ表示、スキップ可）を、まだ見せた/対応させたことがあるかの記録。
+-- NULLのまま追加するため既存ユーザーも含めて次回ログイン時に一度だけ表示される（2026-09-14）。
+ALTER TABLE users ADD COLUMN IF NOT EXISTS cli_key_prompt_seen_at TIMESTAMPTZ;
+
+-- T-03 projects
+CREATE TABLE IF NOT EXISTS projects (
+    id                  BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    name                TEXT NOT NULL,
+    description         TEXT,
+    status              TEXT NOT NULL DEFAULT 'active'
+                        CHECK (status IN ('active', 'completed')),
+    pm_user_id          BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    created_by          BIGINT NOT NULL REFERENCES users(id),
+    is_company_wide     BOOLEAN NOT NULL DEFAULT false,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
+-- F-12: このプロジェクトの必修教材リマインドを送信するIncoming Webhook URL（プロジェクト単位で
+-- 1本。Slack側でチャンネルを指定して発行したURLを、S-12プロジェクト管理から貼り付けて使う）。
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS slack_webhook_url TEXT;
+
+-- T-04 project_memberships
+CREATE TABLE IF NOT EXISTS project_memberships (
+    id                  BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    project_id          BIGINT NOT NULL REFERENCES projects(id),
+    user_id             BIGINT NOT NULL REFERENCES users(id),
+    role                TEXT NOT NULL DEFAULT 'learner'
+                        CHECK (role IN ('admin', 'editor', 'learner')),
+    assigned_by         BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    status              TEXT NOT NULL DEFAULT 'invited'
+                        CHECK (status IN ('invited', 'active', 'declined')),
+    joined_at           TIMESTAMPTZ,
+    left_at             TIMESTAMPTZ,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (project_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_project_memberships_user_id ON project_memberships(user_id);
+ALTER TABLE project_memberships ENABLE ROW LEVEL SECURITY;
+
+-- T-06 materials（教材）
+CREATE TABLE IF NOT EXISTS materials (
+    id                      BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    project_id              BIGINT NOT NULL REFERENCES projects(id),
+    title                   TEXT NOT NULL,
+    description             TEXT,
+    tags                    JSONB NOT NULL DEFAULT '[]',
+    created_by              BIGINT NOT NULL REFERENCES users(id),
+    status                  TEXT NOT NULL DEFAULT 'draft'
+                            CHECK (status IN ('draft', 'published')),
+    sort_order              INTEGER NOT NULL DEFAULT 0,
+    attempt_scope           TEXT NOT NULL DEFAULT 'material'
+                            CHECK (attempt_scope IN ('material', 'chapter', 'section', 'page')),
+    retake_scope            TEXT NOT NULL DEFAULT 'all'
+                            CHECK (retake_scope IN ('all', 'wrong_only')),
+    pass_score_pct          NUMERIC(5, 2),
+    retake_allowed          BOOLEAN NOT NULL DEFAULT true,
+    retake_limit            INTEGER,
+    default_feedback_style  TEXT NOT NULL DEFAULT 'show_answer'
+                            CHECK (default_feedback_style IN ('show_answer', 'review_only', 'hint_only')),
+    ai_context              TEXT,
+    grading_mode            TEXT NOT NULL DEFAULT 'ai'
+                            CHECK (grading_mode IN ('ai', 'manual')),
+    is_archived             BOOLEAN NOT NULL DEFAULT false,
+    archived_at             TIMESTAMPTZ,
+    archived_by             BIGINT REFERENCES users(id),
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at              TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_materials_project_id ON materials(project_id);
+CREATE INDEX IF NOT EXISTS idx_materials_tags ON materials USING GIN (tags jsonb_path_ops);
+ALTER TABLE materials ENABLE ROW LEVEL SECURITY;
+ALTER TABLE materials ADD COLUMN IF NOT EXISTS pass_score_pct NUMERIC(5, 2);
+ALTER TABLE materials ADD COLUMN IF NOT EXISTS retake_allowed BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE materials ADD COLUMN IF NOT EXISTS retake_limit INTEGER;
+
+-- T-23 material_nodes（教材の目次ノード: 章・小見出し・ページの自己参照ツリー）
+CREATE TABLE IF NOT EXISTS material_nodes (
+    id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    material_id     BIGINT NOT NULL REFERENCES materials(id) ON DELETE CASCADE,
+    parent_node_id  BIGINT REFERENCES material_nodes(id) ON DELETE CASCADE,
+    title           TEXT NOT NULL,
+    kind            TEXT NOT NULL CHECK (kind IN ('chapter', 'section', 'page')),
+    sort_order      INTEGER NOT NULL DEFAULT 0,
+    content_kind    TEXT CHECK (content_kind IS NULL OR content_kind IN ('explanation', 'quiz', 'mixed')),
+    format          TEXT CHECK (format IS NULL OR format IN ('markdown', 'html')),
+    body            TEXT,
+    quiz_mode       TEXT NOT NULL DEFAULT 'all' CHECK (quiz_mode IN ('all', 'pool')),
+    pool_draw_count INTEGER,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CHECK (kind <> 'chapter' OR parent_node_id IS NULL)
+);
+CREATE INDEX IF NOT EXISTS idx_material_nodes_tree
+    ON material_nodes (material_id, parent_node_id, sort_order);
+ALTER TABLE material_nodes ENABLE ROW LEVEL SECURITY;
+
+-- T-10 questions（問題）
+CREATE TABLE IF NOT EXISTS questions (
+    id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    material_id     BIGINT NOT NULL REFERENCES materials(id) ON DELETE CASCADE,
+    node_id         BIGINT NOT NULL REFERENCES material_nodes(id) ON DELETE CASCADE,
+    type            TEXT NOT NULL CHECK (type IN ('single', 'multi', 'free_text', 'code', 'reorder', 'score_log')),
+    prompt          TEXT NOT NULL,
+    options         JSONB,
+    correct_answer  JSONB,
+    scoring_criteria TEXT,
+    code_language   TEXT,
+    sort_order      INTEGER NOT NULL DEFAULT 0,
+    required        BOOLEAN NOT NULL DEFAULT true,
+    is_critical     BOOLEAN NOT NULL DEFAULT false,
+    feedback_style  TEXT CHECK (feedback_style IS NULL OR feedback_style IN ('show_answer', 'review_only', 'hint_only')),
+    pool_group_id   BIGINT REFERENCES questions(id) ON DELETE SET NULL,
+    score_unit      TEXT,
+    grading_mode    TEXT CHECK (grading_mode IS NULL OR grading_mode IN ('ai', 'manual')),
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_questions_node_sort ON questions (node_id, sort_order);
+CREATE INDEX IF NOT EXISTS idx_questions_pool_group_id ON questions (pool_group_id);
+ALTER TABLE questions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE questions ADD COLUMN IF NOT EXISTS counted BOOLEAN NOT NULL DEFAULT true;
+
+-- T-11 assignments（配信設定）。S-06（配信設定画面、A-36〜A-38）で実際に作成・編集される他、
+-- S-03「区分」バッジ・「未受講のみ」等のフィルタも参照する。
+-- scope_typeは当初'company'/'project'/'individual'の3種だったが、'company'（全社スコープ）はプロジェクト
+-- 管理者が実質的な全社必修を作れてしまう抜け道があったため2026-08-28に廃止し、'project'/'individual'の
+-- 2種に簡素化した（プロジェクトスコープは常にmaterials.project_idと同値に固定。基本設計書5.9節参照）。
+CREATE TABLE IF NOT EXISTS assignments (
+    id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    material_id     BIGINT NOT NULL REFERENCES materials(id) ON DELETE CASCADE,
+    scope_type      TEXT NOT NULL CHECK (scope_type IN ('project', 'individual')),
+    scope_id        BIGINT NOT NULL,
+    required        BOOLEAN NOT NULL DEFAULT true,
+    due_at          TIMESTAMPTZ,
+    created_by      BIGINT NOT NULL REFERENCES users(id),
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_assignments_material_id ON assignments (material_id);
+ALTER TABLE assignments ENABLE ROW LEVEL SECURITY;
+-- pass_score_pct・retake_allowed・retake_limitは配信設定（S-06）の画面に該当UIが無く、書き込み経路が
+-- 一度も実装されなかった死んだカラムだったため撤去し、代わりに教材全体で1つに決まる設定として
+-- materials側へ移設した（S-05「合否判定・再受験設定」に実際のUIを新設。2026-09-11）。
+ALTER TABLE assignments DROP COLUMN IF EXISTS pass_score_pct;
+ALTER TABLE assignments DROP COLUMN IF EXISTS retake_allowed;
+ALTER TABLE assignments DROP COLUMN IF EXISTS retake_limit;
+
+-- T-12 enrollment_progress（受講進捗）。S-16（受講API、A-39〜A-44）で実際に更新される他、
+-- S-03「未受講のみ表示」フィルタ・一覧の受講状況表示も参照する
+CREATE TABLE IF NOT EXISTS enrollment_progress (
+    id                  BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    user_id             BIGINT NOT NULL REFERENCES users(id),
+    material_id         BIGINT NOT NULL REFERENCES materials(id) ON DELETE CASCADE,
+    status              TEXT NOT NULL DEFAULT 'not_started'
+                        CHECK (status IN ('not_started', 'in_progress', 'completed')),
+    current_node_id     BIGINT REFERENCES material_nodes(id) ON DELETE SET NULL,
+    completed_node_ids  JSONB NOT NULL DEFAULT '[]',
+    visited_node_ids    JSONB NOT NULL DEFAULT '[]',
+    reset_at            TIMESTAMPTZ,
+    started_at          TIMESTAMPTZ,
+    completed_at        TIMESTAMPTZ,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (user_id, material_id)
+);
+ALTER TABLE enrollment_progress ENABLE ROW LEVEL SECURITY;
+-- visited_node_ids: 目次の✓マーク用「閲覧済み」記録（合否判定用のcompleted_node_idsとは別物。
+-- 「次のページへ」を押して読み進めた時点で追加され、合否・完了率の集計には使わない。2026-09-03追加）
+ALTER TABLE enrollment_progress ADD COLUMN IF NOT EXISTS visited_node_ids JSONB NOT NULL DEFAULT '[]';
+-- reset_at: A-95「未受講に戻す」が押された時刻。quiz_attempts/answersは消さない方針
+-- （学習記録は失われない）のため、A-40が「合格済みスコープは閲覧専用で再利用する」際に
+-- リセット前の古い合格記録を再利用してしまわないよう判定に使う（2026-09-03追加）。
+ALTER TABLE enrollment_progress ADD COLUMN IF NOT EXISTS reset_at TIMESTAMPTZ;
+
+-- T-30 my_learning_registrations（マイ学習登録、F-31）。全社ライブラリ所属の任意教材は、本人がここに
+-- 登録しない限りA-39（マイ学習一覧）に表示しない（招待制プロジェクトの任意教材・必修教材は対象外）
+CREATE TABLE IF NOT EXISTS my_learning_registrations (
+    id           BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    user_id      BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    material_id  BIGINT NOT NULL REFERENCES materials(id) ON DELETE CASCADE,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (user_id, material_id)
+);
+ALTER TABLE my_learning_registrations ENABLE ROW LEVEL SECURITY;
+
+-- T-13 quiz_attempts（受験記録）。S-04/S-16（受講・受験API、A-39〜A-44）で実際に記録される他、
+-- S-05「問題一覧」タブ・S-19・S-20も集計に参照する
+CREATE TABLE IF NOT EXISTS quiz_attempts (
+    id                        BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    user_id                   BIGINT NOT NULL REFERENCES users(id),
+    material_id               BIGINT NOT NULL REFERENCES materials(id) ON DELETE CASCADE,
+    scope_node_id             BIGINT REFERENCES material_nodes(id) ON DELETE CASCADE,
+    mode                      TEXT NOT NULL CHECK (mode IN ('graded', 'practice')),
+    attempt_no                INTEGER NOT NULL DEFAULT 1,
+    score_pct                 NUMERIC,
+    passed                    BOOLEAN,
+    fail_reason               TEXT,
+    question_order            JSONB,
+    carried_over_question_ids JSONB,
+    started_at                TIMESTAMPTZ NOT NULL DEFAULT now(),
+    submitted_at              TIMESTAMPTZ,
+    practice_kind             TEXT CHECK (practice_kind IN ('repeat', 'wrong_only'))
+);
+-- (user_id, material_id, mode, scope_node_id, practice_kind)の組でsubmitted_at IS NULLな行を
+-- 高々1件に保つ。A-40がINSERT ... ON CONFLICTでこれを対象にし、「無ければ作る・あれば取得する」を
+-- アトミックに行う（StrictModeのエフェクト二重発火・二重クリック等で同一スコープの未提出試行が
+-- 2件作られる不具合の防止）。practice_kindは反復演習（'repeat'）と誤答のみ抽出（'wrong_only'）を
+-- 区別するために追加した。両方ともmode='practice', scope_node_id=NULLで区別が付かず、
+-- 一方が進行中にもう一方を開始しようとすると本インデックスに衝突していた不具合を発見・修正した
+-- （A-44実装時、2026-08-31）。
+DROP INDEX IF EXISTS uq_quiz_attempts_active;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_quiz_attempts_active
+    ON quiz_attempts (user_id, material_id, mode, scope_node_id, practice_kind) NULLS NOT DISTINCT
+    WHERE submitted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_quiz_attempts_material_id ON quiz_attempts (material_id);
+CREATE INDEX IF NOT EXISTS idx_quiz_attempts_user_id ON quiz_attempts (user_id);
+ALTER TABLE quiz_attempts ENABLE ROW LEVEL SECURITY;
+
+-- T-32 attempt_limit_resets（REQ-F-09/F-14: 再受験回数上限のリセット）。quiz_attemptsは
+-- 学習記録として削除しないため（学習記録は失われない、という一貫方針）、上限に達した後に
+-- 「あと何回まで解き直せるか」を回復させる手段として、このテーブルに記録した時刻より後の
+-- 提出済み受験記録のみを回数カウントの対象にする。対象プロジェクトのadmin、またはシステムadmin
+-- のみが操作できる（プロジェクト管理S-12「メンバー管理」タブから、2026-09-03検討）。
+CREATE TABLE IF NOT EXISTS attempt_limit_resets (
+    id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    user_id       BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    material_id   BIGINT NOT NULL REFERENCES materials(id) ON DELETE CASCADE,
+    scope_node_id BIGINT REFERENCES material_nodes(id) ON DELETE SET NULL,
+    reset_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    reset_by      BIGINT NOT NULL REFERENCES users(id)
+);
+CREATE INDEX IF NOT EXISTS idx_attempt_limit_resets_lookup
+    ON attempt_limit_resets (user_id, material_id, scope_node_id);
+ALTER TABLE attempt_limit_resets ENABLE ROW LEVEL SECURITY;
+
+-- T-14 answers（回答）。grading_mode='manual'の設問はis_correct・ai_score_pct・ai_feedbackが
+-- reviewed_by設定（S-20の採点操作）まで常にNULLのまま（「未採点」、5.20節）
+CREATE TABLE IF NOT EXISTS answers (
+    id             BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    attempt_id     BIGINT NOT NULL REFERENCES quiz_attempts(id) ON DELETE CASCADE,
+    question_id    BIGINT NOT NULL REFERENCES questions(id) ON DELETE CASCADE,
+    response       JSONB,
+    is_correct     BOOLEAN,
+    ai_score_pct   NUMERIC,
+    ai_feedback    TEXT,
+    reviewed_by    BIGINT REFERENCES users(id),
+    reviewed_at    TIMESTAMPTZ,
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (attempt_id, question_id)
+);
+CREATE INDEX IF NOT EXISTS idx_answers_attempt_id ON answers (attempt_id);
+CREATE INDEX IF NOT EXISTS idx_answers_question_id ON answers (question_id);
+ALTER TABLE answers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE answers ADD COLUMN IF NOT EXISTS result_seen_at TIMESTAMPTZ;
+-- S-20採点画面の「教材×受講者×提出日」単位まとめ採点（F-32）用。手動採点の判断を一旦下書きとして
+-- 保存できるようにする列。is_correct/ai_feedback（受講者にも見える本採用の値）とは別に持たせる。
+-- is_correctは値がNULLかどうかだけで受講者側の「採点中」表示が切り替わる仕様のため、下書き中の
+-- 判断をis_correctへ直接書くと、その場で受講者に正誤が漏れてしまう（2026-09-15、実装前レビューで
+-- 発見）。受験記録内の対象設問がすべて下書き入力済みになって「送信」されたときに初めて、
+-- draft_is_correct/draft_ai_feedbackの内容をis_correct/ai_feedbackへコピーし、reviewed_by・
+-- reviewed_atを設定する（backend/routers/learning.pyのfinalize_attempt_grading参照）。
+ALTER TABLE answers ADD COLUMN IF NOT EXISTS draft_is_correct BOOLEAN;
+ALTER TABLE answers ADD COLUMN IF NOT EXISTS draft_ai_feedback TEXT;
+
+-- T-19 ai_usage_logs（AI利用ログ）。F-08/F-20〜F-23共通で`ai_client.py`が呼び出しのたびに1行書き込む。
+-- 質問・回答の内容そのものは保存しない（Keireki T-09と同方針）
+CREATE TABLE IF NOT EXISTS ai_usage_logs (
+    id             BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    user_id        BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    feature        TEXT NOT NULL
+                   CHECK (feature IN ('material_review', 'grading', 'personal_feedback', 'org_report')),
+    model          TEXT NOT NULL,
+    input_tokens   INTEGER NOT NULL DEFAULT 0,
+    output_tokens  INTEGER NOT NULL DEFAULT 0,
+    cost_estimate  NUMERIC(10, 6) NOT NULL DEFAULT 0,
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_ai_usage_logs_created_at_feature ON ai_usage_logs (created_at, feature);
+ALTER TABLE ai_usage_logs ENABLE ROW LEVEL SECURITY;
+
+-- T-15 ai_material_reviews（AI教材レビュー結果、F-08）。追記専用（updated_atを持たない）
+CREATE TABLE IF NOT EXISTS ai_material_reviews (
+    id             BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    material_id    BIGINT NOT NULL REFERENCES materials(id) ON DELETE CASCADE,
+    requested_by   BIGINT NOT NULL REFERENCES users(id),
+    findings       JSONB NOT NULL,
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_ai_material_reviews_material_id ON ai_material_reviews (material_id, created_at DESC);
+ALTER TABLE ai_material_reviews ENABLE ROW LEVEL SECURITY;
+
+-- T-09 material_attachments（添付ファイル・リンク）
+CREATE TABLE IF NOT EXISTS material_attachments (
+    id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    material_id   BIGINT NOT NULL REFERENCES materials(id) ON DELETE CASCADE,
+    node_id       BIGINT REFERENCES material_nodes(id) ON DELETE CASCADE,
+    kind          TEXT NOT NULL CHECK (kind IN ('file', 'link')),
+    storage_key   TEXT,
+    external_url  TEXT,
+    filename      TEXT NOT NULL,
+    mime_type     TEXT,
+    size_bytes    BIGINT,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CHECK ((kind = 'file' AND storage_key IS NOT NULL AND external_url IS NULL)
+        OR (kind = 'link' AND external_url IS NOT NULL AND storage_key IS NULL))
+);
+CREATE INDEX IF NOT EXISTS idx_material_attachments_material_id
+    ON material_attachments (material_id, node_id);
+ALTER TABLE material_attachments ENABLE ROW LEVEL SECURITY;
+
+-- T-08 material_revisions（教材改訂履歴。追記専用）
+CREATE TABLE IF NOT EXISTS material_revisions (
+    id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    material_id     BIGINT NOT NULL REFERENCES materials(id) ON DELETE CASCADE,
+    source_snapshot TEXT NOT NULL,
+    changed_by      BIGINT NOT NULL REFERENCES users(id),
+    changed_via     TEXT NOT NULL CHECK (changed_via IN ('web', 'claude_code')),
+    change_summary  TEXT,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_material_revisions_material_id
+    ON material_revisions (material_id, created_at DESC);
+ALTER TABLE material_revisions ENABLE ROW LEVEL SECURITY;
+-- MCPサーバー（backend/mcp_server.py）経由のput_material_sourceを、Claude Code CLI直接連携
+-- （'claude_code'）と区別して記録できるようにする（2026-09-14）。
+ALTER TABLE material_revisions DROP CONSTRAINT IF EXISTS material_revisions_changed_via_check;
+ALTER TABLE material_revisions ADD CONSTRAINT material_revisions_changed_via_check
+    CHECK (changed_via IN ('web', 'claude_code', 'mcp'));
+
+-- T-26 surveys（受講後アンケート。node_id=NULLは教材全体、設定時は対象の章）
+CREATE TABLE IF NOT EXISTS surveys (
+    id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    material_id   BIGINT NOT NULL REFERENCES materials(id) ON DELETE CASCADE,
+    node_id       BIGINT REFERENCES material_nodes(id) ON DELETE CASCADE,
+    title         TEXT NOT NULL,
+    is_active     BOOLEAN NOT NULL DEFAULT true,
+    repeat_mode   TEXT NOT NULL DEFAULT 'once' CHECK (repeat_mode IN ('once', 'every_time')),
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (material_id, node_id)
+);
+ALTER TABLE surveys ENABLE ROW LEVEL SECURITY;
+
+-- T-27 survey_questions（アンケート設問。T-10と異なりcorrect_answerを持たない）
+CREATE TABLE IF NOT EXISTS survey_questions (
+    id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    survey_id   BIGINT NOT NULL REFERENCES surveys(id) ON DELETE CASCADE,
+    type        TEXT NOT NULL CHECK (type IN ('rating_5', 'single_choice', 'free_text')),
+    prompt      TEXT NOT NULL,
+    options     JSONB,
+    sort_order  INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_survey_questions_survey_id ON survey_questions (survey_id, sort_order);
+ALTER TABLE survey_questions ENABLE ROW LEVEL SECURITY;
+
+-- T-28 survey_responses（アンケート回答ヘッダー。匿名運用も想定しuser_idはnullable）
+CREATE TABLE IF NOT EXISTS survey_responses (
+    id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    survey_id     BIGINT NOT NULL REFERENCES surveys(id) ON DELETE CASCADE,
+    user_id       BIGINT REFERENCES users(id),
+    submitted_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_survey_responses_survey_id ON survey_responses (survey_id);
+ALTER TABLE survey_responses ENABLE ROW LEVEL SECURITY;
+
+-- T-29 survey_answers（アンケート回答：設問ごと）
+CREATE TABLE IF NOT EXISTS survey_answers (
+    id                  BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    response_id         BIGINT NOT NULL REFERENCES survey_responses(id) ON DELETE CASCADE,
+    survey_question_id  BIGINT NOT NULL REFERENCES survey_questions(id) ON DELETE CASCADE,
+    value               JSONB NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_survey_answers_response_id ON survey_answers (response_id);
+ALTER TABLE survey_answers ENABLE ROW LEVEL SECURITY;
+
+-- T-31 cli_token_revocations（A-63で失効させたCLIトークンのjtiを記録。JWT自体はステートレスな
+-- ため、失効を表現するにはサーバー側にこの一覧を持つ必要がある。詳細設計書7.1節）
+CREATE TABLE IF NOT EXISTS cli_token_revocations (
+    jti         TEXT PRIMARY KEY,
+    user_id     BIGINT NOT NULL REFERENCES users(id),
+    revoked_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE cli_token_revocations ENABLE ROW LEVEL SECURITY;
+
+-- T-33 cli_tokens（発行済みCLIトークンの記録。cli_token_revocationsが「失効させたもの」だけを
+-- 持つのに対し、こちらは「発行したもの全て」を持つ。セルフサービスの鍵一覧・個別失効UI
+-- （プロフィール画面）のために新設。JWT自体はステートレスなためトークンの中身は保存せず、
+-- 識別に使うjtiと発行時刻のみ持つ。失効しているかどうかは、この行が持つ独自のフラグではなく、
+-- 常にcli_token_revocations（jtiで突き合わせ）を正とする＝二重管理・食い違いを防ぐ（2026-09-14）。
+CREATE TABLE IF NOT EXISTS cli_tokens (
+    id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    user_id     BIGINT NOT NULL REFERENCES users(id),
+    jti         TEXT NOT NULL UNIQUE,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_cli_tokens_user_id ON cli_tokens (user_id);
+ALTER TABLE cli_tokens ENABLE ROW LEVEL SECURITY;
+
+-- T-22 material_project_shares（F-26 教材のプロジェクト間共有。複製モデル、基本設計書5.27節）。
+-- statusが'accepted'になった時点で共有先プロジェクトへ教材の複製が新規作成される（この行自体は
+-- 複製先教材への参照を持たない。複製後は独立した教材のため、以後この行は履歴として残るのみ）。
+CREATE TABLE IF NOT EXISTS material_project_shares (
+    id                    BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    material_id           BIGINT NOT NULL REFERENCES materials(id) ON DELETE CASCADE,
+    shared_to_project_id  BIGINT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    shared_by             BIGINT NOT NULL REFERENCES users(id),
+    shared_at             TIMESTAMPTZ NOT NULL DEFAULT now(),
+    status                TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'rejected')),
+    responded_by          BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    responded_at          TIMESTAMPTZ,
+    UNIQUE (material_id, shared_to_project_id)
+);
+CREATE INDEX IF NOT EXISTS idx_material_project_shares_shared_to
+    ON material_project_shares (shared_to_project_id);
+ALTER TABLE material_project_shares ENABLE ROW LEVEL SECURITY;
+
+-- T-21 app_settings（システム設定。S-10「システム設定」タブ、A-55〜A-57・A-80）。他の
+-- テーブルと異なりidのIDENTITY列を持たず、設定キーそのものを主キーとする。行が無いキーは
+-- API側で環境変数・固定値へフォールバックする（03_テーブル定義.html「キー一覧」参照）。
+CREATE TABLE IF NOT EXISTS app_settings (
+    key         TEXT PRIMARY KEY,
+    value_text  TEXT,
+    updated_by  BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE app_settings ENABLE ROW LEVEL SECURITY;
+
+-- T-17 ai_personal_feedback（F-22 AI個人フィードバック。S-09個人学習レポート、A-51/A-52）。
+-- 非同期ジョブ方式（8.2節）: requested_atのみのプレースホルダ行をまず同期的に作成し、contentは
+-- ジョブ完了時に設定する。content未設定＝処理中／404、設定済み＝完了／200の判定に使う。
+CREATE TABLE IF NOT EXISTS ai_personal_feedback (
+    id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    user_id       BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    requested_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    content       TEXT,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_ai_personal_feedback_user_id ON ai_personal_feedback (user_id, created_at DESC);
+ALTER TABLE ai_personal_feedback ENABLE ROW LEVEL SECURITY;
+
+-- T-18 ai_org_reports（F-23 AI組織レポート。S-08受講状況ダッシュボード、A-48/A-49）。
+-- ai_personal_feedbackと同じ非同期ジョブ方式（8.2節）。scope_type='company'の全社スコープは
+-- scope_id無し、'project'はscope_idにprojects.idを持つ（詳細設計書T-18）。
+CREATE TABLE IF NOT EXISTS ai_org_reports (
+    id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    scope_type    TEXT NOT NULL CHECK (scope_type IN ('company', 'project')),
+    scope_id      BIGINT REFERENCES projects(id) ON DELETE CASCADE,
+    requested_by  BIGINT NOT NULL REFERENCES users(id),
+    requested_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    content       TEXT,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CHECK (scope_type = 'company' OR scope_id IS NOT NULL)
+);
+CREATE INDEX IF NOT EXISTS idx_ai_org_reports_scope ON ai_org_reports (scope_type, scope_id, created_at DESC);
+ALTER TABLE ai_org_reports ENABLE ROW LEVEL SECURITY;
+
+-- 全社ライブラリのadminをシステムadminへ実データとして付与する（2026-09-17、権限モデル整理）。
+-- 従来は「全社ライブラリは構造上adminロールを誰にも付与できず、コード側のバイパス（user.role=='admin'は
+-- 無条件許可）で運用していたが、このバイパスを撤去する方針にしたため、システムadminは全社ライブラリの
+-- adminメンバーシップを実際に持つ必要がある。以後の管理者の追加・変更は全社ライブラリであっても通常の
+-- メンバー管理（プロジェクトadminのみが付与可、organization.py参照）に従う。冪等なUPDATE/INSERTの
+-- ため、システムadminが増える・全社ライブラリの初回参加が遅れる等があっても起動のたびに再実行して問題ない。
+UPDATE project_memberships pm
+SET role = 'admin', updated_at = now()
+FROM users u, projects p
+WHERE pm.user_id = u.id AND pm.project_id = p.id
+  AND u.role = 'admin' AND p.is_company_wide = true
+  AND pm.status = 'active' AND pm.role != 'admin';
+
+INSERT INTO project_memberships (project_id, user_id, role, status, joined_at)
+SELECT p.id, u.id, 'admin', 'active', now()
+FROM users u, projects p
+WHERE u.role = 'admin' AND p.is_company_wide = true
+  AND NOT EXISTS (
+    SELECT 1 FROM project_memberships pm2 WHERE pm2.project_id = p.id AND pm2.user_id = u.id
+  );
+
+-- =========================================================================
+-- 初回セットアップ（Supabaseへの初回投入時に1回だけ実行する部分）。
+-- 上のCREATE TABLE群と同様に冪等（何度実行してもエラーにならず、既存データを壊さない）。
+-- 実行前に、下記2箇所のメールアドレス・氏名を実際の値に書き換えること。
+-- =========================================================================
+
+-- (1) 最初のシステム管理者を作成する（まだGoogleログインしていなくてもここで先に作れる。
+--     実際にそのメールアドレスでGoogleログインすると、このユーザー行にひも付く）
+INSERT INTO users (email, name, role)
+VALUES ('YOUR_EMAIL@kogasoftware.com', 'YOUR_NAME', 'admin')
+ON CONFLICT (email) DO UPDATE SET role = 'admin';
+
+-- (2) 全社ライブラリプロジェクトを作成する（is_company_wide=trueの行は通常のプロジェクト作成
+--     画面からは作れず、ここで1回だけ投入する必要がある。既に存在する場合は何もしない）
+INSERT INTO projects (name, created_by, is_company_wide)
+SELECT '全社ライブラリ', u.id, true
+FROM users u
+WHERE u.email = 'YOUR_EMAIL@kogasoftware.com'
+  AND NOT EXISTS (SELECT 1 FROM projects WHERE is_company_wide = true);
+
+-- (3) (1)の管理者を、全社ライブラリの実際のプロジェクト管理者にする
+INSERT INTO project_memberships (project_id, user_id, role, status, joined_at)
+SELECT p.id, u.id, 'admin', 'active', now()
+FROM projects p, users u
+WHERE p.is_company_wide = true AND u.email = 'YOUR_EMAIL@kogasoftware.com'
+ON CONFLICT (project_id, user_id) DO UPDATE SET role = 'admin', status = 'active', left_at = NULL;

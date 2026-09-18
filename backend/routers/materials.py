@@ -510,13 +510,25 @@ def _count_pages(nodes: list[dict]) -> int:
 
 
 @detail_router.get("/shareable")
-async def search_shareable_materials(q: str | None = None, user: CurrentUser = Depends(require_auth)):
-    """新規（2026-09-18）: 共有申請（A-60）の対象教材を、自分がプロジェクトadminであるプロジェクト
-    全体から横断検索する。全社ライブラリの必修教材・他人が作成した任意教材は通常の教材一覧
-    （A-21、list_materials_source）には出てこなくなったため（require_material_roleと同じ基準に
-    揃えたため）、共有機能は「プロジェクトadminなら誰の教材でも共有できる」という元々の仕様
-    （A-60）を実際に使うための入口が別途必要になった。プロジェクトを問わず、自分が管理者である
-    全プロジェクトの教材を対象にする（他人が管理者のプロジェクトの教材は出さない）。
+async def search_shareable_materials(
+    project_id: int, q: str | None = None, include_archived: bool = False,
+    user: CurrentUser = Depends(require_auth),
+):
+    """共有申請（A-60、S-12「教材の共有」タブ「このプロジェクトから申請した共有」）の対象教材検索。
+    指定したproject_idに属する公開済み教材を、作成者・必修/任意を問わず対象にする（元々の仕様
+    「プロジェクトadminなら誰の教材でも共有できる」〔A-60〕を実際に使うための入口。通常の教材編集
+    一覧・検索、A-21のlist_materials_sourceは全社ライブラリの任意教材を作成者本人のみに絞っている
+    ため、それとは別にこちらを用意する必要がある）。
+
+    2026-09-18: 当初「自分が管理者である全プロジェクトを横断検索する」実装だったが、ユーザーの
+    意図は「プロジェクトに関係なく（＝どのプロジェクトを見ていても同じように）、そのプロジェクトに
+    属する教材を共有できるように」であり、「複数プロジェクトをまたいで検索する」という意味では
+    なかったと判明したため、project_id必須のプロジェクト単位検索に修正した（元の横断検索UI
+    〔ShareSearchSection〕は撤去し、「このプロジェクトから申請した共有」の検索窓として統合）。
+
+    include_archived（既定false）はA-21のlist_materials_sourceと同じ意味。既定でアーカイブ済み
+    教材を除外するのは、共有は今後も使い続ける教材を前提とした操作であり、非表示にした教材が
+    検索結果に混ざると誤って共有してしまう恐れがあるため（2026-09-18、ユーザー要望により追加）。
 
     「/{id}」（id: intの文字列プレースホルダ）より前に登録する必要がある（2026-09-18、実装時に
     発見・修正）。FastAPI/Starletteはパス中の`{id}`をルーティング段階では単なる文字列ワイルド
@@ -524,26 +536,21 @@ async def search_shareable_materials(q: str | None = None, user: CurrentUser = D
     `/{id}`が先に登録されていると`/materials/shareable`もまずそちらにマッチしてしまい、
     「shareableをintとして解釈できない」という422エラーになる。"""
     pool = get_pool()
-    conditions = [
-        """EXISTS (
-            SELECT 1 FROM project_memberships pm
-            WHERE pm.project_id = m.project_id AND pm.user_id = $1
-              AND pm.status = 'active' AND pm.left_at IS NULL AND pm.role = 'admin'
-        )""",
-        "m.is_archived = false",
-        "m.status = 'published'",
-    ]
-    params: list = [user.id]
+    if not await has_active_project_role(project_id, user.id, "admin"):
+        raise HTTPException(403, detail="この操作を行う権限がありません")
+    conditions = ["m.project_id = $1", "m.status = 'published'"]
+    params: list = [project_id]
+    if not include_archived:
+        conditions.append("m.is_archived = false")
     if q:
         params.append(f"%{q}%")
         conditions.append(f"m.title ILIKE ${len(params)}")
     rows = await pool.fetch(
-        f"""SELECT m.id, m.title, m.project_id, p.name AS project_name, u.name AS created_by_name,
+        f"""SELECT m.id, m.title, m.project_id, u.name AS created_by_name, m.is_archived,
                    EXISTS (
                        SELECT 1 FROM assignments a WHERE a.material_id = m.id AND a.required = true
                    ) AS is_required
             FROM materials m
-            JOIN projects p ON p.id = m.project_id
             JOIN users u ON u.id = m.created_by
             WHERE {" AND ".join(conditions)}
             ORDER BY m.updated_at DESC
@@ -568,6 +575,13 @@ async def get_material(id: int, user: CurrentUser = Depends(require_auth)):
         id,
     )
     tree = await _fetch_tree(pool, id, strip_answers=not perm_row["is_editor"])
+    # S-05のアーカイブ/削除ボタンの出し分け用（編集権限者のみ計算し、受講者向けアクセスでは
+    # 無駄なクエリを避ける）。下書きに受講実績がある場合（アーカイブ→復元を経た教材）は
+    # 削除できず、代わりにアーカイブできる必要があるため、フロントエンドがこのフラグで
+    # 削除／アーカイブどちらのボタンを出すか判断する（2026-09-18、ユーザー報告により発見:
+    # アーカイブ→復元→下書きの教材が「削除も不可・アーカイブも不可（下書きのため）」という
+    # 手詰まりになっていた）。
+    has_learning_history = await _has_learning_history(pool, id) if perm_row["is_editor"] else False
 
     # S-04向け: 必修/任意・期限（自分に適用される配信設定のうち、必修優先・期限が近い順で1件に要約）
     assignment = await pool.fetchrow(
@@ -614,6 +628,7 @@ async def get_material(id: int, user: CurrentUser = Depends(require_auth)):
         "page_count": _count_pages(tree),
         "is_company_wide": perm_row["is_company_wide"],
         "registered": registered,
+        "has_learning_history": has_learning_history,
     }
 
 
@@ -659,12 +674,20 @@ async def _require_owner_or_project_admin(pool, id: int, user: CurrentUser) -> d
 async def archive_material(id: int, user: CurrentUser = Depends(require_material_role(min_role="editor"))):
     """新規（A-84）: 教材のソフトデリート（アーカイブ）。目次・ページ・設問・添付ファイル・
     受験記録・アンケート回答は削除せず、一覧・検索（A-14/A-15/A-21）から除外するのみ。
-    「復元」（A-85）でいつでも元に戻せる。下書き（status='draft'）は対象外とし、代わりに
+    「復元」（A-85）でいつでも元に戻せる。下書き（status='draft'）は原則対象外とし、代わりに
     物理削除（A-18）を案内する（下書きは一度も公開していないため、アーカイブという
-    “消せない置き場”を経由する必要が無い）。"""
+    “消せない置き場”を経由する必要が無い）。
+
+    ただし受講実績（_has_learning_history）がある下書きは例外的にアーカイブできる
+    （2026-09-18、ユーザー報告により発見・修正）。A-85（復元）は必ずstatus='draft'に戻す仕様の
+    ため、一度公開されて受講実績のある教材がアーカイブ→復元を経由するとstatus='draft'になり、
+    かつA-18（物理削除）は受講実績があるため拒否する。この状態のままだと「削除もアーカイブも
+    できない」手詰まりになっていたため、受講実績がある場合に限りdraftのままでも再アーカイブを
+    許可する（本来「一度も公開していない」ことを前提にした本来の除外条件を、実際にそうである
+    ケース＝受講実績が無い場合だけに絞った）。"""
     pool = get_pool()
     row = await _require_owner_or_project_admin(pool, id, user)
-    if row["status"] != "published":
+    if row["status"] != "published" and not await _has_learning_history(pool, id):
         raise HTTPException(
             400, detail="下書きはアーカイブできません。不要な場合は削除をご利用ください"
         )

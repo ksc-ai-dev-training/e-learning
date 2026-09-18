@@ -1011,22 +1011,36 @@ function SharingTab({ projectId, canManage }: { projectId: number; canManage: bo
 
 function ShareSearchSection({ currentProjectId }: { currentProjectId: number }) {
   const [query, setQuery] = useState('')
-  const { items: allItems, isLoading } = useShareableMaterials(query)
-  // 現在のプロジェクトの教材は下のOutgoingSharesSectionに既に出ているため、ここでは除外する
-  const items = allItems.filter((m) => m.project_id !== currentProjectId)
+  const [includeArchived, setIncludeArchived] = useState(false)
+  // 2026-09-18: 当初はプロジェクト横断で検索する実装だったが、意図は「プロジェクトに関係なく
+  // （＝どのプロジェクトを見ていても同じように）、そのプロジェクトに属する教材を検索できる」ことで
+  // あり、複数プロジェクトをまたいで検索する話ではなかったため修正した。作成者・必修/任意を
+  // 問わずこのプロジェクトの教材を対象にする点は変わらない（A-21〔教材一覧・検索、S-14〕は
+  // 全社ライブラリの任意教材を作成者本人のみに絞っているため、それとは別にこの検索を使う）。
+  const { items, isLoading } = useShareableMaterials(currentProjectId, query, includeArchived)
 
   return (
     <div>
       <h3 className="mb-2 text-sm font-semibold text-slate-700">教材を検索して共有</h3>
       <p className="mb-3 text-xs text-slate-500">
-        自分がプロジェクト管理者であるプロジェクト全体から、作成者を問わず教材を検索して共有申請できます（下書きは対象外）。
+        このプロジェクトの教材を、作成者を問わず検索して共有申請できます（下書きは対象外）。
       </p>
-      <TextInput
-        placeholder="教材名で検索"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        className="mb-3 w-64"
-      />
+      <div className="mb-3 flex flex-wrap items-center gap-3">
+        <TextInput
+          placeholder="教材名で検索"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          className="w-64"
+        />
+        <label className="flex items-center gap-1.5 text-xs text-slate-600">
+          <input
+            type="checkbox"
+            checked={includeArchived}
+            onChange={(e) => setIncludeArchived(e.target.checked)}
+          />
+          アーカイブ済みの教材も含める
+        </label>
+      </div>
       {isLoading ? (
         <p className="text-sm text-slate-400">読み込み中...</p>
       ) : items.length === 0 ? (
@@ -1047,9 +1061,9 @@ function ShareSearchSection({ currentProjectId }: { currentProjectId: number }) 
                 <OutgoingShareRow
                   key={m.id}
                   sourceProjectId={m.project_id}
-                  material={{ id: m.id, title: m.title, status: 'published', is_archived: false }}
+                  material={{ id: m.id, title: m.title, status: 'published', is_archived: m.is_archived }}
                   canManage
-                  extraInfo={`${m.project_name} ／ 作成者: ${m.created_by_name} ／ ${m.is_required ? '必修' : '任意'}`}
+                  extraInfo={`作成者: ${m.created_by_name} ／ ${m.is_required ? '必修' : '任意'}`}
                 />
               ))}
             </tbody>
@@ -1061,10 +1075,13 @@ function ShareSearchSection({ currentProjectId }: { currentProjectId: number }) 
 }
 
 function OutgoingSharesSection({ projectId, canManage }: { projectId: number; canManage: boolean }) {
-  // includeArchived=trueで取得する。バックエンド（A-60）はアーカイブ済み教材の共有申請を拒否しない
-  // にもかかわらず、既定のuseMaterials(projectId)はアーカイブ済みを除外するため、この一覧に
-  // 一切出てこず実質共有できないという不一致があった（2026-09-02、再監査で発見・修正）。
-  const { materials, isLoading } = useMaterials(projectId, true)
+  // アーカイブ済み教材を含めるかどうかは検索セクション（ShareSearchSection）と同じくチェックボックスで
+  // 切り替える（既定false）。以前はuseMaterials(projectId, true)で常にアーカイブ済みも含めていたが
+  // （バックエンドA-60はアーカイブ済みでも共有申請を拒否しないのに、既定のuseMaterialsが除外するため
+  // 一覧に出てこず実質共有できないという不一致があったための対応、2026-09-02）、通常時は非表示にしたい
+  // というユーザー要望を受けてトグル化した（2026-09-18）。
+  const [includeArchived, setIncludeArchived] = useState(false)
+  const { materials, isLoading } = useMaterials(projectId, includeArchived)
 
   return (
     <div>
@@ -1072,6 +1089,14 @@ function OutgoingSharesSection({ projectId, canManage }: { projectId: number; ca
       <p className="mb-3 text-xs text-slate-500">
         申請しただけでは何も起きません。共有先プロジェクトの管理者が承認すると、その時点の教材内容（目次・全ページ・問題・添付ファイル）で複製が共有先プロジェクトに新規作成されます。複製後は共有先プロジェクトの独立した教材として、内容編集・配信設定・公開状態はすべて共有先プロジェクトの管理者・編集者が管理します（元教材を更新しても複製には反映されません）。下書きの教材は共有申請できません。
       </p>
+      <label className="mb-3 flex items-center gap-1.5 text-xs text-slate-600">
+        <input
+          type="checkbox"
+          checked={includeArchived}
+          onChange={(e) => setIncludeArchived(e.target.checked)}
+        />
+        アーカイブ済みの教材も含める
+      </label>
       {isLoading ? (
         <p className="text-sm text-slate-400">読み込み中...</p>
       ) : materials.length === 0 ? (
@@ -1105,13 +1130,13 @@ function OutgoingShareRow({
   canManage,
   extraInfo,
 }: {
-  // 2026-09-18、プロジェクト横断の共有検索（ShareSearchSection）からも同じ行を再利用できるよう
-  // 「このプロジェクトの一覧を表示中」という前提のprojectIdから、材料自身の所属プロジェクトIDに
-  // 差し替えた（検索結果は行ごとに所属プロジェクトが異なるため）。
+  // ShareSearchSection（検索結果）・OutgoingSharesSection（このプロジェクトの教材一覧）の
+  // どちらからも使う共通行。両者ともsourceProjectId＝現在のプロジェクト自身なので、共有先
+  // プルダウンの候補からはこのプロジェクト自身を除外する。
   sourceProjectId: number
   material: Pick<MaterialSource, 'id' | 'title' | 'status' | 'is_archived'>
   canManage: boolean
-  // 検索結果からの利用時のみ、どのプロジェクトの誰が作った教材かを併記する
+  // 検索結果からの利用時のみ、誰が作った教材かを併記する
   extraInfo?: string
 }) {
   const { shares, mutate } = useMaterialShares(material.id)
