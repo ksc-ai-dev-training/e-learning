@@ -94,7 +94,7 @@
     </tbody>
   </table>
   <ul class="rev-new">
-    <li><strong>判定ロジック:</strong> <code>auth_helpers.py</code> に <code>require_project_role(project_id, user, min_role)</code> 依存関数を設け、S-12（プロジェクト管理）・プロジェクトに紐づく教材の編集系API・F-19の自プロジェクト受講状況確認で共通利用する。ロールには 管理者 &gt; 編集者 &gt; 受講者 という階層を設け、<code>project_memberships</code> 上のロールが <code>min_role</code> 以上、<span class="rev-new">かつ <code>status='active'</code>（招待を承諾済み）</span>であれば許可する（例: <code>min_role='editor'</code> の判定は編集者・管理者を許可し、受講者は不可。<span class="rev-new"><code>status='invited'</code>（承諾前）のメンバーはロールを問わず不許可</span>）。システム全体の <code>user.role == 'admin'</code> は、当該プロジェクトのローカルロールを持たない場合でも常に許可する（<span class="rev-old">3.4節のadmin保守権限と同じ位置づけ</span><span class="rev-new">3.3節のadmin保守権限と同じ位置づけ</span>）。</li>
+    <li><strong>判定ロジック:</strong> <code>auth_helpers.py</code> に <code>require_project_role(project_id, user, min_role)</code> 依存関数を設け、S-12（プロジェクト管理）・プロジェクトに紐づく教材の編集系API・F-19の自プロジェクト受講状況確認で共通利用する。ロールには 管理者 &gt; 編集者 &gt; 受講者 という階層を設け、<code>project_memberships</code> 上のロールが <code>min_role</code> 以上、<span class="rev-new">かつ <code>status='active'</code>（招待を承諾済み）</span>であれば許可する（例: <code>min_role='editor'</code> の判定は編集者・管理者を許可し、受講者は不可。<span class="rev-new"><code>status='invited'</code>（承諾前）のメンバーはロールを問わず不許可</span>）。<span class="rev-old">システム全体の <code>user.role == 'admin'</code> は、当該プロジェクトのローカルロールを持たない場合でも常に許可する（3.3節のadmin保守権限と同じ位置づけ）。</span><span class="rev-new"><code>require_project_role</code> は <code>bypass_system_admin</code>（既定true）オプションを持ち、既定の呼び出しではシステム全体の <code>user.role == 'admin'</code> を当該プロジェクトのローカルロールを持たない場合でも常に許可する（3.3節のadmin保守権限と同じ位置づけ。プロジェクト設定変更・メンバー管理などプラットフォーム運用操作が対象）。一方、教材の内容編集・採点（<code>review_answer</code>等）・アーカイブ/復元/削除の内部判定など「コンテンツ操作」は <code>bypass_system_admin=false</code> で呼び出し、システムadminであっても実データ上のローカルロールを要求する（2026-09-17。「全社ライブラリ」のようにローカルロールが実際のメンバーシップ行として存在するプロジェクトが増えたことで、システムadminという理由だけで内容操作まで無条件許可し続ける必要が無くなったための整理）。</span></li>
     <li><strong>プロジェクト作成時の自動付与:</strong> A-09（プロジェクト作成）の処理内で、作成した <code>projects</code> 行に対する <code>project_memberships</code> 行を <code>user_id=作成者, role='admin', status='active'</code> で同時に作成する（招待を経ず自動承諾扱い）。作成者を限定しない（F-24。運用上は部署長・PMの作成を想定するが、システムとしては制限しない）。</li>
     <li><strong>メンバー<span class="rev-old">管理</span><span class="rev-new">の招待</span>:</strong> <span class="rev-old">メンバーの追加・削除・ロール変更（A-11〜A-13）は、</span><span class="rev-new">A-12（メンバー招待。<code>status='invited'</code>で作成）・A-13（削除・ロール変更）は、</span><code>require_project_role(project_id, user, min_role='admin')</code> を満たすユーザーのみ実行できる。唯一の管理者を削除・降格する操作は400で拒否する（プロジェクト管理者が不在になることを防ぐため。3.3節の「管理者不在防止」と同じ設計方針）。</li>
     <li class="rev-new"><strong>招待への応答:</strong> 招待された本人が新設API A-67（<code>PUT /api/project-memberships/{id}/respond</code>）で承諾（<code>status='active'</code>、<code>joined_at=now()</code>）または辞退（<code>status='declined'</code>）する。この操作は招待された本人のみが行え、プロジェクト管理者は代行できない。承諾・辞退の一覧・応答はS-15（プロフィール編集）の「招待されているプロジェクト」セクションで行う。</li>
@@ -103,14 +103,17 @@
   <div class="callout rev-new">
     <strong>なぜプロジェクト単位のローカルロールを導入したか:</strong> v1.3までの「オーナー・共同編集者」モデルは、プロジェクト単位で配信される教材でもオーナー個人に紐づくため、オーナーの異動・離任のたびに引き継ぎ操作が必要だった（3.4節）。v1.4はこれに加え、プロジェクトという単位そのものにロール（管理者/編集者/受講者）を持たせることで、「誰が管理者か」「誰が編集できるか」をプロジェクト側で一元管理できるようにした。またプロジェクトの新規登録をadmin限定から誰でも可能にしたことで、旧v1.3の「プロジェクト所属の自己申告制」（3.3節の権限マトリクスにあった行）は不要になった。メンバーの追加・削除・ロール設定という能動的な操作をプロジェクト管理者に一本化したためである。</div>
   <div class="callout rev-new">
-    <strong>なぜメンバーの追加を招待制にしたか:</strong> 誰でもプロジェクトを新規作成できる方式（F-24）のもとで、当初は「プロジェクト管理者がメンバーを追加すれば即座に有効」という設計だった。しかしこれでは、管理者が本人の同意なしに一方的に他の社員をメンバーへ追加でき、追加された側は気づかないうちに教材の受講対象に加わり、管理者/編集者ロールで追加されれば編集権限まで持たされてしまう（5.27節のF-26で対応した「教材共有の一方的な押し付け」と同じ構造の欠陥）。そこでT-04 <code>project_memberships</code> に <code>status</code>（'invited'/'active'/'declined'）を追加し、追加は「招待」として <code>status='invited'</code> で作成するだけに留め、本人が承諾するまで <code>require_project_role</code> の判定を通さない（=いかなる権限も持たない）ようにした。プロジェクト作成者自身と「全社Wiki」への自動参加（いずれも本人の意思や全社的な合意に基づく）だけは、この性質上招待を経ず <code>status='active'</code> で作成する。
+    <strong>なぜメンバーの追加を招待制にしたか:</strong> 誰でもプロジェクトを新規作成できる方式（F-24）のもとで、当初は「プロジェクト管理者がメンバーを追加すれば即座に有効」という設計だった。しかしこれでは、管理者が本人の同意なしに一方的に他の社員をメンバーへ追加でき、追加された側は気づかないうちに教材の受講対象に加わり、管理者/編集者ロールで追加されれば編集権限まで持たされてしまう（5.27節のF-26で対応した「教材共有の一方的な押し付け」と同じ構造の欠陥）。そこでT-04 <code>project_memberships</code> に <code>status</code>（'invited'/'active'/'declined'）を追加し、追加は「招待」として <code>status='invited'</code> で作成するだけに留め、本人が承諾するまで <code>require_project_role</code> の判定を通さない（=いかなる権限も持たない）ようにした。プロジェクト作成者自身と「全社ライブラリ」（旧称「全社Wiki」、2026-09-17改称）への自動参加（いずれも本人の意思や全社的な合意に基づく）だけは、この性質上招待を経ず <code>status='active'</code> で作成する。
+  </div>
+  <div class="callout rev-new">
+    <strong>「全社ライブラリ」の管理者を実データ化した（2026-09-17）:</strong> 5.26節の当初設計は「全社ライブラリのadminロールはシステム管理者にのみ、コード側のバイパスで常に許可し、<code>project_memberships</code>には実際には登録しない」というものだった。しかしこの方式では、上記のとおり<code>bypass_system_admin=false</code>で呼び出すコンテンツ操作（教材編集・採点・アーカイブ等）まで一律に許可対象から外れてしまい、「全社ライブラリの必修教材はプロジェクト管理者のみ編集可」（5.26節の3分岐）という運用ができなくなる。そこでシステム管理者を全社ライブラリの<code>project_memberships</code>へ<code>role='admin', status='active'</code>として実際に登録する処理（バックエンド起動時に冪等に実行、およびシステムadminへ昇格した時点で同期）を新設し、以後は他のプロジェクトと同じ実データ判定（本節の<code>require_project_role</code>）だけで全社ライブラリの管理者権限を判定できるようにした。これに伴い、全社ライブラリのadmin付与を一律拒否していた専用ガードは撤去し、通常のメンバー管理（A-12/A-13、管理者のみ実行可）の対象に含めた。
   </div>
 
   <!-- ============ 4. 画面設計 ============ -->
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）基本設計書 v1.55</span>
-    <span>コガソフトウェア株式会社 / 2026-09-08</span>
+    <span>社内学習管理システム（Manabi）基本設計書 v1.56</span>
+    <span>コガソフトウェア株式会社 / 2026-09-24</span>
   </footer>
 
 </div>

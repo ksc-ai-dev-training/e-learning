@@ -67,6 +67,9 @@ async def require_project_role(project_id: int, min_role: str):
   <div class="callout rev-new">
     <strong>自己降格ルールの統一（2026-09-17）:</strong> ロールを持つ本人が自分自身のロールを下げる操作（自己降格）は、システムロール・プロジェクトロールとも「対象ロールの保持者が他に1人以上いれば許可する」という同じ基準に統一した。プロジェクトロール（<code>organization.py</code>の<code>update_member</code>）は元々、対象がリクエスト者自身かどうかを区別せず、行ロックを伴う「現役の同ロール保持者数」判定だけで許可・拒否を決める設計だった（対象が現役adminで、降格・削除しようとしていて、かつ他にadminが1人もいなくなる場合のみ拒否）。システムロール（<code>users.py</code>の<code>update_user</code>）は従来「自分自身のadmin降格・無効化は理由を問わず一律拒否」という、対象が自分自身かどうかで先に分岐する強いガードだったため、無効化（アカウント停止）は理由を問わず引き続き自分自身には禁止したまま、<strong>降格のみ</strong>この一律ブロックを外し、既存の「最後の1人」判定（5.1節の行ロック含む）に合流させた。フロントエンド（S-10・S-12）は、ロール変更を自動保存から「保存」「取消」ボタン方式に変更したうえで、自分の行の<code>Select</code>を無効化する条件を撤廃した（S-12は元々「システムadminだけ自分の行を編集可」だったものを撤廃、S-10は元々自分の行を常に<code>disabled</code>にしていたものを撤廃）。誤った降格の実害は、保存ボタンによる明示的な確定操作と、バックエンドの「最後の1人」チェックの二重で防ぐ。システムロールの自己降格は、閲覧中のユーザー管理画面（S-10）自体がシステムadmin専用（<code>GET /api/users</code>が<code>require_roles("admin")</code>）のため、保存成功後に自分自身のセッション情報（<code>useMe()</code>）を再取得したうえでマイ学習へ画面遷移させる必要がある（放置すると、直後の一覧再取得が403になり、保存自体は成功しているのに画面が古い表示のまま固まって見える）。
   </div>
+  <div class="callout rev-new">
+    <strong>require_material_role の3分岐と全社ライブラリの管理者実データ化（2026-09-17〜18）:</strong> <code>bypass_system_admin=False</code>の対象を教材編集全般に広げたことで、「全社ライブラリは全社員がeditorとして自動参加する」という前提のままでは、通常プロジェクトと同じ「editor以上なら誰でも編集可」の基準が全社ライブラリにも及び、他人が作成した任意教材まで無制限に編集できてしまう。そこで<code>require_material_role</code>（<code>materials.py</code>）を3分岐に拡張した: 全社ライブラリの必修教材（配信設定F-09で<code>required=true</code>の行がある）はプロジェクト管理者のみ、任意教材は作成者本人のみ、それ以外の通常プロジェクトは従来どおりeditor以上が誰の教材でも編集できる。教材一覧（A-21）・配信設定一覧（A-36）の一覧表示条件も同じ境界に揃え、「一覧には見えるが開くと403になる」不整合を防いだ。あわせて、全社ライブラリの管理者（<code>role='admin'</code>）を<code>project_memberships</code>へ実際に登録する処理を新設した（バックエンド起動時に冪等に実行、システムadminへの昇格時にも同期）。従来はコード側のバイパスのみで実データを持たなかったため、3分岐の「プロジェクト管理者のみ」判定が全社ライブラリでは常にシステムadminだけを指す実装依存の状態だったが、実データ化により他のプロジェクトと同じ<code>require_project_role</code>のロジックだけで判定できるようになった。手動採点の担当範囲も、原則作成者本人のみとしつつ、全社ライブラリの必修教材に限りプロジェクト管理者全員に開放する<code>_can_grade_material</code>ヘルパーを新設し、<code>review_answer</code>・<code>get_attempt_grading</code>・<code>finalize_attempt_grading</code>・<code>get_grading_queue</code>に適用した（従来は「プロジェクトのeditor以上なら誰でも採点できる」ため、全社ライブラリでは事実上誰でも他人の教材を採点できる抜け道になっていた）。S-20採点キューの<code>scope=all</code>（システムadmin専用の全プロジェクト横断表示、5.1節）とS-09個人学習レポート・受験記録詳細取得（<code>GET /attempts/{id}</code>）のシステムadminバイパスも、同じ基準（システムadminであっても実データ上のローカルロールを要求）に合わせて撤廃した。
+  </div>
 
   <h3>5.3 require_material_access の実装（受講対象者判定）</h3>
   <p>基本設計書7.3節が定める「対象教材の受講対象者」のOR条件を1つの依存関数に集約する。個々のルーターが判定ロジックを重複実装しないようにするための共通化である。<strong>2条件（当初3条件から簡素化。2026-08-28）:</strong> F-26（教材共有、基本設計書5.27節）を「共有先には権限だけを付与する参照共有モデル」から「承認時に共有先プロジェクトへ教材の複製を新規作成する複製モデル」に変更したことに伴い、複製後の教材は共有先プロジェクト自身の<code>project_id</code>を持つ独立レコードになるため、共有先メンバーは条件1（プロジェクトの現役メンバー）だけで自然にアクセスでき、専用の「条件3: 共有先メンバーシップ」は不要になった。</p>
@@ -167,8 +170,8 @@ async def require_project_role(project_id: int, min_role: str):
   <p class="rev-row"><strong>処理概要:</strong> 本番（<code>SUPABASE_URL</code>設定時）はA-27/A-30がSupabase Storageの署名付きURL（対象<code>storage_key</code>限定・600秒で失効）を返すが、ローカル開発専用の代替経路（<code>backend/routers/uploads.py</code>）は<code>require_auth</code>のみで、<code>storage_key</code>さえ知っていれば認証済みの任意のユーザーが無期限に閲覧・上書きできてしまっていた。本番と同等の保護をローカルでも持たせるため、<code>storage.py</code>に<code>make_local_signed_query</code>/<code>verify_local_signed_query</code>（HMAC-SHA256、<code>JWT_SECRET</code>を鍵として<code>storage_key:expires</code>に署名、600秒で失効）を新設し、A-27（<code>create_upload_target</code>）・A-30（<code>create_download_url</code>）が返すローカルURLに<code>?expires=...&amp;sig=...</code>クエリを付与、<code>uploads.py</code>のGET/PUTでこれを検証するようにした。署名が無い・期限切れ・別の<code>storage_key</code>向けの署名を流用した場合はいずれも403で拒否する。本番環境（Supabase Storage使用時）はこの経路自体を通らないため影響しない。</p>
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）詳細設計書 v1.90</span>
-    <span>コガソフトウェア株式会社 / 2026-09-17</span>
+    <span>社内学習管理システム（Manabi）詳細設計書 v1.92</span>
+    <span>コガソフトウェア株式会社 / 2026-09-24</span>
   </footer>
 
 </div>
