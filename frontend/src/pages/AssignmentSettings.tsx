@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router'
 import PageHeader from '../components/layout/PageHeader'
 import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
@@ -173,8 +174,19 @@ export default function AssignmentSettings() {
                           editing ? 'border-l-4 border-l-blue-600 bg-blue-50' : 'border-l-4 border-l-transparent'
                         }`}
                       >
-                        <td className={`px-3 py-2 ${editing ? 'font-semibold text-blue-900' : 'text-slate-800'}`}>
-                          {item.title}
+                        <td className={`px-3 py-2 ${editing ? 'font-semibold text-blue-900' : ''}`}>
+                          <Link
+                            to={`/projects/${item.project_id}/materials/${item.id}/edit`}
+                            className={
+                              editing
+                                ? 'text-blue-900 hover:underline'
+                                : item.is_archived
+                                  ? 'text-slate-400 hover:text-blue-800 hover:underline'
+                                  : 'text-slate-800 hover:text-blue-800 hover:underline'
+                            }
+                          >
+                            {item.title}
+                          </Link>
                         </td>
                         <td className="px-3 py-2">
                           <span className="rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-xs text-slate-600">
