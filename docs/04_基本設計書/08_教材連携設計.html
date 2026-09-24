@@ -252,11 +252,33 @@ scoring_criteria: |
     <strong>なぜ書き込み時ではなく提供時にサニタイズするか:</strong> REQ-F-02は「取得して修正し、戻せること（往復できること）」を要求している。書き込み時にサニタイズ・変換した結果を保存してしまうと、Claude Codeが取得（A-19）した内容が著者の入力そのものではなくなり、意図しない改変が往復のたびに蓄積しうる（例: プログラミング教材のコードブロック内に説明用の<code>&lt;script&gt;</code>タグの例が含まれる場合、書き込み時にこれを除去してしまうと元の教材内容が失われる）。そのため本設計では、保存された原文には一切手を加えず、受講者に見せる直前（提供時）にのみ都度サニタイズを適用する。これにより原文の往復忠実性（REQ-F-02）とXSS対策（要件定義書5.1節）を両立させる。
   </div>
 
+  <h3 class="rev-new">8.7 MCPサーバー化（<code>backend/mcp_server.py</code>）</h3>
+  <p class="rev-new">Claude Codeが本章のA-19〜A-22を直接HTTPで呼ぶ方式に加え、2026-09-14にMCP（Model Context Protocol）サーバーとしても公開した（本節はこれまで本章に未反映だったため今回追記する）。認証は8.2節のCLIトークンをBearerとしてそのまま流用し、各ツールは対応するAPIハンドラをFastAPIの依存性注入を経由せずプロセス内で直接呼び出す。ツール一覧（2026-09-24時点）:</p>
+  <table class="rev-new">
+    <thead><tr><th>ツール名</th><th>対応API</th><th>備考</th></tr></thead>
+    <tbody>
+      <tr><td>search_materials</td><td>A-14相当</td><td>—</td></tr>
+      <tr><td>create_material</td><td>A-16</td><td>—</td></tr>
+      <tr><td>get_material_source</td><td>A-19</td><td>—</td></tr>
+      <tr><td>put_material_source</td><td>A-20</td><td>—</td></tr>
+      <tr><td>get_material_edit_url</td><td>—</td><td>公開/非公開・アーカイブ・削除・配信設定などMCPで対応しない操作を、Web編集画面のURL案内に誘導する</td></tr>
+      <tr><td>register_my_learning / unregister_my_learning</td><td>A-89</td><td>—</td></tr>
+      <tr class="rev-new"><td>create_material_asset_upload_url / finalize_material_asset</td><td>A-27 / A-29</td><td>画像アップロードの2段階方式（2026-09-24新設）。署名付きURL発行と登録を分離し、シェルが使える環境（Claude Code等）はURLへ直接HTTP PUTすることでbase64を経由せず高速にアップロードできる</td></tr>
+      <tr class="rev-new"><td>upload_material_asset</td><td>A-27+A-29相当</td><td>base64方式（2026-09-24新設）。モデル自身が画像データ全体を出力する必要があり大きい画像だと著しく遅いため、シェルが使えない場合のフォールバック</td></tr>
+      <tr class="rev-new"><td>get_material_asset_download_url</td><td>A-30</td><td>2026-09-24新設。既存添付をダウンロードし、縮小して差し替える等の操作に使う</td></tr>
+      <tr class="rev-new"><td>delete_material_asset</td><td>A-82</td><td>2026-09-24新設</td></tr>
+    </tbody>
+  </table>
+  <p class="rev-new">画像埋め込みは、本文中に<code>![説明](attachment:ID)</code>という教材内限定の記法で参照し、表示のたび（A-64呼び出し時）にその時点で有効な署名付きURLへ解決する方式を2026-09-07に新設済み（<code>markdown_render.py</code>の<code>_resolve_attachment_images</code>）。恒久的なURLを本文に直接書けない制約（Supabase Storageの署名付きURLは期限切れする）への対応で、Claude Codeからも「アップロードしてIDを本文に書く」という自然な手順になる。</p>
+  <div class="callout rev-new">
+    <strong>設計判断（HTTPExceptionの理由をMCPのエラーとして透過する）:</strong> 各ツールが投げるHTTPException（403の権限不足等）を素通りさせると、MCP SDKがUnexpectedToolErrorとして包み隠し、Claude Code側には「Error executing tool ...」としか届かず、権限不足なのか障害なのか区別できず原因調査にサーバーログの確認が必要になっていた（2026-09-19、利用者からのフィードバックにより発覚）。全ツールの呼び出しをHTTPException→ToolError変換のヘルパーで包み、サーバー側のdetailがそのままClaude Code側に伝わるよう修正した（2026-09-24）。
+  </div>
+
   <!-- ============ 9. AI機能設計 ============ -->
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）基本設計書 v1.55</span>
-    <span>コガソフトウェア株式会社 / 2026-09-08</span>
+    <span>社内学習管理システム（Manabi）基本設計書 v1.56</span>
+    <span>コガソフトウェア株式会社 / 2026-09-24</span>
   </footer>
 
 </div>
