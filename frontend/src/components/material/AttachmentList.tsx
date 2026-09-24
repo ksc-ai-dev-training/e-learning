@@ -4,10 +4,12 @@ import AttachmentItem from './AttachmentItem'
 // 添付ファイル・リンクの一覧（詳細設計書2.1.6節）。onDelete省略時は削除ボタンを出さない
 // （S-05ファイル・リンクタブは参照専用のため省略、S-17添付セクションは指定して使う）。
 export default function AttachmentList({
+  materialId,
   attachments,
   onDelete,
   isLoading,
 }: {
+  materialId: number
   attachments: MaterialAttachment[]
   onDelete?: (attachmentId: number) => void
   isLoading?: boolean
@@ -25,7 +27,12 @@ export default function AttachmentList({
   return (
     <div className="divide-y divide-slate-100">
       {attachments.map((a) => (
-        <AttachmentItem key={a.id} attachment={a} onDelete={onDelete ? () => onDelete(a.id) : undefined} />
+        <AttachmentItem
+          key={a.id}
+          materialId={materialId}
+          attachment={a}
+          onDelete={onDelete ? () => onDelete(a.id) : undefined}
+        />
       ))}
     </div>
   )

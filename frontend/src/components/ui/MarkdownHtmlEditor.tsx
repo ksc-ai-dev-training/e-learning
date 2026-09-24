@@ -58,6 +58,41 @@ export default function MarkdownHtmlEditor({
     }
   }, [materialId, body, format])
 
+  // タブ切替時、本文テキスト自体は変換されず「解釈のされ方」だけが変わるため、Markdownで書いた
+  // #や**等の記号がHTMLタブでは効かない記号としてそのまま表示されてしまい、この状態で保存すると
+  // 受講画面での見た目が実質的に失われる不具合があった（20260919_Manabi改善提案.html #6、
+  // 実際に本文が消えたという事例あり）。Markdown→HTMLは、既に計算済みのプレビュー結果
+  // （previewHtml、A-64のサニタイズ済みHTML）へ本文自体を差し替えることで見た目を保ったまま
+  // 変換する。逆方向（HTML→Markdown）はHTML→Markdown変換の手段が無いため、確認ダイアログで
+  // 警告するにとどめる。本文が空なら失うものが無いためどちらの方向も確認なしで切り替える。
+  const switchFormat = (next: 'markdown' | 'html') => {
+    if (next === format) return
+    if (!body.trim()) {
+      onFormatChange(next)
+      return
+    }
+    if (format === 'markdown' && next === 'html') {
+      if (materialId !== null && !previewError && previewHtml) {
+        onBodyChange(previewHtml)
+        onFormatChange('html')
+        return
+      }
+      if (
+        window.confirm(
+          'HTMLへ切り替えると、現在のMarkdown記法（#や**など）はそのままの文字として扱われます。続けますか？',
+        )
+      ) {
+        onFormatChange('html')
+      }
+      return
+    }
+    if (
+      window.confirm('Markdownへ切り替えると、現在のHTMLタグはそのままの文字として扱われます。続けますか？')
+    ) {
+      onFormatChange('markdown')
+    }
+  }
+
   return (
     <div className={className}>
       <div className="mb-2 flex gap-1">
@@ -65,7 +100,7 @@ export default function MarkdownHtmlEditor({
           <button
             key={f}
             type="button"
-            onClick={() => onFormatChange(f)}
+            onClick={() => switchFormat(f)}
             className={`rounded-md border px-3 py-1 text-xs font-semibold ${
               format === f
                 ? 'border-blue-800 bg-blue-900 text-white'
@@ -89,15 +124,14 @@ export default function MarkdownHtmlEditor({
         <div className="flex flex-col gap-1">
           <span className="text-xs font-semibold text-slate-500">プレビュー</span>
           <div className="min-h-[280px] rounded-md border border-slate-200 bg-white px-3 py-2 text-sm">
-            {materialId === null && <p className="text-xs text-slate-400">保存後にプレビューできます</p>}
+            {materialId === null && (
+              <p className="text-xs text-slate-400">一度下書き保存を行うとプレビューが表示されるようになります</p>
+            )}
             {materialId !== null && previewError && (
               <p className="text-xs text-red-600">プレビューの取得に失敗しました</p>
             )}
             {materialId !== null && !previewError && (
-              <div
-                className="[&_pre]:overflow-x-auto [&_pre]:rounded [&_pre]:bg-slate-800 [&_pre]:px-3 [&_pre]:py-2 [&_pre]:text-slate-100 [&_p]:mb-2 [&_ul]:ml-5 [&_ul]:list-disc [&_ol]:ml-5 [&_ol]:list-decimal"
-                dangerouslySetInnerHTML={{ __html: previewHtml }}
-              />
+              <div className="material-body" dangerouslySetInnerHTML={{ __html: previewHtml }} />
             )}
           </div>
         </div>

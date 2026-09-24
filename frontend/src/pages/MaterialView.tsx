@@ -5,6 +5,7 @@ import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
 import MyLearningToggle from '../components/ui/MyLearningToggle'
 import SurveyModal from '../components/material/SurveyModal'
+import AttachmentEntry from '../components/material/AttachmentEntry'
 import { useMaterial } from '../hooks/useMaterial'
 import { useMaterialAttachments } from '../hooks/useMaterialAttachments'
 import { useAttemptSummary } from '../hooks/useAttemptSummary'
@@ -13,7 +14,6 @@ import { usePracticeAttempts } from '../hooks/usePracticeAttempts'
 import { useSurveys } from '../hooks/useSurveys'
 import { chapterAccentClass } from '../lib/chapterAccent'
 import { formatDateJst, formatDateTimeJst, formatDurationMinutes } from '../lib/datetime'
-import { openAttachmentDownload } from '../lib/attachmentActions'
 import { pageKindLabel, toEditableChapters } from '../lib/materialTree'
 import { flattenPages, resolveScopeNodeId, type FlatPage } from '../lib/pageNav'
 import { startAttempt, startWrongQuestionsAttempt } from '../lib/attemptActions'
@@ -165,8 +165,6 @@ export default function MaterialView() {
   const [activeTab, setActiveTab] = useState<TabKey>(
     TABS.some((t) => t.key === initialTab) ? (initialTab as TabKey) : 'toc',
   )
-  const [downloadError, setDownloadError] = useState<string | null>(null)
-
   const { items: attemptSummary } = useAttemptSummary(activeTab === 'toc' ? id : null)
   const gradingResultRef = useRef<HTMLDivElement | null>(null)
   const { items: practiceAttempts } = usePracticeAttempts(activeTab === 'practice' ? id : null, 'repeat')
@@ -291,15 +289,6 @@ export default function MaterialView() {
     : isCompleted
       ? '再度受講'
       : '続きから受講'
-
-  const download = async (attachmentId: number) => {
-    setDownloadError(null)
-    try {
-      await openAttachmentDownload(id, attachmentId)
-    } catch (e) {
-      setDownloadError(e instanceof ApiError ? e.message : 'ダウンロードに失敗しました')
-    }
-  }
 
   // 受講後アンケートcallout: 合格済みスコープに設置された、まだ答えていない（または毎回表示の）
   // アンケートを1件だけ表示する（スキップはローカル状態のみ、次回訪問時にはまた表示される）
@@ -432,12 +421,6 @@ export default function MaterialView() {
                 </div>
                 <span className="text-xs text-slate-500">{progressPct}%</span>
               </div>
-            )}
-
-            {downloadError && (
-              <p className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                {downloadError}
-              </p>
             )}
 
             {pendingSurvey && (
@@ -605,29 +588,10 @@ export default function MaterialView() {
                 <div className="border-b border-slate-200 px-4 py-2.5">
                   <span className="text-sm font-semibold text-slate-700">教材全体の資料</span>
                 </div>
-                <div className="flex flex-wrap gap-4 p-4 text-sm">
-                  {wholeMaterialAttachments.map((a) =>
-                    a.kind === 'link' ? (
-                      <a
-                        key={a.id}
-                        href={a.external_url ?? '#'}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-700 hover:underline"
-                      >
-                        {a.filename}
-                      </a>
-                    ) : (
-                      <button
-                        key={a.id}
-                        type="button"
-                        onClick={() => download(a.id)}
-                        className="text-blue-700 hover:underline"
-                      >
-                        {a.filename}
-                      </button>
-                    ),
-                  )}
+                <div className="flex flex-col gap-3 p-4 text-sm">
+                  {wholeMaterialAttachments.map((a) => (
+                    <AttachmentEntry key={a.id} materialId={id} attachment={a} />
+                  ))}
                 </div>
               </section>
             )}

@@ -477,17 +477,14 @@ async def create_material(body: MaterialCreate, user: CurrentUser = Depends(requ
     # 要求する（require_material_role・_require_view_accessと同じ2026-09-16の例外。ここを素通しにすると
     # 作成はできるのにその後のA-19/A-20が403になる矛盾した状態が生まれるため）。
     #
-    # 全社ライブラリは全員が自動でeditorになるため、min_role="editor"のままだと事実上誰でも新規作成
-    # （既存教材の複製も、フロント側では新規作成＋内容コピーとして実装されているため実質同じ経路）
-    # ができてしまっていた。全社ライブラリでの新規作成はプロジェクトadminのみに限定する
-    # （2026-09-17、ユーザー指摘。既存の任意教材の編集自体は引き続き全editorに開放したまま、
-    # 「新規に何を生やせるか」だけを絞る）。
-    is_company_wide = await get_pool().fetchval(
-        "SELECT is_company_wide FROM projects WHERE id = $1", project_id
-    )
-    await check_project_role(
-        user, project_id, min_role="admin" if is_company_wide else "editor", bypass_system_admin=False
-    )
+    # 全社ライブラリでも通常プロジェクトと同じくeditor以上なら新規作成できる（2026-09-24、2026-09-17時点の
+    # 「新規作成はプロジェクトadmin限定」を撤回）。全社ライブラリの権限モデルの本来の意図は「必修教材は
+    # プロジェクトadmin限定・任意教材は作成者本人限定」（require_material_roleの3分岐、5.26節）であり、
+    # 必修化自体はA-38（配信設定）が独立してプロジェクトadmin限定にしている（assignments.py参照）。
+    # 新規作成の時点ではまだ必修/任意のどちらにもなり得ないため、ここをadmin限定にする必要はなく、
+    # 逆にeditorが「作成者」になる手段そのものを塞いでしまい、3分岐の「任意教材＝作成者限定」の
+    # 前提（editorも作成者になり得る）と矛盾していた。
+    await check_project_role(user, project_id, min_role="editor", bypass_system_admin=False)
     row = await get_pool().fetchrow(
         """INSERT INTO materials (project_id, title, description, tags, created_by)
            VALUES ($1, $2, $3, $4, $5)
@@ -1305,6 +1302,28 @@ async def create_attachment(
            RETURNING id, node_id, kind, filename, mime_type, size_bytes, external_url, created_at""",
         id, body.node_id, body.kind, body.storage_key, body.external_url,
         body.filename, body.mime_type, body.size_bytes,
+    )
+    return dict(row)
+
+
+async def _create_material_asset_impl(id: int, filename: str, mime_type: str, data: bytes) -> dict:
+    """MCPのupload_material_assetツール専用。A-27（アップロードURL発行→PUT）＋A-29（メタ登録）を
+    1回にまとめ、Claude Code側からbase64で渡ってきたバイト列をサーバープロセス内で直接保存する
+    （20260919_Manabi改善提案.html #3、MCPに画像を扱うツールが無かった問題への対応）。
+    node_idは常にNULL（教材全体）とする。本文への埋め込みはmarkdown_render.pyの
+    attachment:ID記法（![alt](attachment:ID)）で行うため、特定ページに紐づける必要が無い。"""
+    max_mb = int(os.environ.get("MAX_ATTACHMENT_SIZE_MB", "200"))
+    if len(data) > max_mb * 1024 * 1024:
+        raise HTTPException(413, detail=f"ファイルサイズは{max_mb}MB以内にしてください")
+    storage_key = await storage.upload_object(
+        prefix=f"materials/{id}", filename=filename, mime_type=mime_type, data=data,
+    )
+    row = await get_pool().fetchrow(
+        """INSERT INTO material_attachments
+               (material_id, node_id, kind, storage_key, filename, mime_type, size_bytes)
+           VALUES ($1, NULL, 'file', $2, $3, $4, $5)
+           RETURNING id, node_id, kind, filename, mime_type, size_bytes, external_url, created_at""",
+        id, storage_key, filename, mime_type, len(data),
     )
     return dict(row)
 

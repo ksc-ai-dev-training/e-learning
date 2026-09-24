@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import Button from '../ui/Button'
+import TextInput from '../ui/TextInput'
 import PageContentFields from './PageContentFields'
-import type { EditableNode } from '../../lib/materialSource'
+import type { EditableNode, PendingAttachment } from '../../lib/materialSource'
 import { validatePageContent } from '../../lib/pageValidation'
 import type { Question } from '../../types'
 
@@ -22,8 +23,10 @@ interface InlinePageEditorProps {
 // 画面遷移・サーバー保存は一切行わず、確定時にEditableNodeを1つ組み立てて呼び出し元へ渡すだけ
 // （2026-09-09。「タイトル→章作成→ページ作成→保存」を最後の1回の保存で完結させたいという
 // 要望への対応）。新規ページ作成にも、まだサーバー未保存のページの再編集にも両方使う。
-// 添付ファイルは実際のページIDが無いと登録できないため、このパネルでは扱わない
-// （保存後に「編集する」から追加してもらう）。
+// 添付ファイルは実際のページIDが無いと登録できないため、ここではpendingAttachmentsとして
+// EditableNode側に保持するだけにとどめ（MaterialPageEdit.tsxの新規ページと同じ仕組み）、
+// 実際のA-27/A-29登録は「下書き保存」後、MaterialEdit.tsx側でページの実idが判明してから
+// まとめて行う（2026-09-24、目次画面から添付できない不便さの解消）。
 export default function InlinePageEditor({
   materialId,
   materialGradingMode,
@@ -43,6 +46,11 @@ export default function InlinePageEditor({
   const [poolMembership, setPoolMembership] = useState<boolean[]>(
     initialPage?.questions?.map((q) => q.pool_group !== null) ?? [],
   )
+  const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>(
+    initialPage?.pendingAttachments ?? [],
+  )
+  const [expandedPendingKeys, setExpandedPendingKeys] = useState<Set<string>>(new Set())
+  const [linkUrl, setLinkUrl] = useState('')
   const [error, setError] = useState<string | null>(null)
   // 設問を複数追加した長いページで「このページを追加する」（一番下）を押したときにブロックされると、
   // エラー文言はこのパネルの一番上に出るため、スクロールが下にあると表示に気づけない
@@ -51,6 +59,43 @@ export default function InlinePageEditor({
   useEffect(() => {
     if (error) errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
   }, [error])
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    const previewUrl = file.type === 'application/pdf' ? URL.createObjectURL(file) : null
+    setPendingAttachments((prev) => [...prev, { key: crypto.randomUUID(), kind: 'file', file, previewUrl }])
+  }
+
+  const handleAddLink = () => {
+    if (!linkUrl.trim()) return
+    setPendingAttachments((prev) => [...prev, { key: crypto.randomUUID(), kind: 'link', url: linkUrl.trim() }])
+    setLinkUrl('')
+  }
+
+  const handleRemovePending = (key: string) => {
+    setPendingAttachments((prev) => {
+      const target = prev.find((p) => p.key === key)
+      if (target?.kind === 'file' && target.previewUrl) URL.revokeObjectURL(target.previewUrl)
+      return prev.filter((p) => p.key !== key)
+    })
+    setExpandedPendingKeys((prev) => {
+      if (!prev.has(key)) return prev
+      const next = new Set(prev)
+      next.delete(key)
+      return next
+    })
+  }
+
+  const togglePendingPreview = (key: string) => {
+    setExpandedPendingKeys((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
 
   const confirm = () => {
     const validationError = validatePageContent({
@@ -80,6 +125,7 @@ export default function InlinePageEditor({
       quizMode: includeQuiz ? quizMode : 'all',
       poolDrawCount: includeQuiz && quizMode === 'pool' ? poolDrawCount : null,
       questions: includeQuiz ? questions.map((q) => ({ ...q, pool_group: null })) : [],
+      pendingAttachments,
     }
     onConfirm(page)
   }
@@ -121,9 +167,70 @@ export default function InlinePageEditor({
         titleInputId="inline-new-page-title"
       />
 
-      <p className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-        添付ファイル・リンクはこの画面では追加できません。保存後、目次から「編集する」を開いて追加してください。
-      </p>
+      <div className="mb-3 rounded-md border border-slate-200 bg-white p-3">
+        <div className="mb-2 flex items-center justify-between">
+          <span className="text-xs font-semibold text-slate-600">添付ファイル・リンク</span>
+          <span className="text-xs text-slate-400">{pendingAttachments.length}件</span>
+        </div>
+        {pendingAttachments.length > 0 && (
+          <ul className="mb-2 flex flex-col gap-1.5">
+            {pendingAttachments.map((p) => (
+              <li key={p.key} className="rounded-md border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-600">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="truncate">
+                    {p.kind === 'file' ? p.file.name : p.url}
+                    <span className="ml-1.5 text-[10px] text-amber-600">（保存すると登録されます）</span>
+                  </span>
+                  <div className="flex flex-shrink-0 items-center gap-2">
+                    {p.kind === 'file' && p.previewUrl && (
+                      <button
+                        type="button"
+                        onClick={() => togglePendingPreview(p.key)}
+                        className="rounded border border-slate-300 px-2 py-0.5 text-[10px] text-slate-600 hover:bg-white"
+                      >
+                        {expandedPendingKeys.has(p.key) ? '閉じる' : 'プレビュー'}
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleRemovePending(p.key)}
+                      className="text-slate-400 hover:text-red-600"
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+                {p.kind === 'file' && p.previewUrl && expandedPendingKeys.has(p.key) && (
+                  <iframe
+                    src={p.previewUrl}
+                    title={p.file.name}
+                    className="mt-2 h-[600px] w-full rounded-md border border-slate-200 bg-white"
+                  />
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+        <div className="flex flex-wrap gap-2">
+          <label className="flex h-9 min-w-[140px] flex-1 cursor-pointer items-center justify-center rounded-md border border-slate-300 text-xs font-semibold text-slate-600 hover:bg-slate-50">
+            ファイルを選択
+            <input type="file" className="hidden" onChange={handleFileSelect} />
+          </label>
+          <TextInput
+            type="url"
+            value={linkUrl}
+            onChange={(e) => setLinkUrl(e.target.value)}
+            placeholder="または外部リンクを追加 https://..."
+            className="min-w-[180px] flex-1"
+          />
+          <Button variant="secondary" onClick={handleAddLink} disabled={!linkUrl.trim()}>
+            追加
+          </Button>
+        </div>
+        <p className="mt-2 text-[10px] text-slate-400">
+          ここで追加したファイル・リンクは、このページを保存したときにまとめて登録されます。
+        </p>
+      </div>
 
       <div className="flex gap-2">
         <Button variant="secondary" onClick={onCancel}>

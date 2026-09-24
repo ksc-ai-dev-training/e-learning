@@ -8,22 +8,31 @@
 # require_material_role(min_role="editor")の権限チェックが掛かっているエンドポイント
 # （get_material_source・put_material_source・get_material_edit_url）は、そのチェッカー関数を
 # 明示的に呼んでから実処理関数を呼ぶ（direct callではDependsによる権限チェックが自動実行されないため）。
+import base64
 import os
+from typing import Awaitable, TypeVar
 from urllib.parse import urlsplit
 
+from fastapi import HTTPException
 from fastapi.encoders import jsonable_encoder
 from mcp.server.auth.middleware.auth_context import get_access_token
 from mcp.server.auth.provider import AccessToken, TokenVerifier
 from mcp.server.auth.settings import AuthSettings
 from mcp.server.mcpserver import MCPServer
+from mcp.server.mcpserver.exceptions import ToolError
 from mcp.server.transport_security import TransportSecuritySettings
 
 from auth_helpers import CurrentUser, require_material_role, resolve_current_user_from_token
 from database import get_pool
 from routers.learning import register_my_learning, unregister_my_learning
 from routers.materials import (
+    AttachmentCreate,
     MaterialCreate,
+    UploadUrlRequest,
+    _create_material_asset_impl,
     _put_material_source_impl,
+    create_attachment,
+    create_attachment_upload_url,
     create_material,
     get_material_source,
     search_materials,
@@ -68,6 +77,21 @@ class _ManabiTokenVerifier(TokenVerifier):
         )
 
 
+_T = TypeVar("_T")
+
+
+async def _call(awaitable: Awaitable[_T]) -> _T:
+    """既存のルーターハンドラ・権限チェッカーが投げるHTTPExceptionをToolErrorへ変換する
+    （2026-09-24追加）。変換しないとMCP SDKがUnexpectedToolErrorとして包み隠してしまい、
+    Claude Code側には「Error executing tool create_material」としか届かず、403のdetail
+    （例:「この操作を行う権限がありません」）が失われて原因調査ができなくなっていた
+    （改善提案20260919 #4）。ツール本体の各await呼び出しをこれで包んで使う。"""
+    try:
+        return await awaitable
+    except HTTPException as e:
+        raise ToolError(str(e.detail)) from e
+
+
 def _current_user() -> CurrentUser:
     access_token = get_access_token()
     if access_token is None or access_token.claims is None:
@@ -82,9 +106,9 @@ def _current_user() -> CurrentUser:
 mcp = MCPServer(
     name="manabi",
     instructions=(
-        "社内学習管理システムManabiの教材を検索・作成・編集し、マイ学習への登録/解除を行うための"
-        "道具を提供します。公開/非公開の切り替え・アーカイブ・削除・配信設定の変更など、ここに無い"
-        "操作を依頼された場合はget_material_edit_urlでWeb編集画面のURLを案内してください。"
+        "社内学習管理システムManabiの教材を検索・作成・編集し、画像のアップロード、マイ学習への登録/解除を"
+        "行うための道具を提供します。公開/非公開の切り替え・アーカイブ・削除・配信設定の変更など、"
+        "ここに無い操作を依頼された場合はget_material_edit_urlでWeb編集画面のURLを案内してください。"
     ),
     token_verifier=_ManabiTokenVerifier(),
     auth=AuthSettings(
@@ -114,11 +138,11 @@ async def search_materials_tool(
     page: int = 1,
     per_page: int = 20,
 ) -> dict:
-    result = await search_materials(
+    result = await _call(search_materials(
         q=q, tags=tags, project_id=project_id, required=required,
         incomplete_only=incomplete_only, my_assignments_only=my_assignments_only,
         page=page, per_page=per_page, user=_current_user(),
-    )
+    ))
     return jsonable_encoder(result)
 
 
@@ -137,11 +161,83 @@ async def create_material_tool(
     tags: list[str] | None = None,
 ) -> dict:
     body = MaterialCreate(title=title, project_id=project_id, description=description, tags=tags or [])
-    result = await create_material(body=body, user=_current_user())
+    result = await _call(create_material(body=body, user=_current_user()))
     return jsonable_encoder(result)
 
 
 _source_role_checker = require_material_role(min_role="editor")
+
+
+@mcp.tool(
+    name="create_material_asset_upload_url",
+    description=(
+        "教材本文に埋め込む画像をアップロードするための、2段階手順の1段階目。画像の中身はこの道具には"
+        "渡さない（一瞬で終わる）。シェルコマンドが使える場合はこちらを優先すること: "
+        "(1) この道具でupload_urlを取得する (2) ローカルの画像ファイルをそのupload_urlへHTTP PUTで"
+        "直接アップロードする（例: curl -X PUT --data-binary @<ローカルのファイルパス> "
+        "-H \"Content-Type: <mime_type>\" \"<upload_url>\"。base64化してこの道具やモデルの出力に"
+        "乗せる必要は無い） (3) アップロードが成功したら、戻り値のstorage_keyを使って"
+        "finalize_material_assetを呼び、教材の添付として登録する。"
+        "シェルでファイルを直接アップロードできない環境でのみ、代わりにupload_material_asset"
+        "（base64方式。ファイルが大きいと非常に時間がかかる）を使うこと。"
+    ),
+)
+async def create_material_asset_upload_url_tool(
+    material_id: int, filename: str, mime_type: str, size_bytes: int,
+) -> dict:
+    verified_user = await _call(_source_role_checker(id=material_id, user=_current_user()))
+    body = UploadUrlRequest(filename=filename, mime_type=mime_type, size_bytes=size_bytes)
+    result = await _call(create_attachment_upload_url(id=material_id, body=body, user=verified_user))
+    upload_url = result["upload_url"]
+    if upload_url.startswith("/"):
+        # ローカル開発（Supabase未設定）はバックエンド自身の相対パスを返す。呼び出し元は別プロセス
+        # （curl等）からこのURLへ直接アクセスするため、絶対URLへ解決してから返す必要がある。
+        upload_url = f"{_PUBLIC_BASE_URL}{upload_url}"
+    return {"upload_url": upload_url, "storage_key": result["storage_key"]}
+
+
+@mcp.tool(
+    name="finalize_material_asset",
+    description=(
+        "create_material_asset_upload_urlの2段階目。発行されたupload_urlへ画像を直接アップロード"
+        "した後、この道具で教材の添付として登録する。戻り値のid（添付ID）を、get_material_source/"
+        "put_material_sourceで扱う本文の中で ![説明](attachment:ID) の形式で参照すると、"
+        "その位置に画像が表示される。"
+    ),
+)
+async def finalize_material_asset_tool(
+    material_id: int, storage_key: str, filename: str, mime_type: str, size_bytes: int,
+) -> dict:
+    verified_user = await _call(_source_role_checker(id=material_id, user=_current_user()))
+    body = AttachmentCreate(
+        node_id=None, kind="file", storage_key=storage_key,
+        filename=filename, mime_type=mime_type, size_bytes=size_bytes,
+    )
+    result = await _call(create_attachment(id=material_id, body=body, user=verified_user))
+    return jsonable_encoder(result)
+
+
+@mcp.tool(
+    name="upload_material_asset",
+    description=(
+        "教材本文に埋め込む画像をアップロードする（base64方式）。シェルコマンドが使えず、"
+        "create_material_asset_upload_url+finalize_material_assetの2段階方式が使えない場合のみ"
+        "使うこと。base64はモデル自身がデータ全体を生成する必要があるため、ファイルが大きいと"
+        "非常に時間がかかる（数百KB〜数MBの画像でも大幅に遅くなる）。利用者が教材のページに画像・図・"
+        "スクリーンショットを追加したいと依頼したときに使う。戻り値のid（添付ID）を、"
+        "get_material_source/put_material_sourceで扱う本文の中で ![説明](attachment:ID) の形式で"
+        "参照すると、その位置に画像が表示される。base64_dataはdata URIのプレフィックス"
+        "（例: data:image/png;base64,）を含めない、画像本体のみのBase64文字列を渡すこと。"
+    ),
+)
+async def upload_material_asset_tool(material_id: int, filename: str, mime_type: str, base64_data: str) -> dict:
+    await _call(_source_role_checker(id=material_id, user=_current_user()))
+    try:
+        data = base64.b64decode(base64_data, validate=True)
+    except Exception:
+        raise ToolError("base64_dataのデコードに失敗しました。data URIのプレフィックスを含めない、正しいBase64文字列を渡してください。")
+    result = await _call(_create_material_asset_impl(id=material_id, filename=filename, mime_type=mime_type, data=data))
+    return jsonable_encoder(result)
 
 
 @mcp.tool(
@@ -152,8 +248,8 @@ _source_role_checker = require_material_role(min_role="editor")
     ),
 )
 async def get_material_source_tool(material_id: int) -> str:
-    verified_user = await _source_role_checker(id=material_id, user=_current_user())
-    response = await get_material_source(id=material_id, user=verified_user)
+    verified_user = await _call(_source_role_checker(id=material_id, user=_current_user()))
+    response = await _call(get_material_source(id=material_id, user=verified_user))
     return response.body.decode("utf-8")
 
 
@@ -166,10 +262,10 @@ async def get_material_source_tool(material_id: int) -> str:
     ),
 )
 async def put_material_source_tool(material_id: int, source: str) -> str:
-    verified_user = await _source_role_checker(id=material_id, user=_current_user())
-    response = await _put_material_source_impl(
+    verified_user = await _call(_source_role_checker(id=material_id, user=_current_user()))
+    response = await _call(_put_material_source_impl(
         id=material_id, text=source, user=verified_user, expected_updated_at=None, changed_via="mcp",
-    )
+    ))
     return response.body.decode("utf-8")
 
 
@@ -183,10 +279,10 @@ async def put_material_source_tool(material_id: int, source: str) -> str:
     ),
 )
 async def get_material_edit_url_tool(material_id: int) -> dict:
-    await _source_role_checker(id=material_id, user=_current_user())
+    await _call(_source_role_checker(id=material_id, user=_current_user()))
     row = await get_pool().fetchrow("SELECT project_id, title FROM materials WHERE id = $1", material_id)
     if row is None:
-        raise ValueError(f"教材ID {material_id} が見つかりません")
+        raise ToolError(f"教材ID {material_id} が見つかりません")
     url = f"{_PUBLIC_BASE_URL}/projects/{row['project_id']}/materials/{material_id}/edit"
     return {
         "message": (
@@ -205,7 +301,7 @@ async def get_material_edit_url_tool(material_id: int) -> dict:
     ),
 )
 async def register_my_learning_tool(material_id: int) -> dict:
-    return jsonable_encoder(await register_my_learning(id=material_id, user=_current_user()))
+    return jsonable_encoder(await _call(register_my_learning(id=material_id, user=_current_user())))
 
 
 @mcp.tool(
@@ -213,7 +309,7 @@ async def register_my_learning_tool(material_id: int) -> dict:
     description="指定した教材を自分の「マイ学習」から外す。",
 )
 async def unregister_my_learning_tool(material_id: int) -> dict:
-    return jsonable_encoder(await unregister_my_learning(id=material_id, user=_current_user()))
+    return jsonable_encoder(await _call(unregister_my_learning(id=material_id, user=_current_user())))
 
 
 # main.pyでapp.mount("/mcp", mcp_asgi_app)する。streamable_http_path="/"にすることで、

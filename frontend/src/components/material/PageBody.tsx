@@ -46,10 +46,7 @@ export default function PageBody({
       <div className="p-4 text-[13px] leading-[1.9] text-slate-700">
         {error && <p className="text-sm text-red-600">本文の取得に失敗しました</p>}
         {!error && (
-          <div
-            className="[&_pre]:overflow-x-auto [&_pre]:rounded [&_pre]:bg-slate-800 [&_pre]:px-3 [&_pre]:py-2 [&_pre]:text-slate-100 [&_p]:mb-2.5 [&_ul]:ml-5 [&_ul]:list-disc [&_ol]:ml-5 [&_ol]:list-decimal"
-            dangerouslySetInnerHTML={{ __html: html }}
-          />
+          <div className="material-body" dangerouslySetInnerHTML={{ __html: html }} />
         )}
       </div>
     </section>

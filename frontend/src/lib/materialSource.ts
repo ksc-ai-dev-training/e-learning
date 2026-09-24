@@ -2,6 +2,15 @@ import type { Material, Question, QuizMode } from '../types'
 
 // A-20 PUT /source が受け取るソーステキストの組み立て（バックエンドmaterial_parser.pyと対の実装）。
 
+// ページがまだサーバー未保存（node_idが無い）間、ローカルに保持しておく添付ファイル・リンク。
+// 保存（A-20）でページの実idが採番された後、まとめてA-27/A-29へ登録する
+// （InlinePageEditor・MaterialPageEditの新規ページ双方で共通利用、2026-09-24）。
+// previewUrlはPDFファイルのみ、選択した瞬間にURL.createObjectURLで発行し、
+// アップロード前でもブラウザ内だけでプレビューできるようにする。
+export type PendingAttachment =
+  | { key: string; kind: 'file'; file: File; previewUrl: string | null }
+  | { key: string; kind: 'link'; url: string }
+
 export type EditableNode = {
   id: number | null // nullは未保存（新規）。保存済みノードはDBの実id
   title: string
@@ -13,6 +22,9 @@ export type EditableNode = {
   quizMode?: QuizMode
   poolDrawCount?: number | null
   questions?: Question[]
+  // ページがid===null（未保存）の間だけ意味を持つ。buildMaterialSourceは参照しない
+  // （ソーステキストには含めず、保存後にMaterialEdit.tsx側で個別にA-27/A-29へ流し込む）。
+  pendingAttachments?: PendingAttachment[]
 }
 
 type SourceMeta = Pick<

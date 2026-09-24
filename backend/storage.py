@@ -76,6 +76,20 @@ async def create_upload_target(prefix: str, filename: str, mime_type: str) -> tu
     return storage_key, upload_url
 
 
+async def upload_object(prefix: str, filename: str, mime_type: str, data: bytes) -> str:
+    """アップロード先キーを発行し、渡されたバイト列をその場で書き込む（戻り値: storage_key）。
+    create_upload_target＋フロントのPUTという2段階を1回にまとめた版で、呼び出し元が
+    署名付きURL経由のPUTを行えない場合（MCPのupload_material_assetツールなど、
+    Claude Code側からbase64で渡ってきたバイト列をサーバープロセス内で直接保存したい場合）に使う。
+    2026-09-24追加。"""
+    storage_key = _make_storage_key(prefix, filename)
+    if IS_SUPABASE_CONFIGURED:
+        await _supabase_upload_object(storage_key, data, mime_type)
+    else:
+        save_local_file(storage_key, data)
+    return storage_key
+
+
 async def create_download_url(storage_key: str) -> tuple[str, str | None]:
     """ダウンロードURLを発行する（A-30）。戻り値: (download_url, expires_at ISO8601 or None)。"""
     if IS_SUPABASE_CONFIGURED:
@@ -133,6 +147,19 @@ async def _supabase_create_signed_upload_url(storage_key: str) -> str:
         resp.raise_for_status()
         token = resp.json()["token"]
         return f"{SUPABASE_URL}/storage/v1/object/upload/sign/{SUPABASE_STORAGE_BUCKET}/{storage_key}?token={token}"
+
+
+async def _supabase_upload_object(storage_key: str, data: bytes, mime_type: str) -> None:
+    """署名付きURLの発行を経由せず、サービスキーで直接オブジェクトをアップロードする
+    （upload_object参照。サーバープロセス内から使う専用経路のため、クライアントに
+    見せる署名付きURLの発行は不要）。"""
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(
+            f"{SUPABASE_URL}/storage/v1/object/{SUPABASE_STORAGE_BUCKET}/{storage_key}",
+            headers={"Authorization": f"Bearer {SUPABASE_SERVICE_KEY}", "Content-Type": mime_type},
+            content=data,
+        )
+        resp.raise_for_status()
 
 
 async def _supabase_create_signed_download_url(storage_key: str) -> tuple[str, str]:

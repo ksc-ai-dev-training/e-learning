@@ -13,16 +13,10 @@ import { addLinkAttachment, deleteAttachment, uploadFileAttachment } from '../li
 import { ApiError, apiFetch, apiFetchText, conflictAwareMessage } from '../lib/api'
 import { useMaterialEditPresence } from '../hooks/useMaterialEditPresence'
 import { buildMaterialSource } from '../lib/materialSource'
-import type { EditableNode } from '../lib/materialSource'
+import type { EditableNode, PendingAttachment } from '../lib/materialSource'
 import { findNode, insertPageInTree, replacePageInTree, toEditableChapters } from '../lib/materialTree'
 import { validatePageContent } from '../lib/pageValidation'
 import type { Material, Question } from '../types'
-
-// 新規ページ作成中、まだノードが存在せずA-27/A-29を呼べない添付ファイル・リンクを
-// ローカルに保持しておくための型。保存時にページ作成後まとめて登録する
-type PendingAttachment =
-  | { key: string; kind: 'file'; file: File }
-  | { key: string; kind: 'link'; url: string }
 
 // poolMembershipでチェックされた設問のうち、保存済み（id !== null）のものだけを対象に
 // pool_group（DB上はpool_group_id、自己参照FK）を実IDへ解決する。2問未満しか対象が
@@ -89,6 +83,7 @@ export default function MaterialPageEdit() {
   const [attachmentError, setAttachmentError] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([])
+  const [expandedPendingKeys, setExpandedPendingKeys] = useState<Set<string>>(new Set())
   // 保存ボタンは説明文・設問・添付ファイルの後、画面の一番下にあるため、そこでブロックされた
   // バリデーションエラーは画面上部に出ても気づけない（InlinePageEditor.tsxと同じ問題。
   // 2026-09-16、ユーザー報告）。エラーが出た瞬間にその位置まで自動でスクロールする。
@@ -206,6 +201,7 @@ export default function MaterialPageEdit() {
             for (const pending of pendingAttachments) {
               if (pending.kind === 'file') {
                 await uploadFileAttachment(Number(materialId), newPage.id!, pending.file)
+                if (pending.previewUrl) URL.revokeObjectURL(pending.previewUrl)
               } else {
                 await addLinkAttachment(Number(materialId), newPage.id!, pending.url)
               }
@@ -244,7 +240,8 @@ export default function MaterialPageEdit() {
     e.target.value = ''
     if (!file) return
     if (isNew) {
-      setPendingAttachments((prev) => [...prev, { key: crypto.randomUUID(), kind: 'file', file }])
+      const previewUrl = file.type === 'application/pdf' ? URL.createObjectURL(file) : null
+      setPendingAttachments((prev) => [...prev, { key: crypto.randomUUID(), kind: 'file', file, previewUrl }])
       return
     }
     setAttachmentError(null)
@@ -277,8 +274,38 @@ export default function MaterialPageEdit() {
   }
 
   const handleRemovePending = (key: string) => {
-    setPendingAttachments((prev) => prev.filter((p) => p.key !== key))
+    setPendingAttachments((prev) => {
+      const target = prev.find((p) => p.key === key)
+      if (target?.kind === 'file' && target.previewUrl) URL.revokeObjectURL(target.previewUrl)
+      return prev.filter((p) => p.key !== key)
+    })
+    setExpandedPendingKeys((prev) => {
+      if (!prev.has(key)) return prev
+      const next = new Set(prev)
+      next.delete(key)
+      return next
+    })
   }
+
+  const togglePendingPreview = (key: string) => {
+    setExpandedPendingKeys((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
+  // マウント解除時、まだサーバーへ送っていないプレビュー用blob URLが残っていれば解放する
+  // （保存成功時は上のsave()内で個別に revokeObjectURL 済みなので二重解放にはならない）。
+  useEffect(() => {
+    return () => {
+      for (const p of pendingAttachments) {
+        if (p.kind === 'file' && p.previewUrl) URL.revokeObjectURL(p.previewUrl)
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleDeleteAttachment = async (attachmentId: number) => {
     if (isNew) return
@@ -382,21 +409,38 @@ export default function MaterialPageEdit() {
                 {pendingAttachments.length > 0 && (
                   <ul className="mb-3 flex flex-col gap-1.5">
                     {pendingAttachments.map((p) => (
-                      <li
-                        key={p.key}
-                        className="flex items-center justify-between gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-600"
-                      >
-                        <span className="truncate">
-                          {p.kind === 'file' ? p.file.name : p.url}
-                          <span className="ml-1.5 text-[10px] text-amber-600">（保存すると登録されます）</span>
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => handleRemovePending(p.key)}
-                          className="flex-shrink-0 text-slate-400 hover:text-red-600"
-                        >
-                          ×
-                        </button>
+                      <li key={p.key} className="rounded-md border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-600">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="truncate">
+                            {p.kind === 'file' ? p.file.name : p.url}
+                            <span className="ml-1.5 text-[10px] text-amber-600">（保存すると登録されます）</span>
+                          </span>
+                          <div className="flex flex-shrink-0 items-center gap-2">
+                            {p.kind === 'file' && p.previewUrl && (
+                              <button
+                                type="button"
+                                onClick={() => togglePendingPreview(p.key)}
+                                className="rounded border border-slate-300 px-2 py-0.5 text-[10px] text-slate-600 hover:bg-white"
+                              >
+                                {expandedPendingKeys.has(p.key) ? '閉じる' : 'プレビュー'}
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleRemovePending(p.key)}
+                              className="text-slate-400 hover:text-red-600"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        </div>
+                        {p.kind === 'file' && p.previewUrl && expandedPendingKeys.has(p.key) && (
+                          <iframe
+                            src={p.previewUrl}
+                            title={p.file.name}
+                            className="mt-2 h-[600px] w-full rounded-md border border-slate-200 bg-white"
+                          />
+                        )}
                       </li>
                     ))}
                   </ul>
@@ -407,6 +451,7 @@ export default function MaterialPageEdit() {
               </>
             ) : (
               <AttachmentList
+                materialId={Number(materialId)}
                 attachments={attachments}
                 isLoading={attachmentsLoading}
                 onDelete={handleDeleteAttachment}

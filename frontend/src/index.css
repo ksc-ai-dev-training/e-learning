@@ -38,6 +38,55 @@ button:disabled,
   cursor: default;
 }
 
+/* 教材本文（PageBody＝S-04/S-16受講画面、MarkdownHtmlEditorのプレビュー）共通のサニタイズ済み
+   HTML表示用クラス。html_sanitize.pyがstyle/class属性を許可しないため教材側では見た目を
+   調整できず、表に罫線が無い・小見出しが本文と区別できない等の問題があった
+   （20260919_Manabi改善提案.html #1）。従来は両コンポーネントにTailwindの任意バリアントで
+   pre/p/ul/olのみ個別に重複定義していたが、table・h4〜h6・blockquote・imgを追加した上で
+   1つのクラスに統合する。 */
+.material-body p {
+  @apply mb-2.5;
+}
+.material-body ul,
+.material-body ol {
+  @apply mb-3 ml-5;
+}
+.material-body ul {
+  @apply list-disc;
+}
+.material-body ol {
+  @apply list-decimal;
+}
+.material-body h4 {
+  @apply mt-5 mb-2 border-l-[3px] border-blue-900 pl-2 text-[15px] font-bold;
+}
+.material-body h5,
+.material-body h6 {
+  @apply mt-4 mb-1.5 font-bold;
+}
+.material-body table {
+  @apply my-3 block w-full overflow-x-auto border-collapse;
+}
+.material-body th,
+.material-body td {
+  @apply border border-slate-300 px-3 py-1.5 text-left align-top;
+}
+.material-body th {
+  @apply bg-slate-100 font-semibold whitespace-nowrap;
+}
+.material-body tbody tr:nth-child(even) {
+  @apply bg-slate-50;
+}
+.material-body blockquote {
+  @apply my-3 border-l-4 border-slate-300 bg-slate-50 px-3.5 py-2 text-slate-600;
+}
+.material-body img {
+  @apply my-2 h-auto max-w-full;
+}
+.material-body pre {
+  @apply overflow-x-auto rounded bg-slate-800 px-3 py-2 text-slate-100;
+}
+
 /* コード記述式の回答欄（CodeAnswerEditor）用のPrism.jsトークン配色。
    Prismの公式テーマCSSは使わず、アプリのカラーパレットに合わせて自前で定義する。 */
 .token.keyword {

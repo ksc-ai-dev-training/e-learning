@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import PageHeader from '../components/layout/PageHeader'
 import AssignmentEditPanel from '../components/material/AssignmentEditPanel'
 import AttachmentList from '../components/material/AttachmentList'
+import AttachmentUploadForm from '../components/material/AttachmentUploadForm'
 import InlinePageEditor from '../components/material/InlinePageEditor'
 import SurveyEditModal from '../components/material/SurveyEditModal'
 import Badge from '../components/ui/Badge'
@@ -28,7 +29,8 @@ import { useMaterialEditPresence } from '../hooks/useMaterialEditPresence'
 import { chapterAccentClass } from '../lib/chapterAccent'
 import { formatDateJst, formatDateTimeJst, formatYearMonthJst } from '../lib/datetime'
 import { buildMaterialSource } from '../lib/materialSource'
-import type { EditableNode } from '../lib/materialSource'
+import type { EditableNode, PendingAttachment } from '../lib/materialSource'
+import { addLinkAttachment, deleteAttachment, uploadFileAttachment } from '../lib/attachmentActions'
 import { archiveMaterial, deleteMaterial, publishMaterial, restoreMaterial } from '../lib/materialActions'
 import { pageKindLabel, toEditableChapters } from '../lib/materialTree'
 import { questionTypeLabel } from '../lib/questionDefaults'
@@ -43,6 +45,78 @@ const TABS = [
   { key: 'history', label: '改訂履歴' },
 ] as const
 type TabKey = (typeof TABS)[number]['key']
+
+// InlinePageEditorで追加したpendingAttachmentsを持つページは、保存前は id===null のため
+// idでは対応づけられない。木構造上の位置（何章目の、section有無、何番目の子か）で
+// 保存前後を対応づける（2026-09-24、目次画面から添付できない不便さの解消）。
+type PendingLocation = { chapterIdx: number; sectionIdx: number | null; childIdx: number }
+
+function collectPendingLocations(
+  chapters: EditableNode[],
+): { loc: PendingLocation; pending: PendingAttachment[] }[] {
+  const result: { loc: PendingLocation; pending: PendingAttachment[] }[] = []
+  chapters.forEach((chapter, chapterIdx) => {
+    chapter.children.forEach((child, childIdx) => {
+      if (child.kind === 'section') {
+        child.children.forEach((page, sectionChildIdx) => {
+          if (page.pendingAttachments && page.pendingAttachments.length > 0) {
+            result.push({
+              loc: { chapterIdx, sectionIdx: childIdx, childIdx: sectionChildIdx },
+              pending: page.pendingAttachments,
+            })
+          }
+        })
+      } else if (child.pendingAttachments && child.pendingAttachments.length > 0) {
+        result.push({ loc: { chapterIdx, sectionIdx: null, childIdx }, pending: child.pendingAttachments })
+      }
+    })
+  })
+  return result
+}
+
+function resolveNodeAtLocation(chapters: EditableNode[], loc: PendingLocation): EditableNode | null {
+  const chapter = chapters[loc.chapterIdx]
+  if (!chapter) return null
+  if (loc.sectionIdx === null) return chapter.children[loc.childIdx] ?? null
+  const section = chapter.children[loc.sectionIdx]
+  return section ? (section.children[loc.childIdx] ?? null) : null
+}
+
+// 保存直後の木構造をサーバーから取り直し、保存前に記録した位置でページの実idを引いて
+// 保留していた添付ファイル・リンクをまとめて登録する。ツリー自体の保存は既に成功済みのため、
+// ここで失敗しても保存全体は失敗にせず、警告メッセージを返すだけにとどめる。
+async function flushPendingAttachments(materialId: number, oldChapters: EditableNode[]): Promise<string | null> {
+  const items = collectPendingLocations(oldChapters)
+  if (items.length === 0) return null
+  let freshChapters: EditableNode[]
+  try {
+    const fresh = await apiFetch<Material>(`/api/materials/${materialId}`)
+    freshChapters = toEditableChapters(fresh.toc ?? [])
+  } catch {
+    return '添付ファイル・リンクの登録に失敗しました。目次を開き直し、該当ページの編集画面から改めて追加してください。'
+  }
+  let failed = false
+  for (const { loc, pending } of items) {
+    const node = resolveNodeAtLocation(freshChapters, loc)
+    if (!node || node.id === null) {
+      failed = true
+      continue
+    }
+    for (const p of pending) {
+      try {
+        if (p.kind === 'file') {
+          await uploadFileAttachment(materialId, node.id, p.file)
+          if (p.previewUrl) URL.revokeObjectURL(p.previewUrl)
+        } else {
+          await addLinkAttachment(materialId, node.id, p.url)
+        }
+      } catch {
+        failed = true
+      }
+    }
+  }
+  return failed ? '一部の添付ファイル・リンクの登録に失敗しました。該当ページの編集画面から改めて追加してください。' : null
+}
 
 // S-05 教材編集：目次編集（詳細設計書10.5節）の縮小版。今回のスコープは教材の新規作成と
 // 章・小見出しの目次構造編集まで（ページ内容編集=S-17、公開判定・AI設定・アンケート等は対象外）。
@@ -96,6 +170,7 @@ export default function MaterialEdit() {
   const [publishModalOpen, setPublishModalOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [savedMessage, setSavedMessage] = useState<string | null>(null)
+  const [attachmentWarning, setAttachmentWarning] = useState<string | null>(null)
   const [pendingDelete, setPendingDelete] = useState<string | null>(null)
   // インラインページ編集パネルをどこで開いているか（2026-09-09）。'new'は章・小見出し直下への
   // 新規ページ追加、'edit'はまだサーバー未保存（id=null）のページをその場で再編集するモード。
@@ -121,7 +196,7 @@ export default function MaterialEdit() {
   // 警告されるが、互いに競合しない）。
   const unsavedBlocker = useUnsavedChangesGuard(dirty)
 
-  const { attachments, isLoading: attachmentsLoading } = useMaterialAttachments(
+  const { attachments, isLoading: attachmentsLoading, mutate: mutateAttachments } = useMaterialAttachments(
     activeTab === 'attach' ? savedId : null,
   )
   // ヘッダーの「プロジェクト管理者」表示にも使うため、タブ表示中かどうかに関わらず取得する
@@ -229,6 +304,7 @@ export default function MaterialEdit() {
   const saveDraft = async (options?: { skipRedirectAfterCreate?: boolean }): Promise<boolean> => {
     setError(null)
     setSavedMessage(null)
+    setAttachmentWarning(null)
     if (title.trim().length === 0) {
       setError('教材タイトルを入力してください')
       return false
@@ -268,6 +344,8 @@ export default function MaterialEdit() {
           chapters,
         )
         await apiFetchText(`/api/materials/${created.id}/source`, source)
+        const flushWarning = await flushPendingAttachments(created.id, chapters)
+        if (flushWarning) setAttachmentWarning(flushWarning)
         setSavedId(created.id)
         setDirty(false)
         // 保存直後のこのnavigateは自分自身が起こす画面遷移（新規作成後の作成済みURLへの
@@ -289,6 +367,8 @@ export default function MaterialEdit() {
         await apiFetchText(`/api/materials/${savedId}/source`, source, {
           'X-Expected-Updated-At': material.updated_at,
         })
+        const flushWarning = await flushPendingAttachments(savedId, chapters)
+        if (flushWarning) setAttachmentWarning(flushWarning)
         const refreshed = await mutate()
         if (refreshed) acknowledgeSave(refreshed.updated_at)
         setDirty(false)
@@ -823,6 +903,11 @@ export default function MaterialEdit() {
 
         {error && (
           <p className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+        )}
+        {attachmentWarning && (
+          <p className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            {attachmentWarning}
+          </p>
         )}
         {savedMessage && <Toast message={savedMessage} />}
 
@@ -1648,18 +1733,56 @@ export default function MaterialEdit() {
         )}
 
         {activeTab === 'attach' && (
-          <section className="rounded-md border border-slate-200">
-            <div className="border-b border-slate-200 px-4 py-2.5">
-              <span className="text-sm font-semibold text-slate-700">添付ファイル・リンク（教材全体）</span>
-            </div>
-            <div className="p-4">
-              <p className="mb-3 text-xs text-slate-400">
-                このページに追加した各ページの添付を含む、教材に含まれるファイル・リンクの一覧です。追加はページ編集（S-17）から行います。
-              </p>
-              {savedId === null && <TabGateMessage />}
-              {savedId !== null && <AttachmentList attachments={attachments} isLoading={attachmentsLoading} />}
-            </div>
-          </section>
+          <div className="flex flex-col gap-5">
+            <section className="rounded-md border border-slate-200">
+              <div className="border-b border-slate-200 px-4 py-2.5">
+                <span className="text-sm font-semibold text-slate-700">教材全体の添付ファイル・リンク</span>
+              </div>
+              <div className="p-4">
+                {savedId === null && <TabGateMessage />}
+                {savedId !== null && (
+                  <>
+                    <AttachmentList
+                      materialId={savedId}
+                      attachments={attachments.filter((a) => a.node_id === null)}
+                      isLoading={attachmentsLoading}
+                      onDelete={(attachmentId) =>
+                        void deleteAttachment(savedId, attachmentId).then(() => mutateAttachments())
+                      }
+                    />
+                    <div className="mt-3">
+                      <AttachmentUploadForm
+                        materialId={savedId}
+                        nodeId={null}
+                        onUploaded={async () => {
+                          await mutateAttachments()
+                        }}
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+            </section>
+
+            <section className="rounded-md border border-slate-200">
+              <div className="border-b border-slate-200 px-4 py-2.5">
+                <span className="text-sm font-semibold text-slate-700">各ページの添付ファイル・リンク（参照専用）</span>
+              </div>
+              <div className="p-4">
+                <p className="mb-3 text-xs text-slate-400">
+                  ページごとの添付です。追加・削除はページ編集（S-17）から行います。
+                </p>
+                {savedId === null && <TabGateMessage />}
+                {savedId !== null && (
+                  <AttachmentList
+                    materialId={savedId}
+                    attachments={attachments.filter((a) => a.node_id !== null)}
+                    isLoading={attachmentsLoading}
+                  />
+                )}
+              </div>
+            </section>
+          </div>
         )}
 
         {activeTab === 'members' && (
