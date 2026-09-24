@@ -34,6 +34,8 @@ from routers.materials import (
     create_attachment,
     create_attachment_upload_url,
     create_material,
+    delete_attachment,
+    get_attachment_download_url,
     get_material_source,
     search_materials,
 )
@@ -180,6 +182,9 @@ _source_role_checker = require_material_role(min_role="editor")
         "finalize_material_assetを呼び、教材の添付として登録する。"
         "シェルでファイルを直接アップロードできない環境でのみ、代わりにupload_material_asset"
         "（base64方式。ファイルが大きいと非常に時間がかかる）を使うこと。"
+        "受講画面はブラウザの幅に合わせて縮小表示するだけで、ファイル自体は縮小されない。"
+        "スクリーンショットや高解像度の画像は、アップロード前に長辺1200px程度・数百KB以内を目安に"
+        "リサイズしておくこと（Pillow等が使えるならその場でリサイズしてから渡す）。"
     ),
 )
 async def create_material_asset_upload_url_tool(
@@ -218,6 +223,45 @@ async def finalize_material_asset_tool(
 
 
 @mcp.tool(
+    name="get_material_asset_download_url",
+    description=(
+        "教材に添付済みの画像・ファイルのダウンロードURLを発行する。既存の画像を縮小・差し替えたいが"
+        "元ファイルが手元に無い場合に使う。attachment_idは、get_material_sourceで取得した本文中の"
+        "![説明](attachment:ID)のIDから分かる。戻り値のdownload_urlに対してHTTP GETで直接ダウンロード"
+        "すること（例: curl -o <保存先のローカルパス> \"<download_url>\"）。base64でこの道具の"
+        "戻り値に乗せて返すことはしない（大きいファイルだと遅くなるため）。"
+    ),
+)
+async def get_material_asset_download_url_tool(material_id: int, attachment_id: int) -> dict:
+    result = await _call(
+        get_attachment_download_url(id=material_id, attachment_id=attachment_id, user=_current_user())
+    )
+    download_url = result["download_url"]
+    if download_url and download_url.startswith("/"):
+        # ローカル開発（Supabase未設定）はバックエンド自身の相対パスを返す。呼び出し元は別プロセス
+        # （curl等）からこのURLへ直接アクセスするため、絶対URLへ解決してから返す必要がある。
+        download_url = f"{_PUBLIC_BASE_URL}{download_url}"
+    return {"download_url": download_url, "expires_at": result.get("expires_at")}
+
+
+@mcp.tool(
+    name="delete_material_asset",
+    description=(
+        "教材に添付済みの画像・ファイルを削除する。大きすぎる画像を縮小版に差し替えた後、"
+        "不要になった元の画像を片付けたいときに使う。attachment_idは"
+        "create_material_asset_upload_url/finalize_material_asset/upload_material_assetの"
+        "戻り値のidで分かる。本文中の![説明](attachment:ID)からこのIDへの参照が残ったまま削除すると"
+        "本文側で画像が表示されなくなるため、差し替える場合は先にput_material_sourceで新しいIDへ"
+        "書き換えてから、この道具で古い方を削除すること。"
+    ),
+)
+async def delete_material_asset_tool(material_id: int, attachment_id: int) -> str:
+    verified_user = await _call(_source_role_checker(id=material_id, user=_current_user()))
+    await _call(delete_attachment(id=material_id, attachment_id=attachment_id, user=verified_user))
+    return f"添付ID {attachment_id} を削除しました。"
+
+
+@mcp.tool(
     name="upload_material_asset",
     description=(
         "教材本文に埋め込む画像をアップロードする（base64方式）。シェルコマンドが使えず、"
@@ -228,6 +272,8 @@ async def finalize_material_asset_tool(
         "get_material_source/put_material_sourceで扱う本文の中で ![説明](attachment:ID) の形式で"
         "参照すると、その位置に画像が表示される。base64_dataはdata URIのプレフィックス"
         "（例: data:image/png;base64,）を含めない、画像本体のみのBase64文字列を渡すこと。"
+        "この方式を使う場合も、アップロード前に長辺1200px程度・数百KB以内を目安にリサイズしておくと"
+        "生成が大幅に速くなる。"
     ),
 )
 async def upload_material_asset_tool(material_id: int, filename: str, mime_type: str, base64_data: str) -> dict:
