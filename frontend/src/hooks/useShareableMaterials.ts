@@ -9,12 +9,14 @@ import type { ShareableMaterial } from '../types'
 // projectId必須のプロジェクト単位検索に修正した（2026-09-18）。
 // includeArchived（既定false）: アーカイブ済み教材を含めるかどうか。誤って非表示教材を共有
 // しないよう既定では含めない（2026-09-18追加）。
-export function useShareableMaterials(projectId: number, q: string, includeArchived = false) {
+// projectIdにnullを渡すと取得を行わない（2026-09-24追加。バックエンドはこのプロジェクトの
+// 実際の管理者のみ許可するため、管理者でない閲覧者〔編集者〕にはそもそも呼ばない用途）。
+export function useShareableMaterials(projectId: number | null, q: string, includeArchived = false) {
   const params = new URLSearchParams()
-  params.set('project_id', String(projectId))
+  if (projectId !== null) params.set('project_id', String(projectId))
   if (q) params.set('q', q)
   if (includeArchived) params.set('include_archived', 'true')
-  const key = `/api/materials/shareable?${params.toString()}`
+  const key = projectId === null ? null : `/api/materials/shareable?${params.toString()}`
   const { data, error, isLoading } = useSWR<{ items: ShareableMaterial[] }>(key, apiFetch)
   return { items: data?.items ?? [], error, isLoading }
 }

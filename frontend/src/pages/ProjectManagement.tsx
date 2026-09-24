@@ -1081,7 +1081,28 @@ function OutgoingSharesSection({ projectId, canManage }: { projectId: number; ca
   // 一覧に出てこず実質共有できないという不一致があったための対応、2026-09-02）、通常時は非表示にしたい
   // というユーザー要望を受けてトグル化した（2026-09-18）。
   const [includeArchived, setIncludeArchived] = useState(false)
-  const { materials, isLoading } = useMaterials(projectId, includeArchived)
+  // 2026-09-24: 実プロジェクト管理者（canManage）は検索セクション（ShareSearchSection）と同じ
+  // /api/materials/shareable（作成者・必修/任意を問わずこのプロジェクトの全教材が対象）を使い、
+  // このタブ内の2つの一覧の対象範囲を揃える（以前はここだけA-21〔useMaterials〕を使っており、
+  // 全社ライブラリで「自分が作成した教材＋必修教材」しか出ず、検索セクションより狭い範囲に
+  // なっていた不一致をユーザーが発見）。ただし/api/materials/shareableは実プロジェクト管理者
+  // のみ許可するAPIのため、このタブを閲覧できる編集者（canViewSharing、SharingTab呼び出し元
+  // 参照）向けには従来どおりA-21を使う（編集者は元々自分が作成した教材しか見えない設計のため、
+  // ここだけ範囲を広げると編集者の閲覧権限を超えてしまう）。projectIdにnullを渡す方は
+  // フックが取得自体を行わないため、片方だけが実際にAPIを呼ぶ。
+  const shareable = useShareableMaterials(canManage ? projectId : null, '', includeArchived)
+  const own = useMaterials(canManage ? null : projectId, includeArchived)
+  const isLoading = canManage ? shareable.isLoading : own.isLoading
+  const rows: { id: number; title: string; status: MaterialSource['status']; is_archived: boolean; extraInfo?: string }[] =
+    canManage
+      ? shareable.items.map((m) => ({
+          id: m.id,
+          title: m.title,
+          status: 'published',
+          is_archived: m.is_archived,
+          extraInfo: `作成者: ${m.created_by_name} ／ ${m.is_required ? '必修' : '任意'}`,
+        }))
+      : own.materials.map((m) => ({ id: m.id, title: m.title, status: m.status, is_archived: m.is_archived }))
 
   return (
     <div>
@@ -1099,7 +1120,7 @@ function OutgoingSharesSection({ projectId, canManage }: { projectId: number; ca
       </label>
       {isLoading ? (
         <p className="text-sm text-slate-400">読み込み中...</p>
-      ) : materials.length === 0 ? (
+      ) : rows.length === 0 ? (
         <p className="text-sm text-slate-400">教材がありません。</p>
       ) : (
         <div className="overflow-x-auto rounded-md border border-slate-200">
@@ -1113,8 +1134,14 @@ function OutgoingSharesSection({ projectId, canManage }: { projectId: number; ca
               </tr>
             </thead>
             <tbody>
-              {materials.map((m) => (
-                <OutgoingShareRow key={m.id} sourceProjectId={projectId} material={m} canManage={canManage} />
+              {rows.map((m) => (
+                <OutgoingShareRow
+                  key={m.id}
+                  sourceProjectId={projectId}
+                  material={m}
+                  canManage={canManage}
+                  extraInfo={m.extraInfo}
+                />
               ))}
             </tbody>
           </table>
