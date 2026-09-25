@@ -478,6 +478,10 @@ export default function MaterialView() {
                 <div className="px-4 py-3 text-xs text-slate-500">
                   {formatDateTimeJst(entry.attempt.submitted_at)} 実施 ／ 正答率
                   {entry.attempt.score_pct !== null ? Math.round(entry.attempt.score_pct) : '—'}%
+                  <p className="mt-1">
+                    受験回数: {entry.attempt_count}回
+                    {entry.retake_limit !== null ? `／上限${entry.retake_limit}回` : '（上限なし）'}
+                  </p>
                   {entry.attempt.passed === false && (
                     <p className="mt-1 text-red-700">
                       {entry.attempt.fail_reason

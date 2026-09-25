@@ -248,6 +248,16 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_quiz_attempts_active
 CREATE INDEX IF NOT EXISTS idx_quiz_attempts_material_id ON quiz_attempts (material_id);
 CREATE INDEX IF NOT EXISTS idx_quiz_attempts_user_id ON quiz_attempts (user_id);
 ALTER TABLE quiz_attempts ENABLE ROW LEVEL SECURITY;
+-- deleted_at: 個人学習レポートの「学習履歴から削除」（本人のみ実行可）が押された時刻。論理削除に
+-- 留め、行自体・answersは物理削除しない。理由: A-40の合格済みブロック（frozen_attempt）・再受験回数
+-- 上限のカウント（submitted_count）はどちらもquiz_attemptsの実在行数に直接依存しており、物理削除
+-- すると「受けていないこと」にできてしまい再受験し放題になる。そのためこの2箇所を含む受験の仕組み
+-- （A-40本体・retake_scope='wrong_only'の繰越判定等）は一切deleted_atを見ず、これまでどおり全行を
+-- 対象にする。deleted_atは、本人が自分の学習履歴・採点結果パネル・AI個人フィードバックの弱点分析/
+-- おすすめ教材候補という「本人が自分の実績を振り返る画面」からのみ除外するために使う（2026-09-25新設。
+-- 組織側の集計・採点キュー・教材/プロジェクトの削除可否判定など、本人以外が見る・使う経路は対象外とし、
+-- 従来どおりdeleted_atの有無に関わらず全件を扱う）。
+ALTER TABLE quiz_attempts ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
 
 -- T-32 attempt_limit_resets（REQ-F-09/F-14: 再受験回数上限のリセット）。quiz_attemptsは
 -- 学習記録として削除しないため（学習記録は失われない、という一貫方針）、上限に達した後に

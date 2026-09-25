@@ -29,3 +29,11 @@ export function publishMaterial(id: number): Promise<Material> {
 export function resetMaterialProgress(id: number): Promise<void> {
   return apiFetch<void>(`/api/materials/${id}/progress`, { method: 'DELETE' })
 }
+
+// 新規（2026-09-25）: 学習履歴から削除（S-09学習履歴の「履歴から削除」ボタン、本人のみ）。
+// A-95「未受講に戻す」と異なり、S-09の一覧・S-04の採点結果パネルから完全に見えなくする。
+// 受験記録自体は論理削除のみで、再受験回数の上限には一切影響しない
+// （backend/routers/learning.pyのdelete_material_history参照）
+export function deleteMaterialHistory(id: number): Promise<void> {
+  return apiFetch<void>(`/api/materials/${id}/history`, { method: 'DELETE' })
+}

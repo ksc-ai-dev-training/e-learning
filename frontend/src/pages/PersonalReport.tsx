@@ -9,7 +9,7 @@ import { usePersonalAiFeedback, usePersonalReport } from '../hooks/usePersonalRe
 import { ApiError } from '../lib/api'
 import { fromPersonalReport } from '../lib/backLink'
 import { formatDateJst, formatDateTimeJst } from '../lib/datetime'
-import { resetMaterialProgress } from '../lib/materialActions'
+import { deleteMaterialHistory, resetMaterialProgress } from '../lib/materialActions'
 import { requestPersonalAiFeedback } from '../lib/reportActions'
 import { scrollToAndHighlight } from '../lib/scrollHighlight'
 import type { EnrollmentStatus } from '../types'
@@ -43,6 +43,9 @@ export default function PersonalReport() {
   const [confirmingResetId, setConfirmingResetId] = useState<number | null>(null)
   const [resettingId, setResettingId] = useState<number | null>(null)
   const [resetError, setResetError] = useState<string | null>(null)
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<number | null>(null)
+  const [deletingId, setDeletingId] = useState<number | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
   const [historyTab, setHistoryTab] = useState<EnrollmentStatus>('completed')
 
   useEffect(() => {
@@ -89,6 +92,23 @@ export default function PersonalReport() {
     } finally {
       setResettingId(null)
       setConfirmingResetId(null)
+    }
+  }
+
+  // 新規（2026-09-25）: 学習履歴から削除。本人のみ実行可（isOwnReportの分岐内でのみ描画する）。
+  // 受験記録は論理削除のみで、再受験回数の上限には影響しない
+  // （backend/routers/learning.pyのdelete_material_history参照）
+  const handleDeleteHistory = async (materialId: number) => {
+    setDeleteError(null)
+    setDeletingId(materialId)
+    try {
+      await deleteMaterialHistory(materialId)
+      await mutateReport()
+    } catch (e) {
+      setDeleteError(e instanceof ApiError ? e.message : '削除に失敗しました')
+    } finally {
+      setDeletingId(null)
+      setConfirmingDeleteId(null)
     }
   }
 
@@ -250,7 +270,9 @@ export default function PersonalReport() {
 
         <div id="learning-history" className="mb-2 flex scroll-mt-4 items-baseline justify-between">
           <h3 className="text-sm font-semibold text-slate-700">学習履歴</h3>
-          {resetError && <span className="text-sm text-red-600">{resetError}</span>}
+          {(resetError || deleteError) && (
+            <span className="text-sm text-red-600">{resetError || deleteError}</span>
+          )}
         </div>
         {report.history.length === 0 ? (
           <p className="text-sm text-slate-400">学習履歴はまだありません。</p>
@@ -285,7 +307,12 @@ export default function PersonalReport() {
                       <th className="px-3 py-2 font-normal">受講日</th>
                       <th className="px-3 py-2 font-normal">結果</th>
                       <th className="px-3 py-2 text-right font-normal">スコア</th>
-                      {isOwnReport && <th className="px-3 py-2 font-normal">操作</th>}
+                      {isOwnReport && (
+                        <>
+                          <th className="w-24 px-3 py-2 font-normal">進捗リセット</th>
+                          <th className="w-24 px-3 py-2 font-normal">履歴削除</th>
+                        </>
+                      )}
                     </tr>
                   </thead>
                   <tbody>
@@ -328,44 +355,83 @@ export default function PersonalReport() {
                           {h.score_pct != null ? `${Math.round(h.score_pct)}点` : '—'}
                         </td>
                         {isOwnReport && (
-                          <td className="px-3 py-2">
-                            {h.status === 'not_started' ? (
-                              <span className="text-xs text-slate-300">—</span>
-                            ) : confirmingResetId === h.material_id ? (
-                              <span className="flex items-center gap-2 text-xs">
-                                本当に戻しますか？
+                          <>
+                            <td className="px-3 py-2 align-top">
+                              {h.status === 'not_started' ? (
+                                <span className="text-xs text-slate-300">—</span>
+                              ) : confirmingResetId === h.material_id ? (
+                                <span className="flex flex-wrap items-center gap-1.5 text-xs whitespace-nowrap">
+                                  戻す？
+                                  <button
+                                    type="button"
+                                    disabled={resettingId === h.material_id}
+                                    onClick={() => handleResetProgress(h.material_id)}
+                                    className="font-semibold text-red-700 hover:underline disabled:opacity-50"
+                                  >
+                                    {resettingId === h.material_id ? '処理中...' : 'はい'}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setConfirmingResetId(null)}
+                                    className="text-slate-500 hover:underline"
+                                  >
+                                    キャンセル
+                                  </button>
+                                </span>
+                              ) : (
                                 <button
                                   type="button"
-                                  disabled={resettingId === h.material_id}
-                                  onClick={() => handleResetProgress(h.material_id)}
-                                  className="font-semibold text-red-700 hover:underline disabled:opacity-50"
+                                  onClick={() => setConfirmingResetId(h.material_id)}
+                                  className="text-xs font-semibold text-slate-500 hover:text-red-700 hover:underline"
                                 >
-                                  {resettingId === h.material_id ? '処理中...' : 'はい'}
+                                  未受講に戻す
                                 </button>
+                              )}
+                            </td>
+                            <td className="px-3 py-2 align-top">
+                              {confirmingDeleteId === h.material_id ? (
+                                <span className="flex flex-wrap items-center gap-1.5 text-xs whitespace-nowrap">
+                                  削除？
+                                  <button
+                                    type="button"
+                                    disabled={deletingId === h.material_id}
+                                    onClick={() => handleDeleteHistory(h.material_id)}
+                                    className="font-semibold text-red-700 hover:underline disabled:opacity-50"
+                                  >
+                                    {deletingId === h.material_id ? '処理中...' : 'はい'}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setConfirmingDeleteId(null)}
+                                    className="text-slate-500 hover:underline"
+                                  >
+                                    キャンセル
+                                  </button>
+                                </span>
+                              ) : (
                                 <button
                                   type="button"
-                                  onClick={() => setConfirmingResetId(null)}
-                                  className="text-slate-500 hover:underline"
+                                  onClick={() => setConfirmingDeleteId(h.material_id)}
+                                  className="text-xs font-semibold text-slate-500 hover:text-red-700 hover:underline"
                                 >
-                                  キャンセル
+                                  履歴から削除
                                 </button>
-                              </span>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => setConfirmingResetId(h.material_id)}
-                                className="text-xs font-semibold text-slate-500 hover:text-red-700 hover:underline"
-                              >
-                                未受講に戻す
-                              </button>
-                            )}
-                          </td>
+                              )}
+                            </td>
+                          </>
                         )}
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
+            )}
+            {isOwnReport && visibleHistory.length > 0 && (
+              <p className="mt-1.5 max-w-3xl text-[11px] text-slate-400">
+                「進捗リセット」は受験記録を残したまま未受講の状態に戻します（S-04の採点結果パネル・AIフィードバックには引き続き反映されます）。
+                <br />
+                「履歴削除」は学習履歴・採点結果・AIフィードバックの集計から見えなくなります。※どちらの操作も受験回数はリセットされません。
+              </p>
             )}
           </>
         )}

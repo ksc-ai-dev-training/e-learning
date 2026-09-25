@@ -1404,16 +1404,22 @@ async def get_attempt_summary(id: int, user: CurrentUser = Depends(require_auth)
 
     entries = []
     for g in groups:
+        # deleted_at IS NULL: 個人が「学習履歴から削除」した受験記録は、本人が振り返るこの
+        # 採点結果パネルからは除外する（削除機能自体は行を消さないため、retake_limit判定等
+        # 受験の仕組み側には一切影響しない。delete_material_history参照）。
         attempt = await pool.fetchrow(
             """SELECT id, attempt_no, score_pct, passed, fail_reason, submitted_at, carried_over_question_ids
                FROM quiz_attempts
                WHERE user_id = $1 AND material_id = $2 AND mode = 'graded'
                  AND scope_node_id IS NOT DISTINCT FROM $3 AND submitted_at IS NOT NULL
+                 AND deleted_at IS NULL
                ORDER BY attempt_no DESC LIMIT 1""",
             user.id, id, g["scope_node_id"],
         )
         if attempt is None:
             continue
+        # attempt_countはdeleted_atを見ない（再受験回数の実際の残数と一致させるため。学習履歴から
+        # 削除しても回数制限は変わらないので、表示上の残り回数も削除前と同じ値のままにする）。
         attempt_count = await pool.fetchval(
             """SELECT COUNT(*) FROM quiz_attempts
                 WHERE user_id = $1 AND material_id = $2 AND mode = 'graded'
@@ -1898,6 +1904,7 @@ async def get_my_learning(history: bool = False, user: CurrentUser = Depends(req
                SELECT 1 FROM answers a JOIN quiz_attempts qa ON qa.id = a.attempt_id
                WHERE qa.user_id = $1 AND qa.material_id = m.id AND a.reviewed_at IS NOT NULL
                  AND (a.result_seen_at IS NULL OR a.result_seen_at < a.reviewed_at)
+                 AND qa.deleted_at IS NULL
            )""",
         user.id,
     )
@@ -1965,6 +1972,40 @@ async def ack_grading_results(id: int, user: CurrentUser = Depends(require_auth)
         user.id, id,
     )
     return {"detail": "確認済みにしました"}
+
+
+@router.delete("/materials/{id}/history", status_code=204)
+async def delete_material_history(id: int, user: CurrentUser = Depends(require_auth)):
+    """新設: 個人学習レポートの学習履歴から、指定教材の自分の受講記録を削除する（本人のみ実行可。
+    管理者による代行削除は提供しない、2026-09-25ユーザー指示）。
+
+    quiz_attempts・answersは物理削除せず、quiz_attempts.deleted_atを立てる論理削除に留める。
+    A-40の合格済みブロック（frozen_attempt）・再受験回数上限のカウント（submitted_count）は
+    どちらもquiz_attemptsの実在行数を直接見ており、物理削除すると「一度も受けていないこと」に
+    なって再受験し放題になってしまう（ユーザー指摘により発覚）。そのためdeleted_atは、本人が
+    自分の実績を振り返る画面（学習履歴・採点結果パネル・AI個人フィードバック）からの除外にのみ
+    使い、受験の仕組み自体（retake_limit判定・retake_scope='wrong_only'の繰越等）は一切参照しない
+    （引き続き削除前と同じ回数制限のまま）。
+
+    対象はmode='graded'の提出済み（submitted_at IS NOT NULL）のみ。未提出（進行中）の受験記録は
+    対象外とする（部分ユニークインデックスuq_quiz_attempts_activeがWHERE submitted_at IS NULLの
+    行を対象にしているため、ここまで論理削除するとON CONFLICTが「削除済み」の行を復活させて
+    しまう）。practice（反復演習・誤答＆難問抽出）はそもそも学習履歴の表示・再受験制限の対象外
+    のため対象外。
+
+    enrollment_progress（受講ステータスそのもの）は再受験制限と無関係なので、こちらは物理削除
+    する（次回受講時に新規作成され、判定への影響は無い）。"""
+    pool = get_pool()
+    await pool.execute(
+        """UPDATE quiz_attempts SET deleted_at = now()
+            WHERE user_id = $1 AND material_id = $2 AND mode = 'graded'
+              AND submitted_at IS NOT NULL AND deleted_at IS NULL""",
+        user.id, id,
+    )
+    await pool.execute(
+        "DELETE FROM enrollment_progress WHERE user_id = $1 AND material_id = $2",
+        user.id, id,
+    )
 
 
 @router.put("/materials/{id}/my-learning")

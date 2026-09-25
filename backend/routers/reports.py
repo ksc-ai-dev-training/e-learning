@@ -79,7 +79,7 @@ async def _aggregate_personal_report(user_id: int) -> dict:
            LEFT JOIN LATERAL (
                SELECT qa.score_pct, qa.passed FROM quiz_attempts qa
                 WHERE qa.material_id = ep.material_id AND qa.user_id = ep.user_id
-                  AND qa.mode = 'graded' AND qa.submitted_at IS NOT NULL
+                  AND qa.mode = 'graded' AND qa.submitted_at IS NOT NULL AND qa.deleted_at IS NULL
                   AND EXISTS (SELECT 1 FROM answers a JOIN questions q ON q.id = a.question_id
                                WHERE a.attempt_id = qa.id AND q.type != 'score_log')
                 ORDER BY qa.submitted_at DESC LIMIT 1
@@ -150,6 +150,7 @@ async def _aggregate_tag_stats(user_id: int) -> list[dict]:
            FROM quiz_attempts qa
            JOIN materials m ON m.id = qa.material_id
            WHERE qa.user_id = $1 AND qa.mode = 'graded' AND qa.submitted_at IS NOT NULL
+             AND qa.deleted_at IS NULL
              AND EXISTS (SELECT 1 FROM answers a JOIN questions q ON q.id = a.question_id
                           WHERE a.attempt_id = qa.id AND q.type != 'score_log')""",
         user_id,
@@ -175,7 +176,7 @@ async def _aggregate_candidate_materials(user_id: int, limit: int = 20) -> list[
            LEFT JOIN LATERAL (
                SELECT passed FROM quiz_attempts qa
                 WHERE qa.material_id = m.id AND qa.user_id = $1
-                  AND qa.mode = 'graded' AND qa.submitted_at IS NOT NULL
+                  AND qa.mode = 'graded' AND qa.submitted_at IS NOT NULL AND qa.deleted_at IS NULL
                 ORDER BY qa.submitted_at DESC LIMIT 1
            ) latest ON true
            WHERE m.status = 'published' AND m.is_archived = false
