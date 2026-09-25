@@ -103,6 +103,7 @@ export interface MaterialSource {
   is_archived: boolean
   updated_at: string
   tags: string[]
+  created_by_name: string
   chapter_count: number
   page_count: number
 }
@@ -118,6 +119,7 @@ export interface MaterialSearchItem {
   project_id: number
   project_name: string
   is_company_wide: boolean
+  created_by_name: string
   chapter_count: number
   page_count: number
   question_count: number

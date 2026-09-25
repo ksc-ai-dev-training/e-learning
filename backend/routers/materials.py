@@ -183,6 +183,7 @@ async def search_materials(
     rows = await pool.fetch(
         f"""SELECT m.id, m.title, m.description, m.tags, m.project_id,
                    p.name AS project_name, p.is_company_wide,
+                   u.name AS created_by_name,
                    COALESCE(nc.chapter_count, 0) AS chapter_count,
                    COALESCE(nc.page_count, 0) AS page_count,
                    COALESCE(qc.question_count, 0) AS question_count,
@@ -194,6 +195,7 @@ async def search_materials(
                    m.updated_at
             FROM materials m
             JOIN projects p ON p.id = m.project_id
+            JOIN users u ON u.id = m.created_by
             LEFT JOIN (
                 SELECT material_id,
                        COUNT(*) FILTER (WHERE kind = 'chapter') AS chapter_count,
@@ -441,9 +443,11 @@ async def list_materials_source(
 
     rows = await pool.fetch(
         f"""SELECT m.id, m.title, m.status, m.is_archived, m.updated_at, m.tags,
+                   u.name AS created_by_name,
                    COALESCE(nc.chapter_count, 0) AS chapter_count,
                    COALESCE(nc.page_count, 0) AS page_count
             FROM materials m
+            JOIN users u ON u.id = m.created_by
             LEFT JOIN (
                 SELECT material_id,
                        COUNT(*) FILTER (WHERE kind = 'chapter') AS chapter_count,

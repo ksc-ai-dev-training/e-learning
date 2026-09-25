@@ -97,21 +97,21 @@ export default function MaterialsList() {
       <PageHeader title={`教材作成・編集${project ? ` — ${project.name}` : ''}`} />
       <div className="px-8 py-6">
         <p className="mb-4 text-[11.5px] text-slate-400">
-          <Link to="/materials/edit-projects" className="text-blue-800 hover:underline">
+          <Link to="/materials/edit-projects" className="text-blue-800 hover:underline dark:text-blue-300">
             ← プロジェクト選択に戻る
           </Link>
           {' ／ '}
           このプロジェクトの教材（下書きを含む）を一覧表示します。
         </p>
 
-        <details className="mb-4 rounded-md border border-slate-200" open>
-          <summary className="cursor-pointer px-4 py-2.5 text-sm font-semibold text-slate-600">
+        <details className="mb-4 rounded-md border border-slate-200 dark:border-slate-800" open>
+          <summary className="cursor-pointer px-4 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-200">
             絞り込み <span className="ml-1 text-xs font-normal text-slate-400">クリックで開閉</span>
           </summary>
-          <div className="border-t border-slate-200 p-4">
+          <div className="border-t border-slate-200 p-4 dark:border-slate-800">
             <div className="grid grid-cols-3 gap-4">
               <div className="flex flex-col gap-1">
-                <label htmlFor="m-keyword" className="text-xs font-semibold text-slate-500">
+                <label htmlFor="m-keyword" className="text-xs font-semibold text-slate-500 dark:text-slate-300">
                   キーワード
                 </label>
                 <TextInput
@@ -123,7 +123,7 @@ export default function MaterialsList() {
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <label htmlFor="m-status" className="text-xs font-semibold text-slate-500">
+                <label htmlFor="m-status" className="text-xs font-semibold text-slate-500 dark:text-slate-300">
                   状態
                 </label>
                 <Select
@@ -134,7 +134,7 @@ export default function MaterialsList() {
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <label htmlFor="m-month" className="text-xs font-semibold text-slate-500">
+                <label htmlFor="m-month" className="text-xs font-semibold text-slate-500 dark:text-slate-300">
                   更新月
                 </label>
                 <Select
@@ -145,7 +145,7 @@ export default function MaterialsList() {
                 />
               </div>
             </div>
-            <div className="mt-3.5 flex items-center gap-2.5 border-t border-slate-100 pt-3.5">
+            <div className="mt-3.5 flex items-center gap-2.5 border-t border-slate-100 pt-3.5 dark:border-slate-800">
               <Button variant="primary" onClick={applyFilter}>
                 絞り込む
               </Button>
@@ -159,7 +159,7 @@ export default function MaterialsList() {
         <div className="mb-4 flex items-center gap-2.5">
           <Link
             to={`/projects/${id}/materials/new/edit`}
-            className="rounded-md border border-blue-800 bg-blue-900 px-3 py-1.5 text-sm font-semibold text-white hover:bg-blue-800"
+            className="rounded-md border border-blue-800 bg-blue-900 px-3 py-1.5 text-sm font-semibold text-white hover:bg-blue-800 dark:border-blue-700 dark:bg-blue-800"
           >
             ＋ このプロジェクトに新規教材を作成
           </Link>
@@ -167,63 +167,77 @@ export default function MaterialsList() {
         </div>
 
         {isLoading && <p className="text-sm text-slate-400">読み込み中...</p>}
-        {error && <p className="text-sm text-red-600">教材一覧を取得できませんでした</p>}
+        {error && <p className="text-sm text-red-600 dark:text-red-400">教材一覧を取得できませんでした</p>}
 
         {!isLoading && !error && materials.length === 0 && (
-          <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400">
+          <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400 dark:border-slate-800 dark:bg-slate-900">
             教材がありません。「＋ このプロジェクトに新規教材を作成」から作成してください。
           </p>
         )}
 
         {!isLoading && !error && materials.length > 0 && filtered.length === 0 && (
-          <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400">
+          <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400 dark:border-slate-800 dark:bg-slate-900">
             条件に一致する教材がありません。
           </p>
         )}
 
-        {restoreError && <p className="mb-3 text-sm text-red-600">{restoreError}</p>}
+        {restoreError && <p className="mb-3 text-sm text-red-600 dark:text-red-400">{restoreError}</p>}
 
         {filtered.length > 0 && (
-          <div className="overflow-x-auto rounded-md border border-slate-200">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto rounded-md border border-slate-200 dark:border-slate-800">
+            <table className="w-full text-sm [&_td]:align-top">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs text-slate-500">
+                <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
                   <th className="px-3 py-2 font-semibold">教材</th>
                   <th className="w-24 px-3 py-2 font-semibold">状態</th>
                   <th className="w-28 px-3 py-2 font-semibold">構成</th>
+                  <th className="w-24 px-3 py-2 font-semibold">作成者</th>
                   <th className="w-28 px-3 py-2 font-semibold">更新日</th>
                   {filter.status === 'archived' && <th className="w-24 px-3 py-2 font-semibold">操作</th>}
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((m) => (
-                  <tr key={m.id} className="border-b border-slate-100 last:border-0">
-                    <td className="px-3 py-2">
+                {filtered.map((m, i) => (
+                  <tr
+                    key={m.id}
+                    className={`border-b border-slate-200 last:border-0 hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800/60 ${
+                      i % 2 === 1 ? 'bg-slate-50 dark:bg-slate-900/40' : ''
+                    }`}
+                  >
+                    <td className="px-3 py-3">
                       <Link
                         to={`/projects/${id}/materials/${m.id}/edit`}
                         className={
                           m.is_archived
-                            ? 'text-slate-400 hover:text-blue-800 hover:underline'
-                            : 'text-slate-800 hover:text-blue-800 hover:underline'
+                            ? 'text-slate-400 hover:text-blue-800 hover:underline dark:text-slate-500 dark:hover:text-blue-300'
+                            : 'text-slate-800 hover:text-blue-800 hover:underline dark:text-slate-100 dark:hover:text-blue-300'
                         }
                       >
                         {m.title}
                       </Link>
                       {m.tags.length > 0 && (
-                        <div className="mt-0.5 text-[11px] text-slate-400">
-                          {m.tags.map((t) => `#${t}`).join(' ')}
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {m.tags.map((t) => (
+                            <span
+                              key={t}
+                              className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[13px] text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                            >
+                              #{t}
+                            </span>
+                          ))}
                         </div>
                       )}
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-3 py-3">
                       <Badge variant={m.is_archived ? 'archived' : m.status === 'published' ? 'published' : 'draft'} />
                     </td>
-                    <td className="px-3 py-2 text-slate-500">
+                    <td className="px-3 py-3 text-slate-500 dark:text-slate-300">
                       {m.chapter_count}章・{m.page_count}ページ
                     </td>
-                    <td className="px-3 py-2 text-slate-500">{formatDateJst(m.updated_at)}</td>
+                    <td className="px-3 py-3 text-slate-500 dark:text-slate-300">{m.created_by_name}</td>
+                    <td className="px-3 py-3 text-slate-500 dark:text-slate-300">{formatDateJst(m.updated_at)}</td>
                     {filter.status === 'archived' && (
-                      <td className="px-3 py-2">
+                      <td className="px-3 py-3">
                         <Button
                           variant="secondary"
                           onClick={() => restore(m.id)}
