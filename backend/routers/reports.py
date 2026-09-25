@@ -72,7 +72,7 @@ async def _aggregate_personal_report(user_id: int) -> dict:
     )
 
     history_rows = await pool.fetch(
-        """SELECT m.id AS material_id, m.title AS material_title, ep.status, ep.completed_at,
+        """SELECT m.id AS material_id, m.title AS material_title, m.is_archived, ep.status, ep.completed_at,
                   latest.score_pct, latest.passed
            FROM enrollment_progress ep
            JOIN materials m ON m.id = ep.material_id
@@ -102,6 +102,7 @@ async def _aggregate_personal_report(user_id: int) -> dict:
             {
                 "material_id": r["material_id"],
                 "material_title": r["material_title"],
+                "is_archived": r["is_archived"],
                 "status": r["status"],
                 "completed_at": r["completed_at"],
                 "score_pct": float(r["score_pct"]) if r["score_pct"] is not None else None,
@@ -248,8 +249,13 @@ async def get_personal_ai_feedback(user_id: int, user: CurrentUser = Depends(req
     material_ids = content.get("recommended_material_ids", [])
     materials = []
     if material_ids:
+        # 生成時点ではis_archived=falseの候補から選ばれていても、その後アーカイブされている
+        # ことがあるため、表示のたびに現在の状態で除外し直す（2026-09-25、個人学習レポートの
+        # 学習履歴で同種の問題〔アーカイブ済み教材が受講可能に見えてしまう〕が見つかったのに
+        # 合わせて監査し発見）。
         material_rows = await pool.fetch(
-            "SELECT id, title FROM materials WHERE id = ANY($1::bigint[])", material_ids
+            "SELECT id, title FROM materials WHERE id = ANY($1::bigint[]) AND is_archived = false",
+            material_ids,
         )
         by_id = {r["id"]: r["title"] for r in material_rows}
         materials = [{"id": mid, "title": by_id[mid]} for mid in material_ids if mid in by_id]

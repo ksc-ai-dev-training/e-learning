@@ -55,7 +55,7 @@ async def _require_view_access(pool, id: int, user: CurrentUser) -> dict:
     adminも不可）。それ以外の通常プロジェクトは従来通りeditor以上ならis_editor=True（下書きも
     含めて閲覧・編集できる）。"""
     row = await pool.fetchrow(
-        """SELECT m.project_id, m.status, m.created_by, p.is_company_wide,
+        """SELECT m.project_id, m.status, m.created_by, m.is_archived, p.is_company_wide,
                   EXISTS (
                       SELECT 1 FROM assignments a WHERE a.material_id = m.id AND a.required = true
                   ) AS is_required
@@ -82,6 +82,14 @@ async def _require_view_access(pool, id: int, user: CurrentUser) -> dict:
 
     if row["status"] != "published":
         raise HTTPException(403, detail="この教材は受講対象ではありません")
+    # アーカイブ済み教材は編集者以外（受講者としてのアクセス）には一切見せない・受講させない
+    # （2026-09-25、ユーザー指摘。個人学習レポートの学習履歴から過去に受講した教材へのリンクを
+    # 辿ると、アーカイブ後もこのチェックが無かったため設問回答まで普通にできてしまっていた。
+    # F-30の設計上、アーカイブは「一覧・検索からの非表示」のみを意図しており、受講そのものを
+    # 止める仕組みは無かった。編集者側は従来通り閲覧・編集できる〔5.30節「アーカイブ中の閲覧・編集」〕
+    # ため、このガードはis_editor=Falseの分岐にのみ置く）。
+    if row["is_archived"]:
+        raise HTTPException(403, detail="この教材はアーカイブされているため受講できません")
     if not await has_active_project_role(row["project_id"], user.id, "learner"):
         is_individual_target = await pool.fetchval(
             """SELECT EXISTS(

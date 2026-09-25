@@ -21,6 +21,7 @@ export interface CliTokenItem {
 export interface PersonalReportHistoryItem {
   material_id: number
   material_title: string
+  is_archived: boolean
   status: EnrollmentStatus
   completed_at: string | null
   score_pct: number | null

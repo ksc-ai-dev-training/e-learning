@@ -292,12 +292,19 @@ export default function PersonalReport() {
                     {visibleHistory.map((h) => (
                       <tr key={h.material_id} className="border-b border-slate-50 last:border-0">
                         <td className="px-3 py-2 text-slate-800">
-                          <Link
-                            to={`/materials/${h.material_id}?from=${fromPersonalReport(userIdParam ?? 'me')}`}
-                            className="text-blue-800 hover:underline"
-                          >
-                            {h.material_title}
-                          </Link>
+                          {h.is_archived ? (
+                            <span className="inline-flex items-center gap-1.5 text-slate-400">
+                              {h.material_title}
+                              <Badge variant="archived" />
+                            </span>
+                          ) : (
+                            <Link
+                              to={`/materials/${h.material_id}?from=${fromPersonalReport(userIdParam ?? 'me')}`}
+                              className="text-blue-800 hover:underline"
+                            >
+                              {h.material_title}
+                            </Link>
+                          )}
                         </td>
                         <td className="px-3 py-2 text-slate-500">
                           {h.completed_at ? formatDateJst(h.completed_at) : '—'}
