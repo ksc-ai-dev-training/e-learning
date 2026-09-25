@@ -47,12 +47,23 @@ def _resolve_public_base_url() -> str:
     使えない（A-04 cli/token応答のmanabi_url修正時に判明したのと同じ理由）。GOOGLE_REDIRECT_URI
     （auth.pyの_redirect_uriと同じ値。バックエンド自身のコールバックURL）からオリジンだけを
     取り出して使う方が正確（本番は単一オリジン構成のためFRONTEND_URLでも一致するが、この方式なら
-    ローカル・本番どちらでも正しい値になる。2026-09-14）。"""
+    ローカル・本番どちらでも正しい値になる。2026-09-14）。
+
+    本番（Fly.io）では単一オリジン構成のためGOOGLE_REDIRECT_URI・FRONTEND_URLのどちらも未設定の
+    運用になっており、この2つに頼るとlocalhost:5177というローカル開発用の既定値まで落ちてしまい、
+    get_material_edit_url等が本番でも誤ってlocalhostのURLを返す不具合になっていた（2026-09-25、
+    利用者からの指摘により発覚）。Fly Machinesは追加設定なしにFLY_APP_NAMEを環境変数へ自動注入する
+    ため、上記2つが無い場合はこれを使って`https://{app名}.fly.dev`を組み立てる。"""
     redirect_uri = os.environ.get("GOOGLE_REDIRECT_URI")
     if redirect_uri:
         parts = urlsplit(redirect_uri)
         return f"{parts.scheme}://{parts.netloc}"
-    return (os.environ.get("FRONTEND_URL") or "http://localhost:5177").rstrip("/")
+    if os.environ.get("FRONTEND_URL"):
+        return os.environ["FRONTEND_URL"].rstrip("/")
+    fly_app_name = os.environ.get("FLY_APP_NAME")
+    if fly_app_name:
+        return f"https://{fly_app_name}.fly.dev"
+    return "http://localhost:5177"
 
 
 _PUBLIC_BASE_URL = _resolve_public_base_url()
