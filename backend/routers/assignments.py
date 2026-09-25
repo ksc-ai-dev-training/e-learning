@@ -106,7 +106,7 @@ async def list_assignments(
     # フロントエンドがアーカイブボタンの表示条件に使う。
     rows = await pool.fetch(
         f"""SELECT m.id, m.title, m.status, m.project_id, p.name AS project_name,
-                   p.is_company_wide, m.updated_at, m.is_archived,
+                   p.is_company_wide, m.updated_at, m.is_archived, u.name AS created_by_name,
                    (m.created_by = $1 OR EXISTS (
                        SELECT 1 FROM project_memberships pmarchive
                         WHERE pmarchive.project_id = m.project_id AND pmarchive.user_id = $1
@@ -122,6 +122,7 @@ async def list_assignments(
                          JOIN surveys sv ON sv.id = sr.survey_id WHERE sv.material_id = m.id
                    ) AS has_learning_history
               FROM materials m JOIN projects p ON p.id = m.project_id
+                   JOIN users u ON u.id = m.created_by
              WHERE {' AND '.join(conditions)}
              ORDER BY m.updated_at DESC""",
         *params,

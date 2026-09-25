@@ -626,6 +626,7 @@ export interface AssignmentListItem {
   project_id: number
   project_name: string
   is_company_wide: boolean
+  created_by_name: string
   updated_at: string
   is_archived: boolean
   // 作成者本人、またはこの教材のプロジェクトの実際の管理者か（システムadminの無条件許可は含まない）。

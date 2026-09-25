@@ -10,6 +10,7 @@ import { useAssignments } from '../hooks/useAssignments'
 import { formatDateJst } from '../lib/datetime'
 import { ApiError } from '../lib/api'
 import { archiveMaterial, restoreMaterial } from '../lib/materialActions'
+import { projectColorClasses } from '../lib/projectColors'
 import type { AssignmentListItem } from '../types'
 
 type SortKey = 'required' | 'updated' | 'title'
@@ -22,10 +23,13 @@ const STATUS_OPTIONS = [
 ]
 
 // S-06 配信設定（詳細設計書10.6節相当）。誰でもアクセスでき、admin（全教材）またはプロジェクト
-// 管理者（自プロジェクトに属する教材、下書き含む）が管理対象を持つ。配信対象は「プロジェクト」
-// （教材自身の所属プロジェクトに固定）と「個人」（そのプロジェクトの現役メンバーのみ）の2種類で、
-// 全社ライブラリの教材はプロジェクトadmin以外は任意固定（必修不可、2026-09-17より前はadminであっても
-// 常に不可だった）。pass_score_pct等の合否判定設定はこの画面では扱わない
+// 管理者（自プロジェクトに属する教材、下書き含む）が管理対象を持つ。基本的なアクセス権（見られる・
+// 受講できるか）はプロジェクトメンバーであることだけで決まりassignments行の有無とは無関係なため、
+// この画面が実際に扱っているのは「誰を必修対象にするか」のみ（2026-09-25、列名を「配信対象」から
+// 「必修対象」に変更）。必修対象は「プロジェクト」（教材自身の所属プロジェクトに固定）と「個人」
+// （そのプロジェクトの現役メンバーのみ）の2種類で、全社ライブラリの教材はプロジェクトadmin以外は
+// 任意固定（必修不可、2026-09-17より前はadminであっても常に不可だった）。pass_score_pct等の
+// 合否判定設定はこの画面では扱わない
 // （画面モックアップに該当UIが無く、A-38は対象・必修/任意・期限のみを更新する）。
 export default function AssignmentSettings() {
   const [q, setQ] = useState('')
@@ -107,7 +111,7 @@ export default function AssignmentSettings() {
       <div className="px-8 py-6">
         {!isLoading && items.length === 0 ? (
           <div className="py-10 text-center text-sm text-slate-400">
-            <p className="mb-1 font-semibold text-slate-500">配信設定できる教材がありません</p>
+            <p className="mb-1 font-semibold text-slate-500 dark:text-slate-300">配信設定できる教材がありません</p>
             <p className="text-xs">
               あなたが管理者を務めるプロジェクトに教材が無いか、まだどのプロジェクトの管理者にもなっていません。
               <br />
@@ -142,77 +146,85 @@ export default function AssignmentSettings() {
             </div>
 
             {status === 'archived' && (
-              <p className="mb-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs leading-relaxed text-slate-500">
+              <p className="mb-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs leading-relaxed text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
                 アーカイブ済みの教材はここから復元できます。復元すると下書き状態に戻ります（即座には再公開されません。再公開するには教材編集画面で改めて「公開する」を押す必要があります）。
               </p>
             )}
-            {archiveError && <p className="mb-3 text-sm text-red-600">{archiveError}</p>}
+            {archiveError && <p className="mb-3 text-sm text-red-600 dark:text-red-400">{archiveError}</p>}
 
             {isLoading ? (
               <p className="py-8 text-center text-sm text-slate-400">読み込み中...</p>
             ) : (
-              <div className="overflow-x-auto rounded-md border border-slate-200">
-                <table className="w-full text-sm">
+              <div className="overflow-x-auto rounded-md border border-slate-200 dark:border-slate-800">
+                <table className="w-full text-sm [&_td]:align-top">
                   <thead>
-                    <tr className="border-b border-slate-100 bg-slate-50 text-left text-xs text-slate-500">
-                      <th className="px-3 py-2 font-normal">教材</th>
-                      <th className="px-3 py-2 font-normal">プロジェクト</th>
-                      <th className="px-3 py-2 font-normal">配信対象</th>
-                      <th className="px-3 py-2 font-normal">区分</th>
-                      <th className="px-3 py-2 font-normal">期限</th>
-                      <th className="px-3 py-2 font-normal">状態</th>
-                      <th className="px-3 py-2 font-normal">操作</th>
+                    <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
+                      <th className="px-3 py-2 font-semibold">教材</th>
+                      <th className="px-3 py-2 font-semibold">プロジェクト</th>
+                      <th className="px-3 py-2 font-semibold">作成者</th>
+                      <th className="px-3 py-2 font-semibold">必修対象</th>
+                      <th className="px-3 py-2 font-semibold">区分</th>
+                      <th className="px-3 py-2 font-semibold">期限</th>
+                      <th className="px-3 py-2 font-semibold">状態</th>
+                      <th className="px-3 py-2 font-semibold">操作</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filtered.map((item) => {
+                    {filtered.map((item, i) => {
                       const editing = item.id === selectedId
                       return (
                       <tr
                         key={item.id}
-                        className={`border-b border-slate-50 last:border-0 ${
-                          editing ? 'border-l-4 border-l-blue-600 bg-blue-50' : 'border-l-4 border-l-transparent'
+                        className={`border-b border-slate-200 last:border-0 dark:border-slate-700 ${
+                          editing
+                            ? 'border-l-4 border-l-blue-600 bg-blue-50 dark:bg-blue-900/30'
+                            : `border-l-4 border-l-transparent hover:bg-slate-100 dark:hover:bg-slate-800/60 ${
+                                i % 2 === 1 ? 'bg-slate-50 dark:bg-slate-900/40' : ''
+                              }`
                         }`}
                       >
-                        <td className={`px-3 py-2 ${editing ? 'font-semibold text-blue-900' : ''}`}>
+                        <td className={`px-3 py-3 ${editing ? 'font-semibold text-blue-900 dark:text-blue-100' : ''}`}>
                           <Link
                             to={`/projects/${item.project_id}/materials/${item.id}/edit`}
                             className={
                               editing
-                                ? 'text-blue-900 hover:underline'
+                                ? 'text-blue-900 hover:underline dark:text-blue-100'
                                 : item.is_archived
-                                  ? 'text-slate-400 hover:text-blue-800 hover:underline'
-                                  : 'text-slate-800 hover:text-blue-800 hover:underline'
+                                  ? 'text-slate-400 hover:text-blue-800 hover:underline dark:text-slate-500 dark:hover:text-blue-300'
+                                  : 'text-slate-800 hover:text-blue-800 hover:underline dark:text-slate-100 dark:hover:text-blue-300'
                             }
                           >
                             {item.title}
                           </Link>
                         </td>
-                        <td className="px-3 py-2">
-                          <span className="rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-xs text-slate-600">
+                        <td className="px-3 py-3">
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[13px] font-medium whitespace-nowrap ${projectColorClasses(item.project_id)}`}
+                          >
                             {item.is_company_wide ? '📌 ' : ''}
                             {item.project_name}
                           </span>
                         </td>
-                        <td className="px-3 py-2 text-slate-600">{scopeSummary(item)}</td>
-                        <td className="px-3 py-2">
+                        <td className="px-3 py-3 text-slate-500 dark:text-slate-300">{item.created_by_name}</td>
+                        <td className="px-3 py-3 text-slate-600 dark:text-slate-300">{scopeSummary(item)}</td>
+                        <td className="px-3 py-3">
                           <Badge variant={hasRequired(item) ? 'required' : 'optional'} />
                         </td>
-                        <td className="px-3 py-2 text-slate-500">{earliestDueAt(item)}</td>
-                        <td className="px-3 py-2">
+                        <td className="px-3 py-3 text-slate-500 dark:text-slate-300">{earliestDueAt(item)}</td>
+                        <td className="px-3 py-3">
                           <Badge variant={item.is_archived ? 'archived' : item.status === 'published' ? 'published' : 'draft'} />
                         </td>
-                        <td className="px-3 py-2">
+                        <td className="px-3 py-3">
                           <div className="flex items-center gap-2.5">
                             {editing ? (
-                              <span className="inline-flex items-center gap-1 rounded bg-blue-700 px-2 py-1 text-xs font-semibold text-white">
+                              <span className="inline-flex items-center gap-1 rounded bg-blue-700 px-2 py-1 text-xs font-semibold text-white dark:bg-blue-600">
                                 編集中
                               </span>
                             ) : (
                               <button
                                 type="button"
                                 onClick={() => setSelectedId(item.id)}
-                                className="text-xs font-semibold text-blue-700 hover:underline"
+                                className="text-xs font-semibold text-blue-700 hover:underline dark:text-blue-300"
                               >
                                 編集
                               </button>
@@ -223,7 +235,7 @@ export default function AssignmentSettings() {
                                 onClick={() => doRestore(item.id)}
                                 disabled={archivingId === item.id}
                                 title="復元すると下書き状態に戻ります（再公開には改めて「公開する」操作が必要です）"
-                                className="text-xs font-semibold text-slate-600 hover:underline disabled:opacity-50"
+                                className="text-xs font-semibold text-slate-600 hover:underline disabled:opacity-50 dark:text-slate-300"
                               >
                                 {archivingId === item.id ? '復元中...' : '復元'}
                               </button>
@@ -236,7 +248,7 @@ export default function AssignmentSettings() {
                                 onClick={() => setArchiveTarget(item)}
                                 disabled={archivingId === item.id}
                                 title="教材一覧・検索から非表示にします（データは削除されず、いつでも復元できます）"
-                                className="text-xs font-semibold text-red-700 hover:underline disabled:opacity-50"
+                                className="text-xs font-semibold text-red-700 hover:underline disabled:opacity-50 dark:text-red-400"
                               >
                                 アーカイブ
                               </button>
@@ -266,21 +278,21 @@ export default function AssignmentSettings() {
 
       {archiveTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-md bg-white p-5 shadow-lg">
+          <div className="w-full max-w-md rounded-md bg-white p-5 shadow-lg dark:bg-slate-800">
             <div className="mb-3 flex items-center justify-between">
-              <span className="text-base font-semibold text-slate-800">教材をアーカイブしますか？</span>
+              <span className="text-base font-semibold text-slate-800 dark:text-slate-100">教材をアーカイブしますか？</span>
               <button
                 type="button"
                 onClick={() => setArchiveTarget(null)}
-                className="text-slate-400 hover:text-slate-600"
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
               >
                 ×
               </button>
             </div>
-            <p className="mb-3 text-sm leading-relaxed text-slate-600">
+            <p className="mb-3 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
               「{archiveTarget.title}」を教材一覧・検索から非表示にします。目次・ページ・設問・添付ファイルは削除されず、受験記録やアンケート回答がある場合もそのまま保持されます。この画面の「状態」絞り込みで「アーカイブ済み」を選ぶといつでも一覧に戻して復元できます。
             </p>
-            <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs leading-relaxed text-red-800">
+            <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs leading-relaxed text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
               公開中の教材をアーカイブすると、受講者からもこの教材が見えなくなります。
             </div>
             <div className="flex justify-end gap-2">

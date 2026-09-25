@@ -835,6 +835,8 @@ export default function MaterialEdit() {
     // 型を満たすだけの値（material.has_learning_historyはoptionalなためundefinedの可能性があり、
     // AssignmentListItemの必須booleanと型が合わないのでここで明示的に上書きする）
     can_archive: false,
+    // created_by_name（S-06一覧の作成者列専用）もこのモーダル内では使わないため、型を満たすだけの値
+    created_by_name: '',
     has_learning_history: material.has_learning_history ?? false,
     assignments: [],
   }

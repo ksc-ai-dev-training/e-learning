@@ -322,7 +322,7 @@ export default function MaterialsSearch() {
                         <button
                           type="button"
                           onClick={() => navigate(`/materials/${m.id}`)}
-                          className="whitespace-nowrap rounded-md border border-slate-300 bg-white px-3 py-1.5 text-[13px] font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:hover:bg-slate-700"
+                          className="w-[108px] whitespace-nowrap rounded-md border border-slate-300 bg-white px-3 py-1.5 text-center text-[13px] font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-50 dark:hover:bg-slate-700"
                         >
                           {actionLabel(m.progress_status)}
                         </button>
