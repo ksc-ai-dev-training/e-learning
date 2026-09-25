@@ -5,6 +5,7 @@ import MaterialCard from '../components/ui/MaterialCard'
 import Panel from '../components/ui/Panel'
 import SegmentedFilter from '../components/ui/SegmentedFilter'
 import StatCard from '../components/ui/StatCard'
+import TextInput from '../components/ui/TextInput'
 import { useMyLearning, useMyLearningHistory } from '../hooks/useMyLearning'
 import { formatDateJst } from '../lib/datetime'
 import { scrollToAndHighlight } from '../lib/scrollHighlight'
@@ -66,6 +67,7 @@ export default function MyLearning() {
   const [activeProjectId, setActiveProjectId] = useState<number | null>(null)
   const [optionalFilter, setOptionalFilter] = useState<StatusFilter>('all')
   const [requiredFilter, setRequiredFilter] = useState<StatusFilter>('all')
+  const [keyword, setKeyword] = useState('')
 
   const allItems = useMemo(() => [...required, ...optional], [required, optional])
 
@@ -89,8 +91,21 @@ export default function MyLearning() {
     return [{ id: null, name: 'すべて', isCompanyWide: false, count: allItems.length }, pinned, ...rest]
   }, [allItems])
 
+  // マイ学習内の教材をタイトル・タグで絞り込む検索（2026-09-25、ユーザー要望。以前は「教材を探す」
+  // ボタンでS-03全教材検索へ遷移するしかなく、すでにマイ学習に登録済みの教材を名前で探す手段が
+  // なかった。新規教材の発見・登録は引き続きS-03（「新しい教材を探す」ボタン）で行う）。
+  const matchesKeyword = (item: MyLearningItem) => {
+    if (!keyword.trim()) return true
+    const kw = keyword.trim().toLowerCase().replace(/^#/, '')
+    const titleMatch = item.title.toLowerCase().includes(kw)
+    const tagMatch = item.tags.some((t) => t.toLowerCase().includes(kw))
+    return titleMatch || tagMatch
+  }
+
   const filterByProject = (items: MyLearningItem[]) =>
-    activeProjectId === null ? items : items.filter((i) => i.project_id === activeProjectId)
+    (activeProjectId === null ? items : items.filter((i) => i.project_id === activeProjectId)).filter(
+      matchesKeyword,
+    )
 
   const filteredRequired = filterByProject(required)
   const urgentRequired = filteredRequired.filter(isUrgent)
@@ -133,11 +148,21 @@ export default function MyLearning() {
             to="/materials"
             className="rounded-md border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
           >
-            教材を探す
+            新しい教材を探す
           </Link>
         }
       />
       <div className="px-8 py-6">
+        <div className="mb-4">
+          <TextInput
+            type="search"
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            placeholder="マイ学習内を教材名・#タグで絞り込み"
+            aria-label="マイ学習内の教材を絞り込み"
+            className="w-full max-w-md"
+          />
+        </div>
         <div className="mb-4 flex flex-wrap gap-2" role="tablist" aria-label="所属プロジェクトで絞り込み">
           {projectTabs.map((tab) => (
             <button
