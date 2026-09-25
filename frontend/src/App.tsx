@@ -19,6 +19,7 @@ import Dashboard from './pages/Dashboard'
 import ProfileEdit from './pages/ProfileEdit'
 import Grading from './pages/Grading'
 import QuestionAnswers from './pages/QuestionAnswers'
+import HelpGuide from './pages/HelpGuide'
 import CliKeyOnboarding from './pages/CliKeyOnboarding'
 import AppShell from './components/layout/AppShell'
 
@@ -71,6 +72,7 @@ export default function App() {
         <Route path="/reports/:userId" element={<PersonalReport />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/profile" element={<ProfileEdit />} />
+        <Route path="/help" element={<HelpGuide />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AppShell>

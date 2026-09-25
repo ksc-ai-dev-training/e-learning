@@ -389,34 +389,13 @@ export default function PersonalReport() {
                               )}
                             </td>
                             <td className="px-3 py-2 align-top">
-                              {confirmingDeleteId === h.material_id ? (
-                                <span className="flex flex-wrap items-center gap-1.5 text-xs whitespace-nowrap">
-                                  削除？
-                                  <button
-                                    type="button"
-                                    disabled={deletingId === h.material_id}
-                                    onClick={() => handleDeleteHistory(h.material_id)}
-                                    className="font-semibold text-red-700 hover:underline disabled:opacity-50"
-                                  >
-                                    {deletingId === h.material_id ? '処理中...' : 'はい'}
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => setConfirmingDeleteId(null)}
-                                    className="text-slate-500 hover:underline"
-                                  >
-                                    キャンセル
-                                  </button>
-                                </span>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={() => setConfirmingDeleteId(h.material_id)}
-                                  className="text-xs font-semibold text-slate-500 hover:text-red-700 hover:underline"
-                                >
-                                  履歴から削除
-                                </button>
-                              )}
+                              <button
+                                type="button"
+                                onClick={() => setConfirmingDeleteId(h.material_id)}
+                                className="text-xs font-semibold text-red-700 hover:underline"
+                              >
+                                履歴から削除
+                              </button>
                             </td>
                           </>
                         )}
@@ -438,6 +417,41 @@ export default function PersonalReport() {
 
         <p className="mt-6 text-xs text-slate-400">※ 学習記録は人事評価には用いません。</p>
       </div>
+
+      {confirmingDeleteId !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-md bg-white p-5 shadow-lg">
+            <div className="mb-3 flex items-center justify-between">
+              <span className="text-base font-semibold text-slate-800">学習履歴から削除しますか？</span>
+              <button
+                type="button"
+                onClick={() => setConfirmingDeleteId(null)}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                ×
+              </button>
+            </div>
+            <p className="mb-3 text-sm leading-relaxed text-slate-600">
+              「{report.history.find((h) => h.material_id === confirmingDeleteId)?.material_title}」の受験記録が、
+              学習履歴・採点結果・AIフィードバックの集計から見えなくなります。<strong>元に戻せません。</strong>
+              （再受験回数の上限は変わりません）
+            </p>
+            {deleteError && <p className="mb-3 text-sm text-red-600">{deleteError}</p>}
+            <div className="flex justify-end gap-2">
+              <Button variant="secondary" onClick={() => setConfirmingDeleteId(null)}>
+                キャンセル
+              </Button>
+              <Button
+                variant="danger-ghost"
+                onClick={() => handleDeleteHistory(confirmingDeleteId)}
+                disabled={deletingId === confirmingDeleteId}
+              >
+                {deletingId === confirmingDeleteId ? '削除中...' : '削除する'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

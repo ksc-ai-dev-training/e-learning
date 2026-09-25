@@ -17,6 +17,7 @@ import {
   Settings,
   Moon,
   Sun,
+  CircleHelp,
 } from 'lucide-react'
 import { apiFetch } from '../../lib/api'
 import { useMe } from '../../hooks/useMe'
@@ -166,6 +167,19 @@ const NAV_ITEMS = [
     // S-10はシステムadmin専用（基本設計書4.12節）。他の項目と異なりロールで表示自体を絞る
     adminOnly: true,
     match: (p: string) => p === '/admin/settings',
+  },
+  {
+    href: '/help',
+    // 全画面の操作方法をまとめたガイド（2026-09-25新設）。システム管理と同じamber系統の色を
+    // 保ったまま全員に表示し、直前に区切り線を1本引く。システム管理の直後に置くだけで、
+    // システムadmin以外（システム管理自体が非表示）には区切り線ごと1つ上のダッシュボードの
+    // 下に自然に繰り上がる（ユーザー要望どおりの見え方を、追加のフィルタ処理無しで実現）。
+    label: 'ヘルプ',
+    icon: CircleHelp,
+    implemented: true,
+    accent: 'amber' as Accent,
+    dividerBefore: true,
+    match: (p: string) => p === '/help',
   },
 ]
 

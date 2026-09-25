@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>【検討中】操作方法 案3: 役割別タブ | Manabi</title>
+<link rel="stylesheet" href="../../docs/03_画面モックアップ/mock.css">
+<style>
+  .howto-main { flex: 1; min-width: 0; padding: 20px 32px 64px; max-width: 760px; }
+  .css-tabs { display: flex; flex-wrap: wrap; }
+  .tab-radio { display: none; }
+  .tab-label {
+    cursor: pointer; padding: 9px 18px; border-radius: 999px; border: 1px solid var(--border-strong);
+    font-size: 12.5px; font-weight: 600; color: var(--text-muted); background: #fff; margin: 0 6px 20px 0;
+  }
+  .tab-radio:checked + .tab-label { background: var(--accent-600); color: #fff; border-color: var(--accent-600); }
+  .panel { width: 100%; display: none; }
+  #t1:checked ~ .panel-1 { display: block; }
+  #t2:checked ~ .panel-2 { display: block; }
+  #t3:checked ~ .panel-3 { display: block; }
+  #t4:checked ~ .panel-4 { display: block; }
+
+  .role-intro { font-size: 12.5px; color: var(--text-muted); margin-bottom: 18px; line-height: 1.7; }
+  .feat-card {
+    border: 1px solid var(--border-strong); border-radius: var(--radius-lg); background: #fff;
+    padding: 14px 18px; margin-bottom: 12px;
+  }
+  .feat-card h3 { font-size: 13.5px; font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+  .feat-card h3 .screen-tag {
+    font-size: 10.5px; font-weight: 700; color: var(--accent-700); background: var(--accent-50);
+    border-radius: var(--radius-sm); padding: 2px 7px;
+  }
+  .feat-card ol { margin: 0 0 0 18px; font-size: 12.5px; line-height: 1.9; }
+</style>
+</head>
+<body>
+
+<div style="background:#fef3c7;border-bottom:1px solid #fbbf24;color:#78350f;font-size:12px;font-weight:600;text-align:center;padding:6px;">
+  【検討中】操作方法ページ 案3: 役割別タブ（自分の役割で絞り込んで読む）／ 正式版ではありません。掲載内容は一部のみのサンプルです
+</div>
+
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-mark">M</div>
+      <div><div class="brand-name">Manabi</div><div class="brand-sub">社内学習管理システム</div></div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-label">メニュー</div>
+      <a class="nav-item" href="#"><span class="nav-icon nav-icon-blue"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h3.5v-6h5v6H18a1 1 0 0 0 1-1V9.5"/></svg></span>マイ学習</a>
+      <a class="nav-item" href="#"><span class="nav-icon nav-icon-blue"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></span>教材一覧・検索</a>
+      <a class="nav-item" href="#"><span class="nav-icon nav-icon-blue"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>個人学習レポート</a>
+      <div class="nav-divider"></div>
+      <a class="nav-item" href="#"><span class="nav-icon nav-icon-violet"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></span>教材作成・編集</a>
+      <a class="nav-item" href="#"><span class="nav-icon nav-icon-violet"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></span>採点</a>
+      <a class="nav-item" href="#"><span class="nav-icon nav-icon-violet"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></span>配信設定</a>
+      <div class="nav-divider"></div>
+      <a class="nav-item" href="#"><span class="nav-icon nav-icon-emerald"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></span>プロジェクト作成</a>
+      <a class="nav-item" href="#"><span class="nav-icon nav-icon-emerald"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg></span>プロジェクト管理</a>
+      <a class="nav-item" href="#"><span class="nav-icon nav-icon-emerald"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg></span>必修教材受講ダッシュボード</a>
+      <div class="nav-divider"></div>
+      <a class="nav-item" href="#"><span class="nav-icon nav-icon-amber"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>システム管理</a>
+      <a class="nav-item active" href="#"><span class="nav-icon nav-icon-amber"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>操作方法</a>
+    </nav>
+  </aside>
+
+  <div class="main">
+    <header class="page-header">
+      <div class="page-title-group">
+        <h1>操作方法</h1>
+        <span class="screen-id">案3: 役割別タブ</span>
+      </div>
+    </header>
+
+    <div style="display:flex; flex:1; min-height:0; justify-content:center;">
+      <div class="howto-main">
+
+        <div class="css-tabs">
+          <input type="radio" name="rt" id="t1" class="tab-radio" checked>
+          <label for="t1" class="tab-label">受講者</label>
+          <input type="radio" name="rt" id="t2" class="tab-radio">
+          <label for="t2" class="tab-label">教材作成者・編集者</label>
+          <input type="radio" name="rt" id="t3" class="tab-radio">
+          <label for="t3" class="tab-label">プロジェクト管理者</label>
+          <input type="radio" name="rt" id="t4" class="tab-radio">
+          <label for="t4" class="tab-label">システム管理者</label>
+
+          <section class="panel panel-1">
+            <p class="role-intro">教材を受講する人向け。全員がこのタブの内容を使えます。</p>
+            <div class="feat-card">
+              <h3><span class="screen-tag">マイ学習</span>期限が近い必修教材から受講する</h3>
+              <ol>
+                <li>ログイン後の最初の画面。期限が近い必修教材が赤枠で強調表示される。</li>
+                <li>教材名・タグで絞り込み検索できる。</li>
+                <li>「新しい教材を探す」から任意教材を追加登録できる。</li>
+              </ol>
+            </div>
+            <div class="feat-card">
+              <h3><span class="screen-tag">個人学習レポート</span>自分の実績を振り返る</h3>
+              <ol>
+                <li>受講済み教材・スコア・合否をまとめて確認。</li>
+                <li>「AIフィードバックを生成する」で理解不足の分野・おすすめ教材を提示してもらえる。</li>
+                <li>学習履歴の各行から「進捗リセット」「履歴から削除」ができる（どちらも再受験回数の上限には影響しない）。</li>
+              </ol>
+            </div>
+          </section>
+
+          <section class="panel panel-2">
+            <p class="role-intro">プロジェクトの編集者・管理者向け。教材の作成・編集・採点・配信を行います。</p>
+            <div class="feat-card">
+              <h3><span class="screen-tag">教材編集：目次編集</span>教材を新規作成する</h3>
+              <ol>
+                <li>プロジェクトを選び「＋新規教材を作成」。</li>
+                <li>「目次編集」タブで章・ページを追加し、各ページで本文・設問を入力。</li>
+                <li>合格基準・再受験可否を設定し、「公開する」。</li>
+              </ol>
+            </div>
+            <div class="feat-card">
+              <h3><span class="screen-tag">配信設定</span>必修/任意・受講期限を設定する</h3>
+              <ol>
+                <li>対象教材を選び、「プロジェクト全体に必修として配信する」をON。</li>
+                <li>受講期限を設定。個人だけに配信したい場合は個人を追加指定。</li>
+              </ol>
+            </div>
+            <div class="feat-card">
+              <h3><span class="screen-tag">採点</span>手動採点をまとめて片付ける</h3>
+              <ol>
+                <li>受講者×提出日の受験記録カードを開く。</li>
+                <li>設問ごとに正誤・フィードバックを入力（自動保存）。</li>
+                <li>「採点結果を送信」で受講者に公開。</li>
+              </ol>
+            </div>
+            <div class="feat-card">
+              <h3>Claude Codeで教材を作る</h3>
+              <ol>
+                <li>プロフィール画面でAPIキーを発行し、<code>claude mcp add</code>で接続。</li>
+                <li>「教材を作って」「教材ID◯◯を直して」と自然な言葉で依頼する。</li>
+              </ol>
+            </div>
+          </section>
+
+          <section class="panel panel-3">
+            <p class="role-intro">プロジェクトの管理者向け。メンバー・受講状況・教材共有を管理します。</p>
+            <div class="feat-card">
+              <h3><span class="screen-tag">必修教材受講ダッシュボード</span>受講状況を把握する</h3>
+              <ol>
+                <li>担当プロジェクトの受講率・合格率・未受講者を確認。</li>
+                <li>「必修教材のリマインドをSlackに送信」で未受講件数をまとめて通知（個人名は含まない）。</li>
+                <li>「AI組織レポートを生成」で所見コメントを作成。</li>
+              </ol>
+            </div>
+            <div class="feat-card">
+              <h3><span class="screen-tag">プロジェクト管理</span>メンバー・教材共有を管理する</h3>
+              <ol>
+                <li>「メンバー管理」タブでメンバーの追加・ロール変更。</li>
+                <li>「教材の共有」タブで他プロジェクトへの共有申請・承認。</li>
+                <li>条件を満たせば「プロジェクトを削除」も可能。</li>
+              </ol>
+            </div>
+          </section>
+
+          <section class="panel panel-4">
+            <p class="role-intro">システムadmin向け。全社のアカウント・システム設定を管理します。</p>
+            <div class="feat-card">
+              <h3><span class="screen-tag">システム管理</span>ユーザーを管理する</h3>
+              <ol>
+                <li>「ユーザー管理」タブでロール変更・アカウントの無効化。</li>
+                <li>「管理者になっているプロジェクト」列からプロジェクト管理画面へ直接遷移できる。</li>
+              </ol>
+            </div>
+            <div class="feat-card">
+              <h3><span class="screen-tag">システム管理</span>AI利用状況・Slack設定を確認する</h3>
+              <ol>
+                <li>「システム設定」タブで今月のAI利用状況（機能別の件数・概算コスト）を確認。</li>
+                <li>Slack Webhook URL・通知先チャンネルのテスト送信、プロジェクト所属の猶予期間日数を設定。</li>
+              </ol>
+            </div>
+          </section>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="../../docs/03_画面モックアップ/mock-sidebar.js"></script>
+</body>
+</html>
