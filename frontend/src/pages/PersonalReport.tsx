@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link, useParams } from 'react-router'
 import PageHeader from '../components/layout/PageHeader'
 import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
 import StatCard from '../components/ui/StatCard'
+import { useAiGenerationPolling } from '../hooks/useAiGenerationPolling'
 import { useMe } from '../hooks/useMe'
-import { usePersonalAiFeedback, usePersonalReport } from '../hooks/usePersonalReport'
+import { usePersonalAiFeedback, usePersonalAiFeedbackHistory, usePersonalReport } from '../hooks/usePersonalReport'
 import { ApiError } from '../lib/api'
 import { fromPersonalReport } from '../lib/backLink'
 import { formatDateJst, formatDateTimeJst } from '../lib/datetime'
@@ -13,8 +14,6 @@ import { deleteMaterialHistory, resetMaterialProgress } from '../lib/materialAct
 import { requestPersonalAiFeedback } from '../lib/reportActions'
 import { scrollToAndHighlight } from '../lib/scrollHighlight'
 import type { EnrollmentStatus } from '../types'
-
-const GENERATING_SLOW_AFTER_MS = 3 * 60 * 1000
 
 // 学習履歴のタブ構成（2026-09-03、ユーザー提案）。「未受講」タブは対象を広げず、一度着手した
 // 教材を「未受講に戻す」で戻したものだけを表示する（一度も着手していない教材はそもそも学習履歴に
@@ -38,8 +37,26 @@ export default function PersonalReport() {
   const { report, error, isLoading, mutate: mutateReport } = usePersonalReport(targetUserId)
   const [generating, setGenerating] = useState(false)
   const { feedback, isLoading: feedbackLoading, mutate: mutateFeedback } = usePersonalAiFeedback(targetUserId, generating)
-  const [generateError, setGenerateError] = useState<string | null>(null)
-  const [slowWarning, setSlowWarning] = useState(false)
+  // useAiGenerationPollingのgenerate()はsetGenerating(true)を真っ先に呼ぶため、ヘッダーの
+  // 「再生成する」ボタン（generating||feedbackで表示）が、直後にfeedbackをクリアする一瞬の間も
+  // 消えずに残る（2026-09-07、再生成ボタン新設時の意図をそのまま踏襲）。
+  const { generateError, slowWarning, generate } = useAiGenerationPolling(
+    generating,
+    setGenerating,
+    feedback,
+    mutateFeedback,
+    () => requestPersonalAiFeedback(targetUserId as number),
+    'フィードバックの生成開始に失敗しました',
+  )
+  const handleGenerate = () => {
+    if (targetUserId != null) void generate()
+  }
+  // 過去のAI個人フィードバックを見返す（新設、2026-09-28）。押したときだけ取得する
+  // （usePersonalAiFeedbackHistoryはfeedbackHistoryOpen=falseの間キーがnullになりフェッチしない）。
+  const [feedbackHistoryOpen, setFeedbackHistoryOpen] = useState(false)
+  const { items: feedbackHistory, isLoading: feedbackHistoryLoading } = usePersonalAiFeedbackHistory(
+    feedbackHistoryOpen ? targetUserId : null,
+  )
   const [confirmingResetId, setConfirmingResetId] = useState<number | null>(null)
   const [resettingId, setResettingId] = useState<number | null>(null)
   const [resetError, setResetError] = useState<string | null>(null)
@@ -47,39 +64,6 @@ export default function PersonalReport() {
   const [deletingId, setDeletingId] = useState<number | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [historyTab, setHistoryTab] = useState<EnrollmentStatus>('completed')
-
-  useEffect(() => {
-    if (generating && feedback) setGenerating(false)
-  }, [generating, feedback])
-
-  useEffect(() => {
-    if (!generating) {
-      setSlowWarning(false)
-      return
-    }
-    const timer = setTimeout(() => setSlowWarning(true), GENERATING_SLOW_AFTER_MS)
-    return () => clearTimeout(timer)
-  }, [generating])
-
-  const handleGenerate = async () => {
-    if (targetUserId == null) return
-    setGenerateError(null)
-    setSlowWarning(false)
-    // generatingを先に立てることで、ヘッダーの「再生成する」ボタン（generating||feedbackで
-    // 表示）が、直後にfeedbackをクリアする一瞬の間も消えずに残る（2026-09-07、再生成ボタン新設）。
-    setGenerating(true)
-    try {
-      // 既存のフィードバックがある状態からの再生成時、SWRのキャッシュにデータが残ったままだと
-      // ポーリング条件（!data）を満たさずポーリングが再開しない。ここで一旦クリアしてから
-      // ポーリングを開始する。
-      await mutateFeedback(null, false)
-      await requestPersonalAiFeedback(targetUserId)
-      await mutateFeedback()
-    } catch (e) {
-      setGenerateError(e instanceof ApiError ? e.message : 'フィードバックの生成開始に失敗しました')
-      setGenerating(false)
-    }
-  }
 
   const handleResetProgress = async (materialId: number) => {
     setResetError(null)
@@ -113,7 +97,7 @@ export default function PersonalReport() {
   }
 
   if (isLoading) {
-    return <div className="p-8 text-sm text-slate-400">読み込み中...</div>
+    return <div className="p-8 text-sm text-slate-400 dark:text-neutral-500">読み込み中...</div>
   }
 
   if (error) {
@@ -121,7 +105,7 @@ export default function PersonalReport() {
       <div className="flex flex-1 flex-col">
         <PageHeader title="個人学習レポート" />
         <div className="px-8 py-6">
-          <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200">
             {error instanceof ApiError ? error.message : 'レポートの取得に失敗しました。'}
           </p>
         </div>
@@ -147,7 +131,7 @@ export default function PersonalReport() {
       <PageHeader title={`個人学習レポート — ${report.target_user.name}`} />
       <div className="px-8 py-6">
         {report.target_user.project_names.length > 0 && (
-          <p className="mb-4 text-xs text-slate-500">
+          <p className="mb-4 text-xs text-slate-500 dark:text-neutral-400">
             所属プロジェクト: {report.target_user.project_names.join('、')}
           </p>
         )}
@@ -181,34 +165,34 @@ export default function PersonalReport() {
           />
         </div>
 
-        <h3 className="mb-2 text-sm font-semibold text-slate-700">AIによる個人フィードバック</h3>
-        <div className="mb-6 max-w-3xl rounded-md border border-slate-200 p-4">
+        <h3 className="mb-2 text-sm font-semibold text-slate-700 dark:text-neutral-200">AIによる個人フィードバック</h3>
+        <div className="mb-6 max-w-3xl rounded-md border border-slate-200 p-4 dark:border-neutral-800">
           {scoredHistory.length > 0 && (
-            <div className="mb-4 border-b border-slate-100 pb-4">
-              <div className="mb-1.5 text-xs font-semibold text-slate-500">教材別正答率</div>
+            <div className="mb-4 border-b border-slate-100 pb-4 dark:border-neutral-800">
+              <div className="mb-1.5 text-xs font-semibold text-slate-500 dark:text-neutral-400">教材別正答率</div>
               <div className="space-y-1">
                 {scoredHistory.map((h) => (
                   <div key={h.material_id} className="flex items-center justify-between text-sm">
-                    <span className="text-slate-700">{h.material_title}</span>
-                    <span className="font-semibold text-slate-800">{Math.round(h.score_pct!)}点</span>
+                    <span className="text-slate-700 dark:text-neutral-200">{h.material_title}</span>
+                    <span className="font-semibold text-slate-800 dark:text-neutral-100">{Math.round(h.score_pct!)}点</span>
                   </div>
                 ))}
               </div>
-              <p className="mt-1.5 text-[11px] text-slate-400">
+              <p className="mt-1.5 text-[11px] text-slate-400 dark:text-neutral-500">
                 設問を含む受験記録がある教材のみ表示します（説明文のみのページは対象外）。
               </p>
             </div>
           )}
           {feedback ? (
             <>
-              <p className="mb-3 text-sm leading-relaxed text-slate-700">{feedback.comment}</p>
+              <p className="mb-3 text-sm leading-relaxed text-slate-700 dark:text-neutral-200">{feedback.comment}</p>
               {feedback.weak_areas.length > 0 && (
                 <div className="mb-2">
-                  <span className="mr-1.5 text-xs text-slate-500">理解不足の可能性がある分野:</span>
+                  <span className="mr-1.5 text-xs text-slate-500 dark:text-neutral-400">理解不足の可能性がある分野:</span>
                   {feedback.weak_areas.map((tag) => (
                     <span
                       key={tag}
-                      className="mr-1 inline-block rounded border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[11px] text-amber-700"
+                      className="mr-1 inline-block rounded border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[11px] text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200"
                     >
                       {tag}
                     </span>
@@ -217,68 +201,93 @@ export default function PersonalReport() {
               )}
               {feedback.recommended_materials.length > 0 && (
                 <div className="mt-4">
-                  <div className="mb-2 text-xs font-semibold text-slate-500">おすすめ教材</div>
+                  <div className="mb-2 text-xs font-semibold text-slate-500 dark:text-neutral-400">おすすめ教材</div>
                   {feedback.recommended_materials.map((m) => (
                     <a
                       key={m.id}
                       href={`/materials/${m.id}`}
-                      className="mb-1.5 block rounded-md border border-slate-200 px-3 py-2 text-sm text-blue-800 hover:bg-slate-50"
+                      className="mb-1.5 block rounded-md border border-slate-200 px-3 py-2 text-sm text-blue-800 hover:bg-slate-50 dark:border-neutral-800 dark:text-blue-300 dark:hover:bg-neutral-800/60"
                     >
                       {m.title}
                     </a>
                   ))}
                 </div>
               )}
-              <p className="mt-3 text-xs text-slate-400">
+              <p className="mt-3 text-xs text-slate-400 dark:text-neutral-500">
                 このフィードバックは学習支援を目的としたものであり、人事評価には使用されません。
               </p>
-              <div className="mt-3 flex items-center gap-3 border-t border-slate-100 pt-3 text-xs">
-                <span className="text-slate-400">{formatDateTimeJst(feedback.generated_at)} 生成</span>
+              <div className="mt-3 flex items-center gap-3 border-t border-slate-100 pt-3 text-xs dark:border-neutral-800">
+                <span className="text-slate-400 dark:text-neutral-500">{formatDateTimeJst(feedback.generated_at)} 生成</span>
                 <button
                   type="button"
                   onClick={handleGenerate}
                   disabled={generating}
-                  className="font-semibold text-blue-700 hover:underline disabled:text-slate-400 disabled:no-underline"
+                  className="font-semibold text-blue-700 hover:underline disabled:text-slate-400 disabled:no-underline dark:text-blue-300 dark:disabled:text-neutral-500"
                 >
                   {generating ? '再生成中...' : '再生成する'}
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setFeedbackHistoryOpen((v) => !v)}
+                  className="font-semibold text-slate-500 hover:underline dark:text-neutral-400"
+                >
+                  {feedbackHistoryOpen ? '過去の実行結果を閉じる' : '過去の実行結果を見る'}
+                </button>
               </div>
+              {feedbackHistoryOpen && (
+                <div className="mt-3 border-t border-slate-100 pt-3 dark:border-neutral-800">
+                  {feedbackHistoryLoading ? (
+                    <p className="text-xs text-slate-400 dark:text-neutral-500">読み込み中...</p>
+                  ) : feedbackHistory.length <= 1 ? (
+                    <p className="text-xs text-slate-400 dark:text-neutral-500">過去の実行はまだありません。</p>
+                  ) : (
+                    <ul className="flex flex-col gap-3">
+                      {feedbackHistory.slice(1).map((h) => (
+                        <li key={h.generated_at} className="rounded-md border border-slate-100 p-2.5 text-xs dark:border-neutral-800">
+                          <div className="mb-1 text-slate-400 dark:text-neutral-500">{formatDateTimeJst(h.generated_at)}</div>
+                          <p className="text-slate-600 dark:text-neutral-300">{h.comment}</p>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
             </>
           ) : feedbackLoading ? (
-            <div className="text-sm text-slate-400">読み込み中...</div>
+            <div className="text-sm text-slate-400 dark:text-neutral-500">読み込み中...</div>
           ) : generating ? (
-            <div className="text-sm text-slate-500">
+            <div className="text-sm text-slate-500 dark:text-neutral-400">
               作成中...
               {slowWarning && (
-                <p className="mt-1 text-xs text-amber-600">
+                <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
                   生成に時間がかかっています。しばらく経っても表示されない場合は再度お試しください。
                 </p>
               )}
             </div>
           ) : (
             <div>
-              <p className="mb-3 text-sm text-slate-500">
+              <p className="mb-3 text-sm text-slate-500 dark:text-neutral-400">
                 まだAI個人フィードバックは生成されていません。学習傾向を分析してコメントを作成します（該当する教材があればおすすめ教材も表示します）。
               </p>
               <Button type="button" variant="secondary" onClick={handleGenerate}>
                 生成する
               </Button>
-              {generateError && <span className="ml-3 text-sm text-red-600">{generateError}</span>}
+              {generateError && <span className="ml-3 text-sm text-red-600 dark:text-red-400">{generateError}</span>}
             </div>
           )}
         </div>
 
         <div id="learning-history" className="mb-2 flex scroll-mt-4 items-baseline justify-between">
-          <h3 className="text-sm font-semibold text-slate-700">学習履歴</h3>
+          <h3 className="text-sm font-semibold text-slate-700 dark:text-neutral-200">学習履歴</h3>
           {(resetError || deleteError) && (
-            <span className="text-sm text-red-600">{resetError || deleteError}</span>
+            <span className="text-sm text-red-600 dark:text-red-400">{resetError || deleteError}</span>
           )}
         </div>
         {report.history.length === 0 ? (
-          <p className="text-sm text-slate-400">学習履歴はまだありません。</p>
+          <p className="text-sm text-slate-400 dark:text-neutral-500">学習履歴はまだありません。</p>
         ) : (
           <>
-            <div className="mb-3 flex gap-1 border-b border-slate-200" role="tablist">
+            <div className="mb-3 flex gap-1 border-b border-slate-200 dark:border-neutral-800" role="tablist">
               {HISTORY_TABS.map((tab) => (
                 <button
                   key={tab.key}
@@ -288,8 +297,8 @@ export default function PersonalReport() {
                   onClick={() => setHistoryTab(tab.key)}
                   className={`-mb-px border-b-2 px-3 py-1.5 text-sm font-semibold ${
                     historyTab === tab.key
-                      ? 'border-blue-800 text-blue-900'
-                      : 'border-transparent text-slate-500 hover:text-slate-800'
+                      ? 'border-blue-800 text-blue-900 dark:border-blue-500 dark:text-blue-300'
+                      : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-neutral-400 dark:hover:text-neutral-100'
                   }`}
                 >
                   {tab.label} ({historyByStatus[tab.key].length})
@@ -297,12 +306,12 @@ export default function PersonalReport() {
               ))}
             </div>
             {visibleHistory.length === 0 ? (
-              <p className="text-sm text-slate-400">該当する教材はありません。</p>
+              <p className="text-sm text-slate-400 dark:text-neutral-500">該当する教材はありません。</p>
             ) : (
-              <div className="max-w-3xl overflow-x-auto rounded-md border border-slate-200">
+              <div className="max-w-3xl overflow-x-auto rounded-md border border-slate-200 dark:border-neutral-800">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-slate-100 bg-slate-50 text-left text-xs text-slate-500">
+                    <tr className="border-b border-slate-100 bg-slate-50 text-left text-xs text-slate-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300">
                       <th className="px-3 py-2 font-normal">教材</th>
                       <th className="px-3 py-2 font-normal">受講日</th>
                       <th className="px-3 py-2 font-normal">結果</th>
@@ -317,23 +326,23 @@ export default function PersonalReport() {
                   </thead>
                   <tbody>
                     {visibleHistory.map((h) => (
-                      <tr key={h.material_id} className="border-b border-slate-50 last:border-0">
-                        <td className="px-3 py-2 text-slate-800">
+                      <tr key={h.material_id} className="border-b border-slate-50 last:border-0 dark:border-neutral-800">
+                        <td className="px-3 py-2 text-slate-800 dark:text-neutral-100">
                           {h.is_archived ? (
-                            <span className="inline-flex items-center gap-1.5 text-slate-400">
+                            <span className="inline-flex items-center gap-1.5 text-slate-400 dark:text-neutral-500">
                               {h.material_title}
                               <Badge variant="archived" />
                             </span>
                           ) : (
                             <Link
                               to={`/materials/${h.material_id}?from=${fromPersonalReport(userIdParam ?? 'me')}`}
-                              className="text-blue-800 hover:underline"
+                              className="text-blue-800 hover:underline dark:text-blue-300"
                             >
                               {h.material_title}
                             </Link>
                           )}
                         </td>
-                        <td className="px-3 py-2 text-slate-500">
+                        <td className="px-3 py-2 text-slate-500 dark:text-neutral-300">
                           {h.completed_at ? formatDateJst(h.completed_at) : '—'}
                         </td>
                         <td className="px-3 py-2">
@@ -351,14 +360,14 @@ export default function PersonalReport() {
                             <Badge variant="not-started" />
                           )}
                         </td>
-                        <td className="px-3 py-2 text-right text-slate-600">
+                        <td className="px-3 py-2 text-right text-slate-600 dark:text-neutral-300">
                           {h.score_pct != null ? `${Math.round(h.score_pct)}点` : '—'}
                         </td>
                         {isOwnReport && (
                           <>
                             <td className="px-3 py-2 align-top">
                               {h.status === 'not_started' ? (
-                                <span className="text-xs text-slate-300">—</span>
+                                <span className="text-xs text-slate-300 dark:text-neutral-600">—</span>
                               ) : confirmingResetId === h.material_id ? (
                                 <span className="flex flex-wrap items-center gap-1.5 text-xs whitespace-nowrap">
                                   戻す？
@@ -366,14 +375,14 @@ export default function PersonalReport() {
                                     type="button"
                                     disabled={resettingId === h.material_id}
                                     onClick={() => handleResetProgress(h.material_id)}
-                                    className="font-semibold text-red-700 hover:underline disabled:opacity-50"
+                                    className="font-semibold text-red-700 hover:underline disabled:opacity-50 dark:text-red-300"
                                   >
                                     {resettingId === h.material_id ? '処理中...' : 'はい'}
                                   </button>
                                   <button
                                     type="button"
                                     onClick={() => setConfirmingResetId(null)}
-                                    className="text-slate-500 hover:underline"
+                                    className="text-slate-500 hover:underline dark:text-neutral-400"
                                   >
                                     キャンセル
                                   </button>
@@ -382,7 +391,7 @@ export default function PersonalReport() {
                                 <button
                                   type="button"
                                   onClick={() => setConfirmingResetId(h.material_id)}
-                                  className="text-xs font-semibold text-slate-500 hover:text-red-700 hover:underline"
+                                  className="text-xs font-semibold text-slate-500 hover:text-red-700 hover:underline dark:text-neutral-400 dark:hover:text-red-300"
                                 >
                                   未受講に戻す
                                 </button>
@@ -392,7 +401,7 @@ export default function PersonalReport() {
                               <button
                                 type="button"
                                 onClick={() => setConfirmingDeleteId(h.material_id)}
-                                className="text-xs font-semibold text-red-700 hover:underline"
+                                className="text-xs font-semibold text-red-700 hover:underline dark:text-red-300"
                               >
                                 履歴から削除
                               </button>
@@ -406,7 +415,7 @@ export default function PersonalReport() {
               </div>
             )}
             {isOwnReport && visibleHistory.length > 0 && (
-              <p className="mt-1.5 max-w-3xl text-[11px] text-slate-400">
+              <p className="mt-1.5 max-w-3xl text-[11px] text-slate-400 dark:text-neutral-500">
                 「進捗リセット」は受験記録を残したまま未受講の状態に戻します（S-04の採点結果パネル・AIフィードバックには引き続き反映されます）。
                 <br />
                 「履歴削除」は学習履歴・採点結果・AIフィードバックの集計から見えなくなります。※どちらの操作も受験回数はリセットされません。
@@ -415,28 +424,28 @@ export default function PersonalReport() {
           </>
         )}
 
-        <p className="mt-6 text-xs text-slate-400">※ 学習記録は人事評価には用いません。</p>
+        <p className="mt-6 text-xs text-slate-400 dark:text-neutral-500">※ 学習記録は人事評価には用いません。</p>
       </div>
 
       {confirmingDeleteId !== null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-md bg-white p-5 shadow-lg">
+          <div className="w-full max-w-md rounded-md bg-white p-5 shadow-lg dark:bg-neutral-800">
             <div className="mb-3 flex items-center justify-between">
-              <span className="text-base font-semibold text-slate-800">学習履歴から削除しますか？</span>
+              <span className="text-base font-semibold text-slate-800 dark:text-neutral-100">学習履歴から削除しますか？</span>
               <button
                 type="button"
                 onClick={() => setConfirmingDeleteId(null)}
-                className="text-slate-400 hover:text-slate-600"
+                className="text-slate-400 hover:text-slate-600 dark:text-neutral-500 dark:hover:text-neutral-300"
               >
                 ×
               </button>
             </div>
-            <p className="mb-3 text-sm leading-relaxed text-slate-600">
+            <p className="mb-3 text-sm leading-relaxed text-slate-600 dark:text-neutral-300">
               「{report.history.find((h) => h.material_id === confirmingDeleteId)?.material_title}」の受験記録が、
               学習履歴・採点結果・AIフィードバックの集計から見えなくなります。<strong>元に戻せません。</strong>
               （再受験回数の上限は変わりません）
             </p>
-            {deleteError && <p className="mb-3 text-sm text-red-600">{deleteError}</p>}
+            {deleteError && <p className="mb-3 text-sm text-red-600 dark:text-red-400">{deleteError}</p>}
             <div className="flex justify-end gap-2">
               <Button variant="secondary" onClick={() => setConfirmingDeleteId(null)}>
                 キャンセル

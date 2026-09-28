@@ -16,7 +16,7 @@ import Toast from '../components/ui/Toast'
 import UnsavedChangesModal from '../components/ui/UnsavedChangesModal'
 import { useMaterial } from '../hooks/useMaterial'
 import { useMaterialAttachments } from '../hooks/useMaterialAttachments'
-import { useAiReview, runAiReview } from '../hooks/useAiReview'
+import { useAiReview, useAiReviewHistory, runAiReview } from '../hooks/useAiReview'
 import { useMaterialRevisions } from '../hooks/useMaterialRevisions'
 import { useProjectMemberships } from '../hooks/useProjectMemberships'
 import { useProjects } from '../hooks/useProjects'
@@ -218,6 +218,11 @@ export default function MaterialEdit() {
   } = useAiReview(activeTab === 'review' ? savedId : null)
   const [runningAiReview, setRunningAiReview] = useState(false)
   const [aiReviewRunError, setAiReviewRunError] = useState<string | null>(null)
+  // 過去のAIレビュー結果を見返す（新設、2026-09-28）。開いたときだけ取得する。
+  const [aiReviewHistoryOpen, setAiReviewHistoryOpen] = useState(false)
+  const { items: aiReviewHistory, isLoading: aiReviewHistoryLoading } = useAiReviewHistory(
+    aiReviewHistoryOpen ? savedId : null,
+  )
 
   useEffect(() => {
     if (material) {
@@ -1845,7 +1850,45 @@ export default function MaterialEdit() {
                         最終実行: {formatDateTimeJst(aiReview.created_at)}（{aiReview.requested_by_name}）
                       </span>
                     )}
+                    {aiReview && !runningAiReview && (
+                      <button
+                        type="button"
+                        onClick={() => setAiReviewHistoryOpen((v) => !v)}
+                        className="text-xs font-semibold text-slate-500 hover:underline"
+                      >
+                        {aiReviewHistoryOpen ? '過去の実行結果を閉じる' : '過去の実行結果を見る'}
+                      </button>
+                    )}
                   </div>
+                  {aiReviewHistoryOpen && (
+                    <div className="mt-3 border-t border-slate-100 pt-3">
+                      {aiReviewHistoryLoading ? (
+                        <p className="text-xs text-slate-400">読み込み中...</p>
+                      ) : aiReviewHistory.length <= 1 ? (
+                        <p className="text-xs text-slate-400">過去の実行はまだありません。</p>
+                      ) : (
+                        <ul className="flex flex-col gap-2">
+                          {aiReviewHistory.slice(1).map((h) => (
+                            <li key={h.id} className="rounded-md border border-slate-100 p-2.5 text-xs">
+                              <div className="mb-1 text-slate-400">
+                                {formatDateTimeJst(h.created_at)}（{h.requested_by_name}）／ 指摘{h.findings.length}件
+                              </div>
+                              {h.findings.length > 0 && (
+                                <ul className="list-inside list-disc text-slate-600">
+                                  {h.findings.map((f, i) => (
+                                    <li key={i}>
+                                      {f.location ? `【${f.location}】` : ''}
+                                      {f.issue}
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  )}
                   {aiReviewRunError && (
                     <p className="mt-3 text-sm text-red-600">{aiReviewRunError}</p>
                   )}

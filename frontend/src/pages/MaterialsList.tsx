@@ -70,21 +70,28 @@ export default function MaterialsList() {
     ]
   }, [materials])
 
-  const filtered = materials.filter((m) => {
-    if (filter.keyword) {
-      const kw = filter.keyword.toLowerCase().replace(/^#/, '')
-      const titleMatch = m.title.toLowerCase().includes(kw)
-      const tagMatch = m.tags.some((t) => t.toLowerCase().includes(kw))
-      if (!titleMatch && !tagMatch) return false
-    }
-    if (filter.status === 'archived') {
-      if (!m.is_archived) return false
-    } else if (filter.status !== 'all' && m.status !== (filter.status as MaterialStatus)) {
-      return false
-    }
-    if (filter.month !== 'all' && formatYearMonthJst(m.updated_at) !== filter.month) return false
-    return true
-  })
+  // AssignmentSettings.tsx・Grading.tsxの派生一覧と同様にuseMemoでラップした（2026-09-28。
+  // 現状の一覧規模では体感できる差は無いが、他の状態変更のたびに無条件で再フィルタしていた
+  // 不整合を解消し、教材数が増えたときのスケーラビリティも確保する）。
+  const filtered = useMemo(
+    () =>
+      materials.filter((m) => {
+        if (filter.keyword) {
+          const kw = filter.keyword.toLowerCase().replace(/^#/, '')
+          const titleMatch = m.title.toLowerCase().includes(kw)
+          const tagMatch = m.tags.some((t) => t.toLowerCase().includes(kw))
+          if (!titleMatch && !tagMatch) return false
+        }
+        if (filter.status === 'archived') {
+          if (!m.is_archived) return false
+        } else if (filter.status !== 'all' && m.status !== (filter.status as MaterialStatus)) {
+          return false
+        }
+        if (filter.month !== 'all' && formatYearMonthJst(m.updated_at) !== filter.month) return false
+        return true
+      }),
+    [materials, filter],
+  )
 
   const applyFilter = () => setFilter(form)
   const clearFilter = () => {
@@ -104,14 +111,14 @@ export default function MaterialsList() {
           このプロジェクトの教材（下書きを含む）を一覧表示します。
         </p>
 
-        <details className="mb-4 rounded-md border border-slate-200 dark:border-slate-800" open>
-          <summary className="cursor-pointer px-4 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-200">
+        <details className="mb-4 rounded-md border border-slate-200 dark:border-neutral-800" open>
+          <summary className="cursor-pointer px-4 py-2.5 text-sm font-semibold text-slate-600 dark:text-neutral-200">
             絞り込み <span className="ml-1 text-xs font-normal text-slate-400">クリックで開閉</span>
           </summary>
-          <div className="border-t border-slate-200 p-4 dark:border-slate-800">
+          <div className="border-t border-slate-200 p-4 dark:border-neutral-800">
             <div className="grid grid-cols-3 gap-4">
               <div className="flex flex-col gap-1">
-                <label htmlFor="m-keyword" className="text-xs font-semibold text-slate-500 dark:text-slate-300">
+                <label htmlFor="m-keyword" className="text-xs font-semibold text-slate-500 dark:text-neutral-300">
                   キーワード
                 </label>
                 <TextInput
@@ -123,7 +130,7 @@ export default function MaterialsList() {
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <label htmlFor="m-status" className="text-xs font-semibold text-slate-500 dark:text-slate-300">
+                <label htmlFor="m-status" className="text-xs font-semibold text-slate-500 dark:text-neutral-300">
                   状態
                 </label>
                 <Select
@@ -134,7 +141,7 @@ export default function MaterialsList() {
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <label htmlFor="m-month" className="text-xs font-semibold text-slate-500 dark:text-slate-300">
+                <label htmlFor="m-month" className="text-xs font-semibold text-slate-500 dark:text-neutral-300">
                   更新月
                 </label>
                 <Select
@@ -145,7 +152,7 @@ export default function MaterialsList() {
                 />
               </div>
             </div>
-            <div className="mt-3.5 flex items-center gap-2.5 border-t border-slate-100 pt-3.5 dark:border-slate-800">
+            <div className="mt-3.5 flex items-center gap-2.5 border-t border-slate-100 pt-3.5 dark:border-neutral-800">
               <Button variant="primary" onClick={applyFilter}>
                 絞り込む
               </Button>
@@ -170,13 +177,13 @@ export default function MaterialsList() {
         {error && <p className="text-sm text-red-600 dark:text-red-400">教材一覧を取得できませんでした</p>}
 
         {!isLoading && !error && materials.length === 0 && (
-          <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400 dark:border-slate-800 dark:bg-slate-900">
+          <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400 dark:border-neutral-800 dark:bg-neutral-900">
             教材がありません。「＋ このプロジェクトに新規教材を作成」から作成してください。
           </p>
         )}
 
         {!isLoading && !error && materials.length > 0 && filtered.length === 0 && (
-          <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400 dark:border-slate-800 dark:bg-slate-900">
+          <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400 dark:border-neutral-800 dark:bg-neutral-900">
             条件に一致する教材がありません。
           </p>
         )}
@@ -184,10 +191,10 @@ export default function MaterialsList() {
         {restoreError && <p className="mb-3 text-sm text-red-600 dark:text-red-400">{restoreError}</p>}
 
         {filtered.length > 0 && (
-          <div className="overflow-x-auto rounded-md border border-slate-200 dark:border-slate-800">
+          <div className="overflow-x-auto rounded-md border border-slate-200 dark:border-neutral-800">
             <table className="w-full text-sm [&_td]:align-top">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
+                <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs text-slate-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300">
                   <th className="px-3 py-2 font-semibold">教材</th>
                   <th className="w-24 px-3 py-2 font-semibold">状態</th>
                   <th className="w-28 px-3 py-2 font-semibold">構成</th>
@@ -200,8 +207,8 @@ export default function MaterialsList() {
                 {filtered.map((m, i) => (
                   <tr
                     key={m.id}
-                    className={`border-b border-slate-200 last:border-0 hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800/60 ${
-                      i % 2 === 1 ? 'bg-slate-50 dark:bg-slate-900/40' : ''
+                    className={`border-b border-slate-200 last:border-0 hover:bg-slate-100 dark:border-neutral-700 dark:hover:bg-neutral-800/60 ${
+                      i % 2 === 1 ? 'bg-slate-50 dark:bg-neutral-900/40' : ''
                     }`}
                   >
                     <td className="px-3 py-3">
@@ -209,8 +216,8 @@ export default function MaterialsList() {
                         to={`/projects/${id}/materials/${m.id}/edit`}
                         className={
                           m.is_archived
-                            ? 'text-slate-400 hover:text-blue-800 hover:underline dark:text-slate-500 dark:hover:text-blue-300'
-                            : 'text-slate-800 hover:text-blue-800 hover:underline dark:text-slate-100 dark:hover:text-blue-300'
+                            ? 'text-slate-400 hover:text-blue-800 hover:underline dark:text-neutral-500 dark:hover:text-blue-300'
+                            : 'text-slate-800 hover:text-blue-800 hover:underline dark:text-neutral-100 dark:hover:text-blue-300'
                         }
                       >
                         {m.title}
@@ -220,7 +227,7 @@ export default function MaterialsList() {
                           {m.tags.map((t) => (
                             <span
                               key={t}
-                              className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[13px] text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                              className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[13px] text-slate-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
                             >
                               #{t}
                             </span>
@@ -231,11 +238,11 @@ export default function MaterialsList() {
                     <td className="px-3 py-3">
                       <Badge variant={m.is_archived ? 'archived' : m.status === 'published' ? 'published' : 'draft'} />
                     </td>
-                    <td className="px-3 py-3 text-slate-500 dark:text-slate-300">
+                    <td className="px-3 py-3 text-slate-500 dark:text-neutral-300">
                       {m.chapter_count}章・{m.page_count}ページ
                     </td>
-                    <td className="px-3 py-3 text-slate-500 dark:text-slate-300">{m.created_by_name}</td>
-                    <td className="px-3 py-3 text-slate-500 dark:text-slate-300">{formatDateJst(m.updated_at)}</td>
+                    <td className="px-3 py-3 text-slate-500 dark:text-neutral-300">{m.created_by_name}</td>
+                    <td className="px-3 py-3 text-slate-500 dark:text-neutral-300">{formatDateJst(m.updated_at)}</td>
                     {filter.status === 'archived' && (
                       <td className="px-3 py-3">
                         <Button

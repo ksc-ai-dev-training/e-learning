@@ -165,7 +165,7 @@ export default function MaterialPageView() {
   }, [id, pageNodeId, mode, attemptIdParam, material?.attempt_scope])
 
   if (materialLoading || (material && !loadError && attempt === null && !materialError)) {
-    return <div className="p-8 text-sm text-slate-400">読み込み中...</div>
+    return <div className="p-8 text-sm text-slate-400 dark:text-neutral-500">読み込み中...</div>
   }
 
   if (materialError || !material) {
@@ -173,10 +173,10 @@ export default function MaterialPageView() {
       <div className="flex flex-1 flex-col">
         <PageHeader title="教材受講" />
         <div className="px-8 py-6">
-          <Link to={backTarget(from).to} className="text-blue-800 hover:underline">
+          <Link to={backTarget(from).to} className="text-blue-800 hover:underline dark:text-blue-300">
             {backTarget(from).label}
           </Link>
-          <p className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          <p className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200">
             教材を取得できませんでした。
           </p>
         </div>
@@ -188,7 +188,7 @@ export default function MaterialPageView() {
     return (
       <div className="flex flex-1 flex-col">
         <PageHeader title="教材受講" actions={<BackToTocLink materialId={id} from={from} />} />
-        <div className="px-8 py-6 text-sm text-red-700">指定されたページが見つかりません。</div>
+        <div className="px-8 py-6 text-sm text-red-700 dark:text-red-300">指定されたページが見つかりません。</div>
       </div>
     )
   }
@@ -197,13 +197,13 @@ export default function MaterialPageView() {
     return (
       <div className="flex flex-1 flex-col">
         <PageHeader title={node.title} actions={<BackToTocLink materialId={id} from={from} />} />
-        <div className="px-8 py-6 text-sm text-red-700">{loadError}</div>
+        <div className="px-8 py-6 text-sm text-red-700 dark:text-red-300">{loadError}</div>
       </div>
     )
   }
 
   if (!attempt) {
-    return <div className="p-8 text-sm text-slate-400">読み込み中...</div>
+    return <div className="p-8 text-sm text-slate-400 dark:text-neutral-500">読み込み中...</div>
   }
 
   const questionIds = attempt.question_order[String(pageNodeId)] ?? []
@@ -480,20 +480,20 @@ export default function MaterialPageView() {
         }
       />
       <div className="px-8 py-6">
-        <div className="mb-3 text-xs text-slate-400">
+        <div className="mb-3 text-xs text-slate-400 dark:text-neutral-500">
           {material.title}
           {chapterNumber >= 0 && ` ／ 第${chapterNumber + 1}章 ${flatPage.chapterTitle}`}
           {flatPage.sectionTitle && ` ／ ${flatPage.sectionTitle}`}
         </div>
 
         <div className="mb-5 flex items-center gap-3">
-          <span className="text-xs text-slate-500">
+          <span className="text-xs text-slate-500 dark:text-neutral-400">
             ページ {sequenceIndex + 1}/{sequencePages.length}
           </span>
-          <div className="h-2 w-full max-w-xs overflow-hidden rounded-full bg-slate-100">
-            <div className="h-full bg-blue-700" style={{ width: `${progressPct}%` }} />
+          <div className="h-2 w-full max-w-xs overflow-hidden rounded-full bg-slate-100 dark:bg-neutral-800">
+            <div className="h-full bg-blue-700 dark:bg-blue-500" style={{ width: `${progressPct}%` }} />
           </div>
-          <span className="text-xs text-slate-500">{progressPct}%</span>
+          <span className="text-xs text-slate-500 dark:text-neutral-400">{progressPct}%</span>
         </div>
 
         {node.body && <PageBody materialId={id} body={node.body} format={node.format ?? 'markdown'} />}
@@ -555,7 +555,7 @@ export default function MaterialPageView() {
             <div className="mt-4 flex items-center gap-3">
               <Link
                 to={`/materials/${id}${fromQuery(from)}`}
-                className="rounded-md border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                className="rounded-md border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 dark:hover:bg-neutral-700"
               >
                 目次へ戻る
               </Link>
@@ -566,7 +566,7 @@ export default function MaterialPageView() {
                 次のページへ
               </Button>
               {attempt.passed === null && (
-                <span className="text-xs text-slate-400">
+                <span className="text-xs text-slate-400 dark:text-neutral-500">
                   採点中のため閲覧のみです（採点が完了すると合否が確定します）
                 </span>
               )}
@@ -588,10 +588,10 @@ export default function MaterialPageView() {
               />
             ))}
 
-            <div className="mt-6 flex items-center gap-3 border-t border-slate-200 pt-5">
+            <div className="mt-6 flex items-center gap-3 border-t border-slate-200 pt-5 dark:border-neutral-800">
               <Link
                 to={`/materials/${id}${fromQuery(from)}`}
-                className="rounded-md border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                className="rounded-md border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 dark:hover:bg-neutral-700"
               >
                 目次へ戻る
               </Link>
@@ -602,7 +602,7 @@ export default function MaterialPageView() {
                 {advancing ? '送信中…' : '回答して次のページへ'}
               </Button>
               {mode === 'graded' && (
-                <span className="text-xs text-slate-400">
+                <span className="text-xs text-slate-400 dark:text-neutral-500">
                   中断しても回答内容は保存され、次回この続きから再開できます（スコープを提出するまでは、
                   前のページに戻って回答を変更することもできます）
                 </span>
@@ -621,11 +621,11 @@ export default function MaterialPageView() {
 
       {chapterTransition && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-md bg-white p-5 shadow-lg">
-            <p className="mb-1 text-sm font-semibold text-green-700">
+          <div className="w-full max-w-md rounded-md bg-white p-5 shadow-lg dark:bg-neutral-800">
+            <p className="mb-1 text-sm font-semibold text-green-700 dark:text-green-300">
               第{chapterTransition.completedChapterNumber}章「{chapterTransition.completedChapterTitle}」を完了しました
             </p>
-            <p className="mb-4 text-sm text-slate-600">
+            <p className="mb-4 text-sm text-slate-600 dark:text-neutral-300">
               次は第{chapterTransition.nextChapterNumber}章「{chapterTransition.nextChapterTitle}」です。
             </p>
             <div className="flex justify-end gap-2">
@@ -654,7 +654,7 @@ function BackToTocLink({ materialId, from }: { materialId: number; from: string 
   return (
     <Link
       to={`/materials/${materialId}${fromQuery(from)}`}
-      className="rounded-md border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+      className="rounded-md border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 dark:hover:bg-neutral-700"
     >
       目次へ戻る
     </Link>
@@ -672,11 +672,11 @@ function AttemptResultPanel({
 }) {
   if (mode !== 'graded') {
     return (
-      <div className="rounded-md border border-slate-200 bg-slate-50 p-4 text-sm">
-        <div className="mb-1 font-semibold">
+      <div className="rounded-md border border-slate-200 bg-slate-50 p-4 text-sm dark:border-neutral-800 dark:bg-neutral-800/60">
+        <div className="mb-1 font-semibold text-slate-800 dark:text-neutral-100">
           提出済み{attempt.score_pct !== null && ` ／ 正答率${Math.round(attempt.score_pct)}%`}
         </div>
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-slate-500 dark:text-neutral-400">
           {mode === 'practice' ? '練習' : '誤答＆難問抽出'}は合否に影響しません。習熟のための記録として保存されました。
         </p>
       </div>
@@ -686,29 +686,29 @@ function AttemptResultPanel({
     <div
       className={`rounded-md border p-4 text-sm ${
         attempt.passed === null
-          ? 'border-slate-200 bg-slate-50'
+          ? 'border-slate-200 bg-slate-50 dark:border-neutral-800 dark:bg-neutral-800/60'
           : attempt.passed
-            ? 'border-green-200 bg-green-50'
-            : 'border-red-200 bg-red-50'
+            ? 'border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/40'
+            : 'border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/40'
       }`}
     >
-      <div className="mb-1 font-semibold">
+      <div className="mb-1 font-semibold text-slate-800 dark:text-neutral-100">
         {attempt.passed === null ? '提出済み' : attempt.passed ? '合格' : '不合格'}
         {attempt.score_pct !== null && ` ／ 正答率${Math.round(attempt.score_pct)}%`}
       </div>
       {attempt.fail_reason && (
-        <p className="text-red-700">
+        <p className="text-red-700 dark:text-red-300">
           ⚠ ドボン設問「{attempt.fail_reason}」に正解しなかったため、この範囲は不合格と判定されました。
         </p>
       )}
-      <p className="mt-1 text-xs text-slate-500">このページを含む範囲は提出済みです。目次から他のページへ進んでください。</p>
+      <p className="mt-1 text-xs text-slate-500 dark:text-neutral-400">このページを含む範囲は提出済みです。目次から他のページへ進んでください。</p>
       {attempt.passed === true && (
-        <p className="mt-2 text-sm font-semibold text-green-800">
+        <p className="mt-2 text-sm font-semibold text-green-800 dark:text-green-300">
           合格済みのため再提出はされません。復習のため問題を解き直したい場合は「練習」をご利用ください。
         </p>
       )}
       {attempt.passed !== null && hasPendingNonGraded && (
-        <p className="mt-2 text-xs text-slate-500">
+        <p className="mt-2 text-xs text-slate-500 dark:text-neutral-400">
           ※ 合否には影響しない設問の採点がまだ完了していません。結果は担当者の採点が終わり次第、下の一覧に反映されます。
         </p>
       )}

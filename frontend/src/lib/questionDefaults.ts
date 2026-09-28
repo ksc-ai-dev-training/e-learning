@@ -13,10 +13,6 @@ export function questionTypeLabel(type: QuestionType): string {
   return TYPE_LABELS[type] ?? type
 }
 
-export function isQuestionTypeSupported(_type: QuestionType): boolean {
-  return true
-}
-
 // 記述式・コード記述式のみ教材既定の採点方式（materials.grading_mode）を上書きできる（8.3節）
 export function supportsGradingModeOverride(type: QuestionType): boolean {
   return type === 'free_text' || type === 'code'

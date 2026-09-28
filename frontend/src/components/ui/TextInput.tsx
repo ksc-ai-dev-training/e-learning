@@ -5,7 +5,7 @@ export default function TextInput(props: InputHTMLAttributes<HTMLInputElement>) 
   const { className = '', ...rest } = props
   return (
     <input
-      className={`h-9 rounded-md border border-slate-300 bg-white px-3 text-sm placeholder:text-slate-400 focus:border-blue-700 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-blue-500 ${className}`}
+      className={`h-9 rounded-md border border-slate-300 bg-white px-3 text-sm placeholder:text-slate-400 focus:border-blue-700 focus:outline-none dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 dark:placeholder:text-neutral-500 dark:focus:border-blue-500 ${className}`}
       {...rest}
     />
   )

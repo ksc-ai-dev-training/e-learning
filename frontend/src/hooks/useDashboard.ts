@@ -39,3 +39,13 @@ export function useOrgReport(scope: string | null, polling: boolean) {
   )
   return { report: data ?? null, error, isLoading, mutate }
 }
+
+// A-105: 過去のAI組織レポート一覧（新設、2026-09-28）。「過去の実行結果を見る」を
+// 展開したときだけ表示する。
+export function useOrgReportHistory(scope: string | null) {
+  const { data, error, isLoading } = useSWR<{ items: OrgReport[] }>(
+    scope != null ? `/api/reports/org/history?scope=${encodeURIComponent(scope)}` : null,
+    apiFetch,
+  )
+  return { items: data?.items ?? [], error, isLoading }
+}

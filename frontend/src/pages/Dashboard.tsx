@@ -1,16 +1,15 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import PageHeader from '../components/layout/PageHeader'
 import Button from '../components/ui/Button'
 import SlackIcon from '../components/ui/SlackIcon'
 import StatCard from '../components/ui/StatCard'
+import { useAiGenerationPolling } from '../hooks/useAiGenerationPolling'
 import { useProjects } from '../hooks/useProjects'
-import { useDashboardStats, useIncompleteUsers, useOrgReport } from '../hooks/useDashboard'
+import { useDashboardStats, useIncompleteUsers, useOrgReport, useOrgReportHistory } from '../hooks/useDashboard'
 import { requestOrgReport } from '../lib/dashboardActions'
 import { sendProjectSlackReminder } from '../lib/projectActions'
 import { ApiError } from '../lib/api'
 import { formatDateJst, formatDateTimeJst } from '../lib/datetime'
-
-const GENERATING_SLOW_AFTER_MS = 3 * 60 * 1000
 
 function parseProjectScopeId(scope: string): number {
   return Number(scope.slice('project:'.length))
@@ -43,36 +42,43 @@ export default function Dashboard() {
   const [scope, setScope] = useState<string | null>(null)
   const [selectedMaterialId, setSelectedMaterialId] = useState<number | null>(null)
   const [generating, setGenerating] = useState(false)
-  const [generateError, setGenerateError] = useState<string | null>(null)
-  const [slowWarning, setSlowWarning] = useState(false)
   const [sendingSlack, setSendingSlack] = useState(false)
   const [slackResult, setSlackResult] = useState<string | null>(null)
   const [slackError, setSlackError] = useState<string | null>(null)
 
-  const scopeOptions = projects
-    .filter((p) => !p.is_company_wide)
-    .map((p) => ({ value: `project:${p.id}`, label: p.name }))
+  // useMemoで安定した参照にし、下のuseEffectの依存配列にscopeOptions自体を渡せるようにする
+  // （2026-09-28。従来はscopeOptions.lengthのみを監視していたため、担当プロジェクトの件数は
+  // 変わらないが中身が変わったケース〔例: プロジェクトAの管理者から外れ同時にBの管理者になった〕で
+  // このeffectが再実行されず、選択中のスコープがもう管理していないプロジェクトのまま残る
+  // おそれがあった）。
+  const scopeOptions = useMemo(
+    () => projects.filter((p) => !p.is_company_wide).map((p) => ({ value: `project:${p.id}`, label: p.name })),
+    [projects],
+  )
 
   useEffect(() => {
     if (scope == null && scopeOptions.length > 0) setScope(scopeOptions[0].value)
-  }, [scope, scopeOptions.length])
+  }, [scope, scopeOptions])
 
   const { stats, isLoading: statsLoading } = useDashboardStats(scope)
   const { items: incompleteUsers } = useIncompleteUsers(scope)
   const { report, isLoading: reportLoading, mutate: mutateReport } = useOrgReport(scope, generating)
-
-  useEffect(() => {
-    if (generating && report) setGenerating(false)
-  }, [generating, report])
-
-  useEffect(() => {
-    if (!generating) {
-      setSlowWarning(false)
-      return
-    }
-    const timer = setTimeout(() => setSlowWarning(true), GENERATING_SLOW_AFTER_MS)
-    return () => clearTimeout(timer)
-  }, [generating])
+  const { generateError, slowWarning, generate } = useAiGenerationPolling(
+    generating,
+    setGenerating,
+    report,
+    mutateReport,
+    () => requestOrgReport(parseProjectScopeId(scope as string)),
+    'レポートの生成開始に失敗しました',
+  )
+  // 過去のAI組織レポートを見返す（新設、2026-09-28）。開いたときだけ取得する。
+  const [reportHistoryOpen, setReportHistoryOpen] = useState(false)
+  const { items: reportHistory, isLoading: reportHistoryLoading } = useOrgReportHistory(
+    reportHistoryOpen ? scope : null,
+  )
+  const handleGenerate = () => {
+    if (scope != null) void generate()
+  }
 
   const handleSendSlack = async () => {
     if (scope == null) return
@@ -90,23 +96,8 @@ export default function Dashboard() {
     }
   }
 
-  const handleGenerate = async () => {
-    if (scope == null) return
-    setGenerateError(null)
-    setSlowWarning(false)
-    setGenerating(true)
-    try {
-      await mutateReport(null, false)
-      await requestOrgReport(parseProjectScopeId(scope))
-      await mutateReport()
-    } catch (e) {
-      setGenerateError(e instanceof ApiError ? e.message : 'レポートの生成開始に失敗しました')
-      setGenerating(false)
-    }
-  }
-
   if (projectsLoading) {
-    return <div className="p-8 text-sm text-slate-400">読み込み中...</div>
+    return <div className="p-8 text-sm text-slate-400 dark:text-neutral-500">読み込み中...</div>
   }
 
   if (scopeOptions.length === 0) {
@@ -114,7 +105,7 @@ export default function Dashboard() {
       <div className="flex flex-1 flex-col">
         <PageHeader title="必修教材受講ダッシュボード" />
         <div className="px-8 py-6">
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-slate-400 dark:text-neutral-500">
             閲覧できるプロジェクトがありません（プロジェクトの管理者になっているプロジェクトのみ表示できます）。
           </p>
         </div>
@@ -131,7 +122,7 @@ export default function Dashboard() {
       <PageHeader title="必修教材受講ダッシュボード" />
       <div className="px-8 py-6">
         <div className="mb-6 flex items-center gap-2">
-          <label className="text-sm text-slate-500" htmlFor="dashboard-scope">
+          <label className="text-sm text-slate-500 dark:text-neutral-400" htmlFor="dashboard-scope">
             担当範囲
           </label>
           <select
@@ -143,7 +134,7 @@ export default function Dashboard() {
               setSlackResult(null)
               setSlackError(null)
             }}
-            className="h-9 rounded-md border border-slate-300 bg-white px-2.5 text-sm"
+            className="h-9 rounded-md border border-slate-300 bg-white px-2.5 text-sm dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100"
           >
             {scopeOptions.map((o) => (
               <option key={o.value} value={o.value}>
@@ -157,19 +148,19 @@ export default function Dashboard() {
                 type="button"
                 onClick={handleSendSlack}
                 disabled={sendingSlack}
-                className="flex h-9 items-center gap-2 whitespace-nowrap rounded-md border border-slate-300 bg-white px-3.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
+                className="flex h-9 items-center gap-2 whitespace-nowrap rounded-md border border-slate-300 bg-white px-3.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 dark:hover:bg-neutral-700"
               >
                 <SlackIcon />
                 {sendingSlack ? '送信中...' : '必修教材のリマインドをSlackに送信'}
               </button>
-              {slackResult && <span className="text-sm text-green-700">{slackResult}</span>}
-              {slackError && <span className="text-sm text-red-600">{slackError}</span>}
+              {slackResult && <span className="text-sm text-green-700 dark:text-green-400">{slackResult}</span>}
+              {slackError && <span className="text-sm text-red-600 dark:text-red-400">{slackError}</span>}
             </>
           )}
         </div>
 
         {statsLoading || !stats ? (
-          <div className="text-sm text-slate-400">読み込み中...</div>
+          <div className="text-sm text-slate-400 dark:text-neutral-500">読み込み中...</div>
         ) : (
           <>
             <div className="mb-6 grid max-w-3xl grid-cols-4 gap-3">
@@ -179,10 +170,10 @@ export default function Dashboard() {
               <StatCard label="未受講者数" value={stats.incomplete_count} unit="人" tone="warn" />
             </div>
 
-            <h3 className="mb-2 text-sm font-semibold text-slate-700">教材別受講率</h3>
-            <div className="mb-6 max-w-3xl rounded-md border border-slate-200 p-4">
+            <h3 className="mb-2 text-sm font-semibold text-slate-700 dark:text-neutral-200">教材別受講率</h3>
+            <div className="mb-6 max-w-3xl rounded-md border border-slate-200 p-4 dark:border-neutral-800">
               {stats.by_material.length === 0 ? (
-                <p className="text-sm text-slate-400">対象の必修教材がありません。</p>
+                <p className="text-sm text-slate-400 dark:text-neutral-500">対象の必修教材がありません。</p>
               ) : (
                 <div className="space-y-2.5">
                   {stats.by_material.map((m) => (
@@ -193,16 +184,16 @@ export default function Dashboard() {
                       className="block w-full text-left"
                     >
                       <div className="mb-0.5 flex items-center justify-between text-sm">
-                        <span className={selectedMaterialId === m.material_id ? 'font-semibold text-blue-800' : 'text-slate-700'}>
+                        <span className={selectedMaterialId === m.material_id ? 'font-semibold text-blue-800 dark:text-blue-300' : 'text-slate-700 dark:text-neutral-200'}>
                           {m.material_title}
                         </span>
-                        <span className="text-slate-500">
+                        <span className="text-slate-500 dark:text-neutral-400">
                           {m.completion_rate}%（{m.completed_count}/{m.member_count}人）
                         </span>
                       </div>
-                      <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                      <div className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-neutral-800">
                         <div
-                          className="h-full rounded-full bg-blue-800"
+                          className="h-full rounded-full bg-blue-800 dark:bg-blue-500"
                           style={{ width: `${m.completion_rate}%` }}
                         />
                       </div>
@@ -213,24 +204,24 @@ export default function Dashboard() {
             </div>
 
             <div className="mb-2 flex items-baseline justify-between">
-              <h3 className="text-sm font-semibold text-slate-700">未受講者一覧</h3>
+              <h3 className="text-sm font-semibold text-slate-700 dark:text-neutral-200">未受講者一覧</h3>
               {selectedMaterialId && (
                 <button
                   type="button"
                   onClick={() => setSelectedMaterialId(null)}
-                  className="text-xs font-semibold text-blue-700 hover:underline"
+                  className="text-xs font-semibold text-blue-700 hover:underline dark:text-blue-300"
                 >
                   絞り込みを解除
                 </button>
               )}
             </div>
             {filteredIncompleteUsers.length === 0 ? (
-              <p className="mb-6 text-sm text-slate-400">未受講者はいません。</p>
+              <p className="mb-6 text-sm text-slate-400 dark:text-neutral-500">未受講者はいません。</p>
             ) : (
-              <div className="mb-6 max-w-3xl overflow-x-auto rounded-md border border-slate-200">
+              <div className="mb-6 max-w-3xl overflow-x-auto rounded-md border border-slate-200 dark:border-neutral-800">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-slate-100 bg-slate-50 text-left text-xs text-slate-500">
+                    <tr className="border-b border-slate-100 bg-slate-50 text-left text-xs text-slate-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300">
                       <th className="px-3 py-2 font-normal">氏名</th>
                       <th className="px-3 py-2 font-normal">教材</th>
                       <th className="px-3 py-2 font-normal">期限</th>
@@ -239,11 +230,11 @@ export default function Dashboard() {
                   </thead>
                   <tbody>
                     {filteredIncompleteUsers.map((u) => (
-                      <tr key={`${u.user_id}-${u.material_id}`} className="border-b border-slate-50 last:border-0">
-                        <td className="px-3 py-2 text-slate-800">{u.user_name}</td>
-                        <td className="px-3 py-2 text-slate-700">{u.material_title}</td>
-                        <td className="px-3 py-2 text-slate-500">{u.due_at ? formatDateJst(u.due_at) : '期限未設定'}</td>
-                        <td className="px-3 py-2 text-slate-500">{daysRemainingLabel(u.due_at)}</td>
+                      <tr key={`${u.user_id}-${u.material_id}`} className="border-b border-slate-50 last:border-0 dark:border-neutral-800">
+                        <td className="px-3 py-2 text-slate-800 dark:text-neutral-100">{u.user_name}</td>
+                        <td className="px-3 py-2 text-slate-700 dark:text-neutral-200">{u.material_title}</td>
+                        <td className="px-3 py-2 text-slate-500 dark:text-neutral-300">{u.due_at ? formatDateJst(u.due_at) : '期限未設定'}</td>
+                        <td className="px-3 py-2 text-slate-500 dark:text-neutral-300">{daysRemainingLabel(u.due_at)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -251,55 +242,80 @@ export default function Dashboard() {
               </div>
             )}
 
-            <h3 className="mb-2 text-sm font-semibold text-slate-700">AI組織レポート</h3>
-            <div className="max-w-3xl rounded-md border border-slate-200 p-4">
+            <h3 className="mb-2 text-sm font-semibold text-slate-700 dark:text-neutral-200">AI組織レポート</h3>
+            <div className="max-w-3xl rounded-md border border-slate-200 p-4 dark:border-neutral-800">
               {report ? (
                 <>
-                  <p className="mb-3 text-sm leading-relaxed text-slate-700">{report.summary}</p>
+                  <p className="mb-3 text-sm leading-relaxed text-slate-700 dark:text-neutral-200">{report.summary}</p>
                   {report.insight_tags.length > 0 && (
                     <div className="mb-2">
                       {report.insight_tags.map((tag) => (
                         <span
                           key={tag}
-                          className="mr-1.5 mb-1.5 inline-block rounded border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[11px] text-amber-700"
+                          className="mr-1.5 mb-1.5 inline-block rounded border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[11px] text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200"
                         >
                           {tag}
                         </span>
                       ))}
                     </div>
                   )}
-                  <div className="mt-3 flex items-center gap-3 border-t border-slate-100 pt-3 text-xs">
-                    <span className="text-slate-400">{formatDateTimeJst(report.generated_at)} 生成</span>
+                  <div className="mt-3 flex items-center gap-3 border-t border-slate-100 pt-3 text-xs dark:border-neutral-800">
+                    <span className="text-slate-400 dark:text-neutral-500">{formatDateTimeJst(report.generated_at)} 生成</span>
                     <button
                       type="button"
                       onClick={handleGenerate}
                       disabled={generating}
-                      className="font-semibold text-blue-700 hover:underline disabled:text-slate-400 disabled:no-underline"
+                      className="font-semibold text-blue-700 hover:underline disabled:text-slate-400 disabled:no-underline dark:text-blue-300 dark:disabled:text-neutral-500"
                     >
                       {generating ? '再生成中...' : '再生成する'}
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => setReportHistoryOpen((v) => !v)}
+                      className="font-semibold text-slate-500 hover:underline dark:text-neutral-400"
+                    >
+                      {reportHistoryOpen ? '過去の実行結果を閉じる' : '過去の実行結果を見る'}
+                    </button>
                   </div>
+                  {reportHistoryOpen && (
+                    <div className="mt-3 border-t border-slate-100 pt-3 dark:border-neutral-800">
+                      {reportHistoryLoading ? (
+                        <p className="text-xs text-slate-400 dark:text-neutral-500">読み込み中...</p>
+                      ) : reportHistory.length <= 1 ? (
+                        <p className="text-xs text-slate-400 dark:text-neutral-500">過去の実行はまだありません。</p>
+                      ) : (
+                        <ul className="flex flex-col gap-3">
+                          {reportHistory.slice(1).map((h) => (
+                            <li key={h.generated_at} className="rounded-md border border-slate-100 p-2.5 text-xs dark:border-neutral-800">
+                              <div className="mb-1 text-slate-400 dark:text-neutral-500">{formatDateTimeJst(h.generated_at)}</div>
+                              <p className="text-slate-600 dark:text-neutral-300">{h.summary}</p>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  )}
                 </>
               ) : reportLoading ? (
-                <div className="text-sm text-slate-400">読み込み中...</div>
+                <div className="text-sm text-slate-400 dark:text-neutral-500">読み込み中...</div>
               ) : generating ? (
-                <div className="text-sm text-slate-500">
+                <div className="text-sm text-slate-500 dark:text-neutral-400">
                   作成中...
                   {slowWarning && (
-                    <p className="mt-1 text-xs text-amber-600">
+                    <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
                       生成に時間がかかっています。しばらく経っても表示されない場合は再度お試しください。
                     </p>
                   )}
                 </div>
               ) : (
                 <div>
-                  <p className="mb-3 text-sm text-slate-500">
+                  <p className="mb-3 text-sm text-slate-500 dark:text-neutral-400">
                     まだAI組織レポートは生成されていません。この担当範囲の受講状況（集計後の数値のみ）を分析して所見を作成します。
                   </p>
                   <Button type="button" variant="secondary" onClick={handleGenerate}>
                     生成する
                   </Button>
-                  {generateError && <span className="ml-3 text-sm text-red-600">{generateError}</span>}
+                  {generateError && <span className="ml-3 text-sm text-red-600 dark:text-red-400">{generateError}</span>}
                 </div>
               )}
             </div>

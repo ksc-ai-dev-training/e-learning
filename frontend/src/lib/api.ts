@@ -81,6 +81,33 @@ export async function apiFetchText(
   return res.text()
 }
 
+// A-27・A-76等、「署名付きアップロードURLを発行 → 直接PUT」という2段階アップロードの共通処理
+// （2026-09-28、attachmentActions.tsのuploadFileAttachment・profileActions.tsのuploadProfileIconで
+// 全く同じ手順が重複していたため共通化した）。呼び出し側は、発行APIのパスとエラーメッセージだけ
+// 渡し、戻り値のstorage_keyを使って自分自身の確定APIを呼ぶ。
+export async function uploadToSignedUrl(
+  uploadUrlEndpoint: string,
+  file: File,
+  errorMessage: string,
+): Promise<string> {
+  const { upload_url, storage_key } = await apiFetch<{ upload_url: string; storage_key: string }>(
+    uploadUrlEndpoint,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        filename: file.name,
+        mime_type: file.type || 'application/octet-stream',
+        size_bytes: file.size,
+      }),
+    },
+  )
+  const res = await fetch(upload_url, { method: 'PUT', credentials: 'same-origin', body: file })
+  if (!res.ok) {
+    throw new ApiError(res.status, errorMessage)
+  }
+  return storage_key
+}
+
 // 保存時の楽観的ロック競合（409）を、他のエラーと区別してユーザーに分かりやすく伝える
 // （2026-09-10、複数人での同時編集による無条件上書き事故対策の一部）。
 export function conflictAwareMessage(e: unknown, fallback: string): string {

@@ -34,12 +34,12 @@ export default function MyLearningToggle({ materialId, registered, onToggled }: 
       onClick={handleClick}
       disabled={loading}
       title={registered ? 'マイ学習から外す' : 'マイ学習に追加'}
-      className="flex items-center gap-1.5 whitespace-nowrap text-[13px] font-medium text-slate-500 disabled:opacity-50 dark:text-slate-400"
+      className="flex items-center gap-1.5 whitespace-nowrap text-[13px] font-medium text-slate-500 disabled:opacity-50 dark:text-neutral-400"
     >
       マイ学習
       <span
         className={`flex h-4 w-7 flex-shrink-0 items-center rounded-full p-0.5 transition-colors ${
-          registered ? 'bg-blue-600 dark:bg-blue-500' : 'bg-slate-300 dark:bg-slate-600'
+          registered ? 'bg-blue-600 dark:bg-blue-500' : 'bg-slate-300 dark:bg-neutral-600'
         }`}
       >
         <span

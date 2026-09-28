@@ -25,3 +25,13 @@ export function useAiReview(materialId: number | null) {
 export function runAiReview(materialId: number): Promise<AiMaterialReview> {
   return apiFetch<AiMaterialReview>(`/api/materials/${materialId}/ai-review`, { method: 'POST' })
 }
+
+// A-103: 過去のAIレビュー結果一覧（新設、2026-09-28）。開いたときにまとめて取得し、
+// 「過去の実行結果を見る」を展開したときだけ表示する（普段は使わないため常時取得しない）。
+export function useAiReviewHistory(materialId: number | null) {
+  const { data, error, isLoading } = useSWR<{ items: AiMaterialReview[] }>(
+    materialId !== null ? `/api/materials/${materialId}/ai-reviews` : null,
+    apiFetch,
+  )
+  return { items: data?.items ?? [], error, isLoading }
+}

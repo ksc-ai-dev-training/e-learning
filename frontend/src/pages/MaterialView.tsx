@@ -44,10 +44,13 @@ function formatResponse(response: unknown, type: string): string {
 // 記述式・コード記述式は採点基準未設定か、score_logは常にfalse）ため、ここでは型を問わず一律で
 // 「正誤の概念が無い＝回答記録済み」として扱ってよい。
 function answerStatusBadge(a: { type: string; has_correct_answer: boolean; is_correct: boolean | null }) {
-  if (!a.has_correct_answer) return { text: '回答記録済み', className: 'bg-slate-100 text-slate-500' }
-  if (a.is_correct === true) return { text: '正解', className: 'bg-green-100 text-green-700' }
-  if (a.is_correct === false) return { text: '不正解', className: 'bg-red-100 text-red-700' }
-  return { text: '採点中', className: 'bg-slate-100 text-slate-500' }
+  if (!a.has_correct_answer)
+    return { text: '回答記録済み', className: 'bg-slate-100 text-slate-500 dark:bg-neutral-800 dark:text-neutral-400' }
+  if (a.is_correct === true)
+    return { text: '正解', className: 'bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-200' }
+  if (a.is_correct === false)
+    return { text: '不正解', className: 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-200' }
+  return { text: '採点中', className: 'bg-slate-100 text-slate-500 dark:bg-neutral-800 dark:text-neutral-400' }
 }
 
 // 実施履歴の「詳細」を開いたときだけ受験記録を取得して表示する（2026-09-17新設。
@@ -56,25 +59,25 @@ function answerStatusBadge(a: { type: string; has_correct_answer: boolean; is_co
 function PracticeAttemptDetailPanel({ attemptId }: { attemptId: number }) {
   const { attempt, isLoading } = useAttemptDetail(attemptId)
   if (isLoading || !attempt) {
-    return <p className="text-xs text-slate-400">読み込み中...</p>
+    return <p className="text-xs text-slate-400 dark:text-neutral-500">読み込み中...</p>
   }
   return (
     <div className="flex flex-col gap-2">
       {attempt.answers.map((a) => {
         const badge = answerStatusBadge(a)
         return (
-          <div key={a.question_id} className="rounded-md border border-slate-200 bg-white p-2.5">
+          <div key={a.question_id} className="rounded-md border border-slate-200 bg-white p-2.5 dark:border-neutral-700 dark:bg-neutral-800">
             <div className="flex items-start gap-2">
               <span className={`flex-shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${badge.className}`}>
                 {badge.text}
               </span>
-              <div className="min-w-0 flex-1 text-[12.5px] font-semibold text-slate-700">{a.prompt}</div>
+              <div className="min-w-0 flex-1 text-[12.5px] font-semibold text-slate-700 dark:text-neutral-200">{a.prompt}</div>
             </div>
-            <div className="mt-1.5 text-xs text-slate-600">
-              <span className="font-semibold text-slate-400">回答: </span>
+            <div className="mt-1.5 text-xs text-slate-600 dark:text-neutral-300">
+              <span className="font-semibold text-slate-400 dark:text-neutral-500">回答: </span>
               {formatResponse(a.response, a.type)}
             </div>
-            {a.ai_feedback && <div className="mt-1 text-xs text-slate-500">{a.ai_feedback}</div>}
+            {a.ai_feedback && <div className="mt-1 text-xs text-slate-500 dark:text-neutral-400">{a.ai_feedback}</div>}
           </div>
         )
       })}
@@ -96,12 +99,12 @@ function PracticeHistoryTable({
   onToggle: (attemptId: number) => void
 }) {
   if (items.length === 0) {
-    return <p className="p-4 text-center text-sm text-slate-400">{emptyText}</p>
+    return <p className="p-4 text-center text-sm text-slate-400 dark:text-neutral-500">{emptyText}</p>
   }
   return (
     <table className="w-full text-sm">
       <thead>
-        <tr className="border-b border-slate-100 text-xs text-slate-400">
+        <tr className="border-b border-slate-100 text-xs text-slate-400 dark:border-neutral-800 dark:text-neutral-500">
           <th className="px-4 py-2 text-left font-normal">実施日時</th>
           <th className="px-4 py-2 text-right font-normal">正答数</th>
           <th className="px-4 py-2 text-right font-normal">所要時間</th>
@@ -112,7 +115,7 @@ function PracticeHistoryTable({
         {items.flatMap((p) => {
           const expanded = expandedAttemptId === p.id
           const rows = [
-            <tr key={p.id} className="border-b border-slate-50">
+            <tr key={p.id} className="border-b border-slate-50 text-slate-700 dark:border-neutral-800 dark:text-neutral-200">
               <td className="px-4 py-2">{formatDateTimeJst(p.submitted_at)}</td>
               <td className="px-4 py-2 text-right">
                 {p.correct_count} / {p.total_count}
@@ -121,7 +124,7 @@ function PracticeHistoryTable({
               <td className="px-4 py-2 text-right">
                 <button
                   type="button"
-                  className="text-xs font-semibold text-blue-700 hover:underline"
+                  className="text-xs font-semibold text-blue-700 hover:underline dark:text-blue-300"
                   onClick={() => onToggle(p.id)}
                 >
                   {expanded ? '閉じる' : '詳細'}
@@ -131,7 +134,7 @@ function PracticeHistoryTable({
           ]
           if (expanded) {
             rows.push(
-              <tr key={`${p.id}-detail`} className="border-b border-slate-50 bg-slate-50">
+              <tr key={`${p.id}-detail`} className="border-b border-slate-50 bg-slate-50 dark:border-neutral-800 dark:bg-neutral-900/40">
                 <td colSpan={4} className="px-4 py-3">
                   <PracticeAttemptDetailPanel attemptId={p.id} />
                 </td>
@@ -223,7 +226,7 @@ export default function MaterialView() {
   }, [activeTab, id, gradedAnswers.length])
 
   if (isLoading) {
-    return <div className="p-8 text-sm text-slate-400">読み込み中...</div>
+    return <div className="p-8 text-sm text-slate-400 dark:text-neutral-500">読み込み中...</div>
   }
 
   if (error || !material) {
@@ -235,10 +238,10 @@ export default function MaterialView() {
       <div className="flex flex-1 flex-col">
         <PageHeader title="教材受講" />
         <div className="px-8 py-6">
-          <Link to={back.to} className="text-blue-800 hover:underline">
+          <Link to={back.to} className="text-blue-800 hover:underline dark:text-blue-300">
             {back.label}
           </Link>
-          <p className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{message}</p>
+          <p className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200">{message}</p>
         </div>
       </div>
     )
@@ -371,7 +374,7 @@ export default function MaterialView() {
             )}
             <Link
               to={back.to}
-              className="rounded-md border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              className="rounded-md border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 dark:hover:bg-neutral-700"
             >
               {back.label}
             </Link>
@@ -379,7 +382,7 @@ export default function MaterialView() {
         }
       />
       <div className="px-8 py-6">
-        <div className="mb-4 flex flex-wrap items-center gap-2 text-[12px] text-slate-500">
+        <div className="mb-4 flex flex-wrap items-center gap-2 text-[12px] text-slate-500 dark:text-neutral-400">
           <Badge variant={material.required ? 'required' : 'optional'} />
           <span>
             全{chapters.length}章・{totalPages}ページ
@@ -387,7 +390,7 @@ export default function MaterialView() {
           {material.due_at && <span>／ 期限: {formatDateJst(material.due_at)}</span>}
         </div>
 
-        <div className="mb-5 flex gap-1 border-b border-slate-200" role="tablist">
+        <div className="mb-5 flex gap-1 border-b border-slate-200 dark:border-neutral-800" role="tablist">
           {TABS.map((tab) => (
             <button
               key={tab.key}
@@ -400,8 +403,8 @@ export default function MaterialView() {
               }}
               className={`-mb-px border-b-2 px-3 py-2 text-sm font-semibold ${
                 activeTab === tab.key
-                  ? 'border-blue-800 text-blue-900'
-                  : 'border-transparent text-slate-500 hover:text-slate-800'
+                  ? 'border-blue-800 text-blue-900 dark:border-blue-500 dark:text-blue-300'
+                  : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-neutral-400 dark:hover:text-neutral-100'
               }`}
             >
               {tab.label}
@@ -413,27 +416,27 @@ export default function MaterialView() {
           <>
             {totalPages > 0 && (
               <div className="mb-5 flex items-center gap-3">
-                <span className="text-xs text-slate-500">
+                <span className="text-xs text-slate-500 dark:text-neutral-400">
                   ページ {reachedCount}/{totalPages}
                 </span>
-                <div className="h-2 w-full max-w-xs overflow-hidden rounded-full bg-slate-100">
-                  <div className="h-full bg-blue-700" style={{ width: `${progressPct}%` }} />
+                <div className="h-2 w-full max-w-xs overflow-hidden rounded-full bg-slate-100 dark:bg-neutral-800">
+                  <div className="h-full bg-blue-700 dark:bg-blue-500" style={{ width: `${progressPct}%` }} />
                 </div>
-                <span className="text-xs text-slate-500">{progressPct}%</span>
+                <span className="text-xs text-slate-500 dark:text-neutral-400">{progressPct}%</span>
               </div>
             )}
 
             {pendingSurvey && (
-              <div className="mb-5 rounded-md border border-blue-200 bg-blue-50 p-4">
-                <p className="text-sm font-semibold text-blue-900">{pendingSurvey.title}にご協力ください（任意・30秒程度）</p>
+              <div className="mb-5 rounded-md border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950/40">
+                <p className="text-sm font-semibold text-blue-900 dark:text-blue-100">{pendingSurvey.title}にご協力ください（任意・30秒程度）</p>
                 {pendingSurvey.answered_by_me && (
-                  <p className="mt-1 text-xs text-blue-700">前回も回答済みです。今回分として改めて回答できます。</p>
+                  <p className="mt-1 text-xs text-blue-700 dark:text-blue-300">前回も回答済みです。今回分として改めて回答できます。</p>
                 )}
                 <div className="mt-2 flex items-center gap-3">
                   <Button onClick={() => setSurveyModalSurvey(pendingSurvey)}>回答する</Button>
                   <button
                     type="button"
-                    className="text-xs text-slate-500 hover:underline"
+                    className="text-xs text-slate-500 hover:underline dark:text-neutral-400"
                     onClick={() => setDismissedSurveyIds((prev) => new Set(prev).add(pendingSurvey.id))}
                   >
                     今回はスキップ
@@ -447,35 +450,35 @@ export default function MaterialView() {
                 key={entry.scope_node_id ?? 'material'}
                 className={`mb-4 rounded-md border overflow-hidden ${
                   entry.attempt.passed === false
-                    ? 'border-red-200'
+                    ? 'border-red-200 dark:border-red-900'
                     : entry.attempt.passed === true
-                      ? 'border-green-200'
-                      : 'border-slate-200'
+                      ? 'border-green-200 dark:border-green-900'
+                      : 'border-slate-200 dark:border-neutral-800'
                 }`}
               >
                 <div
                   className={`flex items-center justify-between px-4 py-2.5 ${
                     entry.attempt.passed === false
-                      ? 'bg-red-50'
+                      ? 'bg-red-50 dark:bg-red-950/40'
                       : entry.attempt.passed === true
-                        ? 'bg-green-50'
-                        : 'bg-slate-50'
+                        ? 'bg-green-50 dark:bg-green-950/40'
+                        : 'bg-slate-50 dark:bg-neutral-800/60'
                   }`}
                 >
-                  <span className="text-sm font-semibold text-slate-700">{entry.scope_label}</span>
+                  <span className="text-sm font-semibold text-slate-700 dark:text-neutral-100">{entry.scope_label}</span>
                   <span
                     className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
                       entry.attempt.passed === true
-                        ? 'bg-green-100 text-green-700'
+                        ? 'bg-green-100 text-green-700 dark:bg-green-950/60 dark:text-green-200'
                         : entry.attempt.passed === false
-                          ? 'bg-red-100 text-red-700'
-                          : 'bg-slate-100 text-slate-500'
+                          ? 'bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-200'
+                          : 'bg-slate-100 text-slate-500 dark:bg-neutral-800 dark:text-neutral-400'
                     }`}
                   >
                     {entry.attempt.passed === true ? '合格' : entry.attempt.passed === false ? '不合格' : '合否対象外（参考）'}
                   </span>
                 </div>
-                <div className="px-4 py-3 text-xs text-slate-500">
+                <div className="px-4 py-3 text-xs text-slate-500 dark:text-neutral-400">
                   {formatDateTimeJst(entry.attempt.submitted_at)} 実施 ／ 正答率
                   {entry.attempt.score_pct !== null ? Math.round(entry.attempt.score_pct) : '—'}%
                   <p className="mt-1">
@@ -483,7 +486,7 @@ export default function MaterialView() {
                     {entry.retake_limit !== null ? `／上限${entry.retake_limit}回` : '（上限なし）'}
                   </p>
                   {entry.attempt.passed === false && (
-                    <p className="mt-1 text-red-700">
+                    <p className="mt-1 text-red-700 dark:text-red-300">
                       {entry.attempt.fail_reason
                         ? `⚠ ドボン設問「${entry.attempt.fail_reason}」に正解しなかったため不合格と判定されました。`
                         : '合格基準に届きませんでした。'}
@@ -498,11 +501,11 @@ export default function MaterialView() {
             ))}
 
             {gradedAnswers.length > 0 && (
-              <section ref={gradingResultRef} className="mb-5 rounded-md border border-slate-200">
-                <div className="border-b border-slate-200 px-4 py-2.5">
-                  <span className="text-sm font-semibold text-slate-700">採点結果</span>
+              <section ref={gradingResultRef} className="mb-5 rounded-md border border-slate-200 dark:border-neutral-800">
+                <div className="border-b border-slate-200 px-4 py-2.5 dark:border-neutral-800">
+                  <span className="text-sm font-semibold text-slate-700 dark:text-neutral-100">採点結果</span>
                 </div>
-                <div className="divide-y divide-slate-100">
+                <div className="divide-y divide-slate-100 dark:divide-neutral-800">
                   {gradedAnswers.map((a) => {
                     // 記述式・コード記述式・単一選択・複数選択・並び替えいずれもis_correctの正誤で
                     // 「正解」「不正解」「採点中」（未確定）を表示する（2026-09-16、AI採点・手動採点とも
@@ -524,12 +527,12 @@ export default function MaterialView() {
                           : '不正解'
                         : '採点中'
                     const badgeClass = ungraded
-                      ? 'bg-slate-100 text-slate-500'
+                      ? 'bg-slate-100 text-slate-500 dark:bg-neutral-800 dark:text-neutral-400'
                       : a.is_correct !== null
                         ? a.is_correct
-                          ? 'bg-green-100 text-green-700'
-                          : 'bg-red-100 text-red-700'
-                        : 'bg-slate-100 text-slate-500'
+                          ? 'bg-green-100 text-green-700 dark:bg-green-950/60 dark:text-green-200'
+                          : 'bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-200'
+                        : 'bg-slate-100 text-slate-500 dark:bg-neutral-800 dark:text-neutral-400'
                     const expanded = expandedGradedAnswerIds.has(a.question_id)
                     // 合否（score_pct）に反映されるのはrequired && countedの設問のみ（learning.pyの
                     // gradable判定と同じ条件）。この画面からは見えなかったため、正誤バッジと並べて表示する
@@ -540,14 +543,16 @@ export default function MaterialView() {
                         key={a.question_id}
                         type="button"
                         onClick={() => toggleGradedAnswer(a.question_id)}
-                        className="flex w-full items-start gap-3 p-4 text-left hover:bg-slate-50"
+                        className="flex w-full items-start gap-3 p-4 text-left hover:bg-slate-50 dark:hover:bg-neutral-800/60"
                       >
                         <span className={`flex-shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${badgeClass}`}>
                           {badgeText}
                         </span>
                         <span
                           className={`flex-shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${
-                            countsTowardPassFail ? 'bg-blue-50 text-blue-600' : 'bg-slate-100 text-slate-400'
+                            countsTowardPassFail
+                              ? 'bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-300'
+                              : 'bg-slate-100 text-slate-400 dark:bg-neutral-800 dark:text-neutral-500'
                           }`}
                         >
                           {countsTowardPassFail ? '合否対象' : '合否対象外'}
@@ -560,26 +565,26 @@ export default function MaterialView() {
                           <span
                             className={`flex-shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${
                               a.grading_mode === 'manual'
-                                ? 'bg-purple-50 text-purple-600'
-                                : 'bg-cyan-50 text-cyan-600'
+                                ? 'bg-purple-50 text-purple-600 dark:bg-purple-950/40 dark:text-purple-300'
+                                : 'bg-cyan-50 text-cyan-600 dark:bg-cyan-950/40 dark:text-cyan-300'
                             }`}
                           >
                             {a.grading_mode === 'manual' ? '手動採点' : 'AI採点'}
                           </span>
                         )}
                         <div className="min-w-0 flex-1">
-                          <div className="text-[12.5px] font-semibold text-slate-700">
+                          <div className="text-[12.5px] font-semibold text-slate-700 dark:text-neutral-200">
                             {a.scope_label} {a.prompt}
                           </div>
-                          {a.ai_feedback && <div className="mt-0.5 text-xs text-slate-500">{a.ai_feedback}</div>}
+                          {a.ai_feedback && <div className="mt-0.5 text-xs text-slate-500 dark:text-neutral-400">{a.ai_feedback}</div>}
                           {expanded && (
-                            <div className="mt-2 rounded-md border border-slate-200 bg-slate-50 p-2.5 text-xs text-slate-700">
-                              <div className="mb-1 font-semibold text-slate-500">自分の回答</div>
+                            <div className="mt-2 rounded-md border border-slate-200 bg-slate-50 p-2.5 text-xs text-slate-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
+                              <div className="mb-1 font-semibold text-slate-500 dark:text-neutral-400">自分の回答</div>
                               <div className="whitespace-pre-wrap">{formatResponse(a.response, a.type)}</div>
                             </div>
                           )}
                         </div>
-                        <span className="flex-shrink-0 text-xs text-slate-400">{expanded ? '閉じる' : '開く'}</span>
+                        <span className="flex-shrink-0 text-xs text-slate-400 dark:text-neutral-500">{expanded ? '閉じる' : '開く'}</span>
                       </button>
                     )
                   })}
@@ -588,9 +593,9 @@ export default function MaterialView() {
             )}
 
             {wholeMaterialAttachments.length > 0 && (
-              <section className="mb-5 rounded-md border border-slate-200">
-                <div className="border-b border-slate-200 px-4 py-2.5">
-                  <span className="text-sm font-semibold text-slate-700">教材全体の資料</span>
+              <section className="mb-5 rounded-md border border-slate-200 dark:border-neutral-800">
+                <div className="border-b border-slate-200 px-4 py-2.5 dark:border-neutral-800">
+                  <span className="text-sm font-semibold text-slate-700 dark:text-neutral-100">教材全体の資料</span>
                 </div>
                 <div className="flex flex-col gap-3 p-4 text-sm">
                   {wholeMaterialAttachments.map((a) => (
@@ -601,7 +606,7 @@ export default function MaterialView() {
             )}
 
             {chapters.length === 0 && (
-              <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400">
+              <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-500">
                 目次がまだ登録されていません。
               </p>
             )}
@@ -609,14 +614,14 @@ export default function MaterialView() {
             {chapters.map((chapter, chapterIndex) => (
               <div
                 key={chapter.id}
-                className={`mb-4 rounded-md border border-l-[3px] border-slate-200 ${chapterAccentClass(chapterIndex)}`}
+                className={`mb-4 rounded-md border border-l-[3px] border-slate-200 dark:border-neutral-800 ${chapterAccentClass(chapterIndex)}`}
               >
-                <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-2.5">
-                  <span className="text-sm font-semibold text-slate-700">
-                    <span className="text-xs font-bold text-blue-800">第{chapterIndex + 1}章</span>{' '}
+                <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-2.5 dark:border-neutral-800 dark:bg-neutral-800/60">
+                  <span className="text-sm font-semibold text-slate-700 dark:text-neutral-100">
+                    <span className="text-xs font-bold text-blue-800 dark:text-blue-300">第{chapterIndex + 1}章</span>{' '}
                     {chapter.title}
                   </span>
-                  <span className="text-xs text-slate-400">
+                  <span className="text-xs text-slate-400 dark:text-neutral-500">
                     {countCompletedPages(chapter.children, completedIds)}/{countPages(chapter.children)} 完了
                   </span>
                 </div>
@@ -625,12 +630,12 @@ export default function MaterialView() {
                     child.kind === 'section' ? (
                       <div key={child.id} className="ml-2 mb-1.5">
                         <div className="flex items-center gap-2 px-2 py-1">
-                          <span className="text-xs font-semibold text-slate-700">{child.title}</span>
-                          <span className="flex-shrink-0 rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-600">
+                          <span className="text-xs font-semibold text-slate-700 dark:text-neutral-200">{child.title}</span>
+                          <span className="flex-shrink-0 rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-300">
                             小見出し
                           </span>
                         </div>
-                        <div className="ml-4 border-l-2 border-slate-200 pl-2">
+                        <div className="ml-4 border-l-2 border-slate-200 pl-2 dark:border-neutral-800">
                           {child.children.map((page) => (
                             <TocPageRow
                               key={page.id}
@@ -673,22 +678,22 @@ export default function MaterialView() {
             ))}
 
             {chapters.length > 0 && (
-              <div className="mt-6 flex items-center gap-3 border-t border-slate-200 pt-5">
+              <div className="mt-6 flex items-center gap-3 border-t border-slate-200 pt-5 dark:border-neutral-800">
                 <Link
                   to={back.to}
-                  className="rounded-md border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                  className="rounded-md border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 dark:hover:bg-neutral-700"
                 >
                   {isCompleted ? '学習を終了' : '一時中断する'}
                 </Link>
                 {resumeTargetNodeId !== null && (
                   <Link
                     to={`/materials/${id}/pages/${resumeTargetNodeId}${returnQuery}`}
-                    className="whitespace-nowrap rounded-md bg-blue-900 px-3.5 py-2 text-sm font-semibold text-white hover:bg-blue-800"
+                    className="whitespace-nowrap rounded-md bg-blue-900 px-3.5 py-2 text-sm font-semibold text-white hover:bg-blue-800 dark:bg-blue-700 dark:hover:bg-blue-600"
                   >
                     {resumeLabel}
                   </Link>
                 )}
-                <span className="text-xs text-slate-400">
+                <span className="text-xs text-slate-400 dark:text-neutral-500">
                   {isCompleted
                     ? '学習記録は保存されています。読み返す場合は「再度受講」を押してください。'
                     : '中断しても回答内容は保存され、次回この続きから再開できます'}
@@ -700,13 +705,13 @@ export default function MaterialView() {
 
         {activeTab === 'practice' && (
           <>
-            <p className="mb-4 text-xs text-slate-500">
+            <p className="mb-4 text-xs text-slate-500 dark:text-neutral-400">
               合否判定を伴う受験とは別に、この教材の全ページの問題を回数制限なく繰り返し解けます。結果は合否には影響せず、習熟のための記録としてのみ残ります。
             </p>
-            <section className="mb-5 rounded-md border border-slate-200">
-              <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2.5">
-                <span className="text-sm font-semibold text-slate-700">これまでの実施履歴</span>
-                <span className="text-xs text-slate-400">{practiceAttempts.length}回実施</span>
+            <section className="mb-5 rounded-md border border-slate-200 dark:border-neutral-800">
+              <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2.5 dark:border-neutral-800">
+                <span className="text-sm font-semibold text-slate-700 dark:text-neutral-100">これまでの実施履歴</span>
+                <span className="text-xs text-slate-400 dark:text-neutral-500">{practiceAttempts.length}回実施</span>
               </div>
               <PracticeHistoryTable
                 items={practiceAttempts}
@@ -715,7 +720,7 @@ export default function MaterialView() {
                 onToggle={toggleExpandedPracticeAttempt}
               />
             </section>
-            {actionError && <p className="mb-3 text-sm text-red-600">{actionError}</p>}
+            {actionError && <p className="mb-3 text-sm text-red-600 dark:text-red-400">{actionError}</p>}
             <Button onClick={handleStartPractice} disabled={startingPractice}>
               {startingPractice ? '開始中…' : '練習を開始'}
             </Button>
@@ -724,11 +729,11 @@ export default function MaterialView() {
 
         {activeTab === 'wrong_only' && (
           <>
-            <p className="mb-4 text-xs text-slate-500">
+            <p className="mb-4 text-xs text-slate-500 dark:text-neutral-400">
               過去に間違えた問題、または正答率の低い問題だけを抽出して出題します。結果は練習と同様に合否へは影響しません。
             </p>
             <div className="mb-4 flex flex-col gap-2">
-              <label className="flex items-center gap-2 text-sm text-slate-700">
+              <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-neutral-200">
                 <input
                   type="radio"
                   name="wrong-scope"
@@ -737,7 +742,7 @@ export default function MaterialView() {
                 />
                 この教材内の誤答・難問から出題
               </label>
-              <label className="flex items-center gap-2 text-sm text-slate-700">
+              <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-neutral-200">
                 <input
                   type="radio"
                   name="wrong-scope"
@@ -746,14 +751,14 @@ export default function MaterialView() {
                 />
                 これまで解いた全教材の誤答・難問から出題
               </label>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-400 dark:text-neutral-500">
                 正答率が低い設問（正答率50%未満）も、自分が一度は解いたことのあるものに限り合わせて抽出対象になります。
               </p>
             </div>
-            <section className="mb-5 rounded-md border border-slate-200">
-              <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2.5">
-                <span className="text-sm font-semibold text-slate-700">これまでの実施履歴</span>
-                <span className="text-xs text-slate-400">{wrongOnlyAttempts.length}回実施</span>
+            <section className="mb-5 rounded-md border border-slate-200 dark:border-neutral-800">
+              <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2.5 dark:border-neutral-800">
+                <span className="text-sm font-semibold text-slate-700 dark:text-neutral-100">これまでの実施履歴</span>
+                <span className="text-xs text-slate-400 dark:text-neutral-500">{wrongOnlyAttempts.length}回実施</span>
               </div>
               <PracticeHistoryTable
                 items={wrongOnlyAttempts}
@@ -762,7 +767,7 @@ export default function MaterialView() {
                 onToggle={toggleExpandedPracticeAttempt}
               />
             </section>
-            {actionError && <p className="mb-3 text-sm text-red-600">{actionError}</p>}
+            {actionError && <p className="mb-3 text-sm text-red-600 dark:text-red-400">{actionError}</p>}
             <Button onClick={handleStartWrongOnly} disabled={startingWrongOnly}>
               {startingWrongOnly ? '開始中…' : '誤答・難問を解く'}
             </Button>
@@ -821,22 +826,22 @@ function TocPageRow({
 }) {
   if (nodeId === null) {
     return (
-      <div className="ml-2 flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm text-slate-400">
-        <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full border border-slate-300 text-transparent">·</span>
+      <div className="ml-2 flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm text-slate-400 dark:text-neutral-500">
+        <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full border border-slate-300 text-transparent dark:border-neutral-600">·</span>
         <span className="flex-1">{title}</span>
-        <span className="flex-shrink-0 text-[10.5px] text-slate-400">{kindLabel}</span>
+        <span className="flex-shrink-0 text-[10.5px] text-slate-400 dark:text-neutral-500">{kindLabel}</span>
       </div>
     )
   }
   const circleClass = done
     ? 'bg-green-600 text-white'
     : isCurrent
-      ? 'bg-blue-800 text-white'
-      : 'border border-slate-300 text-transparent'
+      ? 'bg-blue-800 text-white dark:bg-blue-500'
+      : 'border border-slate-300 text-transparent dark:border-neutral-600'
   return (
     <Link
       to={`/materials/${materialId}/pages/${nodeId}${query}`}
-      className="ml-2 flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm text-slate-500 hover:bg-blue-50"
+      className="ml-2 flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm text-slate-500 hover:bg-blue-50 dark:text-neutral-300 dark:hover:bg-blue-950/40"
     >
       <span
         className={`flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full text-[10px] ${circleClass}`}
@@ -844,8 +849,8 @@ function TocPageRow({
       >
         {done ? '✓' : isCurrent ? '●' : '·'}
       </span>
-      <span className="flex-1 text-slate-700">{title}</span>
-      <span className="flex-shrink-0 text-[10.5px] text-slate-400">{kindLabel}</span>
+      <span className="flex-1 text-slate-700 dark:text-neutral-200">{title}</span>
+      <span className="flex-shrink-0 text-[10.5px] text-slate-400 dark:text-neutral-500">{kindLabel}</span>
     </Link>
   )
 }

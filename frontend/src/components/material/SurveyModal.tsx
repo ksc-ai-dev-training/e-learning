@@ -40,9 +40,9 @@ export default function SurveyModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-lg rounded-lg bg-white p-6 shadow-xl">
-        <h2 className="mb-1 text-base font-bold text-slate-900">{survey.title}</h2>
-        <p className="mb-4 text-xs text-slate-500">
+      <div className="w-full max-w-lg rounded-lg bg-white p-6 shadow-xl dark:bg-neutral-800">
+        <h2 className="mb-1 text-base font-bold text-slate-900 dark:text-neutral-50">{survey.title}</h2>
+        <p className="mb-4 text-xs text-slate-500 dark:text-neutral-400">
           回答は任意です。スキップできます。
           {survey.answered_by_me && '（このアンケートには前回も回答済みです。今回分として改めて回答できます）'}
         </p>
@@ -53,7 +53,7 @@ export default function SurveyModal({
             const qid = q.id as number
             return (
               <div key={qid}>
-                <p className="mb-2 text-sm text-slate-700">{q.prompt}</p>
+                <p className="mb-2 text-sm text-slate-700 dark:text-neutral-200">{q.prompt}</p>
                 {q.type === 'rating_5' && (
                   <div className="flex gap-2">
                     {[1, 2, 3, 4, 5].map((n) => (
@@ -63,8 +63,8 @@ export default function SurveyModal({
                         onClick={() => setValue(qid, n)}
                         className={`h-9 w-9 rounded-md border text-sm font-semibold ${
                           values[qid] === n
-                            ? 'border-blue-800 bg-blue-900 text-white'
-                            : 'border-slate-300 text-slate-600 hover:bg-slate-50'
+                            ? 'border-blue-800 bg-blue-900 text-white dark:border-blue-600 dark:bg-blue-700'
+                            : 'border-slate-300 text-slate-600 hover:bg-slate-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700'
                         }`}
                       >
                         {n}
@@ -75,7 +75,7 @@ export default function SurveyModal({
                 {q.type === 'single_choice' && (
                   <div className="flex flex-col gap-1.5">
                     {(q.options ?? []).map((opt) => (
-                      <label key={opt} className="flex items-center gap-2 text-sm text-slate-700">
+                      <label key={opt} className="flex items-center gap-2 text-sm text-slate-700 dark:text-neutral-200">
                         <input
                           type="radio"
                           name={`survey-q-${qid}`}
@@ -98,7 +98,7 @@ export default function SurveyModal({
             )
           })}
         </div>
-        {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+        {error && <p className="mt-3 text-sm text-red-600 dark:text-red-400">{error}</p>}
         <div className="mt-5 flex justify-end gap-2">
           <Button variant="secondary" onClick={onClose} disabled={submitting}>
             今回はスキップ

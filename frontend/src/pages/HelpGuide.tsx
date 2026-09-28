@@ -209,14 +209,14 @@ export default function HelpGuide() {
     <div className="flex flex-1 flex-col">
       <PageHeader title="ヘルプ" />
       <div className="mx-auto w-full max-w-3xl px-8 py-6">
-        <div className="mb-6 flex flex-wrap items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-[13px] dark:border-slate-800 dark:bg-slate-900">
-          <span className="mr-1 font-semibold text-slate-500 dark:text-slate-300">よくある操作:</span>
+        <div className="mb-6 flex flex-wrap items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-[13px] dark:border-neutral-800 dark:bg-neutral-900">
+          <span className="mr-1 font-semibold text-slate-500 dark:text-neutral-300">よくある操作:</span>
           {QUICK_TASKS.map((task) => (
             <a
               key={task.anchor}
               href={task.anchor}
               onClick={(e) => jumpTo(e, task.anchor)}
-              className="rounded-full border border-slate-300 bg-white px-3 py-1 text-slate-600 hover:border-blue-700 hover:text-blue-800 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-blue-500 dark:hover:text-blue-300"
+              className="rounded-full border border-slate-300 bg-white px-3 py-1 text-slate-600 hover:border-blue-700 hover:text-blue-800 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:border-blue-500 dark:hover:text-blue-300"
             >
               {task.label}
             </a>
@@ -237,23 +237,23 @@ export default function HelpGuide() {
               )}
               <details
                 id={entry.id}
-                className="mb-2.5 scroll-mt-4 rounded-md border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
+                className="mb-2.5 scroll-mt-4 rounded-md border border-slate-200 bg-white dark:border-neutral-800 dark:bg-neutral-900"
               >
                 <summary className="flex cursor-pointer items-center gap-2.5 px-4 py-3">
                   <span className={`h-2 w-2 flex-shrink-0 rounded-full ${DOT_CLASS[entry.accent]}`} />
-                  <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">{entry.title}</span>
+                  <span className="text-sm font-semibold text-slate-800 dark:text-neutral-100">{entry.title}</span>
                   {entry.sub && <span className="text-xs text-slate-400">— {entry.sub}</span>}
                 </summary>
-                <div className="border-t border-slate-100 px-4 py-3.5 dark:border-slate-800">
-                  <p className="mb-3 text-[13px] leading-relaxed text-slate-600 dark:text-slate-300">
+                <div className="border-t border-slate-100 px-4 py-3.5 dark:border-neutral-800">
+                  <p className="mb-3 text-[13px] leading-relaxed text-slate-600 dark:text-neutral-300">
                     {entry.purpose}
                   </p>
-                  <ol className="mb-3 ml-5 list-decimal space-y-1.5 text-[13px] leading-relaxed text-slate-700 dark:text-slate-200">
+                  <ol className="mb-3 ml-5 list-decimal space-y-1.5 text-[13px] leading-relaxed text-slate-700 dark:text-neutral-200">
                     {entry.steps.map((step, idx) => (
                       <li key={idx}>{step}</li>
                     ))}
                   </ol>
-                  <span className="inline-block rounded-sm border border-slate-200 px-2 py-0.5 text-[11px] text-slate-400 dark:border-slate-700 dark:text-slate-500">
+                  <span className="inline-block rounded-sm border border-slate-200 px-2 py-0.5 text-[11px] text-slate-400 dark:border-neutral-700 dark:text-neutral-500">
                     対象: {entry.who}
                   </span>
                 </div>

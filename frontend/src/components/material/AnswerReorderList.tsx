@@ -39,7 +39,7 @@ export default function AnswerReorderList({
 
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-xs text-slate-400">
+      <p className="text-xs text-slate-400 dark:text-neutral-500">
         正しいと思う順番に項目をクリックしてください（1番目からクリック。もう一度クリックすると選択解除できます）。
       </p>
       <div className="flex flex-col gap-1.5">
@@ -54,13 +54,13 @@ export default function AnswerReorderList({
               disabled={disabled}
               className={`flex items-center gap-2 rounded-md border px-3 py-1.5 text-left text-sm transition-colors ${
                 picked
-                  ? 'border-blue-300 bg-blue-50 text-blue-900'
-                  : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60'
+                  ? 'border-blue-300 bg-blue-50 text-blue-900 dark:border-blue-700 dark:bg-blue-950/40 dark:text-blue-100'
+                  : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800/60'
               }`}
             >
               <span
                 className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
-                  picked ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-400'
+                  picked ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-400 dark:bg-neutral-700 dark:text-neutral-400'
                 }`}
               >
                 {picked ? position + 1 : ''}

@@ -39,12 +39,12 @@ export default function PageBody({
   if (!body.trim()) return null
 
   return (
-    <section className="mb-5 rounded-md border border-slate-200">
-      <div className="border-b border-slate-200 px-4 py-2.5">
-        <span className="text-sm font-semibold text-slate-700">説明</span>
+    <section className="mb-5 rounded-md border border-slate-200 dark:border-neutral-800">
+      <div className="border-b border-slate-200 px-4 py-2.5 dark:border-neutral-800">
+        <span className="text-sm font-semibold text-slate-700 dark:text-neutral-100">説明</span>
       </div>
-      <div className="p-4 text-[13px] leading-[1.9] text-slate-700">
-        {error && <p className="text-sm text-red-600">本文の取得に失敗しました</p>}
+      <div className="p-4 text-[13px] leading-[1.9] text-slate-700 dark:text-neutral-200">
+        {error && <p className="text-sm text-red-600 dark:text-red-400">本文の取得に失敗しました</p>}
         {!error && (
           <div className="material-body" dangerouslySetInnerHTML={{ __html: html }} />
         )}

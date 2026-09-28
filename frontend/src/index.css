@@ -14,10 +14,13 @@
   --text-xs--line-height: 1.25rem;
 }
 
-/* ダーク背景はslate-950（ほぼ黒）だと沈みすぎて文字が見づらいというフィードバックを受け、
-   青みを残したslate-900に変更（2026-09-17）。 */
+/* ダーク背景は当初slate-950（ほぼ黒）だと沈みすぎて文字が見づらいというフィードバックを受け、
+   slate-900に変更したが（2026-09-17）、slate系は青みを帯びるため「黒モードのはずが青っぽい」
+   という指摘を受けた。明るさはslate-900とほぼ同じまま、色相を持たない中立グレー
+   （neutral系）に置き換えて青みだけを除いた（2026-09-28）。他の画面のdark:slate-*も
+   同時にneutral-*へ統一した。 */
 body {
-  @apply bg-slate-100 text-slate-800 dark:bg-slate-900 dark:text-slate-100;
+  @apply bg-slate-100 text-slate-800 dark:bg-neutral-900 dark:text-neutral-100;
 }
 
 /* クリックできる要素は一律で指カーソルにする（個別に cursor-pointer を付け忘れないため）。
@@ -58,7 +61,7 @@ button:disabled,
   @apply list-decimal;
 }
 .material-body h4 {
-  @apply mt-5 mb-2 border-l-[3px] border-blue-900 pl-2 text-[15px] font-bold;
+  @apply mt-5 mb-2 border-l-[3px] border-blue-900 pl-2 text-[15px] font-bold dark:border-blue-500;
 }
 .material-body h5,
 .material-body h6 {
@@ -69,16 +72,16 @@ button:disabled,
 }
 .material-body th,
 .material-body td {
-  @apply border border-slate-300 px-3 py-1.5 text-left align-top;
+  @apply border border-slate-300 px-3 py-1.5 text-left align-top dark:border-neutral-700;
 }
 .material-body th {
-  @apply bg-slate-100 font-semibold whitespace-nowrap;
+  @apply bg-slate-100 font-semibold whitespace-nowrap dark:bg-neutral-800;
 }
 .material-body tbody tr:nth-child(even) {
-  @apply bg-slate-50;
+  @apply bg-slate-50 dark:bg-neutral-900/40;
 }
 .material-body blockquote {
-  @apply my-3 border-l-4 border-slate-300 bg-slate-50 px-3.5 py-2 text-slate-600;
+  @apply my-3 border-l-4 border-slate-300 bg-slate-50 px-3.5 py-2 text-slate-600 dark:border-neutral-600 dark:bg-neutral-800/60 dark:text-neutral-300;
 }
 .material-body img {
   @apply my-2 h-auto max-w-full;
@@ -113,4 +116,15 @@ button:disabled,
 .token.class-name,
 .token.builtin {
   color: #a626a4;
+}
+
+/* 上記の配色は白背景（CodeAnswerEditorのbg-white）を前提にした値のため、operator・punctuation
+   の#383a42（ほぼ黒）はダークモードのコード欄（bg-neutral-950）では文字が見えなくなる
+   （2026-09-28、ダークモード対応の全画面適用に合わせて追加）。 */
+:where(.dark, .dark *) .token.operator,
+:where(.dark, .dark *) .token.punctuation {
+  color: #abb2bf;
+}
+:where(.dark, .dark *) .token.comment {
+  color: #7f848e;
 }

@@ -63,8 +63,8 @@ export default function MyProjectsPanel({
   return (
     <div>
       {stoppedCount > 0 && (
-        <div className="flex items-center justify-end border-b border-slate-100 px-4 py-2 dark:border-slate-800">
-          <label className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-300">
+        <div className="flex items-center justify-end border-b border-slate-100 px-4 py-2 dark:border-neutral-800">
+          <label className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-neutral-300">
             <input
               type="checkbox"
               checked={showStopped}
@@ -82,7 +82,7 @@ export default function MyProjectsPanel({
       ) : (
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-slate-100 text-left text-xs text-slate-500 dark:border-slate-800 dark:text-slate-300">
+            <tr className="border-b border-slate-100 text-left text-xs text-slate-500 dark:border-neutral-800 dark:text-neutral-300">
               <th className="px-4 py-2 font-normal">プロジェクト名</th>
               <th className="px-4 py-2 font-normal">あなたのロール</th>
               <th className="px-4 py-2 font-normal">状態</th>
@@ -101,14 +101,14 @@ export default function MyProjectsPanel({
               return (
                 <tr
                   key={m.id}
-                  className={`border-b border-slate-50 last:border-0 dark:border-slate-800 ${stopped ? 'bg-slate-50 dark:bg-slate-800/50' : ''}`}
+                  className={`border-b border-slate-50 last:border-0 dark:border-neutral-800 ${stopped ? 'bg-slate-50 dark:bg-neutral-800/50' : ''}`}
                 >
                   <td
-                    className={`px-4 py-2 text-[15px] font-medium ${stopped ? 'text-slate-400' : 'text-slate-800 dark:text-slate-100'}`}
+                    className={`px-4 py-2 text-[15px] font-medium ${stopped ? 'text-slate-400' : 'text-slate-800 dark:text-neutral-100'}`}
                   >
                     {m.project_name}
                   </td>
-                  <td className={`px-4 py-2 ${stopped ? 'text-slate-400' : 'text-slate-600 dark:text-slate-300'}`}>
+                  <td className={`px-4 py-2 ${stopped ? 'text-slate-400' : 'text-slate-600 dark:text-neutral-300'}`}>
                     {m.role === 'admin' ? '管理者' : m.role === 'editor' ? '編集者' : '受講者'}
                     {m.status === 'invited' && <span className="ml-1 text-xs text-amber-600 dark:text-amber-400">（招待中）</span>}
                   </td>
@@ -140,7 +140,7 @@ export default function MyProjectsPanel({
                         管理する
                       </button>
                     ) : (
-                      <span className="text-xs text-slate-300 dark:text-slate-600" title="招待に応諾するまで開けません">
+                      <span className="text-xs text-slate-300 dark:text-neutral-600" title="招待に応諾するまで開けません">
                         —
                       </span>
                     )}

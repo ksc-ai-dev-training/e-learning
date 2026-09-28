@@ -4,7 +4,7 @@ import type { ButtonHTMLAttributes } from 'react'
 const VARIANT_CLASSES: Record<string, string> = {
   primary: 'bg-blue-900 text-white hover:bg-blue-800 dark:bg-blue-700 dark:hover:bg-blue-600',
   secondary:
-    'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700',
+    'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 dark:hover:bg-neutral-700',
   'danger-ghost': 'text-red-700 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-950/40',
 }
 

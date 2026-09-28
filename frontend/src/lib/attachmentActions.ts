@@ -1,25 +1,15 @@
-import { ApiError, apiFetch } from './api'
+import { apiFetch, uploadToSignedUrl } from './api'
 
 // A-27〜A-29, A-82: S-17添付セクションのアップロード・リンク登録・削除（2画面以上で使わない
 // 一回性の操作のためフックではなく素の関数にする。呼び出し側でuseMaterialAttachmentsのmutate()を呼ぶ）。
 
 // nodeId=nullは「教材全体」向けの添付（material_attachments.node_id、5.26節）。
 export async function uploadFileAttachment(materialId: number, nodeId: number | null, file: File): Promise<void> {
-  const { upload_url, storage_key } = await apiFetch<{ upload_url: string; storage_key: string }>(
+  const storage_key = await uploadToSignedUrl(
     `/api/materials/${materialId}/attachments/upload-url`,
-    {
-      method: 'POST',
-      body: JSON.stringify({
-        filename: file.name,
-        mime_type: file.type || 'application/octet-stream',
-        size_bytes: file.size,
-      }),
-    },
+    file,
+    'ファイルのアップロードに失敗しました',
   )
-  const res = await fetch(upload_url, { method: 'PUT', credentials: 'same-origin', body: file })
-  if (!res.ok) {
-    throw new ApiError(res.status, 'ファイルのアップロードに失敗しました')
-  }
   await apiFetch(`/api/materials/${materialId}/attachments`, {
     method: 'POST',
     body: JSON.stringify({

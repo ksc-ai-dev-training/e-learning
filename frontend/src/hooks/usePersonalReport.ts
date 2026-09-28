@@ -32,3 +32,13 @@ export function usePersonalAiFeedback(userId: number | null, polling: boolean) {
   )
   return { feedback: data ?? null, error, isLoading, mutate }
 }
+
+// A-104: 過去のAI個人フィードバック一覧（新設、2026-09-28）。「過去の実行結果を見る」を
+// 展開したときだけ表示する。
+export function usePersonalAiFeedbackHistory(userId: number | null) {
+  const { data, error, isLoading } = useSWR<{ items: PersonalAiFeedback[] }>(
+    userId != null ? `/api/reports/personal/${userId}/ai-feedback/history` : null,
+    apiFetch,
+  )
+  return { items: data?.items ?? [], error, isLoading }
+}

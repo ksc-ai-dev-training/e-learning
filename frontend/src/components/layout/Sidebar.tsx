@@ -205,20 +205,20 @@ export default function Sidebar({ me }: { me: Me }) {
 
   return (
     <aside
-      className={`relative flex h-screen flex-shrink-0 flex-col border-r border-slate-200 bg-slate-50 transition-[width] duration-150 dark:border-slate-800 dark:bg-slate-900 ${
+      className={`relative flex h-screen flex-shrink-0 flex-col border-r border-slate-200 bg-slate-50 transition-[width] duration-150 dark:border-neutral-800 dark:bg-neutral-900 ${
         collapsed ? 'w-14' : 'w-60'
       }`}
     >
       <button
         onClick={toggle}
         title={collapsed ? 'サイドバーを開く' : 'サイドバーを閉じる'}
-        className="absolute -right-3 top-1/2 z-10 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 shadow-sm hover:text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
+        className="absolute -right-3 top-1/2 z-10 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 shadow-sm hover:text-slate-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200"
       >
         {collapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronLeft className="h-3.5 w-3.5" />}
       </button>
 
       <div
-        className={`flex items-center border-b border-slate-200 py-4 dark:border-slate-800 ${
+        className={`flex items-center border-b border-slate-200 py-4 dark:border-neutral-800 ${
           collapsed ? 'justify-center px-0' : 'gap-2.5 px-4'
         }`}
       >
@@ -227,7 +227,7 @@ export default function Sidebar({ me }: { me: Me }) {
         </div>
         {!collapsed && (
           <div>
-            <div className="text-[15px] font-bold leading-tight dark:text-slate-100">Manabi</div>
+            <div className="text-[15px] font-bold leading-tight dark:text-neutral-100">Manabi</div>
             <div className="text-[12px] leading-tight text-slate-400">社内学習管理システム</div>
           </div>
         )}
@@ -258,12 +258,12 @@ export default function Sidebar({ me }: { me: Me }) {
             item.implemented
               ? isActive
                 ? `${ACCENT_ACTIVE_CLASS[item.accent]} font-semibold`
-                : 'border-l-transparent text-slate-500 hover:bg-slate-100 hover:text-slate-800 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100'
+                : 'border-l-transparent text-slate-500 hover:bg-slate-100 hover:text-slate-800 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:hover:text-neutral-100'
               : 'border-l-transparent cursor-default text-slate-300'
           }`
           return (
             <div key={item.href}>
-              {item.dividerBefore && <div className="my-1.5 border-t border-slate-200 dark:border-slate-800" />}
+              {item.dividerBefore && <div className="my-1.5 border-t border-slate-200 dark:border-neutral-800" />}
               {item.implemented ? (
                 <Link to={item.href} title={collapsed ? item.label : undefined} className={className}>
                   {body}
@@ -278,14 +278,14 @@ export default function Sidebar({ me }: { me: Me }) {
         })}
       </nav>
 
-      <div className={`border-t border-slate-200 py-3 dark:border-slate-800 ${collapsed ? 'px-1' : 'px-3'}`}>
+      <div className={`border-t border-slate-200 py-3 dark:border-neutral-800 ${collapsed ? 'px-1' : 'px-3'}`}>
         <div className={`flex items-center gap-2.5 ${collapsed ? 'justify-center' : ''}`} title={collapsed ? `${me.name}（${me.email}）` : undefined}>
           <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-semibold text-blue-900">
             {me.name.slice(0, 1)}
           </span>
           {!collapsed && (
             <div className="min-w-0">
-              <div className="truncate text-[13.5px] font-semibold leading-tight dark:text-slate-100">{me.name}</div>
+              <div className="truncate text-[13.5px] font-semibold leading-tight dark:text-neutral-100">{me.name}</div>
               <div className="truncate text-[12px] leading-tight text-slate-400">{me.email}</div>
             </div>
           )}
@@ -294,7 +294,7 @@ export default function Sidebar({ me }: { me: Me }) {
           <Link
             to="/profile"
             title={collapsed ? 'プロフィール編集' : undefined}
-            className={`flex h-[30px] items-center gap-2 rounded-md border border-slate-200 bg-white text-xs text-slate-500 hover:bg-slate-100 hover:text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100 ${
+            className={`flex h-[30px] items-center gap-2 rounded-md border border-slate-200 bg-white text-xs text-slate-500 hover:bg-slate-100 hover:text-slate-800 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:hover:text-neutral-100 ${
               collapsed ? 'w-[30px] justify-center' : 'w-full px-2.5'
             }`}
           >
@@ -306,7 +306,7 @@ export default function Sidebar({ me }: { me: Me }) {
           <button
             onClick={toggleTheme}
             title={collapsed ? (theme === 'dark' ? 'ライトモードに切り替え' : 'ダークモードに切り替え') : undefined}
-            className={`flex h-[30px] items-center gap-2 rounded-md border border-slate-200 bg-white text-xs text-slate-500 hover:bg-slate-100 hover:text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100 ${
+            className={`flex h-[30px] items-center gap-2 rounded-md border border-slate-200 bg-white text-xs text-slate-500 hover:bg-slate-100 hover:text-slate-800 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:hover:text-neutral-100 ${
               collapsed ? 'w-[30px] justify-center' : 'w-full px-2.5'
             }`}
           >
@@ -316,7 +316,7 @@ export default function Sidebar({ me }: { me: Me }) {
           <button
             onClick={logout}
             title={collapsed ? 'ログアウト' : undefined}
-            className={`flex h-[30px] items-center gap-2 rounded-md border border-slate-200 bg-white text-xs text-slate-500 hover:bg-slate-100 hover:text-slate-800 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-slate-100 ${
+            className={`flex h-[30px] items-center gap-2 rounded-md border border-slate-200 bg-white text-xs text-slate-500 hover:bg-slate-100 hover:text-slate-800 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:hover:text-neutral-100 ${
               collapsed ? 'w-[30px] justify-center' : 'w-full px-2.5'
             }`}
           >

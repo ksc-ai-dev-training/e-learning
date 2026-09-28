@@ -6,7 +6,7 @@ import type { EditableNode } from './materialSource'
 // S-17（1ページの編集）の両方から使う（他ページの内容を素通りさせるため、両画面とも
 // A-15で取得した全ツリーをEditableNodeへ変換してから保存する）。
 
-export function convertPage(p: MaterialNode): EditableNode {
+function convertPage(p: MaterialNode): EditableNode {
   return {
     id: p.id,
     title: p.title,

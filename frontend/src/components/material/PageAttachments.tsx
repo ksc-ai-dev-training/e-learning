@@ -11,9 +11,9 @@ export default function PageAttachments({ materialId, nodeId }: { materialId: nu
   if (isLoading || attachments.length === 0) return null
 
   return (
-    <section className="mb-5 rounded-md border border-slate-200">
-      <div className="border-b border-slate-200 px-4 py-2.5">
-        <span className="text-sm font-semibold text-slate-700">このページの資料</span>
+    <section className="mb-5 rounded-md border border-slate-200 dark:border-neutral-800">
+      <div className="border-b border-slate-200 px-4 py-2.5 dark:border-neutral-800">
+        <span className="text-sm font-semibold text-slate-700 dark:text-neutral-100">このページの資料</span>
       </div>
       <div className="flex flex-col gap-3 p-4 text-sm">
         {attachments.map((a) => (

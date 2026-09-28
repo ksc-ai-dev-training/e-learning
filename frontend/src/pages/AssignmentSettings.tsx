@@ -111,7 +111,7 @@ export default function AssignmentSettings() {
       <div className="px-8 py-6">
         {!isLoading && items.length === 0 ? (
           <div className="py-10 text-center text-sm text-slate-400">
-            <p className="mb-1 font-semibold text-slate-500 dark:text-slate-300">配信設定できる教材がありません</p>
+            <p className="mb-1 font-semibold text-slate-500 dark:text-neutral-300">配信設定できる教材がありません</p>
             <p className="text-xs">
               あなたが管理者を務めるプロジェクトに教材が無いか、まだどのプロジェクトの管理者にもなっていません。
               <br />
@@ -146,7 +146,7 @@ export default function AssignmentSettings() {
             </div>
 
             {status === 'archived' && (
-              <p className="mb-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs leading-relaxed text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
+              <p className="mb-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs leading-relaxed text-slate-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300">
                 アーカイブ済みの教材はここから復元できます。復元すると下書き状態に戻ります（即座には再公開されません。再公開するには教材編集画面で改めて「公開する」を押す必要があります）。
               </p>
             )}
@@ -155,10 +155,10 @@ export default function AssignmentSettings() {
             {isLoading ? (
               <p className="py-8 text-center text-sm text-slate-400">読み込み中...</p>
             ) : (
-              <div className="overflow-x-auto rounded-md border border-slate-200 dark:border-slate-800">
+              <div className="overflow-x-auto rounded-md border border-slate-200 dark:border-neutral-800">
                 <table className="w-full text-sm [&_td]:align-top">
                   <thead>
-                    <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
+                    <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs text-slate-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300">
                       <th className="px-3 py-2 font-semibold">教材</th>
                       <th className="px-3 py-2 font-semibold">プロジェクト</th>
                       <th className="px-3 py-2 font-semibold">作成者</th>
@@ -175,11 +175,11 @@ export default function AssignmentSettings() {
                       return (
                       <tr
                         key={item.id}
-                        className={`border-b border-slate-200 last:border-0 dark:border-slate-700 ${
+                        className={`border-b border-slate-200 last:border-0 dark:border-neutral-700 ${
                           editing
                             ? 'border-l-4 border-l-blue-600 bg-blue-50 dark:bg-blue-900/30'
-                            : `border-l-4 border-l-transparent hover:bg-slate-100 dark:hover:bg-slate-800/60 ${
-                                i % 2 === 1 ? 'bg-slate-50 dark:bg-slate-900/40' : ''
+                            : `border-l-4 border-l-transparent hover:bg-slate-100 dark:hover:bg-neutral-800/60 ${
+                                i % 2 === 1 ? 'bg-slate-50 dark:bg-neutral-900/40' : ''
                               }`
                         }`}
                       >
@@ -190,8 +190,8 @@ export default function AssignmentSettings() {
                               editing
                                 ? 'text-blue-900 hover:underline dark:text-blue-100'
                                 : item.is_archived
-                                  ? 'text-slate-400 hover:text-blue-800 hover:underline dark:text-slate-500 dark:hover:text-blue-300'
-                                  : 'text-slate-800 hover:text-blue-800 hover:underline dark:text-slate-100 dark:hover:text-blue-300'
+                                  ? 'text-slate-400 hover:text-blue-800 hover:underline dark:text-neutral-500 dark:hover:text-blue-300'
+                                  : 'text-slate-800 hover:text-blue-800 hover:underline dark:text-neutral-100 dark:hover:text-blue-300'
                             }
                           >
                             {item.title}
@@ -205,12 +205,12 @@ export default function AssignmentSettings() {
                             {item.project_name}
                           </span>
                         </td>
-                        <td className="px-3 py-3 text-slate-500 dark:text-slate-300">{item.created_by_name}</td>
-                        <td className="px-3 py-3 text-slate-600 dark:text-slate-300">{scopeSummary(item)}</td>
+                        <td className="px-3 py-3 text-slate-500 dark:text-neutral-300">{item.created_by_name}</td>
+                        <td className="px-3 py-3 text-slate-600 dark:text-neutral-300">{scopeSummary(item)}</td>
                         <td className="px-3 py-3">
                           <Badge variant={hasRequired(item) ? 'required' : 'optional'} />
                         </td>
-                        <td className="px-3 py-3 text-slate-500 dark:text-slate-300">{earliestDueAt(item)}</td>
+                        <td className="px-3 py-3 text-slate-500 dark:text-neutral-300">{earliestDueAt(item)}</td>
                         <td className="px-3 py-3">
                           <Badge variant={item.is_archived ? 'archived' : item.status === 'published' ? 'published' : 'draft'} />
                         </td>
@@ -235,7 +235,7 @@ export default function AssignmentSettings() {
                                 onClick={() => doRestore(item.id)}
                                 disabled={archivingId === item.id}
                                 title="復元すると下書き状態に戻ります（再公開には改めて「公開する」操作が必要です）"
-                                className="text-xs font-semibold text-slate-600 hover:underline disabled:opacity-50 dark:text-slate-300"
+                                className="text-xs font-semibold text-slate-600 hover:underline disabled:opacity-50 dark:text-neutral-300"
                               >
                                 {archivingId === item.id ? '復元中...' : '復元'}
                               </button>
@@ -278,18 +278,18 @@ export default function AssignmentSettings() {
 
       {archiveTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-md bg-white p-5 shadow-lg dark:bg-slate-800">
+          <div className="w-full max-w-md rounded-md bg-white p-5 shadow-lg dark:bg-neutral-800">
             <div className="mb-3 flex items-center justify-between">
-              <span className="text-base font-semibold text-slate-800 dark:text-slate-100">教材をアーカイブしますか？</span>
+              <span className="text-base font-semibold text-slate-800 dark:text-neutral-100">教材をアーカイブしますか？</span>
               <button
                 type="button"
                 onClick={() => setArchiveTarget(null)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-neutral-200"
               >
                 ×
               </button>
             </div>
-            <p className="mb-3 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+            <p className="mb-3 text-sm leading-relaxed text-slate-600 dark:text-neutral-300">
               「{archiveTarget.title}」を教材一覧・検索から非表示にします。目次・ページ・設問・添付ファイルは削除されず、受験記録やアンケート回答がある場合もそのまま保持されます。この画面の「状態」絞り込みで「アーカイブ済み」を選ぶといつでも一覧に戻して復元できます。
             </p>
             <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs leading-relaxed text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">

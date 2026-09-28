@@ -18,7 +18,7 @@ export default function AttachmentEntry({
 
   if (attachment.kind === 'link') {
     return (
-      <a href={attachment.external_url ?? '#'} target="_blank" rel="noopener noreferrer" className="text-blue-700 hover:underline">
+      <a href={attachment.external_url ?? '#'} target="_blank" rel="noopener noreferrer" className="text-blue-700 hover:underline dark:text-blue-300">
         {attachment.filename}
       </a>
     )
@@ -27,7 +27,7 @@ export default function AttachmentEntry({
   return (
     <div>
       <div className="flex items-center gap-2">
-        <button type="button" onClick={() => void download()} className="text-blue-700 hover:underline">
+        <button type="button" onClick={() => void download()} className="text-blue-700 hover:underline dark:text-blue-300">
           {attachment.filename}
         </button>
         {isPdfAttachment(attachment) && (
@@ -35,18 +35,18 @@ export default function AttachmentEntry({
             type="button"
             onClick={() => void togglePreview()}
             disabled={busy}
-            className="flex-shrink-0 rounded border border-slate-300 px-2 py-0.5 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+            className="flex-shrink-0 rounded border border-slate-300 px-2 py-0.5 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800/60"
           >
             {busy ? '読み込み中...' : previewUrl ? '閉じる' : 'プレビュー'}
           </button>
         )}
       </div>
-      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+      {error && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{error}</p>}
       {previewUrl && (
         <iframe
           src={previewUrl}
           title={attachment.filename}
-          className="mt-2 h-[600px] w-full rounded-md border border-slate-200"
+          className="mt-2 h-[600px] w-full rounded-md border border-slate-200 dark:border-neutral-800"
         />
       )}
     </div>

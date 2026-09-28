@@ -164,23 +164,23 @@ export default function CodeAnswerEditor({
   return (
     <div
       className={`flex overflow-hidden rounded-md border ${
-        disabled ? 'border-slate-200' : 'border-slate-300 focus-within:border-blue-700'
+        disabled ? 'border-slate-200 dark:border-neutral-800' : 'border-slate-300 focus-within:border-blue-700 dark:border-neutral-700 dark:focus-within:border-blue-500'
       }`}
       style={{ height: heightPx }}
     >
       <div
         aria-hidden
-        className="select-none overflow-hidden whitespace-pre bg-slate-50 text-right font-mono text-[13px] leading-relaxed text-slate-400"
+        className="select-none overflow-hidden whitespace-pre bg-slate-50 text-right font-mono text-[13px] leading-relaxed text-slate-400 dark:bg-neutral-900 dark:text-neutral-500"
       >
         <div ref={gutterRef} className="px-2 py-2">
           {lineNumbers}
         </div>
       </div>
-      <div className="relative flex-1 bg-white">
+      <div className="relative flex-1 bg-white dark:bg-neutral-950">
         {value === '' && placeholder && (
           <div
             aria-hidden
-            className="pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap px-3 py-2 font-mono text-[13px] leading-relaxed text-slate-400"
+            className="pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap px-3 py-2 font-mono text-[13px] leading-relaxed text-slate-400 dark:text-neutral-500"
           >
             {placeholder}
           </div>
@@ -198,7 +198,7 @@ export default function CodeAnswerEditor({
           onScroll={handleScroll}
           disabled={disabled}
           spellCheck={false}
-          className="absolute inset-0 resize-none overflow-auto whitespace-pre bg-transparent px-3 py-2 font-mono text-[13px] leading-relaxed text-transparent caret-slate-800 outline-none"
+          className="absolute inset-0 resize-none overflow-auto whitespace-pre bg-transparent px-3 py-2 font-mono text-[13px] leading-relaxed text-transparent caret-slate-800 outline-none dark:caret-neutral-100"
         />
       </div>
     </div>

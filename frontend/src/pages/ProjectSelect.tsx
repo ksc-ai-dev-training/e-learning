@@ -15,12 +15,12 @@ export default function ProjectSelect() {
     <div className="flex flex-1 flex-col">
       <PageHeader title="教材作成・編集" />
       <div className="px-8 py-6">
-        <p className="mb-4 text-[13px] text-slate-400 dark:text-slate-400">
+        <p className="mb-4 text-[13px] text-slate-400 dark:text-neutral-400">
           編集する教材が属するプロジェクトを選ぶ。全社員が「全社ライブラリ」の編集者を自動的に持つため、このメニューは常に表示される。ただし全社ライブラリでは、必修教材を編集できるのはプロジェクト管理者のみ、任意教材を編集できるのは作成者のみ（管理者であっても他人が作成した任意教材は編集できない）。それ以外の通常プロジェクトでは、編集者以上であれば他のメンバーが作成した教材（下書きを含む）も編集できる。
         </p>
 
         <div className="mb-4 flex max-w-xs flex-col gap-1">
-          <label htmlFor="project-search" className="text-xs font-semibold text-slate-500 dark:text-slate-300">
+          <label htmlFor="project-search" className="text-xs font-semibold text-slate-500 dark:text-neutral-300">
             プロジェクト名で検索
           </label>
           <TextInput

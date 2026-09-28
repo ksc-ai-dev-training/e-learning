@@ -189,6 +189,15 @@ function ProjectManagementBody({
     if (activeTab === 'sharing' && !canViewSharing) setActiveTab('info')
   }, [activeTab, canViewSharing, setActiveTab])
 
+  // 保存完了メッセージは一定時間で消す（MaterialEdit.tsx・MaterialPageEdit.tsxと同じパターン。
+  // 2026-09-28、本画面だけクリーンアップの無い生のsetTimeoutになっており、保存を連打した場合に
+  // 古いタイマーが新しい保存の完了表示を巻き込んで消してしまう不整合があったため揃えた）。
+  useEffect(() => {
+    if (!saved) return
+    const timer = setTimeout(() => setSaved(false), 3000)
+    return () => clearTimeout(timer)
+  }, [saved])
+
   const handleSave = async () => {
     if (!project) return
     setSaveError(null)
@@ -201,7 +210,6 @@ function ProjectManagementBody({
       })
       await mutateProject()
       setSaved(true)
-      setTimeout(() => setSaved(false), 3000)
     } catch (e) {
       setSaveError(e instanceof ApiError ? e.message : '保存に失敗しました')
     }
@@ -395,7 +403,7 @@ function ProjectManagementBody({
                     type="button"
                     onClick={handleRemind}
                     disabled={reminding || !project.slack_webhook_url}
-                    className="flex h-9 items-center gap-2 whitespace-nowrap rounded-md border border-slate-300 bg-white px-3.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
+                    className="flex h-9 items-center gap-2 whitespace-nowrap rounded-md border border-slate-300 bg-white px-3.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 dark:hover:bg-neutral-700"
                   >
                     <SlackIcon />
                     {reminding ? '送信中...' : '必修教材のリマインドをSlackに送信'}

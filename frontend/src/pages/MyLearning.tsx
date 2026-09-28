@@ -36,6 +36,27 @@ function isUrgent(item: MyLearningItem): boolean {
   return daysLeft <= 7
 }
 
+// マイ学習内の教材をタイトル・タグで絞り込む検索（2026-09-25、ユーザー要望。以前は「教材を探す」
+// ボタンでS-03全教材検索へ遷移するしかなく、すでにマイ学習に登録済みの教材を名前で探す手段が
+// なかった。新規教材の発見・登録は引き続きS-03（「新しい教材を探す」ボタン）で行う）。
+function matchesKeyword(item: MyLearningItem, keyword: string): boolean {
+  if (!keyword.trim()) return true
+  const kw = keyword.trim().toLowerCase().replace(/^#/, '')
+  const titleMatch = item.title.toLowerCase().includes(kw)
+  const tagMatch = item.tags.some((t) => t.toLowerCase().includes(kw))
+  return titleMatch || tagMatch
+}
+
+function filterByProject(
+  items: MyLearningItem[],
+  activeProjectId: number | null,
+  keyword: string,
+): MyLearningItem[] {
+  return (activeProjectId === null ? items : items.filter((i) => i.project_id === activeProjectId)).filter((i) =>
+    matchesKeyword(i, keyword),
+  )
+}
+
 function actionLabelFor(item: MyLearningItem): string {
   if (item.next_action === 'start') return '受講を開始'
   if (item.next_action === 'resume') return '続きから受講'
@@ -91,35 +112,41 @@ export default function MyLearning() {
     return [{ id: null, name: 'すべて', isCompanyWide: false, count: allItems.length }, pinned, ...rest]
   }, [allItems])
 
-  // マイ学習内の教材をタイトル・タグで絞り込む検索（2026-09-25、ユーザー要望。以前は「教材を探す」
-  // ボタンでS-03全教材検索へ遷移するしかなく、すでにマイ学習に登録済みの教材を名前で探す手段が
-  // なかった。新規教材の発見・登録は引き続きS-03（「新しい教材を探す」ボタン）で行う）。
-  const matchesKeyword = (item: MyLearningItem) => {
-    if (!keyword.trim()) return true
-    const kw = keyword.trim().toLowerCase().replace(/^#/, '')
-    const titleMatch = item.title.toLowerCase().includes(kw)
-    const tagMatch = item.tags.some((t) => t.toLowerCase().includes(kw))
-    return titleMatch || tagMatch
-  }
-
-  const filterByProject = (items: MyLearningItem[]) =>
-    (activeProjectId === null ? items : items.filter((i) => i.project_id === activeProjectId)).filter(
-      matchesKeyword,
-    )
-
-  const filteredRequired = filterByProject(required)
-  const urgentRequired = filteredRequired.filter(isUrgent)
+  // MaterialsList.tsx・AssignmentSettings.tsx等の派生一覧と同様にuseMemoでラップした
+  // （2026-09-28。現状の一覧規模では体感できる差は無いが、他の状態変更のたびに無条件で
+  // 再フィルタしていた不整合を解消し、件数が増えたときのスケーラビリティも確保する）。
+  const filteredRequired = useMemo(
+    () => filterByProject(required, activeProjectId, keyword),
+    [required, activeProjectId, keyword],
+  )
+  const urgentRequired = useMemo(() => filteredRequired.filter(isUrgent), [filteredRequired])
   // 必修教材ゾーン内では、受講完了済みをリストの下側に回す（2026-09-17、ユーザー要望。
   // 「すべて」表示で未受講・受講済みが混ざると、対応が必要な未受講のものが埋もれて見づらいため）。
   // Array.prototype.sortは安定ソートのため、完了/未完了それぞれのグループ内の並び順はAPIが
   // 返した元の順序のまま保たれる。
-  const visibleRequired = applyStatusFilter(filteredRequired, requiredFilter)
-    .slice()
-    .sort((a, b) => Number(a.progress_status === 'completed') - Number(b.progress_status === 'completed'))
-  const filteredOptional = filterByProject(optional)
-  const visibleOptional = applyStatusFilter(filteredOptional, optionalFilter)
-  const filteredPendingReview = filterByProject(pendingReview)
-  const filteredHistory = filterByProject(historyItems)
+  const visibleRequired = useMemo(
+    () =>
+      applyStatusFilter(filteredRequired, requiredFilter)
+        .slice()
+        .sort((a, b) => Number(a.progress_status === 'completed') - Number(b.progress_status === 'completed')),
+    [filteredRequired, requiredFilter],
+  )
+  const filteredOptional = useMemo(
+    () => filterByProject(optional, activeProjectId, keyword),
+    [optional, activeProjectId, keyword],
+  )
+  const visibleOptional = useMemo(
+    () => applyStatusFilter(filteredOptional, optionalFilter),
+    [filteredOptional, optionalFilter],
+  )
+  const filteredPendingReview = useMemo(
+    () => filterByProject(pendingReview, activeProjectId, keyword),
+    [pendingReview, activeProjectId, keyword],
+  )
+  const filteredHistory = useMemo(
+    () => filterByProject(historyItems, activeProjectId, keyword),
+    [historyItems, activeProjectId, keyword],
+  )
 
   // S-09個人学習レポートの「未受講の必修教材」カードから#required-materialsハッシュ付きで
   // 遷移してきた場合、react-router のクライアントサイド遷移ではブラウザ標準のハッシュスクロールが
@@ -146,7 +173,7 @@ export default function MyLearning() {
         actions={
           <Link
             to="/materials"
-            className="rounded-md border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+            className="rounded-md border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
           >
             新しい教材を探す
           </Link>
@@ -172,16 +199,16 @@ export default function MyLearning() {
               className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] font-semibold ${
                 activeProjectId === tab.id
                   ? 'border-blue-700 bg-blue-50 text-blue-800 dark:border-blue-700 dark:bg-blue-950/50 dark:text-blue-100'
-                  : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800'
+                  : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800'
               }`}
             >
               {tab.name}
-              <span className="text-slate-400 dark:text-slate-400">{tab.count}件</span>
+              <span className="text-slate-400 dark:text-neutral-400">{tab.count}件</span>
             </button>
           ))}
         </div>
 
-        <div className="mb-5 flex gap-1 border-b border-slate-200 dark:border-slate-800" role="tablist">
+        <div className="mb-5 flex gap-1 border-b border-slate-200 dark:border-neutral-800" role="tablist">
           {(
             [
               { key: 'assigned', label: '必修・任意', count: 0 },
@@ -196,7 +223,7 @@ export default function MyLearning() {
               className={`flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-semibold ${
                 viewTab === tab.key
                   ? 'border-blue-700 text-blue-800 dark:border-blue-500 dark:text-blue-300'
-                  : 'border-transparent text-slate-500 dark:text-slate-300'
+                  : 'border-transparent text-slate-500 dark:text-neutral-300'
               }`}
             >
               {tab.label}

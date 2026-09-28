@@ -3,7 +3,7 @@ import { Link } from 'react-router'
 import { scrollToAndHighlight } from '../../lib/scrollHighlight'
 
 const TONE_CLASSES: Record<string, string> = {
-  default: 'border-slate-200 dark:border-slate-800',
+  default: 'border-slate-200 dark:border-neutral-800',
   warn: 'border-red-200 bg-red-50/40 dark:border-red-900 dark:bg-red-950/30',
   danger: 'border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-950/40',
   good: 'border-green-200 dark:border-green-900',
@@ -27,12 +27,12 @@ export default function StatCard({ label, value, unit, detail, tone = 'default',
   const interactive = Boolean(linkTo || onClick)
   const content = (
     <>
-      <div className="text-[13px] text-slate-500 dark:text-slate-300">{label}</div>
-      <div className="mt-1 text-2xl font-bold text-slate-800 dark:text-slate-50">
+      <div className="text-[13px] text-slate-500 dark:text-neutral-300">{label}</div>
+      <div className="mt-1 text-2xl font-bold text-slate-800 dark:text-neutral-50">
         {value}
-        {unit && <span className="ml-0.5 text-sm font-normal text-slate-500 dark:text-slate-300">{unit}</span>}
+        {unit && <span className="ml-0.5 text-sm font-normal text-slate-500 dark:text-neutral-300">{unit}</span>}
       </div>
-      {detail && <div className="mt-0.5 text-[13px] text-slate-400 dark:text-slate-300">{detail}</div>}
+      {detail && <div className="mt-0.5 text-[13px] text-slate-400 dark:text-neutral-300">{detail}</div>}
       {interactive && (
         <span className="mt-1 flex items-center gap-0.5 text-xs font-semibold text-blue-700 dark:text-blue-300">
           一覧を見る
@@ -43,7 +43,7 @@ export default function StatCard({ label, value, unit, detail, tone = 'default',
       )}
     </>
   )
-  const className = `rounded-md border px-4 py-3 text-left ${TONE_CLASSES[tone]} ${interactive ? 'block hover:bg-slate-50 dark:hover:bg-slate-800/60' : ''}`
+  const className = `rounded-md border px-4 py-3 text-left ${TONE_CLASSES[tone]} ${interactive ? 'block hover:bg-slate-50 dark:hover:bg-neutral-800/60' : ''}`
 
   if (onClick) {
     return (

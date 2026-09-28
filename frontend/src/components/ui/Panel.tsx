@@ -18,20 +18,20 @@ export default function Panel({ title, count, tone = 'default', children }: Pane
       ? 'border-red-300 dark:border-red-900'
       : tone === 'required'
         ? 'border-indigo-200 dark:border-indigo-900'
-        : 'border-slate-200 dark:border-slate-800'
+        : 'border-slate-200 dark:border-neutral-800'
   const headerClass =
     tone === 'warn'
       ? 'bg-red-50 dark:bg-red-950/40'
       : tone === 'required'
         ? 'bg-indigo-50 dark:bg-indigo-950/40'
-        : 'bg-slate-50 dark:bg-slate-800/60'
+        : 'bg-slate-50 dark:bg-neutral-800/60'
   return (
     // パネルの面を背景より明るくして区別するのではなく、枠線と文字の明るさだけで区別する
     // （2026-09-17、ユーザー指摘。面を明るくすると白い箱が浮いて見える不具合の再発になるため）。
-    <section className={`mb-5 rounded-md border bg-white dark:bg-slate-900 ${borderClass}`}>
+    <section className={`mb-5 rounded-md border bg-white dark:bg-neutral-900 ${borderClass}`}>
       <div className={`flex items-center justify-between border-b ${borderClass} ${headerClass} px-4 py-2.5`}>
-        <span className="text-[15px] font-semibold text-slate-700 dark:text-slate-50">{title}</span>
-        {count && <span className="text-[13px] text-slate-400 dark:text-slate-300">{count}</span>}
+        <span className="text-[15px] font-semibold text-slate-700 dark:text-neutral-50">{title}</span>
+        {count && <span className="text-[13px] text-slate-400 dark:text-neutral-300">{count}</span>}
       </div>
       {children}
     </section>
