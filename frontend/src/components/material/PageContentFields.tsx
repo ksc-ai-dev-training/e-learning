@@ -73,16 +73,16 @@ export default function PageContentFields({
   return (
     <>
       <div className="mb-4 flex max-w-md flex-col gap-1">
-        <label htmlFor={titleInputId} className="text-xs font-semibold text-slate-500">
+        <label htmlFor={titleInputId} className="text-xs font-semibold text-slate-500 dark:text-neutral-300">
           ページタイトル
         </label>
         <TextInput id={titleInputId} value={title} onChange={(e) => onTitleChange(e.target.value)} maxLength={200} />
       </div>
 
       <div className="mb-5 flex flex-col gap-1">
-        <label className="text-xs font-semibold text-slate-500">このページの構成</label>
+        <label className="text-xs font-semibold text-slate-500 dark:text-neutral-300">このページの構成</label>
         <div className="flex gap-2">
-          <label className="flex items-center gap-1.5 rounded-md border border-slate-300 px-3.5 py-2 text-xs">
+          <label className="flex items-center gap-1.5 rounded-md border border-slate-300 px-3.5 py-2 text-xs dark:border-neutral-700 dark:text-neutral-200">
             <input
               type="checkbox"
               checked={includeExplanation}
@@ -90,20 +90,20 @@ export default function PageContentFields({
             />
             説明文を含める
           </label>
-          <label className="flex items-center gap-1.5 rounded-md border border-slate-300 px-3.5 py-2 text-xs">
+          <label className="flex items-center gap-1.5 rounded-md border border-slate-300 px-3.5 py-2 text-xs dark:border-neutral-700 dark:text-neutral-200">
             <input type="checkbox" checked={includeQuiz} onChange={(e) => onIncludeQuizChange(e.target.checked)} />
             問題を含める
           </label>
         </div>
-        <span className="text-xs text-slate-400">
+        <span className="text-xs text-slate-400 dark:text-neutral-500">
           作成者の判断で自由に組み合わせられます。少なくとも一方は必須です。
         </span>
       </div>
 
       {includeExplanation && (
-        <section className="mb-6 rounded-md border border-slate-200">
-          <div className="border-b border-slate-200 px-4 py-2.5">
-            <span className="text-sm font-semibold text-slate-700">説明文</span>
+        <section className="mb-6 rounded-md border border-slate-200 dark:border-neutral-800">
+          <div className="border-b border-slate-200 px-4 py-2.5 dark:border-neutral-800">
+            <span className="text-sm font-semibold text-slate-700 dark:text-neutral-100">説明文</span>
           </div>
           <div className="p-4">
             <MarkdownHtmlEditor
@@ -118,9 +118,9 @@ export default function PageContentFields({
       )}
 
       {includeQuiz && (
-        <section className="mb-6 rounded-md border border-slate-200">
-          <div className="border-b border-slate-200 px-4 py-2.5">
-            <span className="text-sm font-semibold text-slate-700">問題</span>
+        <section className="mb-6 rounded-md border border-slate-200 dark:border-neutral-800">
+          <div className="border-b border-slate-200 px-4 py-2.5 dark:border-neutral-800">
+            <span className="text-sm font-semibold text-slate-700 dark:text-neutral-100">問題</span>
           </div>
           <div className="p-4">
             {questions.map((q, i) => (
@@ -136,24 +136,24 @@ export default function PageContentFields({
             <button
               type="button"
               onClick={addQuestion}
-              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-600 hover:bg-slate-100"
+              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
             >
               + 設問を追加
             </button>
 
-            <div className="mt-4 flex flex-col gap-1 border-t border-slate-200 pt-3">
-              <label className="text-xs font-semibold text-slate-500">出題設定</label>
+            <div className="mt-4 flex flex-col gap-1 border-t border-slate-200 pt-3 dark:border-neutral-800">
+              <label className="text-xs font-semibold text-slate-500 dark:text-neutral-300">出題設定</label>
               <div className="flex flex-wrap items-center gap-4 text-xs">
-                <label className="flex items-center gap-1">
+                <label className="flex items-center gap-1 dark:text-neutral-200">
                   <input type="radio" checked={quizMode === 'all'} onChange={() => onQuizModeChange('all')} />
                   すべて出題
                 </label>
-                <label className="flex items-center gap-1">
+                <label className="flex items-center gap-1 dark:text-neutral-200">
                   <input type="radio" checked={quizMode === 'pool'} onChange={() => onQuizModeChange('pool')} />
                   プールからランダムに抽出
                 </label>
                 {quizMode === 'pool' && (
-                  <label className="flex items-center gap-1">
+                  <label className="flex items-center gap-1 dark:text-neutral-200">
                     出題数
                     <input
                       type="number"
@@ -161,27 +161,27 @@ export default function PageContentFields({
                       max={questions.length || undefined}
                       value={poolDrawCount ?? ''}
                       onChange={(e) => onPoolDrawCountChange(e.target.value ? Number(e.target.value) : null)}
-                      className="w-16 rounded-md border border-slate-300 px-2 py-1"
+                      className="w-16 rounded-md border border-slate-300 px-2 py-1 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
                     />
                     問
                   </label>
                 )}
               </div>
-              <span className="text-xs text-slate-400">
+              <span className="text-xs text-slate-400 dark:text-neutral-500">
                 「プールからランダムに抽出」を選ぶと、この設問一覧から毎回指定した数だけランダムに出題します。
               </span>
 
               {quizMode === 'pool' && (
-                <div className="mt-2 flex flex-col gap-1.5 rounded-md border border-slate-200 bg-slate-50 p-3">
-                  <span className="text-xs font-semibold text-slate-500">プールに含める設問</span>
+                <div className="mt-2 flex flex-col gap-1.5 rounded-md border border-slate-200 bg-slate-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
+                  <span className="text-xs font-semibold text-slate-500 dark:text-neutral-300">プールに含める設問</span>
                   {questions.length === 0 ? (
-                    <span className="text-xs text-slate-400">設問を追加してください。</span>
+                    <span className="text-xs text-slate-400 dark:text-neutral-500">設問を追加してください。</span>
                   ) : (
                     questions.map((q, i) => (
                       <label
                         key={i}
                         className={`flex items-center gap-2 text-xs ${
-                          q.id === null ? 'text-slate-300' : 'text-slate-600'
+                          q.id === null ? 'text-slate-300 dark:text-neutral-600' : 'text-slate-600 dark:text-neutral-300'
                         }`}
                         title={q.id === null ? '保存後にプール対象へ選択できます' : undefined}
                       >
@@ -195,7 +195,7 @@ export default function PageContentFields({
                       </label>
                     ))
                   )}
-                  <span className="text-xs text-slate-400">
+                  <span className="text-xs text-slate-400 dark:text-neutral-500">
                     チェックしなかった設問は毎回固定で出題されます（プールの抽選対象外）。2問以上チェックしないとプールは組めません。新規追加した設問は保存後に選択できます。
                   </span>
                 </div>

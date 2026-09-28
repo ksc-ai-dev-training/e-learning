@@ -171,25 +171,25 @@ export default function AssignmentEditPanel({
   }
 
   return (
-    <section className={`rounded-md border border-blue-200 border-l-4 border-l-blue-600 shadow-sm ${className}`}>
-      <div className="flex items-center justify-between border-b border-blue-100 bg-blue-50 px-4 py-2.5">
-        <span className="text-sm font-semibold text-blue-900">配信設定を編集 — {material.title}</span>
+    <section className={`rounded-md border border-blue-200 border-l-4 border-l-blue-600 shadow-sm dark:border-blue-900 dark:border-l-blue-500 ${className}`}>
+      <div className="flex items-center justify-between border-b border-blue-100 bg-blue-50 px-4 py-2.5 dark:border-blue-900 dark:bg-blue-950/40">
+        <span className="text-sm font-semibold text-blue-900 dark:text-blue-100">配信設定を編集 — {material.title}</span>
       </div>
       <div className="flex flex-col gap-4 p-4">
-        <p className="rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-500">
+        <p className="rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-500 dark:bg-neutral-900 dark:text-neutral-400">
           ※ この教材の配信を停止したい（アーカイブしたい）場合は、この画面ではなく「教材作成・編集」の教材編集画面から操作してください。
         </p>
         {isLoading ? (
-          <p className="text-sm text-slate-400">読み込み中...</p>
+          <p className="text-sm text-slate-400 dark:text-neutral-500">読み込み中...</p>
         ) : (
           <>
             {isCompanyWide && !isProjectAdmin ? (
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-400 dark:text-neutral-500">
                 全社ライブラリの必修設定はプロジェクト管理者のみ行えます（それ以外の場合、プロジェクトメンバー全員が任意で受講できます）。
               </p>
             ) : (
               <div className="flex flex-col gap-1.5">
-                <label className="flex items-center gap-1.5 text-sm text-slate-700">
+                <label className="flex items-center gap-1.5 text-sm text-slate-700 dark:text-neutral-200">
                   <input
                     type="checkbox"
                     checked={projectEnabled}
@@ -198,20 +198,20 @@ export default function AssignmentEditPanel({
                   プロジェクト全体に必修として配信する
                 </label>
                 <div className="flex items-center gap-2 pl-5">
-                  <span className="rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-600">
+                  <span className="rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
                     {material.project_name}
                   </span>
-                  <span className="text-xs text-slate-400">この教材が属するプロジェクトです（変更不可）</span>
+                  <span className="text-xs text-slate-400 dark:text-neutral-500">この教材が属するプロジェクトです（変更不可）</span>
                 </div>
                 {!projectEnabled && (
-                  <p className="pl-5 text-xs text-slate-400">
+                  <p className="pl-5 text-xs text-slate-400 dark:text-neutral-500">
                     チェックを外したままの場合、個人を指定しない限り誰も必修にはなりませんが、
                     プロジェクトの現役メンバーは引き続き任意で受講できます（プロジェクト全体への任意公開）。
                   </p>
                 )}
                 {projectEnabled && (
                   <div className="flex flex-col gap-1 pl-5">
-                    <label className="text-xs font-semibold text-slate-500">受講期限</label>
+                    <label className="text-xs font-semibold text-slate-500 dark:text-neutral-300">受講期限</label>
                     <TextInput
                       type="date"
                       value={projectDueAt}
@@ -224,23 +224,23 @@ export default function AssignmentEditPanel({
             )}
 
             {(!isCompanyWide || individuals.length > 0) && (
-            <div className="flex flex-col gap-2 border-t border-slate-100 pt-3">
-              <label className="text-xs font-semibold text-slate-500">個人に必修を追加指定</label>
+            <div className="flex flex-col gap-2 border-t border-slate-100 pt-3 dark:border-neutral-800">
+              <label className="text-xs font-semibold text-slate-500 dark:text-neutral-300">個人に必修を追加指定</label>
               {isCompanyWide ? (
-                <p className="text-xs text-amber-700">
+                <p className="text-xs text-amber-700 dark:text-amber-300">
                   全社ライブラリは全員が自動的に対象になるため、個人指定には効果がありません。以下は過去に設定された行です（新規追加はできません）。この画面で一度「保存」すると自動的に削除されます。
                 </p>
               ) : (
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-slate-400 dark:text-neutral-500">
                   ここで指定したメンバーは必修になります（個別の受講期限も設定できます）。指定していない他のメンバーは任意のままです。選択肢はこのプロジェクトの現役メンバーに限られます。
                 </p>
               )}
               {individuals.length > 0 && (
                 <div className="flex flex-col gap-2">
                   {individuals.map((i) => (
-                    <div key={i.userId} className="flex flex-wrap items-center gap-3 rounded-md border border-slate-200 px-3 py-2">
-                      <span className="min-w-[6rem] text-sm text-slate-800">{i.name}</span>
-                      {!isCompanyWide && <span className="text-xs font-semibold text-blue-700">必修</span>}
+                    <div key={i.userId} className="flex flex-wrap items-center gap-3 rounded-md border border-slate-200 px-3 py-2 dark:border-neutral-800">
+                      <span className="min-w-[6rem] text-sm text-slate-800 dark:text-neutral-100">{i.name}</span>
+                      {!isCompanyWide && <span className="text-xs font-semibold text-blue-700 dark:text-blue-300">必修</span>}
                       <TextInput
                         type="date"
                         value={i.dueAt}
@@ -255,7 +255,7 @@ export default function AssignmentEditPanel({
                       <button
                         type="button"
                         onClick={() => removeIndividual(i.userId)}
-                        className="ml-auto text-xs font-semibold text-red-700 hover:underline"
+                        className="ml-auto text-xs font-semibold text-red-700 hover:underline dark:text-red-300"
                       >
                         削除
                       </button>
@@ -282,18 +282,18 @@ export default function AssignmentEditPanel({
             </div>
             )}
 
-            {saveError && <p className="text-sm text-red-600">{saveError}</p>}
+            {saveError && <p className="text-sm text-red-600 dark:text-red-400">{saveError}</p>}
 
-            <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
+            <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3 dark:border-neutral-800">
               <Button className="shrink-0 whitespace-nowrap" onClick={handleSave} disabled={saving}>
                 {saving ? `${saveLabel}中…` : saveLabel}
               </Button>
               <Button className="shrink-0 whitespace-nowrap" variant="secondary" onClick={onClose} disabled={saving}>
                 キャンセル
               </Button>
-              <span className="text-xs text-slate-500 sm:ml-auto">
+              <span className="text-xs text-slate-500 sm:ml-auto dark:text-neutral-400">
                 対象者プレビュー:{' '}
-                <strong className="text-slate-700">
+                <strong className="text-slate-700 dark:text-neutral-200">
                   {projectScopeActive ? `${material.project_name} 所属 ${targetCount}名` : `${targetCount}名（個人指定のみ）`}
                 </strong>
               </span>

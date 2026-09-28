@@ -155,13 +155,13 @@ export default function ProfileEdit() {
               {me.picture_url ? (
                 <img src={me.picture_url} alt="" className="h-16 w-16 rounded-full object-cover" />
               ) : (
-                <span className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 text-xl font-semibold text-blue-900">
+                <span className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 text-xl font-semibold text-blue-900 dark:bg-blue-950/40 dark:text-blue-200">
                   {me.name.slice(0, 1)}
                 </span>
               )}
               <div className="flex flex-col gap-1.5">
                 <div className="flex gap-2">
-                  <label className="flex h-8 cursor-pointer items-center rounded-md border border-slate-300 px-3 text-xs font-semibold text-slate-600 hover:bg-slate-50">
+                  <label className="flex h-8 cursor-pointer items-center rounded-md border border-slate-300 px-3 text-xs font-semibold text-slate-600 hover:bg-slate-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800">
                     {uploadingIcon ? '処理中...' : '画像を変更'}
                     <input
                       type="file"
@@ -175,18 +175,18 @@ export default function ProfileEdit() {
                     type="button"
                     onClick={handleResetIcon}
                     disabled={uploadingIcon}
-                    className="text-xs font-semibold text-slate-500 hover:text-red-700 hover:underline disabled:opacity-50"
+                    className="text-xs font-semibold text-slate-500 hover:text-red-700 hover:underline disabled:opacity-50 dark:text-neutral-400 dark:hover:text-red-400"
                   >
                     Googleの画像に戻す
                   </button>
                 </div>
-                <span className="text-[11px] text-slate-400">PNG・JPEG、2MBまで</span>
-                {iconError && <span className="text-xs text-red-600">{iconError}</span>}
+                <span className="text-[11px] text-slate-400 dark:text-neutral-500">PNG・JPEG、2MBまで</span>
+                {iconError && <span className="text-xs text-red-600 dark:text-red-400">{iconError}</span>}
               </div>
             </div>
 
             <div className="flex items-center gap-3">
-              <span className="w-20 flex-shrink-0 text-xs font-semibold text-slate-500">表示名</span>
+              <span className="w-20 flex-shrink-0 text-xs font-semibold text-slate-500 dark:text-neutral-300">表示名</span>
               <TextInput
                 value={name}
                 onChange={(e) => {
@@ -198,16 +198,16 @@ export default function ProfileEdit() {
               <Button variant="secondary" onClick={handleSaveName} disabled={savingName}>
                 {savingName ? '保存中...' : '保存'}
               </Button>
-              {nameSavedMessage && <span className="text-xs text-green-700">{nameSavedMessage}</span>}
+              {nameSavedMessage && <span className="text-xs text-green-700 dark:text-green-400">{nameSavedMessage}</span>}
             </div>
-            {nameError && <p className="text-xs text-red-600">{nameError}</p>}
+            {nameError && <p className="text-xs text-red-600 dark:text-red-400">{nameError}</p>}
 
             <div className="flex items-center gap-3">
-              <span className="w-20 flex-shrink-0 text-xs font-semibold text-slate-500">メールアドレス</span>
-              <span className="text-slate-800">{me.email}</span>
+              <span className="w-20 flex-shrink-0 text-xs font-semibold text-slate-500 dark:text-neutral-300">メールアドレス</span>
+              <span className="text-slate-800 dark:text-neutral-100">{me.email}</span>
             </div>
             <div className="flex items-center gap-3">
-              <span className="w-20 flex-shrink-0 text-xs font-semibold text-slate-500">システムロール</span>
+              <span className="w-20 flex-shrink-0 text-xs font-semibold text-slate-500 dark:text-neutral-300">システムロール</span>
               <Badge variant={me.role === 'admin' ? 'admin' : 'learner'} />
             </div>
           </div>
@@ -215,7 +215,7 @@ export default function ProfileEdit() {
 
         <Panel title="APIキー（Claude Code連携）">
           <div className="flex flex-col gap-3 p-4 text-sm">
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-slate-500 dark:text-neutral-400">
               Claude Codeで教材を作成・編集する場合に使う鍵です。発行するたびに新しい鍵が発行されます
               （古い鍵は失効しません。不要になった鍵はご自身で失効してください）。
             </p>
@@ -228,40 +228,40 @@ export default function ProfileEdit() {
             ) : (
               <>
                 <div className="flex items-center gap-2">
-                  <code className="flex-1 overflow-x-auto rounded border border-slate-200 bg-slate-50 px-3 py-2 text-xs">
+                  <code className="flex-1 overflow-x-auto rounded border border-slate-200 bg-slate-50 px-3 py-2 text-xs dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">
                     {issuedKey.token}
                   </code>
                   <Button variant="secondary" onClick={handleCopyKey}>
                     {keyCopied ? 'コピーしました' : 'コピー'}
                   </Button>
                 </div>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-slate-500 dark:text-neutral-400">
                   接続先: <code>{issuedKey.manabi_url}/mcp</code>
                 </p>
               </>
             )}
-            {keyError && <p className="text-xs text-red-600">{keyError}</p>}
+            {keyError && <p className="text-xs text-red-600 dark:text-red-400">{keyError}</p>}
 
-            <div className="mt-1 border-t border-slate-100 pt-3">
-              <p className="mb-2 text-xs font-semibold text-slate-500">発行済みの鍵</p>
+            <div className="mt-1 border-t border-slate-100 pt-3 dark:border-neutral-800">
+              <p className="mb-2 text-xs font-semibold text-slate-500 dark:text-neutral-300">発行済みの鍵</p>
               {cliTokensLoading ? (
-                <p className="py-3 text-center text-xs text-slate-400">読み込み中...</p>
+                <p className="py-3 text-center text-xs text-slate-400 dark:text-neutral-500">読み込み中...</p>
               ) : cliTokens.length === 0 ? (
-                <p className="py-3 text-center text-xs text-slate-400">発行した鍵はありません。</p>
+                <p className="py-3 text-center text-xs text-slate-400 dark:text-neutral-500">発行した鍵はありません。</p>
               ) : (
-                <ul className="divide-y divide-slate-100">
+                <ul className="divide-y divide-slate-100 dark:divide-neutral-800">
                   {cliTokens.map((t) => (
                     <li key={t.id} className="flex items-center justify-between py-2 text-xs">
-                      <span className="text-slate-600">
+                      <span className="text-slate-600 dark:text-neutral-300">
                         {formatDateTimeJst(t.created_at)}に発行
-                        {t.revoked && <span className="ml-2 text-slate-400">（失効済み）</span>}
+                        {t.revoked && <span className="ml-2 text-slate-400 dark:text-neutral-500">（失効済み）</span>}
                       </span>
                       {!t.revoked && (
                         <button
                           type="button"
                           disabled={revokingId === t.id}
                           onClick={() => handleRevokeKey(t.id)}
-                          className="font-semibold text-red-700 hover:underline disabled:opacity-50"
+                          className="font-semibold text-red-700 hover:underline disabled:opacity-50 dark:text-red-300"
                         >
                           {revokingId === t.id ? '失効中...' : '失効する'}
                         </button>
@@ -276,15 +276,15 @@ export default function ProfileEdit() {
 
         <Panel title="所属プロジェクト" count={`${activeProjects.length}件`}>
           {membershipsLoading ? (
-            <p className="px-4 py-6 text-center text-sm text-slate-400">読み込み中...</p>
+            <p className="px-4 py-6 text-center text-sm text-slate-400 dark:text-neutral-500">読み込み中...</p>
           ) : activeProjects.length === 0 ? (
-            <p className="px-4 py-6 text-center text-sm text-slate-400">所属しているプロジェクトはありません。</p>
+            <p className="px-4 py-6 text-center text-sm text-slate-400 dark:text-neutral-500">所属しているプロジェクトはありません。</p>
           ) : (
-            <ul className="divide-y divide-slate-100">
+            <ul className="divide-y divide-slate-100 dark:divide-neutral-800">
               {activeProjects.map((m) => (
                 <li key={m.id} className="flex items-center justify-between px-4 py-2.5 text-sm">
-                  <span className="text-slate-800">{m.project_name}</span>
-                  <span className="text-xs text-slate-500">
+                  <span className="text-slate-800 dark:text-neutral-100">{m.project_name}</span>
+                  <span className="text-xs text-slate-500 dark:text-neutral-400">
                     {m.role === 'admin' ? '管理者' : m.role === 'editor' ? '編集者' : '受講者'}
                   </span>
                 </li>
@@ -295,17 +295,17 @@ export default function ProfileEdit() {
 
         {invitations.length > 0 && (
           <Panel title="招待されているプロジェクト" count={`${invitations.length}件`}>
-            {respondError && <p className="px-4 pt-3 text-sm text-red-600">{respondError}</p>}
-            <ul className="divide-y divide-slate-100">
+            {respondError && <p className="px-4 pt-3 text-sm text-red-600 dark:text-red-400">{respondError}</p>}
+            <ul className="divide-y divide-slate-100 dark:divide-neutral-800">
               {invitations.map((m) => (
                 <li key={m.id} className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
-                  <span className="text-slate-800">{m.project_name}</span>
+                  <span className="text-slate-800 dark:text-neutral-100">{m.project_name}</span>
                   <span className="flex items-center gap-3">
                     <button
                       type="button"
                       disabled={respondingId === m.id}
                       onClick={() => handleRespond(m.id, 'active')}
-                      className="text-xs font-semibold text-blue-700 hover:underline disabled:opacity-50"
+                      className="text-xs font-semibold text-blue-700 hover:underline disabled:opacity-50 dark:text-blue-300"
                     >
                       承諾
                     </button>
@@ -313,7 +313,7 @@ export default function ProfileEdit() {
                       type="button"
                       disabled={respondingId === m.id}
                       onClick={() => handleRespond(m.id, 'declined')}
-                      className="text-xs font-semibold text-slate-500 hover:text-red-700 hover:underline disabled:opacity-50"
+                      className="text-xs font-semibold text-slate-500 hover:text-red-700 hover:underline disabled:opacity-50 dark:text-neutral-400 dark:hover:text-red-400"
                     >
                       辞退
                     </button>

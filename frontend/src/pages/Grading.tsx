@@ -57,7 +57,7 @@ export default function Grading() {
     <div>
       <PageHeader title="採点" />
       <div className="px-8 py-6">
-        <p className="mb-4 max-w-3xl text-sm text-slate-500">
+        <p className="mb-4 max-w-3xl text-sm text-slate-500 dark:text-neutral-400">
           記述式・コード記述式の設問のうち<strong>採点方式が「手動採点」で、まだ採点していない回答</strong>
           を、教材ごと・受験記録（受講者・提出日）ごとにまとめて表示します（<strong>採点できるのは教材の作成者のみ</strong>です）。カードを開くとその受験記録内の未採点設問がまとめて採点でき、
           正誤判定・フィードバックは入力するたびに自動保存されるため、次にカードを開いたときに引き継がれます。
@@ -67,7 +67,7 @@ export default function Grading() {
 
         <div className="mb-4 flex flex-wrap items-end gap-4">
           <div>
-            <label className="mb-1 block text-xs font-semibold text-slate-500">プロジェクトで絞り込み</label>
+            <label className="mb-1 block text-xs font-semibold text-slate-500 dark:text-neutral-300">プロジェクトで絞り込み</label>
             <Select
               value={projectId === null ? '' : String(projectId)}
               onChange={(v) => {
@@ -79,7 +79,7 @@ export default function Grading() {
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-semibold text-slate-500">教材で絞り込み</label>
+            <label className="mb-1 block text-xs font-semibold text-slate-500 dark:text-neutral-300">教材で絞り込み</label>
             <Select value={materialFilter} onChange={setMaterialFilter} options={materialOptions} className="w-56" />
           </div>
         </div>
@@ -92,36 +92,36 @@ export default function Grading() {
         </div>
 
         {isLoading ? (
-          <p className="text-sm text-slate-400">読み込み中...</p>
+          <p className="text-sm text-slate-400 dark:text-neutral-500">読み込み中...</p>
         ) : visibleMaterials.length === 0 ? (
-          <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-400">
+          <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-400 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-500">
             未採点の回答はありません。
           </p>
         ) : (
           visibleMaterials.map((m) => (
             <Panel key={m.material_id} title={m.material_title} count={`${m.project_name} ／ 未採点${m.pending_count}件`}>
-              <div className="flex flex-col divide-y divide-slate-100">
+              <div className="flex flex-col divide-y divide-slate-100 dark:divide-neutral-800">
                 {m.attempts.map((a) => (
                   <button
                     key={a.attempt_id}
                     type="button"
                     onClick={() => setTarget({ material: m, attempt: a })}
-                    className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-slate-50"
+                    className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-neutral-800/60"
                   >
                     <div>
-                      <div className="text-sm font-semibold text-slate-800">{a.user_name}</div>
-                      <div className="text-[11.5px] text-slate-400">提出日: {formatDateJst(a.submitted_at)}</div>
+                      <div className="text-sm font-semibold text-slate-800 dark:text-neutral-100">{a.user_name}</div>
+                      <div className="text-[11.5px] text-slate-400 dark:text-neutral-500">提出日: {formatDateJst(a.submitted_at)}</div>
                     </div>
                     <div className="flex items-center gap-3">
                       {a.draft_count > 0 && (
-                        <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
+                        <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-semibold text-blue-700 dark:bg-blue-950/60 dark:text-blue-200">
                           下書き{a.draft_count}/{a.total_count}件
                         </span>
                       )}
-                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800">
+                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
                         採点待ち{a.total_count}問
                       </span>
-                      <span className="text-slate-300">›</span>
+                      <span className="text-slate-300 dark:text-neutral-600">›</span>
                     </div>
                   </button>
                 ))}
@@ -145,9 +145,15 @@ export default function Grading() {
 
 function StatTile({ label, value, warn }: { label: string; value: string; warn?: boolean }) {
   return (
-    <div className={`rounded-md border px-4 py-2.5 ${warn ? 'border-amber-200 bg-amber-50' : 'border-slate-200 bg-white'}`}>
-      <div className="text-xs text-slate-400">{label}</div>
-      <div className="text-lg font-bold text-slate-800">{value}</div>
+    <div
+      className={`rounded-md border px-4 py-2.5 ${
+        warn
+          ? 'border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30'
+          : 'border-slate-200 bg-white dark:border-neutral-800 dark:bg-neutral-900'
+      }`}
+    >
+      <div className="text-xs text-slate-400 dark:text-neutral-500">{label}</div>
+      <div className="text-lg font-bold text-slate-800 dark:text-neutral-100">{value}</div>
     </div>
   )
 }
@@ -249,26 +255,26 @@ function AttemptGradingModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="flex max-h-[85vh] w-full max-w-2xl flex-col rounded-md bg-white shadow-lg">
-        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3.5">
+      <div className="flex max-h-[85vh] w-full max-w-2xl flex-col rounded-md bg-white shadow-lg dark:bg-neutral-800">
+        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3.5 dark:border-neutral-700">
           <div>
-            <div className="text-base font-semibold text-slate-800">
+            <div className="text-base font-semibold text-slate-800 dark:text-neutral-100">
               {material.material_title} — {attempt.user_name}
             </div>
-            <div className="text-[11.5px] text-slate-400">
+            <div className="text-[11.5px] text-slate-400 dark:text-neutral-500">
               提出日: {formatDateTimeJst(attempt.submitted_at)}
             </div>
           </div>
-          <button type="button" onClick={handleClose} className="text-slate-400 hover:text-slate-600">
+          <button type="button" onClick={handleClose} className="text-slate-400 hover:text-slate-600 dark:text-neutral-500 dark:hover:text-neutral-300">
             ×
           </button>
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-4">
           {isLoading ? (
-            <p className="text-sm text-slate-400">読み込み中...</p>
+            <p className="text-sm text-slate-400 dark:text-neutral-500">読み込み中...</p>
           ) : items.length === 0 ? (
-            <p className="text-sm text-slate-400">採点待ちの設問はありません（既に他の担当者が採点した可能性があります）。</p>
+            <p className="text-sm text-slate-400 dark:text-neutral-500">採点待ちの設問はありません（既に他の担当者が採点した可能性があります）。</p>
           ) : (
             <div className="flex flex-col gap-4">
               {items.map((item) => (
@@ -291,10 +297,10 @@ function AttemptGradingModal({
           )}
         </div>
 
-        <div className="border-t border-slate-200 px-5 py-3.5">
-          {finalizeError && <p className="mb-2 text-xs text-red-600">{finalizeError}</p>}
+        <div className="border-t border-slate-200 px-5 py-3.5 dark:border-neutral-700">
+          {finalizeError && <p className="mb-2 text-xs text-red-600 dark:text-red-400">{finalizeError}</p>}
           <div className="flex items-center justify-between gap-3">
-            <span className="text-xs text-slate-500">
+            <span className="text-xs text-slate-500 dark:text-neutral-400">
               {judgedCount}/{items.length}問 採点済み
               {requiredUnjudged.length > 0 && '（必須設問が未採点のため送信できません）'}
               {requiredUnjudged.length === 0 && nothingJudgedYet && '（1問も採点していないため送信できません）'}
@@ -318,12 +324,12 @@ function AttemptGradingModal({
 
       {confirmDialog === 'blocked' && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-sm rounded-md bg-white p-5 shadow-lg">
-            <p className="mb-3 text-sm font-semibold text-slate-800">必須設問が未採点です</p>
-            <p className="mb-4 text-xs text-slate-500">
+          <div className="w-full max-w-sm rounded-md bg-white p-5 shadow-lg dark:bg-neutral-800">
+            <p className="mb-3 text-sm font-semibold text-slate-800 dark:text-neutral-100">必須設問が未採点です</p>
+            <p className="mb-4 text-xs text-slate-500 dark:text-neutral-400">
               以下の必須設問の正誤判定が済んでいないため送信できません。すべて判定してから改めて送信してください。
             </p>
-            <ul className="mb-4 list-disc pl-4 text-xs text-slate-600">
+            <ul className="mb-4 list-disc pl-4 text-xs text-slate-600 dark:text-neutral-300">
               {requiredUnjudged.map((i) => (
                 <li key={i.answer_id}>{i.node_path} ／ 設問「{i.prompt}」</li>
               ))}
@@ -339,11 +345,11 @@ function AttemptGradingModal({
 
       {confirmDialog === 'confirm-optional' && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-sm rounded-md bg-white p-5 shadow-lg">
-            <p className="mb-3 text-sm font-semibold text-slate-800">
+          <div className="w-full max-w-sm rounded-md bg-white p-5 shadow-lg dark:bg-neutral-800">
+            <p className="mb-3 text-sm font-semibold text-slate-800 dark:text-neutral-100">
               {optionalUnjudged.length}問の任意設問が未採点です
             </p>
-            <p className="mb-4 text-xs text-slate-500">
+            <p className="mb-4 text-xs text-slate-500 dark:text-neutral-400">
               未採点のまま送信すると、これらの設問はこのまま採点待ちとして残ります（後でこのカードを開いて改めて採点できます）。このまま送信しますか？
             </p>
             <div className="flex justify-end gap-2">
@@ -461,28 +467,28 @@ function QuestionGradingCard({
   const responseText = Array.isArray(item.response) ? item.response.join('、') : String(item.response ?? '（未回答）')
 
   return (
-    <div className={`rounded-md border p-3.5 ${isCorrect !== null ? 'border-slate-200' : 'border-blue-300 ring-1 ring-blue-100'}`}>
+    <div className={`rounded-md border p-3.5 ${isCorrect !== null ? 'border-slate-200 dark:border-neutral-700' : 'border-blue-300 ring-1 ring-blue-100 dark:border-blue-700 dark:ring-blue-900/40'}`}>
       <div className="mb-1.5 flex items-center justify-between">
-        <span className="text-[11.5px] text-slate-400">
+        <span className="text-[11.5px] text-slate-400 dark:text-neutral-500">
           {item.node_path} ／ 設問「{item.prompt}」
           {!item.required && (
-            <span className="ml-1.5 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">任意</span>
+            <span className="ml-1.5 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500 dark:bg-neutral-800 dark:text-neutral-400">任意</span>
           )}
         </span>
         <span className="text-[11px] font-semibold">
-          {saveState === 'saving' && <span className="text-slate-400">保存中…</span>}
-          {saveState === 'saved' && <span className="text-emerald-600">保存済み</span>}
-          {saveState === 'error' && <span className="text-red-600">保存に失敗しました</span>}
+          {saveState === 'saving' && <span className="text-slate-400 dark:text-neutral-500">保存中…</span>}
+          {saveState === 'saved' && <span className="text-emerald-600 dark:text-emerald-400">保存済み</span>}
+          {saveState === 'error' && <span className="text-red-600 dark:text-red-400">保存に失敗しました</span>}
         </span>
       </div>
       {item.scoring_criteria && (
-        <div className="mb-2 text-[11.5px] text-slate-400">採点基準: {item.scoring_criteria}</div>
+        <div className="mb-2 text-[11.5px] text-slate-400 dark:text-neutral-500">採点基準: {item.scoring_criteria}</div>
       )}
-      <div className="mb-2.5 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-[13px] leading-relaxed">
+      <div className="mb-2.5 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-[13px] leading-relaxed dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">
         {responseText}
       </div>
       <div className="mb-2 flex items-center gap-4">
-        <span className="text-xs font-semibold text-slate-500">正誤判定</span>
+        <span className="text-xs font-semibold text-slate-500 dark:text-neutral-400">正誤判定</span>
         {/* ネイティブのradioはクリックだけでは選択解除できないため、既に選択済みの方を
             もう一度クリックしたときはonClickで検知して未判定（null）に戻す（2026-09-16、
             ユーザー要望。誤って選んだ場合や判断を保留し直したい場合に使う）。onChangeは

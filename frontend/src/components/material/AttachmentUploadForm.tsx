@@ -51,10 +51,10 @@ export default function AttachmentUploadForm({
   return (
     <div>
       {error && (
-        <p className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{error}</p>
+        <p className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200">{error}</p>
       )}
       <div className="flex flex-wrap gap-2">
-        <label className="flex h-9 min-w-[160px] flex-1 cursor-pointer items-center justify-center rounded-md border border-slate-300 text-xs font-semibold text-slate-600 hover:bg-slate-50">
+        <label className="flex h-9 min-w-[160px] flex-1 cursor-pointer items-center justify-center rounded-md border border-slate-300 text-xs font-semibold text-slate-600 hover:bg-slate-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800">
           {uploading ? 'アップロード中...' : 'ファイルを選択'}
           <input type="file" className="hidden" onChange={(e) => void handleFileSelect(e)} disabled={uploading} />
         </label>

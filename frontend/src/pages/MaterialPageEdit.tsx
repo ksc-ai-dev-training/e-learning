@@ -319,7 +319,7 @@ export default function MaterialPageEdit() {
   }
 
   if (isLoading) {
-    return <div className="p-8 text-sm text-slate-400">読み込み中...</div>
+    return <div className="p-8 text-sm text-slate-400 dark:text-neutral-500">読み込み中...</div>
   }
 
   if (materialError) {
@@ -327,10 +327,10 @@ export default function MaterialPageEdit() {
       <div className="flex flex-1 flex-col">
         <PageHeader title="ページ編集" />
         <div className="px-8 py-6">
-          <Link to={`/projects/${projectId}/materials/${materialId}/edit`} className="text-blue-800 hover:underline">
+          <Link to={`/projects/${projectId}/materials/${materialId}/edit`} className="text-blue-800 hover:underline dark:text-blue-300">
             ← 目次編集に戻る
           </Link>
-          <p className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          <p className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200">
             教材を取得できませんでした。
           </p>
         </div>
@@ -343,7 +343,7 @@ export default function MaterialPageEdit() {
       <PageHeader title={`ページ編集${title ? ` — ${title}` : ''}`} />
       <div className="px-8 py-6">
         <p className="mb-4">
-          <Link to={`/projects/${projectId}/materials/${materialId}/edit`} className="text-blue-800 hover:underline">
+          <Link to={`/projects/${projectId}/materials/${materialId}/edit`} className="text-blue-800 hover:underline dark:text-blue-300">
             ← 目次編集に戻る
           </Link>
         </p>
@@ -351,20 +351,20 @@ export default function MaterialPageEdit() {
         {savedMessage && <Toast message={savedMessage} />}
 
         {editingOthers.length > 0 && (
-          <p className="mb-4 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500">
+          <p className="mb-4 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400">
             {editingOthers.map((o) => `${o.name}さんが編集中です（最終確認: ${o.seconds_ago}秒前）`).join('、')}
           </p>
         )}
 
         {changedSinceLoad && (
-          <p className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          <p className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
             他のユーザーがこの教材を更新しました。このまま保存すると競合エラーになる場合があります。
             早めに保存するか、一度画面を再読み込みしてください。
           </p>
         )}
 
         {error && (
-          <p ref={errorRef} className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+          <p ref={errorRef} className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200">{error}</p>
         )}
 
         <PageContentFields
@@ -391,16 +391,16 @@ export default function MaterialPageEdit() {
           titleInputId="p-title"
         />
 
-        <section className="mb-6 rounded-md border border-slate-200">
-          <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2.5">
-            <span className="text-sm font-semibold text-slate-700">このページの添付ファイル・リンク</span>
-            <span className="text-xs text-slate-400">
+        <section className="mb-6 rounded-md border border-slate-200 dark:border-neutral-800">
+          <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2.5 dark:border-neutral-800">
+            <span className="text-sm font-semibold text-slate-700 dark:text-neutral-100">このページの添付ファイル・リンク</span>
+            <span className="text-xs text-slate-400 dark:text-neutral-500">
               {isNew ? pendingAttachments.length : attachments.length}件
             </span>
           </div>
           <div className="p-4">
             {attachmentError && (
-              <p className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+              <p className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200">
                 {attachmentError}
               </p>
             )}
@@ -409,18 +409,18 @@ export default function MaterialPageEdit() {
                 {pendingAttachments.length > 0 && (
                   <ul className="mb-3 flex flex-col gap-1.5">
                     {pendingAttachments.map((p) => (
-                      <li key={p.key} className="rounded-md border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-600">
+                      <li key={p.key} className="rounded-md border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
                         <div className="flex items-center justify-between gap-2">
                           <span className="truncate">
                             {p.kind === 'file' ? p.file.name : p.url}
-                            <span className="ml-1.5 text-[10px] text-amber-600">（保存すると登録されます）</span>
+                            <span className="ml-1.5 text-[10px] text-amber-600 dark:text-amber-400">（保存すると登録されます）</span>
                           </span>
                           <div className="flex flex-shrink-0 items-center gap-2">
                             {p.kind === 'file' && p.previewUrl && (
                               <button
                                 type="button"
                                 onClick={() => togglePendingPreview(p.key)}
-                                className="rounded border border-slate-300 px-2 py-0.5 text-[10px] text-slate-600 hover:bg-white"
+                                className="rounded border border-slate-300 px-2 py-0.5 text-[10px] text-slate-600 hover:bg-white dark:border-neutral-600 dark:text-neutral-300 dark:hover:bg-neutral-700"
                               >
                                 {expandedPendingKeys.has(p.key) ? '閉じる' : 'プレビュー'}
                               </button>
@@ -428,7 +428,7 @@ export default function MaterialPageEdit() {
                             <button
                               type="button"
                               onClick={() => handleRemovePending(p.key)}
-                              className="text-slate-400 hover:text-red-600"
+                              className="text-slate-400 hover:text-red-600 dark:text-neutral-500 dark:hover:text-red-400"
                             >
                               ×
                             </button>
@@ -438,14 +438,14 @@ export default function MaterialPageEdit() {
                           <iframe
                             src={p.previewUrl}
                             title={p.file.name}
-                            className="mt-2 h-[600px] w-full rounded-md border border-slate-200 bg-white"
+                            className="mt-2 h-[600px] w-full rounded-md border border-slate-200 bg-white dark:border-neutral-700"
                           />
                         )}
                       </li>
                     ))}
                   </ul>
                 )}
-                <p className="mb-2 text-xs text-slate-400">
+                <p className="mb-2 text-xs text-slate-400 dark:text-neutral-500">
                   ここで追加したファイル・リンクは、保存したときにまとめて登録されます。
                 </p>
               </>
@@ -458,7 +458,7 @@ export default function MaterialPageEdit() {
               />
             )}
             <div className="mt-3 flex flex-wrap gap-2">
-              <label className="flex h-9 min-w-[160px] flex-1 cursor-pointer items-center justify-center rounded-md border border-slate-300 text-xs font-semibold text-slate-600 hover:bg-slate-50">
+              <label className="flex h-9 min-w-[160px] flex-1 cursor-pointer items-center justify-center rounded-md border border-slate-300 text-xs font-semibold text-slate-600 hover:bg-slate-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800">
                 {uploading ? 'アップロード中...' : 'ファイルを選択'}
                 <input type="file" className="hidden" onChange={handleFileSelect} disabled={uploading} />
               </label>
@@ -480,7 +480,7 @@ export default function MaterialPageEdit() {
           <Button variant="primary" onClick={() => save()} disabled={saving}>
             保存して目次に戻る
           </Button>
-          <span className="text-xs text-slate-400">Ctrl+S（Macはcmd+S）でこのページに留まったまま保存できます</span>
+          <span className="text-xs text-slate-400 dark:text-neutral-500">Ctrl+S（Macはcmd+S）でこのページに留まったまま保存できます</span>
         </div>
       </div>
     </div>

@@ -36,7 +36,7 @@ export default function AttachmentItem({
           <button
             type="button"
             onClick={() => void download()}
-            className="flex-1 truncate text-left text-blue-700 hover:underline"
+            className="flex-1 truncate text-left text-blue-700 hover:underline dark:text-blue-300"
           >
             {attachment.filename}
           </button>
@@ -45,12 +45,12 @@ export default function AttachmentItem({
             href={attachment.external_url ?? '#'}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex-1 truncate text-blue-700 hover:underline"
+            className="flex-1 truncate text-blue-700 hover:underline dark:text-blue-300"
           >
             {attachment.filename}
           </a>
         )}
-        <span className="max-w-[280px] flex-shrink-0 truncate text-xs text-slate-400">
+        <span className="max-w-[280px] flex-shrink-0 truncate text-xs text-slate-400 dark:text-neutral-500">
           {meta}
           {attachment.node_id === null ? '（教材全体）' : ''}
         </span>
@@ -59,7 +59,7 @@ export default function AttachmentItem({
             type="button"
             onClick={() => void togglePreview()}
             disabled={busy}
-            className="flex-shrink-0 rounded border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+            className="flex-shrink-0 rounded border border-slate-300 px-2 py-1 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
           >
             {busy ? '読み込み中...' : previewUrl ? '閉じる' : 'プレビュー'}
           </button>
@@ -68,18 +68,18 @@ export default function AttachmentItem({
           <button
             type="button"
             onClick={onDelete}
-            className="flex-shrink-0 rounded border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+            className="flex-shrink-0 rounded border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950/40"
           >
             削除
           </button>
         )}
       </div>
-      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+      {error && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{error}</p>}
       {previewUrl && (
         <iframe
           src={previewUrl}
           title={attachment.filename}
-          className="mt-2 h-[600px] w-full rounded-md border border-slate-200"
+          className="mt-2 h-[600px] w-full rounded-md border border-slate-200 dark:border-neutral-800"
         />
       )}
     </div>

@@ -15,17 +15,17 @@ export default function AttachmentList({
   isLoading?: boolean
 }) {
   if (isLoading) {
-    return <p className="text-sm text-slate-400">読み込み中...</p>
+    return <p className="text-sm text-slate-400 dark:text-neutral-500">読み込み中...</p>
   }
   if (attachments.length === 0) {
     return (
-      <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400">
+      <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-500">
         まだファイル・リンクがありません。
       </p>
     )
   }
   return (
-    <div className="divide-y divide-slate-100">
+    <div className="divide-y divide-slate-100 dark:divide-neutral-800">
       {attachments.map((a) => (
         <AttachmentItem
           key={a.id}

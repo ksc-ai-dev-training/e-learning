@@ -28,23 +28,23 @@ export default function MaterialPreview() {
         actions={
           <Link
             to={`/projects/${projectId}/materials/${materialId}/edit`}
-            className="text-xs font-semibold text-blue-700 hover:underline"
+            className="text-xs font-semibold text-blue-700 hover:underline dark:text-blue-300"
           >
             ← 編集に戻る
           </Link>
         }
       />
       <div className="mx-auto max-w-3xl px-8 py-6">
-        {isLoading && <p className="text-sm text-slate-400">読み込み中...</p>}
-        {error && <p className="text-sm text-red-600">教材の取得に失敗しました</p>}
+        {isLoading && <p className="text-sm text-slate-400 dark:text-neutral-500">読み込み中...</p>}
+        {error && <p className="text-sm text-red-600 dark:text-red-400">教材の取得に失敗しました</p>}
         {preview && (
           <>
-            <div className="mb-6 rounded-md border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800">
+            <div className="mb-6 rounded-md border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
               これは編集者向けのプレビューです。設問の正解も含めて全体を確認できます。受講者にはこの画面は表示されません。
             </div>
-            {preview.description && <p className="mb-6 text-sm text-slate-600">{preview.description}</p>}
+            {preview.description && <p className="mb-6 text-sm text-slate-600 dark:text-neutral-300">{preview.description}</p>}
             {preview.toc.length === 0 && (
-              <p className="text-sm text-slate-400">まだ章・ページがありません。</p>
+              <p className="text-sm text-slate-400 dark:text-neutral-500">まだ章・ページがありません。</p>
             )}
             {preview.toc.map((chapter, i) => (
               <ChapterView key={chapter.id} chapter={chapter} index={i} materialId={preview.id} />
@@ -67,13 +67,13 @@ function ChapterView({
 }) {
   return (
     <section className="mb-10">
-      <h2 className="mb-4 border-b border-slate-200 pb-2 text-lg font-bold text-slate-900">
+      <h2 className="mb-4 border-b border-slate-200 pb-2 text-lg font-bold text-slate-900 dark:border-neutral-800 dark:text-neutral-100">
         第{index + 1}章 {chapter.title}
       </h2>
       {chapter.children.map((child) =>
         child.kind === 'section' ? (
           <div key={child.id} className="mb-6 ml-2">
-            <h3 className="mb-3 text-sm font-bold text-slate-700">{child.title}</h3>
+            <h3 className="mb-3 text-sm font-bold text-slate-700 dark:text-neutral-200">{child.title}</h3>
             <div className="ml-2">
               {child.children.map((page) => (
                 <PageView key={page.id} page={page} materialId={materialId} />
@@ -91,7 +91,7 @@ function ChapterView({
 function PageView({ page, materialId }: { page: MaterialNode; materialId: number }) {
   return (
     <div className="mb-8">
-      <h4 className="mb-2 text-sm font-semibold text-slate-800">{page.title}</h4>
+      <h4 className="mb-2 text-sm font-semibold text-slate-800 dark:text-neutral-100">{page.title}</h4>
       {page.body && <PageBody materialId={materialId} body={page.body} format={page.format ?? 'markdown'} />}
       {page.questions.map((q, i) => (
         <QuestionView key={q.id ?? `new-${i}`} question={q} index={i} />
@@ -102,23 +102,23 @@ function PageView({ page, materialId }: { page: MaterialNode; materialId: number
 
 function QuestionView({ question, index }: { question: Question; index: number }) {
   return (
-    <div className="mb-3 rounded-md border border-slate-200 p-3">
+    <div className="mb-3 rounded-md border border-slate-200 p-3 dark:border-neutral-700">
       <div className="mb-2 flex items-center gap-2">
-        <span className="rounded border border-indigo-200 bg-indigo-50 px-1.5 py-0.5 text-[11px] font-semibold text-indigo-700">
+        <span className="rounded border border-indigo-200 bg-indigo-50 px-1.5 py-0.5 text-[11px] font-semibold text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-200">
           問{index + 1}・{TYPE_LABEL[question.type]}
         </span>
         {question.required && (
-          <span className="text-[11px] text-slate-400">
+          <span className="text-[11px] text-slate-400 dark:text-neutral-500">
             {question.counted ? '回答必須' : '回答必須（記録・非算入）'}
           </span>
         )}
         {question.is_critical && (
-          <span className="rounded border border-red-200 bg-red-50 px-1.5 py-0.5 text-[11px] font-semibold text-red-700">
+          <span className="rounded border border-red-200 bg-red-50 px-1.5 py-0.5 text-[11px] font-semibold text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200">
             ドボン問題
           </span>
         )}
       </div>
-      <p className="mb-2 text-sm text-slate-800">{question.prompt}</p>
+      <p className="mb-2 text-sm text-slate-800 dark:text-neutral-100">{question.prompt}</p>
 
       {(question.type === 'single' || question.type === 'multi') && question.options && (
         <ul className="flex flex-col gap-1">
@@ -130,7 +130,9 @@ function QuestionView({ question, index }: { question: Question; index: number }
               <li
                 key={opt}
                 className={`rounded border px-2 py-1 text-xs ${
-                  isCorrect ? 'border-green-300 bg-green-50 text-green-800' : 'border-slate-200 text-slate-600'
+                  isCorrect
+                    ? 'border-green-300 bg-green-50 text-green-800 dark:border-green-700 dark:bg-green-950/40 dark:text-green-200'
+                    : 'border-slate-200 text-slate-600 dark:border-neutral-700 dark:text-neutral-300'
                 }`}
               >
                 {isCorrect ? '✓ ' : ''}
@@ -142,7 +144,7 @@ function QuestionView({ question, index }: { question: Question; index: number }
       )}
 
       {question.type === 'reorder' && Array.isArray(question.correct_answer) && (
-        <ol className="list-decimal pl-5 text-xs text-slate-700">
+        <ol className="list-decimal pl-5 text-xs text-slate-700 dark:text-neutral-300">
           {question.correct_answer.map((item) => (
             <li key={item}>{item}</li>
           ))}
@@ -150,21 +152,21 @@ function QuestionView({ question, index }: { question: Question; index: number }
       )}
 
       {(question.type === 'free_text' || question.type === 'code') && (
-        <div className="text-xs text-slate-500">
+        <div className="text-xs text-slate-500 dark:text-neutral-400">
           <p>
-            <span className="font-semibold text-slate-600">採点基準:</span> {question.scoring_criteria}
+            <span className="font-semibold text-slate-600 dark:text-neutral-300">採点基準:</span> {question.scoring_criteria}
           </p>
           {question.type === 'code' && question.code_language && (
             <p>
-              <span className="font-semibold text-slate-600">言語:</span> {question.code_language}
+              <span className="font-semibold text-slate-600 dark:text-neutral-300">言語:</span> {question.code_language}
             </p>
           )}
         </div>
       )}
 
       {question.type === 'score_log' && (
-        <p className="text-xs text-slate-500">
-          <span className="font-semibold text-slate-600">記録単位:</span> {question.score_unit}
+        <p className="text-xs text-slate-500 dark:text-neutral-400">
+          <span className="font-semibold text-slate-600 dark:text-neutral-300">記録単位:</span> {question.score_unit}
         </p>
       )}
     </div>

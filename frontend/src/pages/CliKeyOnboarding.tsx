@@ -46,16 +46,16 @@ export default function CliKeyOnboarding({ onDone }: { onDone: () => void }) {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-100 p-4">
-      <div className="w-full max-w-lg rounded-md bg-white p-6 shadow-lg">
+    <div className="flex min-h-screen items-center justify-center bg-slate-100 p-4 dark:bg-neutral-900">
+      <div className="w-full max-w-lg rounded-md bg-white p-6 shadow-lg dark:bg-neutral-800">
         {!issued ? (
           <>
-            <h1 className="mb-2 text-base font-bold text-slate-900">Claude Code連携用のAPIキー</h1>
-            <p className="mb-6 text-sm text-slate-600">
+            <h1 className="mb-2 text-base font-bold text-slate-900 dark:text-neutral-100">Claude Code連携用のAPIキー</h1>
+            <p className="mb-6 text-sm text-slate-600 dark:text-neutral-300">
               Claude Codeで教材を作成・編集する場合に使う鍵です。今使わない場合は、あとから
               プロフィール画面でいつでも発行できます。
             </p>
-            {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
+            {error && <p className="mb-4 text-sm text-red-600 dark:text-red-400">{error}</p>}
             <div className="flex justify-end gap-2">
               <Button variant="secondary" onClick={handleSkip} disabled={busy}>
                 後で設定する
@@ -67,19 +67,19 @@ export default function CliKeyOnboarding({ onDone }: { onDone: () => void }) {
           </>
         ) : (
           <>
-            <h1 className="mb-2 text-base font-bold text-slate-900">APIキーを発行しました</h1>
-            <p className="mb-3 text-sm text-slate-600">
+            <h1 className="mb-2 text-base font-bold text-slate-900 dark:text-neutral-100">APIキーを発行しました</h1>
+            <p className="mb-3 text-sm text-slate-600 dark:text-neutral-300">
               このキーは今だけ表示されます。Claude CodeのMCP設定に登録してください。
             </p>
             <div className="mb-3 flex items-center gap-2">
-              <code className="flex-1 overflow-x-auto rounded border border-slate-200 bg-slate-50 px-3 py-2 text-xs">
+              <code className="flex-1 overflow-x-auto rounded border border-slate-200 bg-slate-50 px-3 py-2 text-xs dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">
                 {issued.token}
               </code>
               <Button variant="secondary" onClick={handleCopy}>
                 {copied ? 'コピーしました' : 'コピー'}
               </Button>
             </div>
-            <p className="mb-6 text-xs text-slate-500">
+            <p className="mb-6 text-xs text-slate-500 dark:text-neutral-400">
               接続先: <code>{issued.manabi_url}/mcp</code>
               <br />
               このキーはAuthorizationヘッダー（Bearerトークン）として設定してください。

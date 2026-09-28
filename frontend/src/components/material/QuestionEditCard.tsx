@@ -57,32 +57,32 @@ export default function QuestionEditCard({
     onChange({ ...question, feedback_style: value === '' ? null : (value as Question['feedback_style']) })
 
   return (
-    <div className={`mb-3 rounded-md border p-3 ${isScoreLog ? 'border-slate-300 bg-slate-50' : 'border-slate-200'}`}>
+    <div className={`mb-3 rounded-md border p-3 ${isScoreLog ? 'border-slate-300 bg-slate-50 dark:border-neutral-700 dark:bg-neutral-900' : 'border-slate-200 dark:border-neutral-800'}`}>
       <div className="mb-2 flex items-center justify-between">
-        <span className="text-sm font-semibold text-slate-700">
+        <span className="text-sm font-semibold text-slate-700 dark:text-neutral-100">
           設問{index + 1}（{typeLabel}）
         </span>
         <button
           type="button"
           onClick={onDelete}
-          className="rounded border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+          className="rounded border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950/40"
         >
           削除
         </button>
       </div>
 
       <div className="mb-2 flex flex-col gap-1">
-        <label className="text-xs font-semibold text-slate-500">種別</label>
+        <label className="text-xs font-semibold text-slate-500 dark:text-neutral-300">種別</label>
         <Select value={question.type} onChange={changeType} options={TYPE_OPTIONS} className="w-40" />
         {isScoreLog && (
-          <p className="text-[11px] text-slate-400">
+          <p className="text-[11px] text-slate-400 dark:text-neutral-500">
             ※スコア記録型は正解・不正解の概念がなく、必須にしても合否判定・ドボンには一切影響しません（自己申告の数値をそのまま記録するだけです）。
           </p>
         )}
       </div>
 
       <div className="mb-2 flex flex-col gap-1">
-        <label className="text-xs font-semibold text-slate-500">設問文</label>
+        <label className="text-xs font-semibold text-slate-500 dark:text-neutral-300">設問文</label>
         <TextArea
           value={question.prompt}
           onChange={(e) => onChange({ ...question, prompt: e.target.value })}
@@ -101,7 +101,7 @@ export default function QuestionEditCard({
 
       <div className="mt-2 flex flex-wrap gap-6">
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-semibold text-slate-500">回答</label>
+          <label className="text-xs font-semibold text-slate-500 dark:text-neutral-300">回答</label>
           <div className="flex gap-3 text-xs">
             <label className="flex items-center gap-1">
               <input
@@ -131,13 +131,13 @@ export default function QuestionEditCard({
             </label>
           </div>
           {!isScoreLog && (
-            <p className="text-[11px] text-slate-400">
+            <p className="text-[11px] text-slate-400 dark:text-neutral-500">
               ※「記録」は回答必須のままスコア・合否判定には算入しません（採点・AIフィードバック自体は行われます）。「任意」は回答自体を省略できます（同じく算入されません）。
             </p>
           )}
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-semibold text-slate-500">ドボン問題</label>
+          <label className="text-xs font-semibold text-slate-500 dark:text-neutral-300">ドボン問題</label>
           <label
             className={`flex items-center gap-1 text-xs ${isScoreLog ? 'opacity-40' : ''}`}
             title={isScoreLog ? 'スコア記録型には設定できません' : undefined}
@@ -150,11 +150,11 @@ export default function QuestionEditCard({
             />
             この設問にする
           </label>
-          <p className="text-[11px] text-slate-400">※記録・任意の設問はドボン判定の対象になりません。</p>
+          <p className="text-[11px] text-slate-400 dark:text-neutral-500">※記録・任意の設問はドボン判定の対象になりません。</p>
         </div>
         {gradingOverridable && (
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-slate-500">採点方式（この設問のみ上書き）</label>
+            <label className="text-xs font-semibold text-slate-500 dark:text-neutral-300">採点方式（この設問のみ上書き）</label>
             <Select
               value={question.grading_mode ?? ''}
               onChange={changeGradingMode}
@@ -164,7 +164,7 @@ export default function QuestionEditCard({
           </div>
         )}
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-semibold text-slate-500">AI講評スタイル（この設問のみ上書き）</label>
+          <label className="text-xs font-semibold text-slate-500 dark:text-neutral-300">AI講評スタイル（この設問のみ上書き）</label>
           <Select
             value={question.feedback_style ?? ''}
             onChange={changeFeedbackStyle}
@@ -234,7 +234,7 @@ function OptionsEditor({ question, onChange }: { question: Question; onChange: (
 
   return (
     <div className="mb-2 flex flex-col gap-1">
-      <label className="text-xs font-semibold text-slate-500">選択肢（正解にチェック）</label>
+      <label className="text-xs font-semibold text-slate-500 dark:text-neutral-300">選択肢（正解にチェック）</label>
       {options.map((opt, i) => (
         <div key={i} className="flex items-center gap-2">
           <input
@@ -247,7 +247,7 @@ function OptionsEditor({ question, onChange }: { question: Question; onChange: (
           <button
             type="button"
             onClick={() => removeOption(i)}
-            className="flex-shrink-0 rounded border border-slate-300 px-2 py-1 text-xs text-slate-500 hover:bg-slate-100"
+            className="flex-shrink-0 rounded border border-slate-300 px-2 py-1 text-xs text-slate-500 hover:bg-slate-100 dark:border-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-800"
           >
             削除
           </button>
@@ -256,12 +256,12 @@ function OptionsEditor({ question, onChange }: { question: Question; onChange: (
       <button
         type="button"
         onClick={addOption}
-        className="mt-1 self-start rounded-md border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+        className="mt-1 self-start rounded-md border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
       >
         + 選択肢を追加
       </button>
       {!question.counted && (
-        <p className="text-[11px] text-slate-400">
+        <p className="text-[11px] text-slate-400 dark:text-neutral-500">
           ※「記録」「任意」は正解を設定しなくても保存できます（意見・見解を選ばせるだけのアンケート的な設問として使えます）。
         </p>
       )}
@@ -282,7 +282,7 @@ function FreeTextCodeEditor({
     <div className="mb-2 flex flex-col gap-2">
       {question.type === 'code' && (
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-semibold text-slate-500">言語ヒント</label>
+          <label className="text-xs font-semibold text-slate-500 dark:text-neutral-300">言語ヒント</label>
           <TextInput
             value={question.code_language ?? ''}
             onChange={(e) => onChange({ ...question, code_language: e.target.value })}
@@ -293,7 +293,7 @@ function FreeTextCodeEditor({
       )}
       {showScoringCriteria ? (
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-semibold text-slate-500">AI採点基準</label>
+          <label className="text-xs font-semibold text-slate-500 dark:text-neutral-300">AI採点基準</label>
           <TextArea
             value={question.scoring_criteria ?? ''}
             onChange={(e) => onChange({ ...question, scoring_criteria: e.target.value })}
@@ -302,7 +302,7 @@ function FreeTextCodeEditor({
           />
         </div>
       ) : (
-        <p className="text-[11px] text-slate-400">
+        <p className="text-[11px] text-slate-400 dark:text-neutral-500">
           ※採点方式が手動のため、AI採点基準の入力は不要です。
         </p>
       )}
@@ -313,14 +313,14 @@ function FreeTextCodeEditor({
 function ScoreLogEditor({ question, onChange }: { question: Question; onChange: (q: Question) => void }) {
   return (
     <div className="mb-2 flex flex-col gap-1">
-      <label className="text-xs font-semibold text-slate-500">スコアの単位</label>
+      <label className="text-xs font-semibold text-slate-500 dark:text-neutral-300">スコアの単位</label>
       <TextInput
         value={question.score_unit ?? ''}
         onChange={(e) => onChange({ ...question, score_unit: e.target.value })}
         placeholder="例: WPM、秒、点"
         className="w-40"
       />
-      <span className="text-xs text-slate-400">正解の概念はなく、受講者が入力した値をそのまま記録します。</span>
+      <span className="text-xs text-slate-400 dark:text-neutral-500">正解の概念はなく、受講者が入力した値をそのまま記録します。</span>
     </div>
   )
 }
@@ -343,16 +343,16 @@ function ReorderEditor({ question, onChange }: { question: Question; onChange: (
 
   return (
     <div className="mb-2 flex flex-col gap-1">
-      <label className="text-xs font-semibold text-slate-500">正しい順番（この並びが正解になります）</label>
+      <label className="text-xs font-semibold text-slate-500 dark:text-neutral-300">正しい順番（この並びが正解になります）</label>
       {items.map((item, i) => (
         <div key={i} className="flex items-center gap-2">
-          <span className="w-5 flex-shrink-0 text-xs text-slate-400">{i + 1}.</span>
+          <span className="w-5 flex-shrink-0 text-xs text-slate-400 dark:text-neutral-500">{i + 1}.</span>
           <TextInput value={item} onChange={(e) => updateItem(i, e.target.value)} className="flex-1" />
           <button
             type="button"
             onClick={() => moveItem(i, -1)}
             disabled={i === 0}
-            className="rounded p-1 text-slate-400 hover:bg-slate-200 disabled:opacity-30"
+            className="rounded p-1 text-slate-400 hover:bg-slate-200 disabled:opacity-30 dark:text-neutral-500 dark:hover:bg-neutral-700"
           >
             ↑
           </button>
@@ -360,14 +360,14 @@ function ReorderEditor({ question, onChange }: { question: Question; onChange: (
             type="button"
             onClick={() => moveItem(i, 1)}
             disabled={i === items.length - 1}
-            className="rounded p-1 text-slate-400 hover:bg-slate-200 disabled:opacity-30"
+            className="rounded p-1 text-slate-400 hover:bg-slate-200 disabled:opacity-30 dark:text-neutral-500 dark:hover:bg-neutral-700"
           >
             ↓
           </button>
           <button
             type="button"
             onClick={() => removeItem(i)}
-            className="flex-shrink-0 rounded border border-slate-300 px-2 py-1 text-xs text-slate-500 hover:bg-slate-100"
+            className="flex-shrink-0 rounded border border-slate-300 px-2 py-1 text-xs text-slate-500 hover:bg-slate-100 dark:border-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-800"
           >
             削除
           </button>
@@ -376,7 +376,7 @@ function ReorderEditor({ question, onChange }: { question: Question; onChange: (
       <button
         type="button"
         onClick={addItem}
-        className="mt-1 self-start rounded-md border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+        className="mt-1 self-start rounded-md border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
       >
         + 項目を追加
       </button>

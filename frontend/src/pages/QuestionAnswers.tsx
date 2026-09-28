@@ -16,7 +16,7 @@ export default function QuestionAnswers() {
   const { data, error, isLoading } = useQuestionAnswers(questionId ? Number(questionId) : null)
 
   if (isLoading) {
-    return <div className="p-8 text-sm text-slate-400">読み込み中...</div>
+    return <div className="p-8 text-sm text-slate-400 dark:text-neutral-500">読み込み中...</div>
   }
 
   if (error || !data) {
@@ -24,7 +24,7 @@ export default function QuestionAnswers() {
       <div className="flex flex-1 flex-col">
         <PageHeader title="設問別の回答・結果一覧" />
         <div className="px-8 py-6">
-          <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200">
             設問の回答一覧を取得できませんでした。
           </p>
         </div>
@@ -41,15 +41,15 @@ export default function QuestionAnswers() {
         <p className="mb-4">
           <Link
             to={`/projects/${question.project_id}/materials/${question.material_id}/edit?tab=questions`}
-            className="text-blue-800 hover:underline"
+            className="text-blue-800 hover:underline dark:text-blue-300"
           >
             ← 問題一覧に戻る
           </Link>
         </p>
-        <p className="mb-1 text-xs text-slate-400">
+        <p className="mb-1 text-xs text-slate-400 dark:text-neutral-500">
           {question.material_title} ／ {question.node_path}
         </p>
-        <p className="mb-4 max-w-3xl text-sm text-slate-500">
+        <p className="mb-4 max-w-3xl text-sm text-slate-500 dark:text-neutral-400">
           この画面は<strong>設問ごとの回答傾向を確認し、設問を見直すかどうかの判断材料にするための読み取り専用ビュー</strong>
           です。氏名付きで全受講者の回答を確認できます。手動採点の未採点分を実際に処理する場合はサイドバーの「採点」を使用してください。
         </p>
@@ -161,7 +161,7 @@ function ChoiceDistribution({
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-slate-100 text-xs text-slate-400">
+            <tr className="border-b border-slate-100 text-xs text-slate-400 dark:border-neutral-800 dark:text-neutral-500">
               <th className="px-3 py-2 text-left font-normal">受講者</th>
               <th className="px-3 py-2 text-left font-normal">回答した順序</th>
               <th className="w-20 px-3 py-2 text-left font-normal">正誤</th>
@@ -169,9 +169,9 @@ function ChoiceDistribution({
           </thead>
           <tbody>
             {items.map((item, i) => (
-              <tr key={i} className="border-b border-slate-50">
-                <td className="whitespace-nowrap px-3 py-2">{item.user_name}</td>
-                <td className="px-3 py-2 text-slate-700">{responseLabel(item.response)}</td>
+              <tr key={i} className="border-b border-slate-50 dark:border-neutral-800">
+                <td className="whitespace-nowrap px-3 py-2 dark:text-neutral-200">{item.user_name}</td>
+                <td className="px-3 py-2 text-slate-700 dark:text-neutral-200">{responseLabel(item.response)}</td>
                 <td className="px-3 py-2">
                   <CorrectBadge isCorrect={item.is_correct} />
                 </td>
@@ -192,7 +192,7 @@ function ChoiceDistribution({
   return (
     <table className="w-full text-sm">
       <thead>
-        <tr className="border-b border-slate-100 text-xs text-slate-400">
+        <tr className="border-b border-slate-100 text-xs text-slate-400 dark:border-neutral-800 dark:text-neutral-500">
           <th className="px-3 py-2 text-left font-normal">選択肢</th>
           <th className="w-20 px-3 py-2 text-left font-normal">正解</th>
           <th className="w-24 px-3 py-2 text-left font-normal">回答数</th>
@@ -204,17 +204,17 @@ function ChoiceDistribution({
           const count = optionCounts[i]
           const pct = singlePercentages ? singlePercentages[i] : total > 0 ? Math.round((count / total) * 100) : 0
           return (
-            <tr key={opt} className="border-b border-slate-50">
-              <td className="px-3 py-2 text-slate-700">{opt}</td>
+            <tr key={opt} className="border-b border-slate-50 dark:border-neutral-800">
+              <td className="px-3 py-2 text-slate-700 dark:text-neutral-200">{opt}</td>
               <td className="px-3 py-2">
                 {isCorrectOption(opt) && (
-                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-700">
+                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-200">
                     正解
                   </span>
                 )}
               </td>
-              <td className="px-3 py-2 text-slate-700">{count}人</td>
-              <td className="px-3 py-2 text-slate-700">{pct}%</td>
+              <td className="px-3 py-2 text-slate-700 dark:text-neutral-200">{count}人</td>
+              <td className="px-3 py-2 text-slate-700 dark:text-neutral-200">{pct}%</td>
             </tr>
           )
         })}
@@ -234,7 +234,7 @@ function FreeTextAnswers({
   return (
     <table className="w-full text-sm">
       <thead>
-        <tr className="border-b border-slate-100 text-xs text-slate-400">
+        <tr className="border-b border-slate-100 text-xs text-slate-400 dark:border-neutral-800 dark:text-neutral-500">
           <th className="px-3 py-2 text-left font-normal">受講者</th>
           <th className="px-3 py-2 text-left font-normal">回答内容</th>
           <th className="w-24 px-3 py-2 text-left font-normal">{isManual ? '採点' : 'AI採点'}</th>
@@ -242,12 +242,12 @@ function FreeTextAnswers({
       </thead>
       <tbody>
         {items.map((item, i) => (
-          <tr key={i} className="border-b border-slate-50">
-            <td className="whitespace-nowrap px-3 py-2">{item.user_name}</td>
-            <td className="max-w-[360px] whitespace-normal px-3 py-2 text-slate-700">{responseLabel(item.response)}</td>
+          <tr key={i} className="border-b border-slate-50 dark:border-neutral-800">
+            <td className="whitespace-nowrap px-3 py-2 dark:text-neutral-200">{item.user_name}</td>
+            <td className="max-w-[360px] whitespace-normal px-3 py-2 text-slate-700 dark:text-neutral-200">{responseLabel(item.response)}</td>
             <td className="px-3 py-2">
               {item.is_correct === null ? (
-                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-500">
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-500 dark:bg-neutral-800 dark:text-neutral-400">
                   未採点
                 </span>
               ) : (
@@ -288,7 +288,7 @@ function ScoreLogAnswers({
     <>
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-slate-100 text-xs text-slate-400">
+          <tr className="border-b border-slate-100 text-xs text-slate-400 dark:border-neutral-800 dark:text-neutral-500">
             <th className="px-3 py-2 text-left font-normal">受講者</th>
             <th className="w-28 px-3 py-2 text-left font-normal">最新スコア</th>
             <th className="px-3 py-2 text-left font-normal">推移</th>
@@ -299,20 +299,20 @@ function ScoreLogAnswers({
           {byUser.map((entry) => {
             const latest = entry.scores[entry.scores.length - 1]
             return (
-              <tr key={entry.userName} className="border-b border-slate-50">
-                <td className="whitespace-nowrap px-3 py-2">{entry.userName}</td>
-                <td className="px-3 py-2 text-slate-700">
+              <tr key={entry.userName} className="border-b border-slate-50 dark:border-neutral-800">
+                <td className="whitespace-nowrap px-3 py-2 dark:text-neutral-200">{entry.userName}</td>
+                <td className="px-3 py-2 text-slate-700 dark:text-neutral-200">
                   {latest.score}
                   {unit ? ` ${unit}` : ''}
                 </td>
-                <td className="px-3 py-2 text-slate-700">{entry.scores.map((s) => s.score).join(' → ')}</td>
-                <td className="px-3 py-2 text-slate-700">{formatDateJst(latest.submittedAt)}</td>
+                <td className="px-3 py-2 text-slate-700 dark:text-neutral-200">{entry.scores.map((s) => s.score).join(' → ')}</td>
+                <td className="px-3 py-2 text-slate-700 dark:text-neutral-200">{formatDateJst(latest.submittedAt)}</td>
               </tr>
             )
           })}
         </tbody>
       </table>
-      <p className="mt-2 text-xs text-slate-400">
+      <p className="mt-2 text-xs text-slate-400 dark:text-neutral-500">
         正誤の概念がないため「AI採点」列はなく、代わりにスコアの推移を表示します。
       </p>
     </>
@@ -322,11 +322,11 @@ function ScoreLogAnswers({
 function CorrectBadge({ isCorrect }: { isCorrect: boolean | null }) {
   if (isCorrect === true) {
     return (
-      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-700">正解</span>
+      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-200">正解</span>
     )
   }
   if (isCorrect === false) {
-    return <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-bold text-red-700">不正解</span>
+    return <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-bold text-red-700 dark:bg-red-950/60 dark:text-red-200">不正解</span>
   }
-  return <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-500">未回答</span>
+  return <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-500 dark:bg-neutral-800 dark:text-neutral-400">未回答</span>
 }

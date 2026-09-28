@@ -729,7 +729,7 @@ export default function MaterialEdit() {
   }
 
   if (!isNew && isLoading) {
-    return <div className="p-8 text-sm text-slate-400">読み込み中...</div>
+    return <div className="p-8 text-sm text-slate-400 dark:text-neutral-500">読み込み中...</div>
   }
 
   if (!isNew && materialError) {
@@ -741,10 +741,10 @@ export default function MaterialEdit() {
       <div className="flex flex-1 flex-col">
         <PageHeader title="教材編集" />
         <div className="px-8 py-6">
-          <Link to={`/projects/${projectId}/materials/edit`} className="text-blue-800 hover:underline">
+          <Link to={`/projects/${projectId}/materials/edit`} className="text-blue-800 hover:underline dark:text-blue-300">
             ← 教材一覧に戻る
           </Link>
-          <p className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{message}</p>
+          <p className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200">{message}</p>
         </div>
       </div>
     )
@@ -758,7 +758,7 @@ export default function MaterialEdit() {
       {savedId !== null && (
         <Link
           to={`/projects/${projectId}/materials/${savedId}/preview`}
-          className="flex h-9 items-center rounded-md border border-slate-300 bg-white px-3.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          className="flex h-9 items-center rounded-md border border-slate-300 bg-white px-3.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 dark:hover:bg-neutral-700"
         >
           プレビュー
         </Link>
@@ -850,12 +850,12 @@ export default function MaterialEdit() {
     <div className="flex flex-1 flex-col">
       <PageHeader title={`教材編集${title ? ` — ${title}` : ''}`} actions={headerActions} />
       <div className="px-8 py-6">
-        <p className="mb-4 flex flex-wrap items-center gap-1.5 text-[11.5px] text-slate-400">
-          <Link to="/materials/edit-projects" className="text-blue-800 hover:underline">
+        <p className="mb-4 flex flex-wrap items-center gap-1.5 text-[11.5px] text-slate-400 dark:text-neutral-500">
+          <Link to="/materials/edit-projects" className="text-blue-800 hover:underline dark:text-blue-300">
             ← プロジェクト選択に戻る
           </Link>
           <span>／</span>
-          <Link to={`/projects/${projectId}/materials/edit`} className="text-blue-800 hover:underline">
+          <Link to={`/projects/${projectId}/materials/edit`} className="text-blue-800 hover:underline dark:text-blue-300">
             ← 教材一覧に戻る
           </Link>
           {savedId !== null && (
@@ -876,7 +876,7 @@ export default function MaterialEdit() {
           )}
         </p>
 
-        <div className="mb-5 flex gap-1 border-b border-slate-200" role="tablist">
+        <div className="mb-5 flex gap-1 border-b border-slate-200 dark:border-neutral-800" role="tablist">
           {TABS.map((tab) => (
             <button
               key={tab.key}
@@ -886,8 +886,8 @@ export default function MaterialEdit() {
               onClick={() => setActiveTab(tab.key)}
               className={`-mb-px border-b-2 px-3 py-2 text-sm font-semibold ${
                 activeTab === tab.key
-                  ? 'border-blue-800 text-blue-900'
-                  : 'border-transparent text-slate-500 hover:text-slate-800'
+                  ? 'border-blue-800 text-blue-900 dark:border-blue-500 dark:text-blue-300'
+                  : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-neutral-400 dark:hover:text-neutral-100'
               }`}
             >
               {tab.label}
@@ -896,23 +896,23 @@ export default function MaterialEdit() {
         </div>
 
         {editingOthers.length > 0 && (
-          <p className="mb-4 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500">
+          <p className="mb-4 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400">
             {editingOthers.map((o) => `${o.name}さんが編集中です（最終確認: ${o.seconds_ago}秒前）`).join('、')}
           </p>
         )}
 
         {changedSinceLoad && (
-          <p className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          <p className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
             他のユーザーがこの教材を更新しました。このまま保存すると競合エラーになる場合があります。
             早めに保存するか、一度画面を再読み込みしてください。
           </p>
         )}
 
         {error && (
-          <p className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+          <p className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200">{error}</p>
         )}
         {attachmentWarning && (
-          <p className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          <p className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
             {attachmentWarning}
           </p>
         )}
@@ -921,12 +921,12 @@ export default function MaterialEdit() {
         {activeTab === 'structure' && (
         <>
         {dirty && (
-          <p className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          <p className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
             保存していない変更があります。
           </p>
         )}
         <div className="mb-4 flex max-w-xl flex-col gap-1">
-          <label htmlFor="m-title" className="text-xs font-semibold text-slate-500">
+          <label htmlFor="m-title" className="text-xs font-semibold text-slate-500 dark:text-neutral-300">
             教材タイトル
           </label>
           <TextInput
@@ -942,13 +942,13 @@ export default function MaterialEdit() {
 
         <div className="mb-5 flex max-w-xl gap-4">
           <div className="flex flex-1 flex-col gap-1">
-            <label className="text-xs font-semibold text-slate-500">プロジェクト</label>
-            <div className="flex h-9 items-center rounded-md border border-slate-200 bg-slate-50 px-3 text-sm text-slate-600">
+            <label className="text-xs font-semibold text-slate-500 dark:text-neutral-300">プロジェクト</label>
+            <div className="flex h-9 items-center rounded-md border border-slate-200 bg-slate-50 px-3 text-sm text-slate-600 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300">
               {project?.name ?? '—'}
             </div>
           </div>
           <div className="flex flex-1 flex-col gap-1">
-            <label htmlFor="m-tags" className="text-xs font-semibold text-slate-500">
+            <label htmlFor="m-tags" className="text-xs font-semibold text-slate-500 dark:text-neutral-300">
               タグ（任意）
             </label>
             <TagInput
@@ -963,7 +963,7 @@ export default function MaterialEdit() {
         </div>
 
         <div className="mb-5 flex max-w-xl flex-col gap-1">
-          <label htmlFor="m-description" className="text-xs font-semibold text-slate-500">
+          <label htmlFor="m-description" className="text-xs font-semibold text-slate-500 dark:text-neutral-300">
             概要（一覧表示用、任意）
           </label>
           <TextArea
@@ -978,13 +978,13 @@ export default function MaterialEdit() {
           />
         </div>
 
-        <section className="mb-5 max-w-xl rounded-md border border-slate-200">
-          <div className="border-b border-slate-200 px-4 py-2.5">
-            <span className="text-sm font-semibold text-slate-700">合否判定・再受験設定</span>
+        <section className="mb-5 max-w-xl rounded-md border border-slate-200 dark:border-neutral-800">
+          <div className="border-b border-slate-200 px-4 py-2.5 dark:border-neutral-800">
+            <span className="text-sm font-semibold text-slate-700 dark:text-neutral-100">合否判定・再受験設定</span>
           </div>
           <div className="flex flex-wrap gap-4 p-4">
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-semibold text-slate-500">受験単位</label>
+              <label className="text-xs font-semibold text-slate-500 dark:text-neutral-300">受験単位</label>
               <Select
                 value={attemptScope}
                 onChange={(v) => {
@@ -1001,7 +1001,7 @@ export default function MaterialEdit() {
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-semibold text-slate-500">再受験範囲</label>
+              <label className="text-xs font-semibold text-slate-500 dark:text-neutral-300">再受験範囲</label>
               <Select
                 value={retakeScope}
                 onChange={(v) => {
@@ -1016,7 +1016,7 @@ export default function MaterialEdit() {
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-semibold text-slate-500">合格基準</label>
+              <label className="text-xs font-semibold text-slate-500 dark:text-neutral-300">合格基準</label>
               <Select
                 value={passScorePct.trim() ? 'set' : 'none'}
                 onChange={(v) => {
@@ -1032,7 +1032,7 @@ export default function MaterialEdit() {
             </div>
             {passScorePct.trim() && (
               <div className="flex flex-col gap-1">
-                <label className="text-xs font-semibold text-slate-500">合格基準スコア</label>
+                <label className="text-xs font-semibold text-slate-500 dark:text-neutral-300">合格基準スコア</label>
                 <div className="flex items-center gap-1.5">
                   <TextInput
                     type="number"
@@ -1045,12 +1045,12 @@ export default function MaterialEdit() {
                     }}
                     className="w-20"
                   />
-                  <span className="text-xs text-slate-500">% 以上で合格</span>
+                  <span className="text-xs text-slate-500 dark:text-neutral-400">% 以上で合格</span>
                 </div>
               </div>
             )}
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-semibold text-slate-500">再受験</label>
+              <label className="text-xs font-semibold text-slate-500 dark:text-neutral-300">再受験</label>
               <Select
                 value={retakeAllowed ? 'allow' : 'deny'}
                 onChange={(v) => {
@@ -1066,7 +1066,7 @@ export default function MaterialEdit() {
             </div>
             {retakeAllowed && (
               <div className="flex flex-col gap-1">
-                <label className="text-xs font-semibold text-slate-500">再受験回数上限</label>
+                <label className="text-xs font-semibold text-slate-500 dark:text-neutral-300">再受験回数上限</label>
                 <div className="flex items-center gap-1.5">
                   <TextInput
                     type="number"
@@ -1087,7 +1087,7 @@ export default function MaterialEdit() {
                         markDirty()
                         setRetakeLimit('')
                       }}
-                      className="text-xs text-blue-700 hover:underline"
+                      className="text-xs text-blue-700 hover:underline dark:text-blue-300"
                     >
                       無制限に戻す
                     </button>
@@ -1098,14 +1098,14 @@ export default function MaterialEdit() {
           </div>
         </section>
 
-        <section className="mb-5 max-w-xl rounded-md border border-slate-200">
-          <div className="border-b border-slate-200 px-4 py-2.5">
-            <span className="text-sm font-semibold text-slate-700">AI採点・AIアシスト設定</span>
+        <section className="mb-5 max-w-xl rounded-md border border-slate-200 dark:border-neutral-800">
+          <div className="border-b border-slate-200 px-4 py-2.5 dark:border-neutral-800">
+            <span className="text-sm font-semibold text-slate-700 dark:text-neutral-100">AI採点・AIアシスト設定</span>
           </div>
           <div className="flex flex-col gap-4 p-4">
             <div className="flex flex-wrap gap-4">
               <div className="flex flex-col gap-1">
-                <label className="text-xs font-semibold text-slate-500">採点方式の既定</label>
+                <label className="text-xs font-semibold text-slate-500 dark:text-neutral-300">採点方式の既定</label>
                 <Select
                   value={gradingMode}
                   onChange={(v) => {
@@ -1120,7 +1120,7 @@ export default function MaterialEdit() {
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-xs font-semibold text-slate-500">AI講評スタイルの既定</label>
+                <label className="text-xs font-semibold text-slate-500 dark:text-neutral-300">AI講評スタイルの既定</label>
                 <Select
                   value={defaultFeedbackStyle}
                   onChange={(v) => {
@@ -1137,7 +1137,7 @@ export default function MaterialEdit() {
               </div>
             </div>
             <div className="flex flex-col gap-1">
-              <label htmlFor="m-ai-context" className="text-xs font-semibold text-slate-500">
+              <label htmlFor="m-ai-context" className="text-xs font-semibold text-slate-500 dark:text-neutral-300">
                 AI採点・AIアシストへの指示（任意）
               </label>
               <TextArea
@@ -1155,21 +1155,21 @@ export default function MaterialEdit() {
           </div>
         </section>
 
-        <section className="mb-5 max-w-xl rounded-md border border-slate-200">
-          <div className="border-b border-slate-200 px-4 py-2.5">
-            <span className="text-sm font-semibold text-slate-700">受講後アンケート（教材全体）</span>
+        <section className="mb-5 max-w-xl rounded-md border border-slate-200 dark:border-neutral-800">
+          <div className="border-b border-slate-200 px-4 py-2.5 dark:border-neutral-800">
+            <span className="text-sm font-semibold text-slate-700 dark:text-neutral-100">受講後アンケート（教材全体）</span>
           </div>
           <div className="flex items-center justify-between gap-3 p-4">
             {savedId === null ? (
-              <span className="text-sm text-slate-400">
+              <span className="text-sm text-slate-400 dark:text-neutral-500">
                 先に「下書き保存」を行うとアンケートを設置できます
               </span>
             ) : surveyFor(null) ? (
-              <span className="text-sm text-slate-600">
+              <span className="text-sm text-slate-600 dark:text-neutral-300">
                 「{surveyFor(null)!.title}」を設置中{surveyFor(null)!.is_active ? '' : '（現在OFF）'}
               </span>
             ) : (
-              <span className="text-sm text-slate-400">まだ設置されていません</span>
+              <span className="text-sm text-slate-400 dark:text-neutral-500">まだ設置されていません</span>
             )}
             {savedId !== null && (
               <Button
@@ -1184,22 +1184,22 @@ export default function MaterialEdit() {
 
         {archiveModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-            <div className="w-full max-w-md rounded-md bg-white p-5 shadow-lg">
+            <div className="w-full max-w-md rounded-md bg-white p-5 shadow-lg dark:bg-neutral-800">
               <div className="mb-3 flex items-center justify-between">
-                <span className="text-base font-semibold text-slate-800">教材をアーカイブしますか？</span>
+                <span className="text-base font-semibold text-slate-800 dark:text-neutral-100">教材をアーカイブしますか？</span>
                 <button
                   type="button"
                   onClick={() => setArchiveModalOpen(false)}
-                  className="text-slate-400 hover:text-slate-600"
+                  className="text-slate-400 hover:text-slate-600 dark:text-neutral-500 dark:hover:text-neutral-300"
                 >
                   ×
                 </button>
               </div>
-              <p className="mb-3 text-sm leading-relaxed text-slate-600">
+              <p className="mb-3 text-sm leading-relaxed text-slate-600 dark:text-neutral-300">
                 「{title}」を教材一覧・検索から非表示にします。目次・ページ・設問・添付ファイルは削除されず、受験記録やアンケート回答がある場合もそのまま保持されます。一覧の「状態」絞り込みで「アーカイブ済み」を選ぶといつでも一覧に戻して復元できます。
               </p>
               {material?.status === 'published' && (
-                <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs leading-relaxed text-red-800">
+                <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs leading-relaxed text-red-800 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200">
                   公開中の教材をアーカイブすると、受講者からもこの教材が見えなくなります。
                 </div>
               )}
@@ -1217,18 +1217,18 @@ export default function MaterialEdit() {
 
         {deleteModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-            <div className="w-full max-w-md rounded-md bg-white p-5 shadow-lg">
+            <div className="w-full max-w-md rounded-md bg-white p-5 shadow-lg dark:bg-neutral-800">
               <div className="mb-3 flex items-center justify-between">
-                <span className="text-base font-semibold text-slate-800">教材を削除しますか？</span>
+                <span className="text-base font-semibold text-slate-800 dark:text-neutral-100">教材を削除しますか？</span>
                 <button
                   type="button"
                   onClick={() => setDeleteModalOpen(false)}
-                  className="text-slate-400 hover:text-slate-600"
+                  className="text-slate-400 hover:text-slate-600 dark:text-neutral-500 dark:hover:text-neutral-300"
                 >
                   ×
                 </button>
               </div>
-              <p className="mb-3 text-sm leading-relaxed text-slate-600">
+              <p className="mb-3 text-sm leading-relaxed text-slate-600 dark:text-neutral-300">
                 「{title}」を完全に削除します。目次・ページ・設問・添付ファイルもすべて削除され、<strong>元に戻せません</strong>。不要になった下書きを完全に消したい場合のみお使いください（公開後の教材は削除できず、アーカイブのみ利用できます）。
               </p>
               <div className="flex justify-end gap-2">
@@ -1243,16 +1243,16 @@ export default function MaterialEdit() {
           </div>
         )}
 
-        <section className="rounded-md border border-slate-200">
-          <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2.5">
-            <span className="text-sm font-semibold text-slate-700">目次構造</span>
-            <span className="text-xs text-slate-400">
+        <section className="rounded-md border border-slate-200 dark:border-neutral-800">
+          <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2.5 dark:border-neutral-800">
+            <span className="text-sm font-semibold text-slate-700 dark:text-neutral-100">目次構造</span>
+            <span className="text-xs text-slate-400 dark:text-neutral-500">
               {chapters.length}章（変更は上の「{saveButtonLabel}」を押すまで確定しません）
             </span>
           </div>
           <div className="p-4">
             {chapters.length === 0 && (
-              <p className="mb-3 rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400">
+              <p className="mb-3 rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-500">
                 まだ章がありません。「+ 見出しを追加」から始めてください。
               </p>
             )}
@@ -1261,32 +1261,32 @@ export default function MaterialEdit() {
               return (
                 <div
                   key={chapter.id ?? `new-${ci}`}
-                  className={`mb-3 rounded-md border border-l-[3px] border-slate-200 ${chapterAccentClass(ci)}`}
+                  className={`mb-3 rounded-md border border-l-[3px] border-slate-200 dark:border-neutral-800 ${chapterAccentClass(ci)}`}
                 >
-                  <div className="flex items-center gap-2 rounded-t-md bg-slate-50 px-3 py-2">
+                  <div className="flex items-center gap-2 rounded-t-md bg-slate-50 px-3 py-2 dark:bg-neutral-900">
                     <button
                       type="button"
                       onClick={() => toggleChapterCollapsed(ci)}
                       title={collapsed ? '展開' : '折りたたむ'}
-                      className="flex-shrink-0 rounded p-1 text-slate-400 hover:bg-slate-200"
+                      className="flex-shrink-0 rounded p-1 text-slate-400 hover:bg-slate-200 dark:text-neutral-500 dark:hover:bg-neutral-700"
                     >
                       {collapsed ? '▶' : '▼'}
                     </button>
-                    <span className="flex-shrink-0 text-xs font-bold text-blue-800">第{ci + 1}章</span>
+                    <span className="flex-shrink-0 text-xs font-bold text-blue-800 dark:text-blue-300">第{ci + 1}章</span>
                     <TextInput
                       value={chapter.title}
                       onChange={(e) => renameChapter(ci, e.target.value)}
                       className="flex-1"
                     />
                     {collapsed && (
-                      <span className="flex-shrink-0 text-xs text-slate-400">{countPages(chapter.children)}ページ</span>
+                      <span className="flex-shrink-0 text-xs text-slate-400 dark:text-neutral-500">{countPages(chapter.children)}ページ</span>
                     )}
                     <button
                       type="button"
                       onClick={() => moveChapter(ci, -1)}
                       disabled={ci === 0 || inlineEditorOpen}
                       title="上へ"
-                      className="rounded p-1 text-slate-400 hover:bg-slate-200 disabled:opacity-30"
+                      className="rounded p-1 text-slate-400 hover:bg-slate-200 disabled:opacity-30 dark:text-neutral-500 dark:hover:bg-neutral-700"
                     >
                       ↑
                     </button>
@@ -1295,7 +1295,7 @@ export default function MaterialEdit() {
                         onClick={() => moveChapter(ci, 1)}
                         disabled={ci === chapters.length - 1 || inlineEditorOpen}
                         title="下へ"
-                        className="rounded p-1 text-slate-400 hover:bg-slate-200 disabled:opacity-30"
+                        className="rounded p-1 text-slate-400 hover:bg-slate-200 disabled:opacity-30 dark:text-neutral-500 dark:hover:bg-neutral-700"
                       >
                         ↓
                       </button>
@@ -1305,7 +1305,7 @@ export default function MaterialEdit() {
                           onClick={() => setSurveyModal({ nodeId: chapter.id, targetLabel: chapter.title || `第${ci + 1}章` })}
                           disabled={dirty}
                           title={dirty ? `保存していない変更があります。先に「${saveButtonLabel}」を押してください` : undefined}
-                          className="flex-shrink-0 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white"
+                          className="flex-shrink-0 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 dark:hover:bg-neutral-700 dark:disabled:hover:bg-neutral-800"
                         >
                           {surveyFor(chapter.id) ? 'アンケート編集' : 'アンケート設置'}
                         </button>
@@ -1324,7 +1324,7 @@ export default function MaterialEdit() {
                           <button
                             type="button"
                             onClick={() => setPendingDelete(null)}
-                            className="rounded border border-slate-300 px-2 py-1 text-slate-500 hover:bg-slate-100"
+                            className="rounded border border-slate-300 px-2 py-1 text-slate-500 hover:bg-slate-100 dark:border-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-700"
                           >
                             キャンセル
                           </button>
@@ -1335,7 +1335,7 @@ export default function MaterialEdit() {
                           onClick={() => setPendingDelete(`chapter:${ci}`)}
                           disabled={inlineEditorOpen}
                           title={inlineEditorOpen ? 'インライン編集中は並び替え・削除できません' : undefined}
-                          className="flex-shrink-0 rounded border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white"
+                          className="flex-shrink-0 rounded border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950/40 dark:disabled:hover:bg-transparent"
                         >
                           削除
                         </button>
@@ -1348,7 +1348,7 @@ export default function MaterialEdit() {
                         child.kind === 'page' ? (
                           <div key={child.id ?? `new-${si}`} className="mb-1.5">
                           <div
-                            className="ml-6 flex items-center gap-2 rounded-md border-l-2 border-slate-200 bg-slate-50 px-2.5 py-1.5"
+                            className="ml-6 flex items-center gap-2 rounded-md border-l-2 border-slate-200 bg-slate-50 px-2.5 py-1.5 dark:border-neutral-700 dark:bg-neutral-900/60"
                           >
                             <TextInput
                               value={child.title}
@@ -1356,13 +1356,13 @@ export default function MaterialEdit() {
                               placeholder="ページタイトルを入力"
                               className="flex-1"
                             />
-                            <span className="flex-shrink-0 text-xs text-slate-400">{pageKindLabel(child)}</span>
+                            <span className="flex-shrink-0 text-xs text-slate-400 dark:text-neutral-500">{pageKindLabel(child)}</span>
                             <button
                               type="button"
                               onClick={() => movePageInChapter(ci, si, -1)}
                               disabled={si === 0 || inlineEditorOpen}
                               title="上へ"
-                              className="rounded p-1 text-slate-400 hover:bg-slate-200 disabled:opacity-30"
+                              className="rounded p-1 text-slate-400 hover:bg-slate-200 disabled:opacity-30 dark:text-neutral-500 dark:hover:bg-neutral-700"
                             >
                               ↑
                             </button>
@@ -1371,7 +1371,7 @@ export default function MaterialEdit() {
                               onClick={() => movePageInChapter(ci, si, 1)}
                               disabled={si === chapter.children.length - 1 || inlineEditorOpen}
                               title="下へ"
-                              className="rounded p-1 text-slate-400 hover:bg-slate-200 disabled:opacity-30"
+                              className="rounded p-1 text-slate-400 hover:bg-slate-200 disabled:opacity-30 dark:text-neutral-500 dark:hover:bg-neutral-700"
                             >
                               ↓
                             </button>
@@ -1381,7 +1381,7 @@ export default function MaterialEdit() {
                                 onClick={() => goToEditPage(child.id!)}
                                 disabled={inlineEditorOpen}
                                 title={inlineEditorOpen ? 'インライン編集中は他のページを開けません' : '未保存の変更は自動で保存してから移動します'}
-                                className="flex-shrink-0 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white"
+                                className="flex-shrink-0 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 dark:hover:bg-neutral-700 dark:disabled:hover:bg-neutral-800"
                               >
                                 編集する
                               </button>
@@ -1391,7 +1391,7 @@ export default function MaterialEdit() {
                                 onClick={() => openExistingPageEditor(ci, null, si)}
                                 disabled={inlineEditorOpen && !(inlineTarget?.mode === 'edit' && inlineTarget.chapterIdx === ci && inlineTarget.sectionIdx === null && inlineTarget.childIdx === si)}
                                 title="この場で編集できます"
-                                className="flex-shrink-0 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white"
+                                className="flex-shrink-0 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 dark:hover:bg-neutral-700 dark:disabled:hover:bg-neutral-800"
                               >
                                 編集する
                               </button>
@@ -1410,7 +1410,7 @@ export default function MaterialEdit() {
                                 <button
                                   type="button"
                                   onClick={() => setPendingDelete(null)}
-                                  className="rounded border border-slate-300 px-2 py-1 text-slate-500 hover:bg-slate-100"
+                                  className="rounded border border-slate-300 px-2 py-1 text-slate-500 hover:bg-slate-100 dark:border-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-700"
                                 >
                                   キャンセル
                                 </button>
@@ -1420,7 +1420,7 @@ export default function MaterialEdit() {
                                 type="button"
                                 onClick={() => setPendingDelete(`section:${ci}:${si}`)}
                                 disabled={inlineEditorOpen}
-                                className="flex-shrink-0 rounded border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white"
+                                className="flex-shrink-0 rounded border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950/40 dark:disabled:hover:bg-transparent"
                               >
                                 削除
                               </button>
@@ -1444,14 +1444,14 @@ export default function MaterialEdit() {
                           </div>
                         ) : (
                           <div key={child.id ?? `new-${si}`} className="mb-1.5 ml-6">
-                            <div className="flex items-center gap-2 rounded-md border-l-2 border-slate-200 bg-slate-50 px-2.5 py-1.5">
+                            <div className="flex items-center gap-2 rounded-md border-l-2 border-slate-200 bg-slate-50 px-2.5 py-1.5 dark:border-neutral-700 dark:bg-neutral-900/60">
                               <TextInput
                                 value={child.title}
                                 onChange={(e) => renameSection(ci, si, e.target.value)}
                                 placeholder="小見出しのタイトルを入力"
                                 className="flex-1"
                               />
-                              <span className="flex-shrink-0 rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-600">
+                              <span className="flex-shrink-0 rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-300">
                                 小見出し
                               </span>
                               <button
@@ -1459,7 +1459,7 @@ export default function MaterialEdit() {
                                 onClick={() => moveSection(ci, si, -1)}
                                 disabled={si === 0 || inlineEditorOpen}
                                 title="上へ"
-                                className="rounded p-1 text-slate-400 hover:bg-slate-200 disabled:opacity-30"
+                                className="rounded p-1 text-slate-400 hover:bg-slate-200 disabled:opacity-30 dark:text-neutral-500 dark:hover:bg-neutral-700"
                               >
                                 ↑
                               </button>
@@ -1468,7 +1468,7 @@ export default function MaterialEdit() {
                                 onClick={() => moveSection(ci, si, 1)}
                                 disabled={si === chapter.children.length - 1 || inlineEditorOpen}
                                 title="下へ"
-                                className="rounded p-1 text-slate-400 hover:bg-slate-200 disabled:opacity-30"
+                                className="rounded p-1 text-slate-400 hover:bg-slate-200 disabled:opacity-30 dark:text-neutral-500 dark:hover:bg-neutral-700"
                               >
                                 ↓
                               </button>
@@ -1486,7 +1486,7 @@ export default function MaterialEdit() {
                                   <button
                                     type="button"
                                     onClick={() => setPendingDelete(null)}
-                                    className="rounded border border-slate-300 px-2 py-1 text-slate-500 hover:bg-slate-100"
+                                    className="rounded border border-slate-300 px-2 py-1 text-slate-500 hover:bg-slate-100 dark:border-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-700"
                                   >
                                     キャンセル
                                   </button>
@@ -1496,7 +1496,7 @@ export default function MaterialEdit() {
                                   type="button"
                                   onClick={() => setPendingDelete(`section:${ci}:${si}`)}
                                   disabled={inlineEditorOpen}
-                                  className="flex-shrink-0 rounded border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white"
+                                  className="flex-shrink-0 rounded border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950/40 dark:disabled:hover:bg-transparent"
                                 >
                                   削除
                                 </button>
@@ -1506,7 +1506,7 @@ export default function MaterialEdit() {
                               {child.children.map((page, pi) => (
                                 <div key={page.id ?? `new-${pi}`} className="mb-1.5">
                                 <div
-                                  className="ml-6 flex items-center gap-2 rounded-md border-l-2 border-slate-200 bg-white px-2.5 py-1.5"
+                                  className="ml-6 flex items-center gap-2 rounded-md border-l-2 border-slate-200 bg-white px-2.5 py-1.5 dark:border-neutral-700 dark:bg-neutral-900"
                                 >
                                   <TextInput
                                     value={page.title}
@@ -1514,13 +1514,13 @@ export default function MaterialEdit() {
                                     placeholder="ページタイトルを入力"
                                     className="flex-1"
                                   />
-                                  <span className="flex-shrink-0 text-xs text-slate-400">{pageKindLabel(page)}</span>
+                                  <span className="flex-shrink-0 text-xs text-slate-400 dark:text-neutral-500">{pageKindLabel(page)}</span>
                                   <button
                                     type="button"
                                     onClick={() => movePageInSection(ci, si, pi, -1)}
                                     disabled={pi === 0 || inlineEditorOpen}
                                     title="上へ"
-                                    className="rounded p-1 text-slate-400 hover:bg-slate-200 disabled:opacity-30"
+                                    className="rounded p-1 text-slate-400 hover:bg-slate-200 disabled:opacity-30 dark:text-neutral-500 dark:hover:bg-neutral-700"
                                   >
                                     ↑
                                   </button>
@@ -1529,7 +1529,7 @@ export default function MaterialEdit() {
                                     onClick={() => movePageInSection(ci, si, pi, 1)}
                                     disabled={pi === child.children.length - 1 || inlineEditorOpen}
                                     title="下へ"
-                                    className="rounded p-1 text-slate-400 hover:bg-slate-200 disabled:opacity-30"
+                                    className="rounded p-1 text-slate-400 hover:bg-slate-200 disabled:opacity-30 dark:text-neutral-500 dark:hover:bg-neutral-700"
                                   >
                                     ↓
                                   </button>
@@ -1539,7 +1539,7 @@ export default function MaterialEdit() {
                                       onClick={() => goToEditPage(page.id!)}
                                       disabled={inlineEditorOpen}
                                       title={inlineEditorOpen ? 'インライン編集中は他のページを開けません' : '未保存の変更は自動で保存してから移動します'}
-                                      className="flex-shrink-0 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white"
+                                      className="flex-shrink-0 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 dark:hover:bg-neutral-700 dark:disabled:hover:bg-neutral-800"
                                     >
                                       編集する
                                     </button>
@@ -1549,7 +1549,7 @@ export default function MaterialEdit() {
                                       onClick={() => openExistingPageEditor(ci, si, pi)}
                                       disabled={inlineEditorOpen && !(inlineTarget?.mode === 'edit' && inlineTarget.chapterIdx === ci && inlineTarget.sectionIdx === si && inlineTarget.childIdx === pi)}
                                       title="この場で編集できます"
-                                      className="flex-shrink-0 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white"
+                                      className="flex-shrink-0 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 dark:hover:bg-neutral-700 dark:disabled:hover:bg-neutral-800"
                                     >
                                       編集する
                                     </button>
@@ -1568,7 +1568,7 @@ export default function MaterialEdit() {
                                       <button
                                         type="button"
                                         onClick={() => setPendingDelete(null)}
-                                        className="rounded border border-slate-300 px-2 py-1 text-slate-500 hover:bg-slate-100"
+                                        className="rounded border border-slate-300 px-2 py-1 text-slate-500 hover:bg-slate-100 dark:border-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-700"
                                       >
                                         キャンセル
                                       </button>
@@ -1578,7 +1578,7 @@ export default function MaterialEdit() {
                                       type="button"
                                       onClick={() => setPendingDelete(`page-in-section:${ci}:${si}:${pi}`)}
                                       disabled={inlineEditorOpen}
-                                      className="flex-shrink-0 rounded border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white"
+                                      className="flex-shrink-0 rounded border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950/40 dark:disabled:hover:bg-transparent"
                                     >
                                       削除
                                     </button>
@@ -1606,7 +1606,7 @@ export default function MaterialEdit() {
                                 onClick={() => openNewPageEditor(ci, si)}
                                 disabled={inlineEditorOpen}
                                 title="この場でページの内容を入力できます"
-                                className="ml-6 rounded-md border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white"
+                                className="ml-6 rounded-md border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:disabled:hover:bg-transparent"
                               >
                                 + ページを追加
                               </button>
@@ -1629,7 +1629,7 @@ export default function MaterialEdit() {
                           type="button"
                           onClick={() => addSection(ci)}
                           disabled={inlineEditorOpen}
-                          className="rounded-md border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white"
+                          className="rounded-md border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:disabled:hover:bg-transparent"
                         >
                           + 小見出しを追加
                         </button>
@@ -1638,7 +1638,7 @@ export default function MaterialEdit() {
                           onClick={() => openNewPageEditor(ci, null)}
                           disabled={inlineEditorOpen}
                           title="この場でページの内容を入力できます"
-                          className="rounded-md border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white"
+                          className="rounded-md border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:disabled:hover:bg-transparent"
                         >
                           + ページを追加
                         </button>
@@ -1660,7 +1660,7 @@ export default function MaterialEdit() {
             <button
               type="button"
               onClick={addChapter}
-              className="mt-1 rounded-md border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-600 hover:bg-slate-100"
+              className="mt-1 rounded-md border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
             >
               + 見出しを追加（第{chapters.length + 1}章）
             </button>
@@ -1670,25 +1670,25 @@ export default function MaterialEdit() {
         )}
 
         {activeTab === 'questions' && (
-          <section className="rounded-md border border-slate-200">
-            <div className="border-b border-slate-200 px-4 py-2.5">
-              <span className="text-sm font-semibold text-slate-700">問題一覧</span>
+          <section className="rounded-md border border-slate-200 dark:border-neutral-800">
+            <div className="border-b border-slate-200 px-4 py-2.5 dark:border-neutral-800">
+              <span className="text-sm font-semibold text-slate-700 dark:text-neutral-100">問題一覧</span>
             </div>
             <div className="p-4">
-              <p className="mb-3 text-xs text-slate-400">
+              <p className="mb-3 text-xs text-slate-400 dark:text-neutral-500">
                 この教材に含まれる全ページの設問を一覧表示します。手動採点で採点待ちが多い設問、正答率が低い設問ほど上に並びます。「詳細を見る」で回答の傾向を確認できます。
               </p>
-              {questionsSummaryLoading && <p className="text-sm text-slate-400">読み込み中...</p>}
+              {questionsSummaryLoading && <p className="text-sm text-slate-400 dark:text-neutral-500">読み込み中...</p>}
               {!questionsSummaryLoading && questionSummaryItems.length === 0 && (
-                <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400">
+                <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-500">
                   まだ設問がありません。
                 </p>
               )}
               {!questionsSummaryLoading && questionSummaryItems.length > 0 && (
-                <div className="overflow-x-auto rounded-md border border-slate-200">
+                <div className="overflow-x-auto rounded-md border border-slate-200 dark:border-neutral-800">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs text-slate-500">
+                      <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs text-slate-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300">
                         <th className="px-3 py-2 font-semibold">ページ</th>
                         <th className="w-24 px-3 py-2 font-semibold">種別</th>
                         <th className="w-28 px-3 py-2 font-semibold">採点方式</th>
@@ -1699,32 +1699,32 @@ export default function MaterialEdit() {
                     </thead>
                     <tbody>
                       {questionSummaryItems.map((item) => (
-                        <tr key={item.question_id} className="border-b border-slate-100 align-top last:border-0">
-                          <td className="px-3 py-2 text-slate-600">{item.node_path}</td>
-                          <td className="px-3 py-2 text-slate-500">{questionTypeLabel(item.type)}</td>
-                          <td className="px-3 py-2 text-slate-500">
+                        <tr key={item.question_id} className="border-b border-slate-100 align-top last:border-0 dark:border-neutral-800">
+                          <td className="px-3 py-2 text-slate-600 dark:text-neutral-300">{item.node_path}</td>
+                          <td className="px-3 py-2 text-slate-500 dark:text-neutral-300">{questionTypeLabel(item.type)}</td>
+                          <td className="px-3 py-2 text-slate-500 dark:text-neutral-300">
                             {item.grading_mode === 'manual' ? '手動採点' : item.grading_mode === 'ai' ? 'AI自動採点' : '—'}
                           </td>
                           <td className="px-3 py-2">
                             {item.total_answers === 0 ? (
-                              <span className="text-xs text-slate-400">回答なし</span>
+                              <span className="text-xs text-slate-400 dark:text-neutral-500">回答なし</span>
                             ) : item.grading_mode === 'manual' && item.pending_count > 0 ? (
-                              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
                                 採点待ち{item.pending_count}件
                               </span>
                             ) : item.accuracy_pct !== null ? (
-                              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800">
+                              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200">
                                 正答率{item.accuracy_pct}%
                               </span>
                             ) : (
-                              <span className="text-xs text-slate-400">—</span>
+                              <span className="text-xs text-slate-400 dark:text-neutral-500">—</span>
                             )}
                           </td>
-                          <td className="px-3 py-2 text-slate-700">{item.prompt}</td>
+                          <td className="px-3 py-2 text-slate-700 dark:text-neutral-200">{item.prompt}</td>
                           <td className="px-3 py-2">
                             <Link
                               to={`/materials/${savedId}/questions/${item.question_id}/answers`}
-                              className="rounded-md border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                              className="rounded-md border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
                             >
                               詳細を見る
                             </Link>
@@ -1741,9 +1741,9 @@ export default function MaterialEdit() {
 
         {activeTab === 'attach' && (
           <div className="flex flex-col gap-5">
-            <section className="rounded-md border border-slate-200">
-              <div className="border-b border-slate-200 px-4 py-2.5">
-                <span className="text-sm font-semibold text-slate-700">教材全体の添付ファイル・リンク</span>
+            <section className="rounded-md border border-slate-200 dark:border-neutral-800">
+              <div className="border-b border-slate-200 px-4 py-2.5 dark:border-neutral-800">
+                <span className="text-sm font-semibold text-slate-700 dark:text-neutral-100">教材全体の添付ファイル・リンク</span>
               </div>
               <div className="p-4">
                 {savedId === null && <TabGateMessage />}
@@ -1771,12 +1771,12 @@ export default function MaterialEdit() {
               </div>
             </section>
 
-            <section className="rounded-md border border-slate-200">
-              <div className="border-b border-slate-200 px-4 py-2.5">
-                <span className="text-sm font-semibold text-slate-700">各ページの添付ファイル・リンク（参照専用）</span>
+            <section className="rounded-md border border-slate-200 dark:border-neutral-800">
+              <div className="border-b border-slate-200 px-4 py-2.5 dark:border-neutral-800">
+                <span className="text-sm font-semibold text-slate-700 dark:text-neutral-100">各ページの添付ファイル・リンク（参照専用）</span>
               </div>
               <div className="p-4">
-                <p className="mb-3 text-xs text-slate-400">
+                <p className="mb-3 text-xs text-slate-400 dark:text-neutral-500">
                   ページごとの添付です。追加・削除はページ編集（S-17）から行います。
                 </p>
                 {savedId === null && <TabGateMessage />}
@@ -1793,21 +1793,21 @@ export default function MaterialEdit() {
         )}
 
         {activeTab === 'members' && (
-          <section className="rounded-md border border-slate-200">
-            <div className="border-b border-slate-200 px-4 py-2.5">
-              <span className="text-sm font-semibold text-slate-700">プロジェクトメンバー</span>
+          <section className="rounded-md border border-slate-200 dark:border-neutral-800">
+            <div className="border-b border-slate-200 px-4 py-2.5 dark:border-neutral-800">
+              <span className="text-sm font-semibold text-slate-700 dark:text-neutral-100">プロジェクトメンバー</span>
             </div>
             <div className="p-4">
-              <p className="mb-3 text-xs text-slate-400">
+              <p className="mb-3 text-xs text-slate-400 dark:text-neutral-500">
                 このタブは参照専用です。メンバーの追加・削除・ロール変更はプロジェクト管理画面（S-12）で行います。
               </p>
               {savedId === null && <TabGateMessage />}
-              {savedId !== null && membershipsLoading && <p className="text-sm text-slate-400">読み込み中...</p>}
+              {savedId !== null && membershipsLoading && <p className="text-sm text-slate-400 dark:text-neutral-500">読み込み中...</p>}
               {savedId !== null && !membershipsLoading && (
-                <div className="overflow-x-auto rounded-md border border-slate-200">
+                <div className="overflow-x-auto rounded-md border border-slate-200 dark:border-neutral-800">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs text-slate-500">
+                      <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs text-slate-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300">
                         <th className="px-3 py-2 font-semibold">氏名</th>
                         <th className="w-28 px-3 py-2 font-semibold">全社ロール</th>
                         <th className="w-32 px-3 py-2 font-semibold">プロジェクトロール</th>
@@ -1816,11 +1816,11 @@ export default function MaterialEdit() {
                     </thead>
                     <tbody>
                       {memberships.map((m) => (
-                        <tr key={m.id} className="border-b border-slate-100 last:border-0">
+                        <tr key={m.id} className="border-b border-slate-100 last:border-0 dark:border-neutral-800">
                           <td className="px-3 py-2">{m.user_name}</td>
-                          <td className="px-3 py-2 text-slate-500">{m.global_role}</td>
-                          <td className="px-3 py-2 text-slate-500">{m.role}</td>
-                          <td className="px-3 py-2 text-slate-500">{m.joined_at ? formatDateJst(m.joined_at) : '—'}</td>
+                          <td className="px-3 py-2 text-slate-500 dark:text-neutral-300">{m.global_role}</td>
+                          <td className="px-3 py-2 text-slate-500 dark:text-neutral-300">{m.role}</td>
+                          <td className="px-3 py-2 text-slate-500 dark:text-neutral-300">{m.joined_at ? formatDateJst(m.joined_at) : '—'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -1832,9 +1832,9 @@ export default function MaterialEdit() {
         )}
 
         {activeTab === 'review' && (
-          <section className="rounded-md border border-slate-200">
-            <div className="border-b border-slate-200 px-4 py-2.5">
-              <span className="text-sm font-semibold text-slate-700">AIレビュー結果</span>
+          <section className="rounded-md border border-slate-200 dark:border-neutral-800">
+            <div className="border-b border-slate-200 px-4 py-2.5 dark:border-neutral-800">
+              <span className="text-sm font-semibold text-slate-700 dark:text-neutral-100">AIレビュー結果</span>
             </div>
             <div className="p-4">
               {savedId === null ? (
@@ -1846,7 +1846,7 @@ export default function MaterialEdit() {
                       {runningAiReview ? '実行中…' : 'AIレビューを実行'}
                     </Button>
                     {aiReview && !runningAiReview && (
-                      <span className="text-xs text-slate-500">
+                      <span className="text-xs text-slate-500 dark:text-neutral-400">
                         最終実行: {formatDateTimeJst(aiReview.created_at)}（{aiReview.requested_by_name}）
                       </span>
                     )}
@@ -1854,27 +1854,27 @@ export default function MaterialEdit() {
                       <button
                         type="button"
                         onClick={() => setAiReviewHistoryOpen((v) => !v)}
-                        className="text-xs font-semibold text-slate-500 hover:underline"
+                        className="text-xs font-semibold text-slate-500 hover:underline dark:text-neutral-400"
                       >
                         {aiReviewHistoryOpen ? '過去の実行結果を閉じる' : '過去の実行結果を見る'}
                       </button>
                     )}
                   </div>
                   {aiReviewHistoryOpen && (
-                    <div className="mt-3 border-t border-slate-100 pt-3">
+                    <div className="mt-3 border-t border-slate-100 pt-3 dark:border-neutral-800">
                       {aiReviewHistoryLoading ? (
-                        <p className="text-xs text-slate-400">読み込み中...</p>
+                        <p className="text-xs text-slate-400 dark:text-neutral-500">読み込み中...</p>
                       ) : aiReviewHistory.length <= 1 ? (
-                        <p className="text-xs text-slate-400">過去の実行はまだありません。</p>
+                        <p className="text-xs text-slate-400 dark:text-neutral-500">過去の実行はまだありません。</p>
                       ) : (
                         <ul className="flex flex-col gap-2">
                           {aiReviewHistory.slice(1).map((h) => (
-                            <li key={h.id} className="rounded-md border border-slate-100 p-2.5 text-xs">
-                              <div className="mb-1 text-slate-400">
+                            <li key={h.id} className="rounded-md border border-slate-100 p-2.5 text-xs dark:border-neutral-800">
+                              <div className="mb-1 text-slate-400 dark:text-neutral-500">
                                 {formatDateTimeJst(h.created_at)}（{h.requested_by_name}）／ 指摘{h.findings.length}件
                               </div>
                               {h.findings.length > 0 && (
-                                <ul className="list-inside list-disc text-slate-600">
+                                <ul className="list-inside list-disc text-slate-600 dark:text-neutral-300">
                                   {h.findings.map((f, i) => (
                                     <li key={i}>
                                       {f.location ? `【${f.location}】` : ''}
@@ -1890,38 +1890,38 @@ export default function MaterialEdit() {
                     </div>
                   )}
                   {aiReviewRunError && (
-                    <p className="mt-3 text-sm text-red-600">{aiReviewRunError}</p>
+                    <p className="mt-3 text-sm text-red-600 dark:text-red-400">{aiReviewRunError}</p>
                   )}
                   {aiReviewLoading && !aiReview && (
-                    <p className="mt-3 text-sm text-slate-400">読み込み中…</p>
+                    <p className="mt-3 text-sm text-slate-400 dark:text-neutral-500">読み込み中…</p>
                   )}
                   {!aiReviewLoading && !runningAiReview && !aiReview && !aiReviewRunError && (
-                    <p className="mt-3 rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400">
+                    <p className="mt-3 rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-500">
                       まだAIレビューを実行していません。
                     </p>
                   )}
                   {aiReview && (
                     <div className="mt-3 space-y-2">
                       {aiReview.findings.length === 0 && (
-                        <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400">
+                        <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-500">
                           指摘事項はありませんでした。
                         </p>
                       )}
                       {aiReview.findings.map((f, i) => (
-                        <div key={i} className="flex items-start gap-3 rounded-md border border-slate-200 p-3">
+                        <div key={i} className="flex items-start gap-3 rounded-md border border-slate-200 p-3 dark:border-neutral-800">
                           <Badge variant={f.severity === 'warning' ? 'ai-warning' : 'ai-info'} />
                           <div>
-                            <div className="text-[12.5px] font-semibold text-slate-700">
+                            <div className="text-[12.5px] font-semibold text-slate-700 dark:text-neutral-200">
                               {f.location ? `【${f.location}】` : ''}
                               {f.issue}
                             </div>
                             {f.suggestion && (
-                              <div className="mt-0.5 text-xs text-slate-500">{f.suggestion}</div>
+                              <div className="mt-0.5 text-xs text-slate-500 dark:text-neutral-400">{f.suggestion}</div>
                             )}
                           </div>
                         </div>
                       ))}
-                      <p className="text-xs text-slate-400">
+                      <p className="text-xs text-slate-400 dark:text-neutral-500">
                         ※ AIレビューの指摘に従うかどうかは、教材が紐づくプロジェクトの編集者・管理者の判断に委ねられます。この結果は教材の品質を保証するものではありません。
                       </p>
                     </div>
@@ -1933,22 +1933,22 @@ export default function MaterialEdit() {
         )}
 
         {activeTab === 'history' && (
-          <section className="rounded-md border border-slate-200">
-            <div className="border-b border-slate-200 px-4 py-2.5">
-              <span className="text-sm font-semibold text-slate-700">改訂履歴</span>
+          <section className="rounded-md border border-slate-200 dark:border-neutral-800">
+            <div className="border-b border-slate-200 px-4 py-2.5 dark:border-neutral-800">
+              <span className="text-sm font-semibold text-slate-700 dark:text-neutral-100">改訂履歴</span>
             </div>
             <div className="p-4">
               {savedId === null && <TabGateMessage />}
-              {savedId !== null && revisionsLoading && <p className="text-sm text-slate-400">読み込み中...</p>}
+              {savedId !== null && revisionsLoading && <p className="text-sm text-slate-400 dark:text-neutral-500">読み込み中...</p>}
               {savedId !== null && !revisionsLoading && revisions.length === 0 && (
-                <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400">
+                <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-500">
                   まだ改訂履歴がありません。
                 </p>
               )}
               {savedId !== null && revisions.length > 0 && (
                 <>
                   <div className="mb-3 flex flex-col gap-1">
-                    <label className="text-xs font-semibold text-slate-500">対象年月</label>
+                    <label className="text-xs font-semibold text-slate-500 dark:text-neutral-300">対象年月</label>
                     <div className="flex gap-2">
                       <Select
                         value={historyYear}
@@ -1973,14 +1973,14 @@ export default function MaterialEdit() {
                   </div>
 
                   {filteredRevisions.length === 0 ? (
-                    <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400">
+                    <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-500">
                       対象年月に一致する改訂履歴がありません。
                     </p>
                   ) : (
-                    <div className="overflow-x-auto rounded-md border border-slate-200">
+                    <div className="overflow-x-auto rounded-md border border-slate-200 dark:border-neutral-800">
                       <table className="w-full text-sm">
                         <thead>
-                          <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs text-slate-500">
+                          <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs text-slate-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300">
                             <th className="w-40 px-3 py-2 font-semibold">日時</th>
                             <th className="w-28 px-3 py-2 font-semibold">変更者</th>
                             <th className="px-3 py-2 font-semibold">変更内容</th>
@@ -1989,11 +1989,11 @@ export default function MaterialEdit() {
                         </thead>
                         <tbody>
                           {filteredRevisions.map((r) => (
-                            <tr key={r.id} className="border-b border-slate-100 last:border-0">
-                              <td className="px-3 py-2 text-slate-500">{formatDateTimeJst(r.created_at)}</td>
+                            <tr key={r.id} className="border-b border-slate-100 last:border-0 dark:border-neutral-800">
+                              <td className="px-3 py-2 text-slate-500 dark:text-neutral-300">{formatDateTimeJst(r.created_at)}</td>
                               <td className="px-3 py-2">{r.changed_by_name}</td>
                               <td className="px-3 py-2">{r.change_summary}</td>
-                              <td className="px-3 py-2 text-slate-500">
+                              <td className="px-3 py-2 text-slate-500 dark:text-neutral-300">
                                 {r.changed_via === 'web' ? '画面' : r.changed_via === 'mcp' ? 'MCP' : 'Claude Code'}
                               </td>
                             </tr>
@@ -2040,18 +2040,18 @@ export default function MaterialEdit() {
 
       {publishModalOpen && assignmentTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-lg rounded-md bg-white p-5 shadow-lg">
+          <div className="w-full max-w-lg rounded-md bg-white p-5 shadow-lg dark:bg-neutral-800">
             <div className="mb-3 flex items-center justify-between">
-              <span className="text-base font-semibold text-slate-800">公開前に配信設定を確認してください</span>
+              <span className="text-base font-semibold text-slate-800 dark:text-neutral-100">公開前に配信設定を確認してください</span>
               <button
                 type="button"
                 onClick={() => setPublishModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600"
+                className="text-slate-400 hover:text-slate-600 dark:text-neutral-500 dark:hover:text-neutral-300"
               >
                 ×
               </button>
             </div>
-            <p className="mb-3 text-sm leading-relaxed text-slate-600">
+            <p className="mb-3 text-sm leading-relaxed text-slate-600 dark:text-neutral-300">
               「{title}」を公開する前に、配信設定（必修にするかどうか）を確認してください。
             </p>
             <AssignmentEditPanel
@@ -2073,7 +2073,7 @@ export default function MaterialEdit() {
 
 function TabGateMessage() {
   return (
-    <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400">
+    <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-500">
       先に「下書き保存」してください。教材を保存すると利用できます。
     </p>
   )
