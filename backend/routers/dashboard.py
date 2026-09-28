@@ -26,16 +26,19 @@ def _parse_scope(scope: str) -> tuple[str, int | None]:
     raise HTTPException(422, detail="scopeが不正です")
 
 
-async def require_dashboard_scope(scope_type: str, scope_id: int | None, user: CurrentUser) -> None:
+async def require_dashboard_scope(scope_id: int | None, user: CurrentUser) -> None:
     """S-08の閲覧権限（基本設計書4.10節）: 対象プロジェクトの管理者またはシステムadmin
-    （S-12と同じ_require_project_adminをそのまま使う。editorは対象外、2026-09-08ユーザー確認）。"""
+    （S-12と同じ_require_project_adminをそのまま使う。editorは対象外、2026-09-08ユーザー確認）。
+
+    「全社」スコープ廃止（2026-09-17、_parse_scope参照）以降scope_typeは常に'project'固定になり
+    引数として意味を持たなくなっていたため、2026-09-28に削除した。"""
     await _require_project_admin(scope_id, user)
     exists = await get_pool().fetchval("SELECT 1 FROM projects WHERE id = $1", scope_id)
     if not exists:
         raise HTTPException(404, detail="プロジェクトが見つかりません")
 
 
-async def _aggregate_dashboard_stats(scope_type: str, scope_id: int | None) -> dict:
+async def _aggregate_dashboard_stats(scope_id: int | None) -> dict:
     """A-45の集計本体。対象プロジェクトの現役メンバーを対象に集計する。個人名は一切含めない
     （F-23プロンプトにもそのまま渡せる粒度、基本設計書9.5節）。"""
     pool = get_pool()
@@ -126,9 +129,9 @@ async def _aggregate_dashboard_stats(scope_type: str, scope_id: int | None) -> d
 @router.get("")
 async def get_dashboard(scope: str, user: CurrentUser = Depends(require_auth)):
     """A-45: 受講状況ダッシュボードの集計（S-08）。"""
-    scope_type, scope_id = _parse_scope(scope)
-    await require_dashboard_scope(scope_type, scope_id, user)
-    return await _aggregate_dashboard_stats(scope_type, scope_id)
+    _, scope_id = _parse_scope(scope)
+    await require_dashboard_scope(scope_id, user)
+    return await _aggregate_dashboard_stats(scope_id)
 
 
 @router.get("/incomplete-users")
@@ -136,10 +139,10 @@ async def get_incomplete_users(scope: str, material_id: int | None = None, user:
     """A-46: 未受講者一覧（S-08）。個人名を返すのはこのAPIのみで、Slack等の外部送信には使わない
     （未受講者一覧はManabi画面上の表示のみ。個別の催促は運用で管理者が直接連絡する方針、S-12と同じ。
     2026-09-08、モックアップの行ごとSlackボタンは実装しない方針に変更した）。"""
-    scope_type, scope_id = _parse_scope(scope)
-    await require_dashboard_scope(scope_type, scope_id, user)
-    project_filter = "AND m.project_id = $1" if scope_type == "project" else ""
-    args: list = [scope_id] if scope_type == "project" else []
+    _, scope_id = _parse_scope(scope)
+    await require_dashboard_scope(scope_id, user)
+    project_filter = "AND m.project_id = $1"
+    args: list = [scope_id]
     if material_id is not None:
         args.append(material_id)
         material_filter = f"AND m.id = ${len(args)}"

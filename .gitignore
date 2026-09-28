@@ -2,8 +2,10 @@
 .venv/
 __pycache__/
 *.pyc
+.pytest_cache/
 backend/backend_out.log
 backend/backend_err.log
+backend/backend.log
 
 # ローカル開発時の添付ファイル保存先（storage.py。本番はSupabase Storageを使う）
 backend/uploads/

@@ -63,7 +63,7 @@ async def sweep_once() -> None:
         for r in org_report_rows:
             scope_label = "全社" if r["scope_type"] == "company" else f"project:{r['scope_id']}"
             asyncio.create_task(
-                run_ai_org_report_job(r["id"], r["scope_type"], r["scope_id"], scope_label, r["requested_by"])
+                run_ai_org_report_job(r["id"], r["scope_id"], scope_label, r["requested_by"])
             )
 
 

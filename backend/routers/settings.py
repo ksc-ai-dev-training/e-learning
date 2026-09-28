@@ -1,6 +1,9 @@
 # システム設定API（A-55〜A-56, A-80。S-10「管理」システム設定タブ）。Slack関連（旧A-57）は
-# 個人連携方式（F-12、routers/slack.py）に置き換わったため、システム設定からは撤去した
-# （2026-09-03）。
+# 個人単位のOAuth連携（本人宛てDM）を試みたが社内ワークスペースのアプリ数上限で断念し、
+# プロジェクト単位のIncoming Webhook方式（F-12、S-12プロジェクト管理から設定）に一本化された
+# ため、全社共通のシステム設定からは撤去した（2026-09-03。2026-09-28、経緯説明を実態に合わせて
+# 訂正。routers/slack.pyという専用ファイルは存在せず、Webhook送信はrouters/learning.pyの
+# send_project_slack_reminder・slack_client.pyが担う）。
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException

@@ -14,14 +14,12 @@ import ai_client
 import slack_client
 from auth_helpers import CurrentUser, check_project_role, has_active_project_role, require_auth
 from database import get_pool
-from routers.materials import _count_pages, _fetch_tree, _material_dict, _require_view_access
+from routers.materials import _fetch_tree, _require_view_access
 from settings_store import DEFAULT_GRACE_PERIOD_DAYS, get_setting_int
 
 router = APIRouter(prefix="/api", tags=["learning"])
 
 logger = logging.getLogger("manabi.learning")
-
-GRADABLE_TYPES = ("single", "multi", "reorder", "free_text", "code")
 
 
 def _collect_pages(nodes: list[dict]) -> list[dict]:
@@ -150,7 +148,7 @@ async def start_attempt(id: int, body: StartAttemptIn, user: CurrentUser = Depen
     StrictModeによるページ遷移エフェクトの二重発火で、素朴なSELECTしてから無ければINSERTという
     実装だと同一スコープの未提出試行が2件作られてしまう競合状態を発見し、この方式に修正した。"""
     pool = get_pool()
-    perm_row = await _require_view_access(pool, id, user)
+    await _require_view_access(pool, id, user)
     material_row = await pool.fetchrow(
         "SELECT id, project_id, attempt_scope, retake_scope, updated_at, pass_score_pct FROM materials WHERE id = $1",
         id,
@@ -1105,21 +1103,25 @@ async def _update_enrollment_progress(
     # 以前はここだけ_collect_nodes_of_kindで実際のsectionノードしか見ておらず、小見出しの無い
     # 章の合否が完了判定から漏れていた（2026-09-02、コードレビューで発見・修正）。
     group_nodes = _scope_groups(tree, attempt_scope)
-    is_complete = True
-    for g in group_nodes:
-        # attempt_scope='material'はscope_node_idがNULLになる（_scope_groups参照）ため、
-        # 単純な"= $3"ではNULL同士が一致せず常に不一致になる。IS NOT DISTINCT FROMで揃える
-        # （2026-09-18、material分岐の統合時に発見）。
-        latest = await pool.fetchrow(
-            """SELECT passed FROM quiz_attempts
-                WHERE user_id = $1 AND material_id = $2 AND scope_node_id IS NOT DISTINCT FROM $3
-                  AND mode = 'graded' AND submitted_at IS NOT NULL
-                ORDER BY attempt_no DESC LIMIT 1""",
-            user_id, material_id, g["scope_node_id"],
-        )
-        if latest is None or not latest["passed"]:
-            is_complete = False
-            break
+    # attempt_scope='material'はscope_node_idがNULLになる（_scope_groups参照）ため、
+    # 単純な"= $3"ではNULL同士が一致せず常に不一致になる。IS NOT DISTINCT FROMで揃える
+    # （2026-09-18、material分岐の統合時に発見）。
+    # 2026-09-28: 従来はスコープ群ごとにループしてfetchrowするN+1だった（提出のたびに実行される
+    # ホットパス）。全スコープをまとめて1クエリで取得するよう変更した（A-86 get_attempt_summaryと
+    # 同じunnestパターン）。
+    scope_ids = [g["scope_node_id"] for g in group_nodes]
+    passed_rows = await pool.fetch(
+        """SELECT DISTINCT ON (v.scope_node_id) v.scope_node_id, qa.passed
+           FROM unnest($3::bigint[]) AS v(scope_node_id)
+           JOIN quiz_attempts qa
+             ON qa.user_id = $1 AND qa.material_id = $2
+                AND qa.scope_node_id IS NOT DISTINCT FROM v.scope_node_id
+                AND qa.mode = 'graded' AND qa.submitted_at IS NOT NULL
+           ORDER BY v.scope_node_id, qa.attempt_no DESC""",
+        user_id, material_id, scope_ids,
+    )
+    passed_by_scope = {r["scope_node_id"]: r["passed"] for r in passed_rows}
+    is_complete = all(passed_by_scope.get(g["scope_node_id"]) for g in group_nodes)
 
     status = "completed" if is_complete else "in_progress"
     await pool.execute(
@@ -1402,38 +1404,65 @@ async def get_attempt_summary(id: int, user: CurrentUser = Depends(require_auth)
     groups = _scope_groups(tree, material["attempt_scope"])
     settings = await _resolve_assignment_settings(pool, id)
 
-    entries = []
-    for g in groups:
-        # deleted_at IS NULL: 個人が「学習履歴から削除」した受験記録は、本人が振り返るこの
-        # 採点結果パネルからは除外する（削除機能自体は行を消さないため、retake_limit判定等
-        # 受験の仕組み側には一切影響しない。delete_material_history参照）。
-        attempt = await pool.fetchrow(
-            """SELECT id, attempt_no, score_pct, passed, fail_reason, submitted_at, carried_over_question_ids
-               FROM quiz_attempts
-               WHERE user_id = $1 AND material_id = $2 AND mode = 'graded'
-                 AND scope_node_id IS NOT DISTINCT FROM $3 AND submitted_at IS NOT NULL
-                 AND deleted_at IS NULL
-               ORDER BY attempt_no DESC LIMIT 1""",
-            user.id, id, g["scope_node_id"],
-        )
-        if attempt is None:
-            continue
-        # attempt_countはdeleted_atを見ない（再受験回数の実際の残数と一致させるため。学習履歴から
-        # 削除しても回数制限は変わらないので、表示上の残り回数も削除前と同じ値のままにする）。
-        attempt_count = await pool.fetchval(
-            """SELECT COUNT(*) FROM quiz_attempts
-                WHERE user_id = $1 AND material_id = $2 AND mode = 'graded'
-                  AND scope_node_id IS NOT DISTINCT FROM $3""",
-            user.id, id, g["scope_node_id"],
-        )
-        answers = await pool.fetch(
-            """SELECT a.question_id, q.prompt, q.type, q.correct_answer, q.required, q.counted,
+    # 2026-09-28: 従来はスコープ群の件数ぶん（attempt_scope='page'の教材ならページ数ぶん）、
+    # 「最新attempt取得」「attempt_count集計」「回答取得」を1件ずつループでDB往復していたN+1を
+    # 解消した。全スコープのscope_node_idをまとめてunnestし、各クエリを1回にまとめる
+    # （carried_over_question_idsの繰り越し回答取得のみ、実際に繰り越しがあるスコープに限られ
+    # 頻度が低いため従来どおりスコープごとに行う）。
+    scope_ids = [g["scope_node_id"] for g in groups]
+
+    # deleted_at IS NULL: 個人が「学習履歴から削除」した受験記録は、本人が振り返るこの
+    # 採点結果パネルからは除外する（削除機能自体は行を消さないため、retake_limit判定等
+    # 受験の仕組み側には一切影響しない。delete_material_history参照）。
+    attempt_rows = await pool.fetch(
+        """SELECT DISTINCT ON (v.scope_node_id)
+                  v.scope_node_id, qa.id, qa.attempt_no, qa.score_pct, qa.passed,
+                  qa.fail_reason, qa.submitted_at, qa.carried_over_question_ids
+           FROM unnest($3::bigint[]) AS v(scope_node_id)
+           JOIN quiz_attempts qa
+             ON qa.user_id = $1 AND qa.material_id = $2 AND qa.mode = 'graded'
+                AND qa.scope_node_id IS NOT DISTINCT FROM v.scope_node_id
+                AND qa.submitted_at IS NOT NULL AND qa.deleted_at IS NULL
+           ORDER BY v.scope_node_id, qa.attempt_no DESC""",
+        user.id, id, scope_ids,
+    )
+    attempt_by_scope = {r["scope_node_id"]: r for r in attempt_rows}
+
+    # attempt_countはdeleted_atを見ない（再受験回数の実際の残数と一致させるため。学習履歴から
+    # 削除しても回数制限は変わらないので、表示上の残り回数も削除前と同じ値のままにする）。
+    count_rows = await pool.fetch(
+        """SELECT v.scope_node_id, COUNT(qa.id) AS attempt_count
+           FROM unnest($3::bigint[]) AS v(scope_node_id)
+           LEFT JOIN quiz_attempts qa
+             ON qa.user_id = $1 AND qa.material_id = $2 AND qa.mode = 'graded'
+                AND qa.scope_node_id IS NOT DISTINCT FROM v.scope_node_id
+           GROUP BY v.scope_node_id""",
+        user.id, id, scope_ids,
+    )
+    count_by_scope = {r["scope_node_id"]: r["attempt_count"] for r in count_rows}
+
+    attempt_ids = [r["id"] for r in attempt_rows]
+    answers_by_attempt: dict[int, list] = {}
+    if attempt_ids:
+        all_answers = await pool.fetch(
+            """SELECT a.attempt_id, a.question_id, q.prompt, q.type, q.correct_answer, q.scoring_criteria,
+                      q.required, q.counted,
                       q.grading_mode AS question_grading_mode, a.response, a.is_correct,
                       a.ai_score_pct, a.ai_feedback
                FROM answers a JOIN questions q ON q.id = a.question_id
-               WHERE a.attempt_id = $1 AND q.type != 'score_log'""",
-            attempt["id"],
+               WHERE a.attempt_id = ANY($1::bigint[]) AND q.type != 'score_log'""",
+            attempt_ids,
         )
+        for a in all_answers:
+            answers_by_attempt.setdefault(a["attempt_id"], []).append(a)
+
+    entries = []
+    for g in groups:
+        attempt = attempt_by_scope.get(g["scope_node_id"])
+        if attempt is None:
+            continue
+        attempt_count = count_by_scope.get(g["scope_node_id"], 0)
+        answers = answers_by_attempt.get(attempt["id"], [])
         # 再受験範囲「誤答のみ」で今回は出題しなかった、前回までに正解済みの設問
         # （carried_over_question_ids）は、このattemptにanswers行が無いため上のクエリに含まれない。
         # 採点結果パネルの正答率表示と実際に並ぶ設問数が食い違って見えないよう、この受講者の同じ
@@ -1445,7 +1474,8 @@ async def get_attempt_summary(id: int, user: CurrentUser = Depends(require_auth)
         if carried_over_ids:
             carried_answers = await pool.fetch(
                 """SELECT DISTINCT ON (a.question_id)
-                          a.question_id, q.prompt, q.type, q.correct_answer, q.required, q.counted,
+                          a.question_id, q.prompt, q.type, q.correct_answer, q.scoring_criteria,
+                          q.required, q.counted,
                           q.grading_mode AS question_grading_mode, a.response, a.is_correct,
                           a.ai_score_pct, a.ai_feedback
                    FROM answers a
@@ -1471,14 +1501,24 @@ async def get_attempt_summary(id: int, user: CurrentUser = Depends(require_auth)
         answer_dicts = []
         for a in answers:
             d = dict(a)
+            # 一括取得クエリのグルーピング用に付けたattempt_id列は、carried_answers側の行には
+            # 存在しないため、pop(..., None)で両ケースとも安全に取り除く。
+            d.pop("attempt_id", None)
             d["response"] = json.loads(d["response"]) if d["response"] else None
             correct_answer = json.loads(d["correct_answer"]) if d["correct_answer"] is not None else None
             # 単一選択・複数選択の「記録」「任意」は正解未設定を許容するため、「採点中」（is_correctが
             # まだ確定していないだけ）と「そもそも採点しない設問」を受講者が見分けられるよう
             # has_correct_answerを返す。実際の正解の中身（correct_answer）は他の設問と同様に
-            # 受講者へは返さない（2026-09-16）。
-            d["has_correct_answer"] = bool(correct_answer) if d["type"] == "multi" else correct_answer is not None
+            # 受講者へは返さない（2026-09-16）。記述式・コード記述式はcorrect_answerを使わないため、
+            # get_attempt（A-43）と同じくscoring_criteriaの有無で判定する（2026-09-28、両者が
+            # ズレていた不具合を修正。修正前はこの分岐が無く、AI採点中の記述式・コード記述式が
+            # 「採点対象外」と区別できずに表示されていた）。
+            if d["type"] in ("free_text", "code"):
+                d["has_correct_answer"] = d["scoring_criteria"] is not None
+            else:
+                d["has_correct_answer"] = bool(correct_answer) if d["type"] == "multi" else correct_answer is not None
             del d["correct_answer"]
+            del d["scoring_criteria"]
             # 手動採点・AI採点のどちらで判定されたかは自由記述・コード記述式にしか意味が無い
             # （単一選択・複数選択・並び替えは常に即時の自動採点）。設問側のgrading_mode上書きが
             # 無ければ教材既定にフォールバックする、A-40提出時の判定（effective_mode）と同じ規則
@@ -1489,10 +1529,14 @@ async def get_attempt_summary(id: int, user: CurrentUser = Depends(require_auth)
             )
             del d["question_grading_mode"]
             answer_dicts.append(d)
+        # 一括取得クエリの行にはグルーピング用のscope_node_id列が乗っているため、
+        # 元のAPI形状（attempt単体の列のみ）に合わせて明示的に組み立てる。
+        attempt_out = dict(attempt)
+        attempt_out.pop("scope_node_id", None)
         entries.append({
             "scope_node_id": g["scope_node_id"],
             "scope_label": g["label"],
-            "attempt": dict(attempt),
+            "attempt": attempt_out,
             "attempt_count": attempt_count,
             "retake_allowed": settings["retake_allowed"],
             "retake_limit": settings["retake_limit"],

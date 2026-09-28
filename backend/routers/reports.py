@@ -231,6 +231,16 @@ async def request_personal_ai_feedback(user_id: int, user: CurrentUser = Depends
     return {"status": "pending", "job_id": row["id"]}
 
 
+def _shape_personal_feedback_content(content: dict, materials_by_id: dict[int, str]) -> dict:
+    material_ids = content.get("recommended_material_ids", [])
+    materials = [{"id": mid, "title": materials_by_id[mid]} for mid in material_ids if mid in materials_by_id]
+    return {
+        "comment": content.get("comment", ""),
+        "weak_areas": content.get("weak_areas", []),
+        "recommended_materials": materials,
+    }
+
+
 @router.get("/{user_id}/ai-feedback")
 async def get_personal_ai_feedback(user_id: int, user: CurrentUser = Depends(require_auth)):
     """A-52: 直近のAI個人フィードバックを取得する。未完了（content未設定）または未リクエストは404。
@@ -248,7 +258,7 @@ async def get_personal_ai_feedback(user_id: int, user: CurrentUser = Depends(req
         raise HTTPException(404, detail="AI個人フィードバックはまだ生成されていません")
     content = json.loads(row["content"])
     material_ids = content.get("recommended_material_ids", [])
-    materials = []
+    materials_by_id: dict[int, str] = {}
     if material_ids:
         # 生成時点ではis_archived=falseの候補から選ばれていても、その後アーカイブされている
         # ことがあるため、表示のたびに現在の状態で除外し直す（2026-09-25、個人学習レポートの
@@ -258,23 +268,47 @@ async def get_personal_ai_feedback(user_id: int, user: CurrentUser = Depends(req
             "SELECT id, title FROM materials WHERE id = ANY($1::bigint[]) AND is_archived = false",
             material_ids,
         )
-        by_id = {r["id"]: r["title"] for r in material_rows}
-        materials = [{"id": mid, "title": by_id[mid]} for mid in material_ids if mid in by_id]
-    return {
-        "comment": content.get("comment", ""),
-        "weak_areas": content.get("weak_areas", []),
-        "recommended_materials": materials,
-        "generated_at": row["requested_at"],
-    }
+        materials_by_id = {r["id"]: r["title"] for r in material_rows}
+    return {**_shape_personal_feedback_content(content, materials_by_id), "generated_at": row["requested_at"]}
+
+
+@router.get("/{user_id}/ai-feedback/history")
+async def list_personal_ai_feedback(user_id: int, user: CurrentUser = Depends(require_auth)):
+    """A-104: 過去のAI個人フィードバックを新しい順に一覧取得する（新設）。実行のたびに
+    ai_personal_feedbackへ1行追加されるだけで従来から履歴自体は保存されていたが、A-52
+    （GET /ai-feedback）は直近の1件しか返していなかった（2026-09-28、ユーザー要望）。
+    直近20件まで返す。"""
+    await _require_report_access(user_id, user)
+    pool = get_pool()
+    rows = await pool.fetch(
+        """SELECT content, requested_at FROM ai_personal_feedback
+           WHERE user_id = $1 AND content IS NOT NULL
+           ORDER BY created_at DESC LIMIT 20""",
+        user_id,
+    )
+    contents = [json.loads(r["content"]) for r in rows]
+    all_material_ids = {mid for c in contents for mid in c.get("recommended_material_ids", [])}
+    materials_by_id: dict[int, str] = {}
+    if all_material_ids:
+        material_rows = await pool.fetch(
+            "SELECT id, title FROM materials WHERE id = ANY($1::bigint[]) AND is_archived = false",
+            list(all_material_ids),
+        )
+        materials_by_id = {r["id"]: r["title"] for r in material_rows}
+    items = [
+        {**_shape_personal_feedback_content(c, materials_by_id), "generated_at": r["requested_at"]}
+        for c, r in zip(contents, rows)
+    ]
+    return {"items": items}
 
 
 async def run_ai_org_report_job(
-    report_id: int, scope_type: str, scope_id: int | None, scope_label: str, requested_by: int
+    report_id: int, scope_id: int | None, scope_label: str, requested_by: int
 ) -> None:
     """A-48の非同期ジョブ本体（run_ai_personal_feedback_jobと同型、F-23）。"""
     pool = get_pool()
     try:
-        stats = await _aggregate_dashboard_stats(scope_type, scope_id)
+        stats = await _aggregate_dashboard_stats(scope_id)
         by_material = stats.pop("by_material")
         result = await ai_client.generate_org_report(
             scope_label=scope_label, stats=stats, by_material=by_material, user_id=requested_by
@@ -305,14 +339,14 @@ async def request_org_report(body: OrgReportRequest, user: CurrentUser = Depends
     「全社」スコープは廃止した（2026-09-17、dashboard.py._parse_scope参照）。"""
     if body.scope_type != "project":
         raise HTTPException(422, detail="scope_typeが不正です")
-    await require_dashboard_scope(body.scope_type, body.scope_id, user)
+    await require_dashboard_scope(body.scope_id, user)
     scope_label = f"project:{body.scope_id}"
     row = await get_pool().fetchrow(
         """INSERT INTO ai_org_reports (scope_type, scope_id, requested_by) VALUES ($1, $2, $3)
            RETURNING id""",
         body.scope_type, body.scope_id, user.id,
     )
-    asyncio.create_task(run_ai_org_report_job(row["id"], body.scope_type, body.scope_id, scope_label, user.id))
+    asyncio.create_task(run_ai_org_report_job(row["id"], body.scope_id, scope_label, user.id))
     return {"status": "pending", "job_id": row["id"]}
 
 
@@ -320,7 +354,7 @@ async def request_org_report(body: OrgReportRequest, user: CurrentUser = Depends
 async def get_org_report(scope: str, user: CurrentUser = Depends(require_auth)):
     """A-49: 直近のAI組織レポートを取得する。未完了・未リクエストは404（A-52と同方針）。"""
     scope_type, scope_id = _parse_scope(scope)
-    await require_dashboard_scope(scope_type, scope_id, user)
+    await require_dashboard_scope(scope_id, user)
     row = await get_pool().fetchrow(
         """SELECT content, requested_at FROM ai_org_reports WHERE scope_type = $1 AND scope_id = $2
            ORDER BY created_at DESC LIMIT 1""",
@@ -334,3 +368,27 @@ async def get_org_report(scope: str, user: CurrentUser = Depends(require_auth)):
         "insight_tags": content.get("insight_tags", []),
         "generated_at": row["requested_at"],
     }
+
+
+@org_router.get("/history")
+async def list_org_reports(scope: str, user: CurrentUser = Depends(require_auth)):
+    """A-105: 過去のAI組織レポートを新しい順に一覧取得する（新設）。実行のたびにai_org_reportsへ
+    1行追加されるだけで従来から履歴自体は保存されていたが、A-49（GET /reports/org）は直近の1件しか
+    返していなかった（2026-09-28、ユーザー要望）。直近20件まで返す。"""
+    scope_type, scope_id = _parse_scope(scope)
+    await require_dashboard_scope(scope_id, user)
+    rows = await get_pool().fetch(
+        """SELECT content, requested_at FROM ai_org_reports
+           WHERE scope_type = $1 AND scope_id = $2 AND content IS NOT NULL
+           ORDER BY created_at DESC LIMIT 20""",
+        scope_type, scope_id,
+    )
+    items = []
+    for row in rows:
+        content = json.loads(row["content"])
+        items.append({
+            "summary": content.get("summary", ""),
+            "insight_tags": content.get("insight_tags", []),
+            "generated_at": row["requested_at"],
+        })
+    return {"items": items}

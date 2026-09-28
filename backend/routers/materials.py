@@ -4,7 +4,6 @@ import os
 import random
 from datetime import datetime
 from typing import Literal
-from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import Response
@@ -1216,6 +1215,23 @@ async def get_ai_review(id: int, user: CurrentUser = Depends(require_material_ro
     return _review_row_dict(row)
 
 
+@detail_router.get("/{id}/ai-reviews")
+async def list_ai_reviews(id: int, user: CurrentUser = Depends(require_material_role(min_role="editor"))):
+    """A-103: 過去のAIレビュー結果を新しい順に一覧取得する（新設）。実行のたびにai_material_reviewsへ
+    1行追加されるだけで従来から履歴自体は保存されていたが、A-33（GET /ai-review）は直近の1件しか
+    返しておらず、過去の指摘が直っているかを見比べる手段が無かった（2026-09-28、ユーザー要望）。
+    直近50件まで返す（無制限にすると教材を何度もレビューし続けた場合に応答が肥大化するため）。"""
+    pool = get_pool()
+    rows = await pool.fetch(
+        """SELECT r.*, u.name AS requested_by_name
+           FROM ai_material_reviews r JOIN users u ON u.id = r.requested_by
+           WHERE r.material_id = $1
+           ORDER BY r.created_at DESC LIMIT 50""",
+        id,
+    )
+    return {"items": [_review_row_dict(row) for row in rows]}
+
+
 async def _aggregate_survey_summary(pool, material_id: int) -> list[dict]:
     """教材に設置された受講後アンケートの集計（評価点平均・自由記述テキスト群）を返す。
     AIレビュー（F-08）に「実際の受講者の感想」も判断材料として渡すために使う（2026-09-09、
@@ -1223,21 +1239,38 @@ async def _aggregate_survey_summary(pool, material_id: int) -> list[dict]:
     survey_rows = await pool.fetch(
         "SELECT id, title FROM surveys WHERE material_id = $1 AND is_active = true", material_id,
     )
+    if not survey_rows:
+        return []
+    # 2026-09-28: 従来はアンケート単位・設問単位でネストしてループするN+1
+    # （1 + アンケート数 + 設問数ぶんのクエリ）だったため、設問一覧・回答一覧をそれぞれ
+    # 1クエリにまとめて取得し、Python側でグルーピングする方式に変更した。
+    survey_ids = [s["id"] for s in survey_rows]
+    sq_rows = await pool.fetch(
+        """SELECT id, survey_id, type, prompt FROM survey_questions
+            WHERE survey_id = ANY($1::bigint[]) ORDER BY survey_id, sort_order""",
+        survey_ids,
+    )
+    questions_by_survey: dict[int, list] = {}
+    for sq in sq_rows:
+        questions_by_survey.setdefault(sq["survey_id"], []).append(sq)
+
+    values_by_question: dict[int, list] = {}
+    if sq_rows:
+        question_ids = [sq["id"] for sq in sq_rows]
+        answer_rows = await pool.fetch(
+            """SELECT sa.survey_question_id, sa.value FROM survey_answers sa
+                JOIN survey_responses sr ON sr.id = sa.response_id
+               WHERE sa.survey_question_id = ANY($1::bigint[])""",
+            question_ids,
+        )
+        for r in answer_rows:
+            values_by_question.setdefault(r["survey_question_id"], []).append(json.loads(r["value"]))
+
     survey_stats = []
     for survey in survey_rows:
-        sq_rows = await pool.fetch(
-            "SELECT id, type, prompt FROM survey_questions WHERE survey_id = $1 ORDER BY sort_order",
-            survey["id"],
-        )
         question_summaries = []
-        for sq in sq_rows:
-            answer_rows = await pool.fetch(
-                """SELECT sa.value FROM survey_answers sa
-                    JOIN survey_responses sr ON sr.id = sa.response_id
-                   WHERE sa.survey_question_id = $1""",
-                sq["id"],
-            )
-            values = [json.loads(r["value"]) for r in answer_rows]
+        for sq in questions_by_survey.get(survey["id"], []):
+            values = values_by_question.get(sq["id"], [])
             if not values:
                 continue
             if sq["type"] == "rating_5":
@@ -1453,7 +1486,7 @@ async def list_surveys(id: int, user: CurrentUser = Depends(require_auth)):
     _require_view_accessベースに拡張した（S-16着手時、A-64と同じ拡張パターン）。あわせて
     answered_by_me（自分が既に回答済みか）を追加し、repeat_mode='once'の表示要否判定に使う。"""
     pool = get_pool()
-    perm = await _require_view_access(pool, id, user)
+    await _require_view_access(pool, id, user)
     rows = await pool.fetch(
         """SELECT s.id, s.node_id, s.title, s.is_active, s.repeat_mode,
                   EXISTS (
@@ -1463,16 +1496,29 @@ async def list_surveys(id: int, user: CurrentUser = Depends(require_auth)):
            WHERE s.material_id = $1 ORDER BY s.node_id NULLS FIRST""",
         id, user.id,
     )
+    # 2026-09-28: 従来はアンケート単位でループして設問を取得するN+1だったため、
+    # 全アンケート分の設問を1クエリでまとめて取得しPython側でグルーピングする方式に変更した。
+    survey_ids = [r["id"] for r in rows]
+    qrows_by_survey: dict[int, list] = {}
+    if survey_ids:
+        all_qrows = await pool.fetch(
+            """SELECT id, survey_id, type, prompt, options FROM survey_questions
+                WHERE survey_id = ANY($1::bigint[]) ORDER BY survey_id, sort_order""",
+            survey_ids,
+        )
+        for q in all_qrows:
+            qrows_by_survey.setdefault(q["survey_id"], []).append(q)
+
     items = []
     for r in rows:
         # 編集者向け画面（S-05）は未回答者数の目安として、受講者は自分の回答状況のみ気にすればよいため
         # 設問一覧は常に返す（設問内容自体に受講者向けの機微情報は無い）。
-        qrows = await pool.fetch(
-            "SELECT id, type, prompt, options FROM survey_questions WHERE survey_id = $1 ORDER BY sort_order",
-            r["id"],
-        )
         questions = [
-            {**dict(q), "options": json.loads(q["options"]) if q["options"] is not None else None} for q in qrows
+            {
+                "id": q["id"], "type": q["type"], "prompt": q["prompt"],
+                "options": json.loads(q["options"]) if q["options"] is not None else None,
+            }
+            for q in qrows_by_survey.get(r["id"], [])
         ]
         items.append({**dict(r), "questions": questions})
     return {"items": items}

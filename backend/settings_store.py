@@ -2,8 +2,10 @@
 # 猶予期間判定、5.5節）・routers/settings.py（A-55〜A-56・A-80）の両方がこれを経由する。
 # routers/settings.pyからauth_helpers.pyを参照すると循環importになるため、どこからも参照されない
 # 独立モジュールとして切り出した。AIモデルはコスト管理のため常に最安モデルに固定しており
-# （ai_client.DEFAULT_MODEL）、Slackは個人連携方式（routers/slack.py）に置き換わったため、
-# どちらもここでは扱わない（2026-09-03）。
+# （ai_client.DEFAULT_MODEL）、Slackはプロジェクト単位のIncoming Webhook方式
+# （projects.slack_webhook_url、database.py参照）に一本化され個人ごとの連携設定自体が
+# 無くなったため、どちらもここでは扱わない（2026-09-03。2026-09-28、Slackの経緯説明を
+# 実態〔個人OAuth連携→プロジェクト単位Webhookへ一本化〕に合わせて訂正）。
 from __future__ import annotations
 
 from database import get_pool

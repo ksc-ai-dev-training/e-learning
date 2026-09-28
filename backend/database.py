@@ -288,6 +288,12 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_quiz_attempts_active
     WHERE submitted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_quiz_attempts_material_id ON quiz_attempts (material_id);
 CREATE INDEX IF NOT EXISTS idx_quiz_attempts_user_id ON quiz_attempts (user_id);
+-- 「本人・教材・スコープ・モードで最新のattemptを1件取る」（ORDER BY attempt_no DESC LIMIT 1）が
+-- learning.py（A-40開始判定・A-42提出後の再計算・A-86採点結果パネル等）の随所で繰り返し実行される
+-- 最頻出クエリ形のため、専用の複合インデックスを用意する（2026-09-28、上記2つの単一列インデックスだけでは
+-- この形を効率よく絞り込めていなかった）。
+CREATE INDEX IF NOT EXISTS idx_quiz_attempts_lookup
+    ON quiz_attempts (user_id, material_id, scope_node_id, mode, attempt_no DESC);
 ALTER TABLE quiz_attempts ENABLE ROW LEVEL SECURITY;
 -- deleted_at: 個人学習レポートの「学習履歴から削除」（本人のみ実行可）が押された時刻。論理削除に
 -- 留め、行自体・answersは物理削除しない。理由: A-40の合格済みブロック（frozen_attempt）・再受験回数
