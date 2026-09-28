@@ -116,7 +116,7 @@
     </tbody>
   </table>
 
-  <h4>7.2.5 learning.py（受講・受験、A-39〜A-44<span class="rev-new">, A-71〜A-74, A-83, A-89, A-96, A-98<span class="rev-new">, A-99〜A-100</span></span>）</h4>
+  <h4>7.2.5 learning.py（受講・受験、A-39〜A-44<span class="rev-new">, A-71〜A-74, A-83, A-89, A-96, A-98<span class="rev-new">, A-99〜A-100</span>, A-102</span>）</h4>
   <table>
     <thead><tr><th>API ID</th><th>メソッド</th><th>パス</th><th>権限</th><th>概要</th></tr></thead>
     <tbody>
@@ -136,6 +136,7 @@
       <tr class="rev-new"><td>A-89</td><td><span class="badge badge-put">PUT</span> / <span class="badge badge-delete">DELETE</span></td><td><code>/api/materials/{id}/my-learning</code></td><td>対象教材の受講対象者</td><td>マイ学習への登録（PUT）・解除（DELETE）。T-30 <code>my_learning_registrations</code>を1行upsert／削除する。S-03の「マイ学習に追加」/「マイ学習から外す」ボタンから呼ぶ（F-31新設）</td></tr>
       <tr class="rev-new"><td>A-96</td><td><span class="badge badge-post">POST</span></td><td><code>/api/projects/{project_id}/slack-remind</code></td><td><span class="badge badge-projrole">対象プロジェクトの管理者</span> <span class="badge badge-admin">admin</span></td><td>プロジェクト単位で、受講期限が近い・過ぎている必修教材の一覧をSlack Incoming Webhookへ1メッセージとして送信する（個人名は含めない）。Slack連携がプロジェクト単位Incoming Webhook方式へ変更された際（2026-09-07）に実装されていたが本書への反映が漏れており、本バージョンで遡って正式追加した。S-12「プロジェクト管理」に加え、2026-09-10からは担当範囲がプロジェクト単位のときに限りS-08受講状況ダッシュボードからも呼べる（5.12節F-12。個人向けのA-47は実装しないと決定済み、v1.55）</td></tr>
       <tr class="rev-new"><td>A-98</td><td><span class="badge badge-post">POST</span></td><td><code>/api/materials/{id}/grading-results/ack</code></td><td>認証済（全員。本人の回答行しか更新しないため教材へのアクセス権限は問わない）</td><td>採点結果の確認済み化。本人のこの教材内の回答のうち、<code>reviewed_at</code>設定済み（AI採点の訂正・手動採点いずれも含む）でまだ確認済みにしていない行を<code>result_seen_at=now()</code>に更新する。S-04の採点結果パネル表示時に呼び、マイ学習「採点結果」タブ（A-39拡張）から当該教材を外す（2026-09-11新設）</td></tr>
+      <tr class="rev-new"><td>A-102</td><td><span class="badge badge-delete">DELETE</span></td><td><code>/api/materials/{id}/history</code></td><td>本人のみ</td><td>学習履歴からの削除（S-09「履歴削除」）。本人のこの教材への受験記録（<code>quiz_attempts</code>）を<code>deleted_at=now()</code>で論理削除し、個人学習レポート・タグ別集計・S-09の候補教材抽出・S-02のマイ学習「採点結果」タブなど<strong>表示・集計系のクエリからのみ</strong>見えなくする。A-40の再受験可否判定（提出済み・採点中スコープの再判定）およびA-42の受験回数上限判定は<code>deleted_at</code>を一切参照せず、削除後も削除前と同じ試行としてカウントし続ける（＝本APIは受験回数を一切リセットしない。誤って何度でも解き直せる抜け道にならないための設計。5.18節）。<code>enrollment_progress</code>（進捗リセット、既存のA-40系とは別の操作）は本APIの対象外（2026-09-27新設）</td></tr>
     </tbody>
   </table>
 
@@ -204,8 +205,8 @@
   <!-- ============ 8. 教材連携設計（Claude Code連携） ============ -->
 
   <footer class="doc-footer">
-    <span>社内学習管理システム（Manabi）基本設計書 v1.63</span>
-    <span>コガソフトウェア株式会社 / 2026-09-24</span>
+    <span>社内学習管理システム（Manabi）基本設計書 v1.64</span>
+    <span>コガソフトウェア株式会社 / 2026-09-28</span>
   </footer>
 
 </div>
