@@ -119,7 +119,18 @@ export default function MyLearning() {
     () => filterByProject(required, activeProjectId, keyword),
     [required, activeProjectId, keyword],
   )
-  const urgentRequired = useMemo(() => filteredRequired.filter(isUrgent), [filteredRequired])
+  // 期限のある未受講の必修教材は、7日以内（urgent）に限らず全件を締切日の一覧に含める。
+  // urgent自体はMaterialCard側の強調表示（赤バッジ）の判定に引き続き使う（2026-09-28、
+  // ユーザー要望。プロジェクトをまたいだ必修教材の締切が一箇所で見えたほうがよいが、
+  // 日付ごとに見出しで区切るタイムライン表示は逆に見づらいとのフィードバックのため、
+  // 見た目は元のフラットな一覧のまま、対象範囲だけ広げる）。
+  const dueRequired = useMemo(
+    () =>
+      filteredRequired
+        .filter((i) => i.due_at !== null && i.progress_status !== 'completed')
+        .sort((a, b) => new Date(a.due_at!).getTime() - new Date(b.due_at!).getTime()),
+    [filteredRequired],
+  )
   // 必修教材ゾーン内では、受講完了済みをリストの下側に回す（2026-09-17、ユーザー要望。
   // 「すべて」表示で未受講・受講済みが混ざると、対応が必要な未受講のものが埋もれて見づらいため）。
   // Array.prototype.sortは安定ソートのため、完了/未完了それぞれのグループ内の並び順はAPIが
@@ -163,7 +174,7 @@ export default function MyLearning() {
   }, [isLoading])
 
   if (isLoading) {
-    return <div className="p-8 text-sm text-slate-400">読み込み中...</div>
+    return <div className="p-8 text-sm text-slate-400 dark:text-neutral-500">読み込み中...</div>
   }
 
   return (
@@ -252,7 +263,7 @@ export default function MyLearning() {
                 value={stats?.urgent_required_count ?? 0}
                 unit="件"
                 tone="warn"
-                linkTo={urgentRequired.length > 0 ? '#urgent-materials' : undefined}
+                linkTo={dueRequired.length > 0 ? '#material-deadlines' : undefined}
               />
               <StatCard
                 label="任意教材 受講済み"
@@ -269,16 +280,20 @@ export default function MyLearning() {
               />
             </div>
 
-            {urgentRequired.length > 0 && (
-              <div id="urgent-materials">
-                <Panel title="期限が近い必修教材" count="合格または受講完了しないと期限超過になります" tone="warn">
-                  {urgentRequired.map((item) => (
+            {dueRequired.length > 0 && (
+              <div id="material-deadlines">
+                <Panel
+                  title="必修教材の期限一覧"
+                  count="締切日順に表示。合格または受講完了しないと期限超過になります"
+                  tone="warn"
+                >
+                  {dueRequired.map((item) => (
                     <MaterialCard
                       key={item.id}
                       item={item}
                       actionLabel={actionLabelFor(item)}
                       to={materialLinkFor(item)}
-                      urgent
+                      urgent={isUrgent(item)}
                     />
                   ))}
                 </Panel>
@@ -287,7 +302,7 @@ export default function MyLearning() {
 
             <div id="required-materials">
               <div className="mb-1.5 flex items-center justify-between">
-                <span className="text-xs text-slate-400">
+                <span className="text-xs text-slate-400 dark:text-neutral-500">
                   {filteredRequired.length}件中{' '}
                   {filteredRequired.filter((i) => i.progress_status !== 'completed').length}件 未受講
                 </span>
@@ -300,7 +315,7 @@ export default function MyLearning() {
               </div>
               <Panel title="必修教材" tone="required">
                 {visibleRequired.length === 0 ? (
-                  <p className="px-4 py-6 text-center text-sm text-slate-400">
+                  <p className="px-4 py-6 text-center text-sm text-slate-400 dark:text-neutral-500">
                     {requiredFilter === 'incomplete'
                       ? '未受講の必修教材はありません。'
                       : requiredFilter === 'completed'
@@ -322,7 +337,7 @@ export default function MyLearning() {
 
             <div id="optional-materials">
               <div className="mb-1.5 flex items-center justify-between">
-                <span className="text-xs text-slate-400">
+                <span className="text-xs text-slate-400 dark:text-neutral-500">
                   {filteredOptional.length}件中{' '}
                   {filteredOptional.filter((i) => i.progress_status === 'completed').length}件 受講済み
                 </span>
@@ -335,7 +350,7 @@ export default function MyLearning() {
               </div>
               <Panel title="任意教材">
                 {visibleOptional.length === 0 ? (
-                  <p className="px-4 py-6 text-center text-sm text-slate-400">
+                  <p className="px-4 py-6 text-center text-sm text-slate-400 dark:text-neutral-500">
                     {optionalFilter === 'incomplete'
                       ? '未受講の任意教材はありません。'
                       : optionalFilter === 'completed'
@@ -355,19 +370,19 @@ export default function MyLearning() {
               </Panel>
             </div>
 
-            <p className="mt-2 text-xs text-slate-400">
+            <p className="mt-2 text-xs text-slate-400 dark:text-neutral-500">
               ※「全社ライブラリ」タブは常に先頭に固定表示されます。全社ライブラリ所属の任意教材は、S-03「教材一覧・検索」から
               「マイ学習に追加」しない限りここには表示されません。
             </p>
           </>
         ) : viewTab === 'pending_review' ? (
           <>
-            <p className="mb-4 text-xs text-slate-500">
+            <p className="mb-4 text-xs text-slate-500 dark:text-neutral-400">
               手動採点・AI採点結果の訂正が行われた教材です。S-04の採点結果パネルを開くと、この一覧から外れます。
             </p>
             <Panel title="採点結果" count={`${filteredPendingReview.length}件`} tone="warn">
               {filteredPendingReview.length === 0 ? (
-                <p className="px-4 py-6 text-center text-sm text-slate-400">確認が必要な採点結果はありません。</p>
+                <p className="px-4 py-6 text-center text-sm text-slate-400 dark:text-neutral-500">確認が必要な採点結果はありません。</p>
               ) : (
                 filteredPendingReview.map((item) => (
                   <MaterialCard
@@ -382,14 +397,14 @@ export default function MyLearning() {
           </>
         ) : (
           <>
-            <p className="mb-4 text-xs text-slate-500">
+            <p className="mb-4 text-xs text-slate-500 dark:text-neutral-400">
               マイ学習への登録有無や現在の受講対象かどうかを問わず、一度でも着手した教材を確認できます。
             </p>
             <Panel title="学習履歴" count={`${filteredHistory.length}件`}>
               {historyLoading ? (
-                <p className="px-4 py-6 text-center text-sm text-slate-400">読み込み中...</p>
+                <p className="px-4 py-6 text-center text-sm text-slate-400 dark:text-neutral-500">読み込み中...</p>
               ) : filteredHistory.length === 0 ? (
-                <p className="px-4 py-6 text-center text-sm text-slate-400">まだ着手した教材はありません。</p>
+                <p className="px-4 py-6 text-center text-sm text-slate-400 dark:text-neutral-500">まだ着手した教材はありません。</p>
               ) : (
                 filteredHistory.map((item) => (
                   <MaterialCard
