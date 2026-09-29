@@ -110,10 +110,15 @@ export default function MaterialPageView() {
   const flatPage = allPageIndex >= 0 ? allPages[allPageIndex] : null
   const node = flatPage?.node ?? null
 
+  // practiceは設問を解く練習が目的のため、次へ／前への遷移も設問の無い（説明のみの）ページを
+  // 飛ばす（2026-09-29、ユーザー指摘により修正：練習開始ページだけを設問ありに寄せても、
+  // その後の「次のページへ進む」で結局設問の無いページに遷移してしまっていたため）。
   const sequencePages: FlatPage[] =
     mode === 'wrong_only' && attempt
       ? allPages.filter((p) => Object.prototype.hasOwnProperty.call(attempt.question_order, String(p.node.id)))
-      : allPages
+      : mode === 'practice'
+        ? allPages.filter((p) => p.node.questions.length > 0)
+        : allPages
   const sequenceIndex = findPageIndex(sequencePages, pageNodeId)
 
   const scopeNodeId =
