@@ -190,36 +190,38 @@ function ChoiceDistribution({
   const singlePercentages =
     question.type === 'single' ? distributeSinglePercentages(optionCounts, total) : null
   return (
-    <table className="w-full text-sm">
-      <thead>
-        <tr className="border-b border-slate-100 text-xs text-slate-400 dark:border-neutral-800 dark:text-neutral-500">
-          <th className="px-3 py-2 text-left font-normal">選択肢</th>
-          <th className="w-20 px-3 py-2 text-left font-normal">正解</th>
-          <th className="w-24 px-3 py-2 text-left font-normal">回答数</th>
-          <th className="w-20 px-3 py-2 text-left font-normal">割合</th>
-        </tr>
-      </thead>
-      <tbody>
-        {options.map((opt, i) => {
-          const count = optionCounts[i]
-          const pct = singlePercentages ? singlePercentages[i] : total > 0 ? Math.round((count / total) * 100) : 0
-          return (
-            <tr key={opt} className="border-b border-slate-50 dark:border-neutral-800">
-              <td className="px-3 py-2 text-slate-700 dark:text-neutral-200">{opt}</td>
-              <td className="px-3 py-2">
-                {isCorrectOption(opt) && (
-                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-200">
-                    正解
-                  </span>
-                )}
-              </td>
-              <td className="px-3 py-2 text-slate-700 dark:text-neutral-200">{count}人</td>
-              <td className="px-3 py-2 text-slate-700 dark:text-neutral-200">{pct}%</td>
-            </tr>
-          )
-        })}
-      </tbody>
-    </table>
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm max-sm:whitespace-nowrap">
+        <thead>
+          <tr className="border-b border-slate-100 text-xs text-slate-400 dark:border-neutral-800 dark:text-neutral-500">
+            <th className="px-3 py-2 text-left font-normal">選択肢</th>
+            <th className="w-20 px-3 py-2 text-left font-normal">正解</th>
+            <th className="w-24 px-3 py-2 text-left font-normal">回答数</th>
+            <th className="w-20 px-3 py-2 text-left font-normal">割合</th>
+          </tr>
+        </thead>
+        <tbody>
+          {options.map((opt, i) => {
+            const count = optionCounts[i]
+            const pct = singlePercentages ? singlePercentages[i] : total > 0 ? Math.round((count / total) * 100) : 0
+            return (
+              <tr key={opt} className="border-b border-slate-50 dark:border-neutral-800">
+                <td className="px-3 py-2 text-slate-700 dark:text-neutral-200">{opt}</td>
+                <td className="px-3 py-2">
+                  {isCorrectOption(opt) && (
+                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-200">
+                      正解
+                    </span>
+                  )}
+                </td>
+                <td className="px-3 py-2 text-slate-700 dark:text-neutral-200">{count}人</td>
+                <td className="px-3 py-2 text-slate-700 dark:text-neutral-200">{pct}%</td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
   )
 }
 
@@ -232,32 +234,34 @@ function FreeTextAnswers({
 }) {
   const isManual = question.grading_mode === 'manual'
   return (
-    <table className="w-full text-sm">
-      <thead>
-        <tr className="border-b border-slate-100 text-xs text-slate-400 dark:border-neutral-800 dark:text-neutral-500">
-          <th className="px-3 py-2 text-left font-normal">受講者</th>
-          <th className="px-3 py-2 text-left font-normal">回答内容</th>
-          <th className="w-24 px-3 py-2 text-left font-normal">{isManual ? '採点' : 'AI採点'}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {items.map((item, i) => (
-          <tr key={i} className="border-b border-slate-50 dark:border-neutral-800">
-            <td className="whitespace-nowrap px-3 py-2 dark:text-neutral-200">{item.user_name}</td>
-            <td className="max-w-[360px] whitespace-normal px-3 py-2 text-slate-700 dark:text-neutral-200">{responseLabel(item.response)}</td>
-            <td className="px-3 py-2">
-              {item.is_correct === null ? (
-                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-500 dark:bg-neutral-800 dark:text-neutral-400">
-                  未採点
-                </span>
-              ) : (
-                <CorrectBadge isCorrect={item.is_correct} />
-              )}
-            </td>
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm max-sm:whitespace-nowrap">
+        <thead>
+          <tr className="border-b border-slate-100 text-xs text-slate-400 dark:border-neutral-800 dark:text-neutral-500">
+            <th className="px-3 py-2 text-left font-normal">受講者</th>
+            <th className="px-3 py-2 text-left font-normal">回答内容</th>
+            <th className="w-24 px-3 py-2 text-left font-normal">{isManual ? '採点' : 'AI採点'}</th>
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {items.map((item, i) => (
+            <tr key={i} className="border-b border-slate-50 dark:border-neutral-800">
+              <td className="whitespace-nowrap px-3 py-2 dark:text-neutral-200">{item.user_name}</td>
+              <td className="max-w-[360px] whitespace-normal px-3 py-2 text-slate-700 dark:text-neutral-200">{responseLabel(item.response)}</td>
+              <td className="px-3 py-2">
+                {item.is_correct === null ? (
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-500 dark:bg-neutral-800 dark:text-neutral-400">
+                    未採点
+                  </span>
+                ) : (
+                  <CorrectBadge isCorrect={item.is_correct} />
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   )
 }
 
@@ -286,32 +290,34 @@ function ScoreLogAnswers({
 
   return (
     <>
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-slate-100 text-xs text-slate-400 dark:border-neutral-800 dark:text-neutral-500">
-            <th className="px-3 py-2 text-left font-normal">受講者</th>
-            <th className="w-28 px-3 py-2 text-left font-normal">最新スコア</th>
-            <th className="px-3 py-2 text-left font-normal">推移</th>
-            <th className="w-32 px-3 py-2 text-left font-normal">最終記録日</th>
-          </tr>
-        </thead>
-        <tbody>
-          {byUser.map((entry) => {
-            const latest = entry.scores[entry.scores.length - 1]
-            return (
-              <tr key={entry.userName} className="border-b border-slate-50 dark:border-neutral-800">
-                <td className="whitespace-nowrap px-3 py-2 dark:text-neutral-200">{entry.userName}</td>
-                <td className="px-3 py-2 text-slate-700 dark:text-neutral-200">
-                  {latest.score}
-                  {unit ? ` ${unit}` : ''}
-                </td>
-                <td className="px-3 py-2 text-slate-700 dark:text-neutral-200">{entry.scores.map((s) => s.score).join(' → ')}</td>
-                <td className="px-3 py-2 text-slate-700 dark:text-neutral-200">{formatDateJst(latest.submittedAt)}</td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm max-sm:whitespace-nowrap">
+          <thead>
+            <tr className="border-b border-slate-100 text-xs text-slate-400 dark:border-neutral-800 dark:text-neutral-500">
+              <th className="px-3 py-2 text-left font-normal">受講者</th>
+              <th className="w-28 px-3 py-2 text-left font-normal">最新スコア</th>
+              <th className="px-3 py-2 text-left font-normal">推移</th>
+              <th className="w-32 px-3 py-2 text-left font-normal">最終記録日</th>
+            </tr>
+          </thead>
+          <tbody>
+            {byUser.map((entry) => {
+              const latest = entry.scores[entry.scores.length - 1]
+              return (
+                <tr key={entry.userName} className="border-b border-slate-50 dark:border-neutral-800">
+                  <td className="whitespace-nowrap px-3 py-2 dark:text-neutral-200">{entry.userName}</td>
+                  <td className="px-3 py-2 text-slate-700 dark:text-neutral-200">
+                    {latest.score}
+                    {unit ? ` ${unit}` : ''}
+                  </td>
+                  <td className="px-3 py-2 text-slate-700 dark:text-neutral-200">{entry.scores.map((s) => s.score).join(' → ')}</td>
+                  <td className="px-3 py-2 text-slate-700 dark:text-neutral-200">{formatDateJst(latest.submittedAt)}</td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
       <p className="mt-2 text-xs text-slate-400 dark:text-neutral-500">
         正誤の概念がないため「AI採点」列はなく、代わりにスコアの推移を表示します。
       </p>

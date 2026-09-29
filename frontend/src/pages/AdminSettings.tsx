@@ -172,7 +172,7 @@ function UsersTab({ myUserId }: { myUserId: number }) {
         <p className="text-sm text-slate-400 dark:text-neutral-500">読み込み中...</p>
       ) : (
         <div className="overflow-x-auto rounded-md border border-slate-200 dark:border-neutral-800">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm max-sm:whitespace-nowrap">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50 text-left text-xs text-slate-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300">
                 <th className="px-3 py-2 font-normal">氏名</th>
@@ -344,7 +344,7 @@ function SystemSettingsTab() {
         <label className="mb-1 block text-xs font-semibold text-slate-600 dark:text-neutral-300">機能別の使用モデル</label>
         {settings ? (
           <div className="overflow-x-auto rounded-md border border-slate-200 dark:border-neutral-800">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm max-sm:whitespace-nowrap">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50 text-left text-xs text-slate-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300">
                   <th className="px-3 py-2 font-normal">機能</th>
@@ -410,7 +410,7 @@ function SystemSettingsTab() {
             <p className="text-sm text-slate-400 dark:text-neutral-500">この月のAI利用実績はありません。</p>
           ) : (
             <div className="max-w-2xl overflow-x-auto rounded-md border border-slate-200 dark:border-neutral-800">
-              <table className="w-full text-sm">
+              <table className="w-full text-sm max-sm:whitespace-nowrap">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50 text-left text-xs text-slate-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300">
                     <th className="px-3 py-2 font-normal">機能</th>

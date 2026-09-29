@@ -193,7 +193,7 @@ export default function MaterialsList() {
 
         {filtered.length > 0 && (
           <div className="overflow-x-auto rounded-md border border-slate-200 dark:border-neutral-800">
-            <table className="w-full text-sm [&_td]:align-top">
+            <table className="w-full text-sm max-sm:whitespace-nowrap [&_td]:align-top">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs text-slate-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300">
                   <th className="w-[68px] px-3 py-2 font-semibold"></th>

@@ -92,7 +92,7 @@ export default function ProjectCreate() {
         </div>
 
         <section className="mt-8 max-w-xl rounded-md border border-slate-200 dark:border-neutral-800">
-          <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-2.5 dark:border-neutral-800 dark:bg-neutral-900">
+          <div className="flex flex-col gap-0.5 border-b border-slate-200 bg-slate-50 px-4 py-2.5 dark:border-neutral-800 dark:bg-neutral-900 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
             <span className="text-sm font-semibold text-slate-700 dark:text-neutral-200">自分が参加しているプロジェクト</span>
             <span className="text-xs text-slate-400 dark:text-neutral-500">{memberships.filter((m) => m.left_at === null).length}件</span>
           </div>

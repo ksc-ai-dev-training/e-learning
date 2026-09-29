@@ -103,49 +103,51 @@ function PracticeHistoryTable({
     return <p className="p-4 text-center text-sm text-slate-400 dark:text-neutral-500">{emptyText}</p>
   }
   return (
-    <table className="w-full text-sm">
-      <thead>
-        <tr className="border-b border-slate-100 text-xs text-slate-400 dark:border-neutral-800 dark:text-neutral-500">
-          <th className="px-4 py-2 text-left font-normal">実施日時</th>
-          <th className="px-4 py-2 text-right font-normal">正答数</th>
-          <th className="px-4 py-2 text-right font-normal">所要時間</th>
-          <th className="px-4 py-2 text-right font-normal">詳細</th>
-        </tr>
-      </thead>
-      <tbody>
-        {items.flatMap((p) => {
-          const expanded = expandedAttemptId === p.id
-          const rows = [
-            <tr key={p.id} className="border-b border-slate-50 text-slate-700 dark:border-neutral-800 dark:text-neutral-200">
-              <td className="px-4 py-2">{formatDateTimeJst(p.submitted_at)}</td>
-              <td className="px-4 py-2 text-right">
-                {p.correct_count} / {p.total_count}
-              </td>
-              <td className="px-4 py-2 text-right">{formatDurationMinutes(p.duration_seconds)}</td>
-              <td className="px-4 py-2 text-right">
-                <button
-                  type="button"
-                  className="text-xs font-semibold text-blue-700 hover:underline dark:text-blue-300"
-                  onClick={() => onToggle(p.id)}
-                >
-                  {expanded ? '閉じる' : '詳細'}
-                </button>
-              </td>
-            </tr>,
-          ]
-          if (expanded) {
-            rows.push(
-              <tr key={`${p.id}-detail`} className="border-b border-slate-50 bg-slate-50 dark:border-neutral-800 dark:bg-neutral-900/40">
-                <td colSpan={4} className="px-4 py-3">
-                  <PracticeAttemptDetailPanel attemptId={p.id} />
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm max-sm:whitespace-nowrap">
+        <thead>
+          <tr className="border-b border-slate-100 text-xs text-slate-400 dark:border-neutral-800 dark:text-neutral-500">
+            <th className="px-4 py-2 text-left font-normal">実施日時</th>
+            <th className="px-4 py-2 text-right font-normal">正答数</th>
+            <th className="px-4 py-2 text-right font-normal">所要時間</th>
+            <th className="px-4 py-2 text-right font-normal">詳細</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.flatMap((p) => {
+            const expanded = expandedAttemptId === p.id
+            const rows = [
+              <tr key={p.id} className="border-b border-slate-50 text-slate-700 dark:border-neutral-800 dark:text-neutral-200">
+                <td className="px-4 py-2">{formatDateTimeJst(p.submitted_at)}</td>
+                <td className="px-4 py-2 text-right">
+                  {p.correct_count} / {p.total_count}
+                </td>
+                <td className="px-4 py-2 text-right">{formatDurationMinutes(p.duration_seconds)}</td>
+                <td className="px-4 py-2 text-right">
+                  <button
+                    type="button"
+                    className="text-xs font-semibold text-blue-700 hover:underline dark:text-blue-300"
+                    onClick={() => onToggle(p.id)}
+                  >
+                    {expanded ? '閉じる' : '詳細'}
+                  </button>
                 </td>
               </tr>,
-            )
-          }
-          return rows
-        })}
-      </tbody>
-    </table>
+            ]
+            if (expanded) {
+              rows.push(
+                <tr key={`${p.id}-detail`} className="border-b border-slate-50 bg-slate-50 dark:border-neutral-800 dark:bg-neutral-900/40">
+                  <td colSpan={4} className="px-4 py-3">
+                    <PracticeAttemptDetailPanel attemptId={p.id} />
+                  </td>
+                </tr>,
+              )
+            }
+            return rows
+          })}
+        </tbody>
+      </table>
+    </div>
   )
 }
 

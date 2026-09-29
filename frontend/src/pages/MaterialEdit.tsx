@@ -1768,7 +1768,7 @@ export default function MaterialEdit() {
               )}
               {!questionsSummaryLoading && questionSummaryItems.length > 0 && (
                 <div className="overflow-x-auto rounded-md border border-slate-200 dark:border-neutral-800">
-                  <table className="w-full text-sm">
+                  <table className="w-full text-sm max-sm:whitespace-nowrap">
                     <thead>
                       <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs text-slate-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300">
                         <th className="px-3 py-2 font-semibold">ページ</th>
@@ -1887,7 +1887,7 @@ export default function MaterialEdit() {
               {savedId !== null && membershipsLoading && <p className="text-sm text-slate-400 dark:text-neutral-500">読み込み中...</p>}
               {savedId !== null && !membershipsLoading && (
                 <div className="overflow-x-auto rounded-md border border-slate-200 dark:border-neutral-800">
-                  <table className="w-full text-sm">
+                  <table className="w-full text-sm max-sm:whitespace-nowrap">
                     <thead>
                       <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs text-slate-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300">
                         <th className="px-3 py-2 font-semibold">氏名</th>
@@ -2060,7 +2060,7 @@ export default function MaterialEdit() {
                     </p>
                   ) : (
                     <div className="overflow-x-auto rounded-md border border-slate-200 dark:border-neutral-800">
-                      <table className="w-full text-sm">
+                      <table className="w-full text-sm max-sm:whitespace-nowrap">
                         <thead>
                           <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs text-slate-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300">
                             <th className="w-40 px-3 py-2 font-semibold">日時</th>

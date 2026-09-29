@@ -80,76 +80,78 @@ export default function MyProjectsPanel({
           表示するプロジェクトがありません（進行中のプロジェクトはありません。停止中のみ表示できます）。
         </p>
       ) : (
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-slate-100 text-left text-xs text-slate-500 dark:border-neutral-800 dark:text-neutral-300">
-              <th className="px-4 py-2 font-normal">プロジェクト名</th>
-              <th className="px-4 py-2 font-normal">あなたのロール</th>
-              <th className="px-4 py-2 font-normal">状態</th>
-              <th className="px-4 py-2 font-normal">操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((m) => {
-              const canManage = (isSystemAdmin || m.role === 'admin') && m.status === 'active'
-              // 2026-09-09: プロジェクト管理画面（S-12）を編集者・受講者にも「閲覧のみ」で開放した
-              // ため、状態を実際に変更できる（canManage）かどうかとは別に、画面自体を開けるかどうか
-              // （canOpen）を分ける。招待に応諾済み（status==='active'）の現役メンバーなら、
-              // ロールに関わらず管理画面を開ける（開いた先で操作の可否はロールに応じて制御される）。
-              const canOpen = m.status === 'active'
-              const stopped = m.project_status === 'completed'
-              return (
-                <tr
-                  key={m.id}
-                  className={`border-b border-slate-50 last:border-0 dark:border-neutral-800 ${stopped ? 'bg-slate-50 dark:bg-neutral-800/50' : ''}`}
-                >
-                  <td
-                    className={`px-4 py-2 text-[15px] font-medium ${stopped ? 'text-slate-400' : 'text-slate-800 dark:text-neutral-100'}`}
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm max-sm:whitespace-nowrap">
+            <thead>
+              <tr className="border-b border-slate-100 text-left text-xs text-slate-500 dark:border-neutral-800 dark:text-neutral-300">
+                <th className="px-4 py-2 font-normal">プロジェクト名</th>
+                <th className="px-4 py-2 font-normal">あなたのロール</th>
+                <th className="px-4 py-2 font-normal">状態</th>
+                <th className="px-4 py-2 font-normal">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((m) => {
+                const canManage = (isSystemAdmin || m.role === 'admin') && m.status === 'active'
+                // 2026-09-09: プロジェクト管理画面（S-12）を編集者・受講者にも「閲覧のみ」で開放した
+                // ため、状態を実際に変更できる（canManage）かどうかとは別に、画面自体を開けるかどうか
+                // （canOpen）を分ける。招待に応諾済み（status==='active'）の現役メンバーなら、
+                // ロールに関わらず管理画面を開ける（開いた先で操作の可否はロールに応じて制御される）。
+                const canOpen = m.status === 'active'
+                const stopped = m.project_status === 'completed'
+                return (
+                  <tr
+                    key={m.id}
+                    className={`border-b border-slate-50 last:border-0 dark:border-neutral-800 ${stopped ? 'bg-slate-50 dark:bg-neutral-800/50' : ''}`}
                   >
-                    {m.project_name}
-                  </td>
-                  <td className={`px-4 py-2 ${stopped ? 'text-slate-400' : 'text-slate-600 dark:text-neutral-300'}`}>
-                    {m.role === 'admin' ? '管理者' : m.role === 'editor' ? '編集者' : '受講者'}
-                    {m.status === 'invited' && <span className="ml-1 text-xs text-amber-600 dark:text-amber-400">（招待中）</span>}
-                  </td>
-                  <td className="px-4 py-2">
-                    {canManage ? (
-                      <div className="flex items-center gap-2">
-                        <Select
-                          value={m.project_status}
-                          disabled={statusUpdating === m.project_id}
-                          onChange={(v) => handleStatusChange(m.project_id, v as 'active' | 'completed')}
-                          options={[
-                            { value: 'active', label: '進行中' },
-                            { value: 'completed', label: '停止' },
-                          ]}
-                        />
+                    <td
+                      className={`px-4 py-2 text-[15px] font-medium ${stopped ? 'text-slate-400' : 'text-slate-800 dark:text-neutral-100'}`}
+                    >
+                      {m.project_name}
+                    </td>
+                    <td className={`px-4 py-2 ${stopped ? 'text-slate-400' : 'text-slate-600 dark:text-neutral-300'}`}>
+                      {m.role === 'admin' ? '管理者' : m.role === 'editor' ? '編集者' : '受講者'}
+                      {m.status === 'invited' && <span className="ml-1 text-xs text-amber-600 dark:text-amber-400">（招待中）</span>}
+                    </td>
+                    <td className="px-4 py-2">
+                      {canManage ? (
+                        <div className="flex items-center gap-2">
+                          <Select
+                            value={m.project_status}
+                            disabled={statusUpdating === m.project_id}
+                            onChange={(v) => handleStatusChange(m.project_id, v as 'active' | 'completed')}
+                            options={[
+                              { value: 'active', label: '進行中' },
+                              { value: 'completed', label: '停止' },
+                            ]}
+                          />
+                          <Badge variant={stopped ? 'project-stopped' : 'project-active'} />
+                        </div>
+                      ) : (
                         <Badge variant={stopped ? 'project-stopped' : 'project-active'} />
-                      </div>
-                    ) : (
-                      <Badge variant={stopped ? 'project-stopped' : 'project-active'} />
-                    )}
-                  </td>
-                  <td className="px-4 py-2">
-                    {canOpen ? (
-                      <button
-                        type="button"
-                        onClick={() => onOpenManage(m.project_id)}
-                        className="text-xs font-semibold text-blue-700 hover:underline dark:text-blue-400"
-                      >
-                        管理する
-                      </button>
-                    ) : (
-                      <span className="text-xs text-slate-300 dark:text-neutral-600" title="招待に応諾するまで開けません">
-                        —
-                      </span>
-                    )}
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
+                      )}
+                    </td>
+                    <td className="px-4 py-2">
+                      {canOpen ? (
+                        <button
+                          type="button"
+                          onClick={() => onOpenManage(m.project_id)}
+                          className="text-xs font-semibold text-blue-700 hover:underline dark:text-blue-400"
+                        >
+                          管理する
+                        </button>
+                      ) : (
+                        <span className="text-xs text-slate-300 dark:text-neutral-600" title="招待に応諾するまで開けません">
+                          —
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   )

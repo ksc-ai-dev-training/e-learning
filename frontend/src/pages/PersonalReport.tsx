@@ -136,7 +136,7 @@ export default function PersonalReport() {
           </p>
         )}
 
-        <div className="mb-6 grid max-w-3xl grid-cols-4 gap-3">
+        <div className="mb-6 grid max-w-3xl grid-cols-1 gap-3 min-[420px]:grid-cols-2 sm:grid-cols-4">
           <StatCard
             label="受講済み教材数"
             value={report.summary.completed_material_count}
@@ -343,7 +343,7 @@ export default function PersonalReport() {
               <p className="text-sm text-slate-400 dark:text-neutral-500">該当する教材はありません。</p>
             ) : (
               <div className="max-w-3xl overflow-x-auto rounded-md border border-slate-200 dark:border-neutral-800">
-                <table className="w-full text-sm">
+                <table className="w-full text-sm max-sm:whitespace-nowrap">
                   <thead>
                     <tr className="border-b border-slate-100 bg-slate-50 text-left text-xs text-slate-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300">
                       <th className="px-3 py-2 font-normal">教材</th>

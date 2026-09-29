@@ -219,7 +219,7 @@ export default function Dashboard() {
               <p className="mb-6 text-sm text-slate-400 dark:text-neutral-500">未受講者はいません。</p>
             ) : (
               <div className="mb-6 max-w-3xl overflow-x-auto rounded-md border border-slate-200 dark:border-neutral-800">
-                <table className="w-full text-sm">
+                <table className="w-full text-sm max-sm:whitespace-nowrap">
                   <thead>
                     <tr className="border-b border-slate-100 bg-slate-50 text-left text-xs text-slate-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300">
                       <th className="px-3 py-2 font-normal">氏名</th>

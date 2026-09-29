@@ -601,7 +601,7 @@ function MembersTab({
         <p className="text-sm text-slate-400">読み込み中...</p>
       ) : (
         <div className="overflow-x-auto rounded-md border border-slate-200">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm max-sm:whitespace-nowrap">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50 text-left text-xs text-slate-500">
                 <th className="px-3 py-2 font-normal">氏名</th>
@@ -859,8 +859,8 @@ function OverdueRequiredPanel({
             <div className="mb-4 flex flex-col">
               {items.map((it) => (
                 <div key={it.material_id} className="flex items-center justify-between border-b border-slate-100 py-2.5 last:border-0">
-                  <span className="text-sm text-slate-800">{it.material_title}</span>
-                  <span className="flex-shrink-0 text-xs text-slate-500">
+                  <span className="min-w-0 flex-1 truncate text-sm text-slate-800">{it.material_title}</span>
+                  <span className="ml-2 flex-shrink-0 text-xs text-slate-500">
                     期限: {it.due_at ? formatDateJst(it.due_at) : '—'}
                   </span>
                 </div>
@@ -1055,7 +1055,7 @@ function ShareSearchSection({ currentProjectId }: { currentProjectId: number }) 
         <p className="text-sm text-slate-400">{query ? '該当する教材がありません。' : '検索対象の教材がありません。'}</p>
       ) : (
         <div className="overflow-x-auto rounded-md border border-slate-200">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm max-sm:whitespace-nowrap">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50 text-left text-xs text-slate-500">
                 <th className="px-3 py-2 font-normal">教材名</th>
@@ -1132,7 +1132,7 @@ function OutgoingSharesSection({ projectId, canManage }: { projectId: number; ca
         <p className="text-sm text-slate-400">教材がありません。</p>
       ) : (
         <div className="overflow-x-auto rounded-md border border-slate-200">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm max-sm:whitespace-nowrap">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50 text-left text-xs text-slate-500">
                 <th className="px-3 py-2 font-normal">教材名</th>
@@ -1320,7 +1320,7 @@ function IncomingSharesSection({ projectId, canManage }: { projectId: number; ca
         <p className="text-sm text-slate-400">承認待ちの共有リクエストはありません。</p>
       ) : (
         <div className="overflow-x-auto rounded-md border border-slate-200">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm max-sm:whitespace-nowrap">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50 text-left text-xs text-slate-500">
                 <th className="px-3 py-2 font-normal">教材名</th>
