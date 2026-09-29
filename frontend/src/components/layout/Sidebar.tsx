@@ -187,10 +187,20 @@ export default function Sidebar({ me }: { me: Me }) {
   const location = useLocation()
   const { mutate } = useMe()
   const { theme, toggleTheme } = useTheme()
-  // 開閉状態はlocalStorageに保存し、リロード後も維持する（keirekiのLayout.tsxと同方針）
-  const [collapsed, setCollapsed] = useState<boolean>(
-    () => localStorage.getItem(COLLAPSED_KEY) === '1',
-  )
+  // 開閉状態はlocalStorageに保存し、リロード後も維持する（keirekiのLayout.tsxと同方針）。
+  // 保存済みの選択が無い場合のみ、画面幅の狭いスマホでは初期状態を折りたたみにする
+  // （2026-09-29、ユーザー報告：固定幅240pxの展開状態のままだとスマホ幅でテキストが
+  // 1文字ずつ折り返され実用に耐えないため。既に何らかの選択をしたことがある利用者・
+  // 画面が広い利用者には一切影響しない）。
+  const [collapsed, setCollapsed] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem(COLLAPSED_KEY)
+      if (saved !== null) return saved === '1'
+      return window.innerWidth < 768
+    } catch {
+      return false
+    }
+  })
 
   const toggle = () =>
     setCollapsed((c) => {
