@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import PageHeader from '../components/layout/PageHeader'
 import AnswerQuestionCard from '../components/material/AnswerQuestionCard'
+import MaterialTocSidebar from '../components/material/MaterialTocSidebar'
 import PageAttachments from '../components/material/PageAttachments'
 import PageBody from '../components/material/PageBody'
 import SurveyModal from '../components/material/SurveyModal'
@@ -11,6 +12,7 @@ import { useMaterial } from '../hooks/useMaterial'
 import { useSurveys } from '../hooks/useSurveys'
 import { getAttempt, markPageVisited, saveAnswer, startAttempt, submitAttempt } from '../lib/attemptActions'
 import { ApiError } from '../lib/api'
+import { toEditableChapters } from '../lib/materialTree'
 import { flattenPages, findPageIndex, resolveScopeNodeId, type FlatPage } from '../lib/pageNav'
 import { andFromQuery, backTarget, fromQuery } from '../lib/backLink'
 import type { Answer, Question, QuizAttempt, Survey } from '../types'
@@ -460,23 +462,26 @@ export default function MaterialPageView() {
   const alreadySubmitted = attempt.submitted_at !== null
   const modeLabel = mode === 'practice' ? '（練習）' : mode === 'wrong_only' ? '（誤答＆難問抽出）' : ''
 
+  // 目次のミニ版サイドバー（graded時のみ）。誤答＆難問抽出は特定の設問だけの受験記録、練習は
+  // 章跨ぎのスコープ概念自体を持たないため、章・ページ単位の目次と噛み合わず対象外にする。
+  const chapters = mode === 'graded' ? toEditableChapters(material.toc ?? []) : []
+  const completedIds = new Set(material.progress?.completed_node_ids ?? [])
+  const visitedIds = new Set(material.progress?.visited_node_ids ?? [])
+
   return (
     <div className="flex flex-1 flex-col">
       <PageHeader
         title={`${node.title}${modeLabel}`}
         actions={
-          <>
-            {material.is_company_wide && !material.required && (
-              <MyLearningToggle
-                materialId={id}
-                registered={material.registered ?? false}
-                onToggled={() => {
-                  void mutateMaterial()
-                }}
-              />
-            )}
-            <BackToTocLink materialId={id} from={from} />
-          </>
+          material.is_company_wide && !material.required ? (
+            <MyLearningToggle
+              materialId={id}
+              registered={material.registered ?? false}
+              onToggled={() => {
+                void mutateMaterial()
+              }}
+            />
+          ) : undefined
         }
       />
       <div className="px-8 py-6">
@@ -611,6 +616,14 @@ export default function MaterialPageView() {
           </>
         )}
       </div>
+      <MaterialTocSidebar
+        materialId={id}
+        chapters={chapters}
+        viewingNodeId={pageNodeId}
+        completedIds={completedIds}
+        visitedIds={visitedIds}
+        query={fromQuery(from)}
+      />
 
       {surveyToShow && (
         // key={survey.id}: 教材全体アンケート→章単位アンケートと連続表示する場合に、前の
