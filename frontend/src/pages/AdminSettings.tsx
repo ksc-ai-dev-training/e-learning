@@ -62,7 +62,7 @@ export default function AdminSettings() {
     <div className="flex flex-1 flex-col">
       <PageHeader title="管理" />
       <div className="px-8 py-6">
-        <div className="mb-5 flex gap-1 border-b border-slate-200 dark:border-neutral-800" role="tablist">
+        <div className="mb-5 flex gap-1 overflow-x-auto border-b border-slate-200 dark:border-neutral-800" role="tablist">
           {TABS.map((tab) => (
             <button
               key={tab.key}
@@ -70,7 +70,7 @@ export default function AdminSettings() {
               role="tab"
               aria-selected={activeTab === tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`-mb-px border-b-2 px-3 py-2 text-sm font-semibold ${
+              className={`-mb-px flex-shrink-0 whitespace-nowrap border-b-2 px-3 py-2 text-sm font-semibold ${
                 activeTab === tab.key
                   ? 'border-blue-800 text-blue-900 dark:border-blue-500 dark:text-blue-300'
                   : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-neutral-400 dark:hover:text-neutral-100'

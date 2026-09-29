@@ -391,7 +391,7 @@ export default function MaterialView() {
           {material.due_at && <span>／ 期限: {formatDateJst(material.due_at)}</span>}
         </div>
 
-        <div className="mb-5 flex gap-1 border-b border-slate-200 dark:border-neutral-800" role="tablist">
+        <div className="mb-5 flex gap-1 overflow-x-auto border-b border-slate-200 dark:border-neutral-800" role="tablist">
           {TABS.map((tab) => (
             <button
               key={tab.key}
@@ -402,7 +402,7 @@ export default function MaterialView() {
                 setActiveTab(tab.key)
                 setActionError(null)
               }}
-              className={`-mb-px border-b-2 px-3 py-2 text-sm font-semibold ${
+              className={`-mb-px flex-shrink-0 whitespace-nowrap border-b-2 px-3 py-2 text-sm font-semibold ${
                 activeTab === tab.key
                   ? 'border-blue-800 text-blue-900 dark:border-blue-500 dark:text-blue-300'
                   : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-neutral-400 dark:hover:text-neutral-100'

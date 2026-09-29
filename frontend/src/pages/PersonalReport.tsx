@@ -321,7 +321,7 @@ export default function PersonalReport() {
           <p className="text-sm text-slate-400 dark:text-neutral-500">学習履歴はまだありません。</p>
         ) : (
           <>
-            <div className="mb-3 flex gap-1 border-b border-slate-200 dark:border-neutral-800" role="tablist">
+            <div className="mb-3 flex gap-1 overflow-x-auto border-b border-slate-200 dark:border-neutral-800" role="tablist">
               {HISTORY_TABS.map((tab) => (
                 <button
                   key={tab.key}
@@ -329,7 +329,7 @@ export default function PersonalReport() {
                   role="tab"
                   aria-selected={historyTab === tab.key}
                   onClick={() => setHistoryTab(tab.key)}
-                  className={`-mb-px border-b-2 px-3 py-1.5 text-sm font-semibold ${
+                  className={`-mb-px flex-shrink-0 whitespace-nowrap border-b-2 px-3 py-1.5 text-sm font-semibold ${
                     historyTab === tab.key
                       ? 'border-blue-800 text-blue-900 dark:border-blue-500 dark:text-blue-300'
                       : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-neutral-400 dark:hover:text-neutral-100'

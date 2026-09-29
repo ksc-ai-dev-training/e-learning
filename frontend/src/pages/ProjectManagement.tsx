@@ -303,13 +303,13 @@ function ProjectManagementBody({
             このプロジェクトの管理者ではないため、閲覧のみできます。変更が必要な場合はプロジェクトの管理者に依頼してください。
           </p>
         )}
-        <div className="mb-5 flex gap-1 border-b border-slate-200" role="tablist">
+        <div className="mb-5 flex gap-1 overflow-x-auto border-b border-slate-200" role="tablist">
           {visibleTabs.map((tab) => (
             <button
               key={tab.key}
               type="button"
               onClick={() => setActiveTab(tab.key)}
-              className={`border-b-2 px-3 py-2 text-sm font-semibold ${
+              className={`flex-shrink-0 whitespace-nowrap border-b-2 px-3 py-2 text-sm font-semibold ${
                 activeTab === tab.key ? 'border-blue-700 text-blue-800' : 'border-transparent text-slate-500'
               }`}
             >

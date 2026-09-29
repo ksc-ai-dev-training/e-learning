@@ -10,7 +10,7 @@ export default function PageHeader({ title, actions }: { title: ReactNode; actio
   return (
     <header className="sticky top-0 z-10 flex flex-col items-start gap-2 border-b border-slate-200 bg-white px-8 py-[18px] dark:border-neutral-800 dark:bg-neutral-900 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
       <h1 className="max-sm:break-keep min-w-0 text-lg font-bold text-slate-900 dark:text-neutral-100">{title}</h1>
-      {actions && <div className="flex flex-shrink-0 items-center gap-2">{actions}</div>}
+      {actions && <div className="flex flex-shrink-0 items-center gap-2 max-sm:flex-wrap">{actions}</div>}
     </header>
   )
 }

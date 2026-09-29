@@ -794,7 +794,7 @@ export default function MaterialEdit() {
       {savedId !== null && (
         <Link
           to={`/projects/${projectId}/materials/${savedId}/preview`}
-          className="flex h-9 items-center rounded-md border border-slate-300 bg-white px-3.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 dark:hover:bg-neutral-700"
+          className="flex h-9 flex-shrink-0 items-center whitespace-nowrap rounded-md border border-slate-300 bg-white px-3.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 dark:hover:bg-neutral-700"
         >
           プレビュー
         </Link>
@@ -912,7 +912,7 @@ export default function MaterialEdit() {
           )}
         </p>
 
-        <div className="mb-5 flex gap-1 border-b border-slate-200 dark:border-neutral-800" role="tablist">
+        <div className="mb-5 flex gap-1 overflow-x-auto border-b border-slate-200 dark:border-neutral-800" role="tablist">
           {TABS.map((tab) => (
             <button
               key={tab.key}
@@ -920,7 +920,7 @@ export default function MaterialEdit() {
               role="tab"
               aria-selected={activeTab === tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`-mb-px border-b-2 px-3 py-2 text-sm font-semibold ${
+              className={`-mb-px flex-shrink-0 whitespace-nowrap border-b-2 px-3 py-2 text-sm font-semibold ${
                 activeTab === tab.key
                   ? 'border-blue-800 text-blue-900 dark:border-blue-500 dark:text-blue-300'
                   : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-neutral-400 dark:hover:text-neutral-100'
