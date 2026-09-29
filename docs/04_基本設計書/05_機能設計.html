@@ -31,12 +31,12 @@
   </div>
 
   <h3>5.4 F-04 教材・問題管理</h3>
-  <p><strong>処理概要:</strong> 教材（章・小見出し・ページの入れ子構造）と問題の登録・修正（対応要求: REQ-F-01）。<span class="rev-old">教材はコース（T-05 courses）に属し、本文はMarkdownまたはHTML形式（T-06 <code>format</code>）で記述する。</span><span class="rev-new">教材には自由なタグ（<code>materials.tags</code>）を複数付与でき、本文はページ単位でMarkdownまたはHTML形式（<code>material_nodes.format</code>）で記述する。コース（T-05 courses）はv1.12で廃止し、タグに置き換えた（6.2節）。</span>A-16（新規作成）、A-17（更新）、A-18（削除）、A-31（問題一括更新）で操作する。</p>
+  <p><strong>処理概要:</strong> 教材（章・小見出し・ページの入れ子構造）と問題の登録・修正（対応要求: REQ-F-01）。<span class="rev-old">教材はコース（T-05 courses）に属し、本文はMarkdownまたはHTML形式（T-06 <code>format</code>）で記述する。</span><span class="rev-new">教材には自由なタグ（<code>materials.tags</code>）を複数付与でき、本文はページ単位でMarkdownまたはHTML形式（<code>material_nodes.format</code>）で記述する。コース（T-05 courses）はv1.12で廃止し、タグに置き換えた（6.2節）。</span>A-16（新規作成）、A-17（更新）、A-18（削除）、A-31（問題一括更新）で操作する。<span class="rev-new">教材一覧（S-02/S-03/S-12/S-14）を一覧性重視のテーブルから視覚的に区別しやすいサムネイル付き表示へ改善するため、<code>materials.thumbnail_key</code>（A-103で発行した署名付きURLへアップロード後、A-17で確定。S-05「目次編集」タブで設定）を追加した。未設定の間はフロントエンドが教材IDから機械生成した色分けプレースホルダー画像を表示する（v1.70）。</span></p>
   <div class="callout">
     <strong>設計判断（教材構造をツリーテーブルで表現する。v1.11で変更）:</strong> v1.0〜v1.10では、単元は独立したテーブルを持たず、教材本文（Markdown の <code>##</code> 見出し／HTML の <code>&lt;h2&gt;</code>）から動的に抽出する構造としていた（フラットな並びのみで、入れ子構造には対応できなかった）。要件定義書v1.12で教材の内部構造を「章／小見出し（任意）／ページ」の入れ子構造（教材構造案。検討資料/画面モック/20260820_教科書構造_検討まとめ.html参照）に刷新したことに伴い、本節の設計を全面的に見直す。新設の<strong>T-23 <code>material_nodes</code></strong>は自己参照ツリー（<code>parent_node_id</code>）で章・小見出し・ページを同一テーブル上に表現し、葉ノード（ページ）だけが実際のコンテンツ（説明文・問題）を持つ。「テキスト1本を取得・書き戻しするだけで教材が完結する」というClaude Code連携のシンプルさ（8章）は、教材1件分のフロントマター＋本文全体を引き続き1ファイルとして扱う方式（8.3節でノード構造をフロントマターの入れ子配列として表現）で両立させる。T-10 <code>questions</code> の <code>unit_index</code> は廃止し、<code>node_id</code>（FK→<code>material_nodes</code>、葉ノードのみを参照）に置き換える。T-12 <code>enrollment_progress.current_position</code> には現在の <code>node_id</code> を保持する。
   </div>
   <table><thead><tr><th>関連画面</th><th>関連API</th><th>関連テーブル</th></tr></thead>
-    <tbody><tr><td>S-03, S-05</td><td>A-14〜A-18, A-31</td><td>T-05, T-06, T-10</td></tr></tbody></table>
+    <tbody><tr><td>S-02, S-03, S-05, S-12, S-14</td><td>A-14〜A-18, A-31<span class="rev-new">, A-103</span></td><td>T-05, T-06, T-10</td></tr></tbody></table>
 
   <h3>5.5 F-05 教材テキスト連携（Claude Code連携API）</h3>
   <p><strong>処理概要:</strong> 教材・問題をMarkdownまたはHTML形式のテキストで記述し、画面操作を介さず取得・登録・更新できる（対応要求: REQ-F-02。要求定義書が「本システムの最も重視する要求」と明記）。技術詳細（フロントマタースキーマ・往復API仕様・改訂履歴・HTMLサニタイズ）は8章で定義する。</p>

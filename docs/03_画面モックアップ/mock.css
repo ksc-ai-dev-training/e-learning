@@ -1078,18 +1078,23 @@ a.stat.stat-link:focus-visible .stat-link-hint { opacity: 1; transform: translat
   margin-bottom: 10px;
 }
 .material-card.urgent { border-color: #fca5a5; background: #fffafa; }
+/* サムネイル画像プレースホルダー（2026-09-29、教材一覧S-02のMaterialCardと同じ見た目に変更。
+   未設定教材は教材IDから機械生成した色分けプレースホルダー〔色＋タイトル頭文字〕を表示するため、
+   グレーのフォルダーアイコンから色付きの正方形へ変更した） */
 .material-icon {
   width: 40px;
   height: 40px;
   border-radius: var(--radius);
-  background: var(--accent-50);
-  color: var(--accent-600);
+  background: linear-gradient(135deg, #4338ca, #1e40af);
+  color: rgba(255,255,255,0.92);
+  font-weight: 700;
+  font-size: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
-.material-icon svg { width: 20px; height: 20px; }
+.material-icon svg { display: none; }
 .material-body { flex: 1; min-width: 0; }
 .material-title { font-size: 13.5px; font-weight: 600; }
 .material-meta { font-size: 11.5px; color: var(--text-subtle); margin-top: 4px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }

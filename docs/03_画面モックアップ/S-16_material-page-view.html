@@ -90,9 +90,49 @@
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21 12 16l-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
           マイ学習に追加
         </button>
-        <a class="btn btn-ghost" href="S-04_material-view.html">目次へ戻る</a>
       </div>
     </header>
+
+    <!-- 目次パネル（2026-09-29新設）。fixed配置のオーバーレイのため本文の幅には影響しない。
+         通常受講（graded）モードのみ表示、S-04と同じ章・ページ一覧をそのまま表示し直接他ページへ遷移できる。
+         見出しバーのクリックで一覧を上下に開閉するアコーディオン形式。右上に重複していた「目次へ戻る」ボタンは削除した -->
+    <div style="position:fixed;top:80px;right:16px;z-index:20;width:256px">
+      <div style="border:1px solid var(--border);border-radius:var(--radius-lg);background:var(--bg);box-shadow:var(--shadow-md)">
+        <button type="button" style="display:flex;width:100%;align-items:center;justify-content:space-between;padding:8px 12px;font-size:12px;font-weight:700;color:var(--text);background:transparent;border:none;cursor:pointer">
+          目次
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-subtle)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+        </button>
+        <nav style="max-height:60vh;overflow-y:auto;padding:6px;border-top:1px solid var(--border)">
+          <div style="padding:4px 8px;font-size:11px;font-weight:700;color:var(--text-muted)">第1章 Claude Codeとは</div>
+          <a href="#" onclick="return false" style="display:flex;align-items:center;gap:8px;margin-left:8px;padding:6px 10px;border-radius:6px;font-size:12.5px;color:var(--text-muted);text-decoration:none">
+            <span style="display:flex;height:16px;width:16px;flex-shrink:0;align-items:center;justify-content:center;border-radius:999px;background:#16a34a;color:#fff;font-size:9px">✓</span>
+            1.1 導入
+          </a>
+          <a href="#" onclick="return false" style="display:flex;align-items:center;gap:8px;margin-left:8px;padding:6px 10px;border-radius:6px;font-size:12.5px;color:var(--text-muted);text-decoration:none">
+            <span style="display:flex;height:16px;width:16px;flex-shrink:0;align-items:center;justify-content:center;border-radius:999px;background:#16a34a;color:#fff;font-size:9px">✓</span>
+            1.2 セットアップ
+          </a>
+          <div style="padding:4px 8px;margin-top:6px;font-size:11px;font-weight:700;color:var(--text-muted)">第2章 基本操作</div>
+          <a href="#" onclick="return false" style="display:flex;align-items:center;gap:8px;margin-left:8px;padding:6px 10px;border-radius:6px;font-size:12.5px;color:var(--text-muted);text-decoration:none">
+            <span style="display:flex;height:16px;width:16px;flex-shrink:0;align-items:center;justify-content:center;border-radius:999px;background:#16a34a;color:#fff;font-size:9px">✓</span>
+            2.1 ファイル操作
+          </a>
+          <div style="padding:4px 8px;margin-top:6px;font-size:11px;font-weight:700;color:var(--text-muted)">第3章 Claude Codeとの基本的なやりとり</div>
+          <a href="#" onclick="return false" style="display:flex;align-items:center;gap:8px;margin-left:8px;padding:6px 10px;border-radius:6px;font-size:12.5px;color:var(--text-muted);text-decoration:none">
+            <span style="display:flex;height:16px;width:16px;flex-shrink:0;align-items:center;justify-content:center;border-radius:999px;background:#16a34a;color:#fff;font-size:9px">✓</span>
+            3.1 指示の出し方
+          </a>
+          <a href="#" onclick="return false" style="display:flex;align-items:center;gap:8px;margin-left:8px;padding:6px 10px;border-radius:6px;font-size:12.5px;font-weight:700;color:var(--text);background:var(--accent-50);text-decoration:none">
+            <span style="display:flex;height:16px;width:16px;flex-shrink:0;align-items:center;justify-content:center;border-radius:999px;border:1px solid var(--border-strong);color:transparent;font-size:9px">・</span>
+            3.2 実践編（現在のページ）
+          </a>
+          <a href="#" onclick="return false" style="display:flex;align-items:center;gap:8px;margin-left:8px;padding:6px 10px;border-radius:6px;font-size:12.5px;color:var(--text-muted);text-decoration:none">
+            <span style="display:flex;height:16px;width:16px;flex-shrink:0;align-items:center;justify-content:center;border-radius:999px;border:1px solid var(--border-strong);color:transparent;font-size:9px">・</span>
+            3.3 演習のふりかえり
+          </a>
+        </nav>
+      </div>
+    </div>
 
     <div class="page-body">
 
@@ -185,6 +225,9 @@
 
       <div class="table-notes" style="margin-top:16px">
         ※ 説明文のみのページ（例: 「安全に指示を出すコツ」）では設問カードは表示されず、本文と「次のページへ」ボタンのみになります。問題のみのページ（例: 「導入前チェック」）では本文パネルが表示されません。合否判定・再受験（前回の受験結果）は教材1冊分の全ページの正誤をまとめて1回の受験として集計し、目次画面（S-04）に表示します。添付ファイルはこのページでは表示されず、目次画面（S-04）にまとめて表示されます。
+      </div>
+      <div class="table-notes" style="margin-top:8px">
+        ※ 右上の目次パネル（2026-09-29新設）は通常受講（graded）モードのみ表示され、S-04の目次画面と同じ章・ページ一覧からページをまたいで直接移動できます。既存の目次画面はもともとページの到達可否によるロックを持たないため、本パネルは既存の遷移経路のショートカットに過ぎず、受験範囲（attempt_scope）の判定や設問のロック状態には影響しません。練習・誤答＆難問抽出モードでは表示されません。
       </div>
       <div class="table-notes" style="margin-top:8px">
         ※ 「次のページへ」を押した先が次の章の最初のページになる場合（attempt_scope=教材/ページ単位のときのみ。章単位の場合は既存の提出結果画面が同じ役割を果たす）、無音で遷移せず「第N章『◯◯』を完了しました。次は第N+1章『△△』です」という区切りモーダル（「このページに戻る」/「次の章へ進む」の2択）を挟みます（2026-09-02追加。章をまたぐ遷移が分かりにくいというフィードバックを受けて対応）。

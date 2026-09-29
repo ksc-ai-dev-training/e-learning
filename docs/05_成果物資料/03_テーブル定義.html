@@ -99,6 +99,7 @@
       <tr><td>default_feedback_style</td><td>TEXT</td><td>NO</td><td>'show_answer'</td><td>'show_answer' / 'review_only' / 'hint_only'</td></tr>
       <tr><td>ai_context</td><td>TEXT</td><td>YES</td><td>—</td><td>AI採点への共通の前提条件・制約の自由記述</td></tr>
       <tr><td>grading_mode</td><td>TEXT</td><td>NO</td><td>'ai'</td><td>'ai' / 'manual'。記述式・コード記述式の採点方式の教材既定</td></tr>
+      <tr class="rev-new"><td>thumbnail_key</td><td>TEXT</td><td>YES</td><td>—</td><td>Supabase Storageのパス。教材一覧（S-02/S-03/S-12/S-14）のサムネイル表示用。編集権限者がS-05でアップロード（A-103で発行した署名付きURLへアップロード後、A-17で確定）。NULLの間はフロントエンド側が教材IDから機械生成した色分けプレースホルダーを表示する（2026-09-28）</td></tr>
       <tr><td>created_at / updated_at</td><td>TIMESTAMPTZ</td><td>NO</td><td>now()</td><td></td></tr>
     </tbody>
   </table>
@@ -524,6 +525,7 @@ CREATE TABLE IF NOT EXISTS materials (
                            CHECK (default_feedback_style IN ('show_answer', 'review_only', 'hint_only')),
     ai_context              TEXT,
     grading_mode             TEXT NOT NULL DEFAULT 'ai' CHECK (grading_mode IN ('ai', 'manual')),
+    thumbnail_key            TEXT,
     created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at              TIMESTAMPTZ NOT NULL DEFAULT now()
 );
