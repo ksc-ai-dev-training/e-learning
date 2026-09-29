@@ -195,7 +195,10 @@ export default function MaterialView() {
   const [surveyModalSurvey, setSurveyModalSurvey] = useState<Survey | null>(null)
 
   const [wrongScope, setWrongScope] = useState<'material' | 'all'>('material')
-  const [startingPractice, setStartingPractice] = useState(false)
+  // 「練習を開始」「問題のみ練習」のどちらが起動中かを区別する（両方を同一のbooleanにすると、
+  // 片方を押した間もう片方まで「開始中…」表示になってしまうため。2026-09-29、ユーザー要望で
+  // 問題のみモードを新設した際に追加）。
+  const [startingPractice, setStartingPractice] = useState<'full' | 'questions' | null>(null)
   const [startingWrongOnly, setStartingWrongOnly] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
 
@@ -309,8 +312,12 @@ export default function MaterialView() {
       (s.repeat_mode === 'every_time' || !s.answered_by_me),
   )
 
-  const handleStartPractice = async () => {
-    setStartingPractice(true)
+  // onlyQuestions: 「問題のみ練習」。ページ本文（説明文）・添付資料を表示せず設問だけを出す
+  // （2026-09-29、ユーザー要望により新設。対象ページ自体は従来の「練習を開始」と同じ
+  // （設問があるページのみ、MaterialPageView.tsx側のsequencePagesで絞り込み済み）で、
+  // このモードは表示内容だけを変える）。
+  const handleStartPractice = async (onlyQuestions: boolean) => {
+    setStartingPractice(onlyQuestions ? 'questions' : 'full')
     setActionError(null)
     try {
       await startAttempt(id, { mode: 'practice' })
@@ -318,11 +325,15 @@ export default function MaterialView() {
       // ページまで進める（2026-09-29、ユーザー報告により修正。全ページが説明のみの教材は
       // そもそも練習する意味が無いため、その場合のみ従来通り先頭ページにフォールバックする）。
       const first = flatPages.find((p) => p.node.questions.length > 0) ?? flatPages[0]
-      if (first) navigate(`/materials/${id}/pages/${first.node.id}?mode=practice${andFromQuery(from)}`)
+      if (first) {
+        navigate(
+          `/materials/${id}/pages/${first.node.id}?mode=practice${onlyQuestions ? '&only=questions' : ''}${andFromQuery(from)}`,
+        )
+      }
     } catch (e) {
       setActionError(e instanceof ApiError ? e.message : '開始に失敗しました')
     } finally {
-      setStartingPractice(false)
+      setStartingPractice(null)
     }
   }
 
@@ -725,9 +736,14 @@ export default function MaterialView() {
               />
             </section>
             {actionError && <p className="mb-3 text-sm text-red-600 dark:text-red-400">{actionError}</p>}
-            <Button onClick={handleStartPractice} disabled={startingPractice}>
-              {startingPractice ? '開始中…' : '練習を開始'}
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => handleStartPractice(false)} disabled={startingPractice !== null}>
+                {startingPractice === 'full' ? '開始中…' : '練習を開始'}
+              </Button>
+              <Button variant="secondary" onClick={() => handleStartPractice(true)} disabled={startingPractice !== null}>
+                {startingPractice === 'questions' ? '開始中…' : '問題のみ練習'}
+              </Button>
+            </div>
           </>
         )}
 

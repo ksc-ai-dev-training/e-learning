@@ -15,6 +15,7 @@ import { ApiError } from '../lib/api'
 import { toEditableChapters } from '../lib/materialTree'
 import { flattenPages, findPageIndex, resolveScopeNodeId, type FlatPage } from '../lib/pageNav'
 import { andFromQuery, backTarget, fromQuery } from '../lib/backLink'
+import type { EditableNode } from '../lib/materialSource'
 import type { Answer, Question, QuizAttempt, Survey } from '../types'
 
 type PageMode = 'graded' | 'practice' | 'wrong_only'
@@ -59,6 +60,24 @@ function shuffle<T>(items: T[]): T[] {
   return result
 }
 
+// practiceモードの目次パネルは設問が無い（説明のみの）ページを表示しない。sequencePages
+// （次へ／前への遷移対象）と同じ基準にそろえないと、目次から直接そのページへ飛べてしまい、
+// 特に「問題のみ練習」では本文もfalseで隠しているため何も表示されない空白ページになって
+// しまうため（2026-09-29、目次パネルをpracticeにも表示するようにした際に対応）。
+function filterChaptersToQuestionsOnly(chapters: EditableNode[]): EditableNode[] {
+  const hasQuestions = (n: EditableNode) => (n.questions?.length ?? 0) > 0
+  return chapters
+    .map((chapter) => {
+      const children = chapter.children
+        .map((child) =>
+          child.kind === 'section' ? { ...child, children: child.children.filter(hasQuestions) } : child,
+        )
+        .filter((child) => (child.kind === 'section' ? child.children.length > 0 : hasQuestions(child)))
+      return { ...chapter, children }
+    })
+    .filter((chapter) => chapter.children.length > 0)
+}
+
 // S-16 教材受講：ページ（詳細設計書10.15節）。1ページ分の本文＋設問を表示し、回答して次のページへ進む。
 // 3つのモードを扱う（?modeクエリ）:
 // - graded（既定）: attempt_scope（教材/章/小見出し/ページ）ごとに独立した受験記録を扱う。ページ
@@ -70,6 +89,10 @@ export default function MaterialPageView() {
   const { materialId, nodeId } = useParams<{ materialId: string; nodeId: string }>()
   const [searchParams] = useSearchParams()
   const mode = (searchParams.get('mode') as PageMode | null) ?? 'graded'
+  // 「問題のみ練習」（2026-09-29新設）。practiceモードのみ意味を持ち、ページ本文・添付資料を
+  // 隠して設問だけを表示する。対象ページ自体（設問があるページのみ）はonlyQuestionsに関わらず
+  // 同じ（sequencePages参照）。
+  const onlyQuestions = mode === 'practice' && searchParams.get('only') === 'questions'
   const attemptIdParam = searchParams.get('attemptId')
   const from = searchParams.get('from')
   const id = Number(materialId)
@@ -275,7 +298,7 @@ export default function MaterialPageView() {
       mode === 'graded'
         ? fromQuery(from)
         : mode === 'practice'
-          ? `?mode=practice${andFromQuery(from)}`
+          ? `?mode=practice${onlyQuestions ? '&only=questions' : ''}${andFromQuery(from)}`
           : `?mode=wrong_only&attemptId=${attemptIdParam}${andFromQuery(from)}`
     navigate(`/materials/${id}/pages/${targetNodeId}${suffix}`)
   }
@@ -467,9 +490,15 @@ export default function MaterialPageView() {
   const alreadySubmitted = attempt.submitted_at !== null
   const modeLabel = mode === 'practice' ? '（練習）' : mode === 'wrong_only' ? '（誤答＆難問抽出）' : ''
 
-  // 目次のミニ版サイドバー（graded時のみ）。誤答＆難問抽出は特定の設問だけの受験記録、練習は
-  // 章跨ぎのスコープ概念自体を持たないため、章・ページ単位の目次と噛み合わず対象外にする。
-  const chapters = mode === 'graded' ? toEditableChapters(material.toc ?? []) : []
+  // 目次のミニ版サイドバー（graded・practice）。誤答＆難問抽出は特定の設問だけの受験記録で
+  // 章・ページ単位の目次と噛み合わないため対象外（2026-09-29、ユーザー要望によりpracticeにも表示）。
+  // practiceはsequencePagesと同じく設問の無いページを一覧からも除く。
+  const chapters =
+    mode === 'graded'
+      ? toEditableChapters(material.toc ?? [])
+      : mode === 'practice'
+        ? filterChaptersToQuestionsOnly(toEditableChapters(material.toc ?? []))
+        : []
   const completedIds = new Set(material.progress?.completed_node_ids ?? [])
   const visitedIds = new Set(material.progress?.visited_node_ids ?? [])
 
@@ -506,8 +535,8 @@ export default function MaterialPageView() {
           <span className="text-xs text-slate-500 dark:text-neutral-400">{progressPct}%</span>
         </div>
 
-        {node.body && <PageBody materialId={id} body={node.body} format={node.format ?? 'markdown'} />}
-        {node && <PageAttachments materialId={id} nodeId={node.id} />}
+        {!onlyQuestions && node.body && <PageBody materialId={id} body={node.body} format={node.format ?? 'markdown'} />}
+        {!onlyQuestions && node && <PageAttachments materialId={id} nodeId={node.id} />}
 
         {submittedResult ? (
           <>
@@ -627,7 +656,10 @@ export default function MaterialPageView() {
         viewingNodeId={pageNodeId}
         completedIds={completedIds}
         visitedIds={visitedIds}
-        query={fromQuery(from)}
+        // practiceモード中に目次からページを移動しても練習の続き（?only=questions等）を
+        // 保てるよう、gradedと同じfromQueryではなくgoToPageと同じ組み立てにする
+        // （2026-09-29、目次パネルをpracticeにも表示するようにした際に対応）。
+        query={mode === 'practice' ? `?mode=practice${onlyQuestions ? '&only=questions' : ''}${andFromQuery(from)}` : fromQuery(from)}
       />
 
       {surveyToShow && (
