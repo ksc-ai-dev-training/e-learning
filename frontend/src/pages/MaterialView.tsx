@@ -677,17 +677,17 @@ export default function MaterialView() {
             ))}
 
             {chapters.length > 0 && (
-              <div className="mt-6 flex items-center gap-3 border-t border-slate-200 pt-5 dark:border-neutral-800">
+              <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-slate-200 pt-5 dark:border-neutral-800">
                 <Link
                   to={back.to}
-                  className="rounded-md border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 dark:hover:bg-neutral-700"
+                  className="flex-shrink-0 whitespace-nowrap rounded-md border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 dark:hover:bg-neutral-700"
                 >
                   {isCompleted ? '学習を終了' : '一時中断する'}
                 </Link>
                 {resumeTargetNodeId !== null && (
                   <Link
                     to={`/materials/${id}/pages/${resumeTargetNodeId}${returnQuery}`}
-                    className="whitespace-nowrap rounded-md bg-blue-900 px-3.5 py-2 text-sm font-semibold text-white hover:bg-blue-800 dark:bg-blue-700 dark:hover:bg-blue-600"
+                    className="flex-shrink-0 whitespace-nowrap rounded-md bg-blue-900 px-3.5 py-2 text-sm font-semibold text-white hover:bg-blue-800 dark:bg-blue-700 dark:hover:bg-blue-600"
                   >
                     {resumeLabel}
                   </Link>

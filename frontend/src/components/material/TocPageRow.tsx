@@ -50,7 +50,7 @@ export default function TocPageRow({
       >
         {done ? '✓' : isCurrent ? '●' : '·'}
       </span>
-      <span className="flex-1 text-slate-700 dark:text-neutral-200">{title}</span>
+      <span className="max-sm:break-keep flex-1 text-slate-700 dark:text-neutral-200">{title}</span>
       <span className="flex-shrink-0 text-[10.5px] text-slate-400 dark:text-neutral-500">{kindLabel}</span>
     </Link>
   )

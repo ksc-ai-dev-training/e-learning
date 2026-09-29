@@ -289,7 +289,7 @@ export default function MaterialsSearch() {
                   )}
                 </div>
                 <div className="flex flex-1 flex-col gap-1.5 p-2.5">
-                  <div className="text-[13px] font-semibold leading-snug text-slate-800 dark:text-neutral-100">
+                  <div className="max-sm:break-keep text-[13px] font-semibold leading-snug text-slate-800 dark:text-neutral-100">
                     {m.title}
                   </div>
                   {m.description && (
