@@ -6,6 +6,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import hmac
+import logging
 import time
 import uuid
 from pathlib import Path
@@ -15,6 +16,8 @@ import httpx
 from auth_helpers import JWT_SECRET
 from database import ROOT_ENV
 import os
+
+logger = logging.getLogger("manabi.storage")
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL") or ROOT_ENV.get("SUPABASE_URL")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY") or ROOT_ENV.get("SUPABASE_SERVICE_KEY")
@@ -106,13 +109,23 @@ async def resolve_thumbnail_urls(storage_keys: list[str | None]) -> list[str | N
     """教材一覧（S-02/S-03/S-12/S-14）向け: 複数のmaterials.thumbnail_keyを並列に署名付き
     表示用URLへ解決する。Noneの要素はI/Oを発生させずそのままNoneを返す（2026-09-28新設。
     一覧1件ずつ直列にawaitすると、Supabase Storage署名APIの往復回数がページ件数分積み重なる
-    ため、asyncio.gatherでまとめて発行する）。"""
+    ため、asyncio.gatherでまとめて発行する）。
+
+    1件でも署名発行に失敗する（ストレージ上の実体が無い等、DBのthumbnail_keyが古い参照を
+    指しているケースを含む）とasyncio.gatherは即座に例外を伝播するため、その1件のせいで
+    一覧全体（S-03検索は全利用者共通の画面）が丸ごと500になっていた。一覧表示はサムネイル
+    無しでも成立する（フロントエンド側がプレースホルダーに差し替える）ため、失敗はログに
+    残すだけにして、その項目だけNoneへ落とす（2026-09-29、レビューで発見・修正）。"""
 
     async def _resolve_one(key: str | None) -> str | None:
         if key is None:
             return None
-        url, _ = await create_download_url(key)
-        return url
+        try:
+            url, _ = await create_download_url(key)
+            return url
+        except Exception:
+            logger.warning("thumbnail_key=%s の署名付きURL発行に失敗しました", key, exc_info=True)
+            return None
 
     return await asyncio.gather(*(_resolve_one(key) for key in storage_keys))
 
