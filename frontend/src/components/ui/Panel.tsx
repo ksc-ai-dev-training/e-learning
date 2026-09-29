@@ -29,7 +29,9 @@ export default function Panel({ title, count, tone = 'default', children }: Pane
     // パネルの面を背景より明るくして区別するのではなく、枠線と文字の明るさだけで区別する
     // （2026-09-17、ユーザー指摘。面を明るくすると白い箱が浮いて見える不具合の再発になるため）。
     <section className={`mb-5 rounded-md border bg-white dark:bg-neutral-900 ${borderClass}`}>
-      <div className={`flex items-center justify-between border-b ${borderClass} ${headerClass} px-4 py-2.5`}>
+      <div
+        className={`flex flex-col gap-0.5 border-b ${borderClass} ${headerClass} px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-2`}
+      >
         <span className="text-[15px] font-semibold text-slate-700 dark:text-neutral-50">{title}</span>
         {count && <span className="text-[13px] text-slate-400 dark:text-neutral-300">{count}</span>}
       </div>

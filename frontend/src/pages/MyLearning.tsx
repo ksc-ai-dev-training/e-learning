@@ -219,7 +219,10 @@ export default function MyLearning() {
           ))}
         </div>
 
-        <div className="mb-5 flex gap-1 border-b border-slate-200 dark:border-neutral-800" role="tablist">
+        <div
+          className="mb-5 flex gap-1 overflow-x-auto border-b border-slate-200 dark:border-neutral-800"
+          role="tablist"
+        >
           {(
             [
               { key: 'assigned', label: '必修・任意', count: 0 },
@@ -231,7 +234,7 @@ export default function MyLearning() {
               key={tab.key}
               type="button"
               onClick={() => setViewTab(tab.key)}
-              className={`flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-semibold ${
+              className={`flex flex-shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-2 text-sm font-semibold ${
                 viewTab === tab.key
                   ? 'border-blue-700 text-blue-800 dark:border-blue-500 dark:text-blue-300'
                   : 'border-transparent text-slate-500 dark:text-neutral-300'
@@ -249,7 +252,7 @@ export default function MyLearning() {
 
         {viewTab === 'assigned' ? (
           <>
-            <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="mb-5 grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 sm:grid-cols-4">
               <StatCard
                 label="必修受講完了率"
                 value={stats?.required_completion_pct ?? 0}
