@@ -37,6 +37,15 @@ def _material_dict(row) -> dict:
     return d
 
 
+async def _resolve_thumbnail_url(thumbnail_key: str | None) -> str | None:
+    """materials.thumbnail_key（storage_key）を表示用の署名付きURLへ解決する（未設定ならNone。
+    フロントエンド側でタグ等から生成したプレースホルダー画像に差し替える。2026-09-28）。"""
+    if thumbnail_key is None:
+        return None
+    url, _ = await storage.create_download_url(thumbnail_key)
+    return url
+
+
 async def _require_view_access(pool, id: int, user: CurrentUser) -> dict:
     """A-15/A-28共通の閲覧権限判定。編集権限者（下書き含む、全社ライブラリ下書きは作成者・
     プロジェクト管理者・システムadmin限定）と、受講対象者（公開済みのみ。require_material_access
@@ -188,7 +197,7 @@ async def search_materials(
     limit_ph = add_param(per_page)
     offset_ph = add_param((page - 1) * per_page)
     rows = await pool.fetch(
-        f"""SELECT m.id, m.title, m.description, m.tags, m.project_id,
+        f"""SELECT m.id, m.title, m.description, m.tags, m.project_id, m.thumbnail_key,
                    p.name AS project_name, p.is_company_wide,
                    u.name AS created_by_name,
                    COALESCE(nc.chapter_count, 0) AS chapter_count,
@@ -217,7 +226,15 @@ async def search_materials(
             ) qc ON qc.material_id = m.id
             LEFT JOIN enrollment_progress ep ON ep.material_id = m.id AND ep.user_id = {user_ph}
             WHERE {where_sql}
-            ORDER BY m.updated_at DESC
+            -- 未受講の必修教材を先頭に並べる（2026-09-29、ユーザー要望。カード表示は一覧性が
+            -- テーブルより低いため、対応が必要な必修教材が更新日順に埋もれて見づらいとの指摘）。
+            -- ORDER BY句は複合式の中でSELECT句のエイリアス（required等）を参照できない
+            -- （Postgresが単純な識別子1個のときだけ出力名を解決する仕様のため）、同じ条件式を
+            -- そのまま書き直す。
+            ORDER BY (
+                EXISTS (SELECT 1 FROM assignments a WHERE a.material_id = m.id AND a.required = true)
+                AND COALESCE(ep.status, 'not_started') != 'completed'
+            ) DESC, m.updated_at DESC
             LIMIT {limit_ph} OFFSET {offset_ph}""",
         *params,
     )
@@ -233,6 +250,10 @@ async def search_materials(
         d["tags"] = json.loads(d["tags"])
         d["question_types"] = json.loads(d["question_types"])
         items.append(d)
+    thumbnail_keys = [item.pop("thumbnail_key") for item in items]
+    thumbnail_urls = await storage.resolve_thumbnail_urls(thumbnail_keys)
+    for item, url in zip(items, thumbnail_urls):
+        item["thumbnail_url"] = url
 
     return {"items": items, "total": total, "available_tags": [t["tag"] for t in tag_rows]}
 
@@ -449,7 +470,7 @@ async def list_materials_source(
             where += f" AND m.created_by = {creator_ph}"
 
     rows = await pool.fetch(
-        f"""SELECT m.id, m.title, m.status, m.is_archived, m.updated_at, m.tags,
+        f"""SELECT m.id, m.title, m.status, m.is_archived, m.updated_at, m.tags, m.thumbnail_key,
                    u.name AS created_by_name,
                    COALESCE(nc.chapter_count, 0) AS chapter_count,
                    COALESCE(nc.page_count, 0) AS page_count
@@ -466,7 +487,12 @@ async def list_materials_source(
             ORDER BY m.updated_at DESC""",
         *params,
     )
-    return {"items": [{**dict(r), "tags": json.loads(r["tags"])} for r in rows]}
+    items = [{**dict(r), "tags": json.loads(r["tags"])} for r in rows]
+    thumbnail_keys = [item.pop("thumbnail_key") for item in items]
+    thumbnail_urls = await storage.resolve_thumbnail_urls(thumbnail_keys)
+    for item, url in zip(items, thumbnail_urls):
+        item["thumbnail_url"] = url
+    return {"items": items}
 
 
 class MaterialCreate(BaseModel):
@@ -578,7 +604,7 @@ async def get_material(id: int, user: CurrentUser = Depends(require_auth)):
         """SELECT id, project_id, title, description, tags, status, sort_order,
                   attempt_scope, retake_scope, pass_score_pct, retake_allowed, retake_limit,
                   default_feedback_style, ai_context,
-                  grading_mode, is_archived, archived_at, created_at, updated_at
+                  grading_mode, is_archived, archived_at, created_at, updated_at, thumbnail_key
            FROM materials WHERE id = $1""",
         id,
     )
@@ -627,8 +653,10 @@ async def get_material(id: int, user: CurrentUser = Depends(require_auth)):
         user.id, id,
     )
 
+    material = _material_dict(row)
+    thumbnail_key = material.pop("thumbnail_key")
     return {
-        **_material_dict(row),
+        **material,
         "toc": tree,
         "required": required,
         "due_at": due_at,
@@ -637,6 +665,7 @@ async def get_material(id: int, user: CurrentUser = Depends(require_auth)):
         "is_company_wide": perm_row["is_company_wide"],
         "registered": registered,
         "has_learning_history": has_learning_history,
+        "thumbnail_url": await _resolve_thumbnail_url(thumbnail_key),
     }
 
 
@@ -880,6 +909,10 @@ class MaterialUpdate(BaseModel):
     description: str | None = None
     tags: list[str] | None = None
     status: str | None = None
+    # サムネイル差し替え確定用。アップロード自体は/{id}/thumbnail/upload-urlで署名付きURLを
+    # 発行し、フロントエンドがそこへ直接PUTした後、ここでstorage_keyを確定させる（A-76/A-75の
+    # アイコンと同じ2段階方式）。nullを明示的に送るとサムネイルを削除できる（2026-09-28）。
+    thumbnail_key: str | None = None
 
 
 @detail_router.put("/{id}")
@@ -897,11 +930,21 @@ async def update_material(
         row = await get_pool().fetchrow(
             """SELECT id, project_id, title, description, tags, status, sort_order,
                       attempt_scope, retake_scope, default_feedback_style, ai_context,
-                      grading_mode, is_archived, archived_at, created_at, updated_at
+                      grading_mode, is_archived, archived_at, created_at, updated_at, thumbnail_key
                FROM materials WHERE id = $1""",
             id,
         )
-        return _material_dict(row)
+        material = _material_dict(row)
+        thumbnail_key = material.pop("thumbnail_key")
+        return {**material, "thumbnail_url": await _resolve_thumbnail_url(thumbnail_key)}
+
+    # サムネイル差し替え・削除時、古いストレージ上のファイルを消し忘れると孤児ファイルが
+    # 残り続けるため、更新前の値を控えておく（users.custom_picture_keyのA-75と同じ方式）。
+    old_thumbnail_key = None
+    if "thumbnail_key" in updates:
+        old_thumbnail_key = await get_pool().fetchval(
+            "SELECT thumbnail_key FROM materials WHERE id = $1", id
+        )
 
     set_clauses = []
     values = []
@@ -916,10 +959,14 @@ async def update_material(
             WHERE id = ${len(values)}
             RETURNING id, project_id, title, description, tags, status, sort_order,
                       attempt_scope, retake_scope, default_feedback_style, ai_context,
-                      grading_mode, is_archived, archived_at, created_at, updated_at""",
+                      grading_mode, is_archived, archived_at, created_at, updated_at, thumbnail_key""",
         *values,
     )
-    return _material_dict(row)
+    material = _material_dict(row)
+    new_thumbnail_key = material.pop("thumbnail_key")
+    if old_thumbnail_key and old_thumbnail_key != new_thumbnail_key:
+        await storage.delete_object(old_thumbnail_key)
+    return {**material, "thumbnail_url": await _resolve_thumbnail_url(new_thumbnail_key)}
 
 
 @detail_router.get("/{id}/source")
@@ -1303,6 +1350,26 @@ async def create_attachment_upload_url(
         raise HTTPException(413, detail=f"ファイルサイズは{max_mb}MB以内にしてください")
     storage_key, upload_url = await storage.create_upload_target(
         prefix=f"materials/{id}", filename=body.filename, mime_type=body.mime_type,
+    )
+    return {"upload_url": upload_url, "storage_key": storage_key}
+
+
+@detail_router.post("/{id}/thumbnail/upload-url")
+async def create_thumbnail_upload_url(
+    id: int,
+    body: UploadUrlRequest,
+    user: CurrentUser = Depends(require_material_role(min_role="editor")),
+):
+    """新規: 教材一覧（S-02/S-03/S-12/S-14）サムネイル画像アップロード用の署名付きURLを発行する
+    （A-76アイコンアップロードと同じ方式）。PNG/JPEGのみ、MAX_THUMBNAIL_SIZE_MB（既定5MB）まで。
+    アップロード後はPUT /api/materials/{id}にthumbnail_keyを渡して確定する（A-17）。"""
+    if body.mime_type not in ("image/png", "image/jpeg"):
+        raise HTTPException(422, detail="PNG またはJPEG画像のみアップロードできます")
+    max_mb = int(os.environ.get("MAX_THUMBNAIL_SIZE_MB", "5"))
+    if body.size_bytes > max_mb * 1024 * 1024:
+        raise HTTPException(413, detail=f"サムネイル画像は{max_mb}MB以内にしてください")
+    storage_key, upload_url = await storage.create_upload_target(
+        prefix=f"materials/{id}/thumbnail", filename=body.filename, mime_type=body.mime_type,
     )
     return {"upload_url": upload_url, "storage_key": storage_key}
 

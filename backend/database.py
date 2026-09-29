@@ -146,6 +146,10 @@ ALTER TABLE materials ENABLE ROW LEVEL SECURITY;
 ALTER TABLE materials ADD COLUMN IF NOT EXISTS pass_score_pct NUMERIC(5, 2);
 ALTER TABLE materials ADD COLUMN IF NOT EXISTS retake_allowed BOOLEAN NOT NULL DEFAULT true;
 ALTER TABLE materials ADD COLUMN IF NOT EXISTS retake_limit INTEGER;
+-- 教材一覧（S-02/S-03/S-12/S-14）のサムネイル表示用。usersのcustom_picture_keyと同じくstorage_key
+-- を保存し、表示時にストレージから署名付きURLへ解決する（署名付きURLは有効期限があり永続化できないため）。
+-- 未設定（NULL）の教材はフロントエンド側でタグ等から機械的に生成したプレースホルダー画像を表示する（2026-09-28）。
+ALTER TABLE materials ADD COLUMN IF NOT EXISTS thumbnail_key TEXT;
 
 -- T-23 material_nodes（教材の目次ノード: 章・小見出し・ページの自己参照ツリー）
 CREATE TABLE IF NOT EXISTS material_nodes (

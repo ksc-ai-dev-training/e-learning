@@ -8,6 +8,7 @@ import InlinePageEditor from '../components/material/InlinePageEditor'
 import SurveyEditModal from '../components/material/SurveyEditModal'
 import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
+import MaterialThumbnail from '../components/ui/MaterialThumbnail'
 import Select from '../components/ui/Select'
 import TagInput from '../components/ui/TagInput'
 import TextArea from '../components/ui/TextArea'
@@ -32,6 +33,7 @@ import { buildMaterialSource } from '../lib/materialSource'
 import type { EditableNode, PendingAttachment } from '../lib/materialSource'
 import { addLinkAttachment, deleteAttachment, uploadFileAttachment } from '../lib/attachmentActions'
 import { archiveMaterial, deleteMaterial, publishMaterial, restoreMaterial } from '../lib/materialActions'
+import { resetMaterialThumbnail, uploadMaterialThumbnail } from '../lib/materialThumbnailActions'
 import { pageKindLabel, toEditableChapters } from '../lib/materialTree'
 import { questionTypeLabel } from '../lib/questionDefaults'
 import type { Material } from '../types'
@@ -168,6 +170,7 @@ export default function MaterialEdit() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
   const [publishing, setPublishing] = useState(false)
   const [publishModalOpen, setPublishModalOpen] = useState(false)
+  const [thumbnailUploading, setThumbnailUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [savedMessage, setSavedMessage] = useState<string | null>(null)
   const [attachmentWarning, setAttachmentWarning] = useState<string | null>(null)
@@ -498,6 +501,39 @@ export default function MaterialEdit() {
       setError(e instanceof ApiError ? e.message : '削除に失敗しました')
     } finally {
       setDeleting(false)
+    }
+  }
+
+  // サムネイル画像のアップロード・削除。タイトル・タグ・description等（「下書き保存」でまとめて
+  // 保存する）とは違い、プロフィールアイコンと同じくファイル選択・削除操作の都度サーバーへ即時反映する
+  // （2026-09-28新設）。
+  const handleThumbnailSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file || savedId === null) return
+    setError(null)
+    setThumbnailUploading(true)
+    try {
+      await uploadMaterialThumbnail(savedId, file)
+      await mutate()
+    } catch (e2) {
+      setError(e2 instanceof ApiError ? e2.message : 'サムネイル画像のアップロードに失敗しました')
+    } finally {
+      setThumbnailUploading(false)
+    }
+  }
+
+  const handleThumbnailRemove = async () => {
+    if (savedId === null) return
+    setError(null)
+    setThumbnailUploading(true)
+    try {
+      await resetMaterialThumbnail(savedId)
+      await mutate()
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'サムネイル画像の削除に失敗しました')
+    } finally {
+      setThumbnailUploading(false)
     }
   }
 
@@ -976,6 +1012,52 @@ export default function MaterialEdit() {
             maxLength={500}
             rows={2}
           />
+        </div>
+
+        <div className="mb-5 flex max-w-xl flex-col gap-1">
+          <span className="text-xs font-semibold text-slate-500 dark:text-neutral-300">
+            サムネイル画像（任意、一覧表示用）
+          </span>
+          {savedId === null ? (
+            <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-500">
+              先に「下書き保存」してください。教材を保存すると設定できます。
+            </p>
+          ) : (
+            <div className="flex items-center gap-3">
+              <MaterialThumbnail
+                material={{ id: savedId, title, thumbnail_url: material?.thumbnail_url }}
+                size="sm"
+                className="border border-slate-200 dark:border-neutral-700"
+              />
+              <div className="flex flex-col gap-1.5">
+                <div className="flex gap-2">
+                  <label className="flex h-8 cursor-pointer items-center rounded-md border border-slate-300 px-3 text-xs font-semibold text-slate-600 hover:bg-slate-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                    {thumbnailUploading ? '処理中...' : '画像を変更'}
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg"
+                      className="hidden"
+                      onChange={handleThumbnailSelect}
+                      disabled={thumbnailUploading}
+                    />
+                  </label>
+                  {material?.thumbnail_url && (
+                    <button
+                      type="button"
+                      onClick={handleThumbnailRemove}
+                      disabled={thumbnailUploading}
+                      className="text-xs font-semibold text-slate-500 hover:text-red-700 hover:underline disabled:opacity-50 dark:text-neutral-400 dark:hover:text-red-400"
+                    >
+                      削除する
+                    </button>
+                  )}
+                </div>
+                <span className="text-[11px] text-slate-400 dark:text-neutral-500">
+                  PNG・JPEG、5MBまで。未設定の間は一覧に自動でプレースホルダー画像が表示されます
+                </span>
+              </div>
+            </div>
+          )}
         </div>
 
         <section className="mb-5 max-w-xl rounded-md border border-slate-200 dark:border-neutral-800">

@@ -3,6 +3,7 @@
 # ファイルシステム保存、設定済み（本番）ならSupabase Storageへ自動的に切り替える。
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import hmac
 import time
@@ -99,6 +100,21 @@ async def create_download_url(storage_key: str) -> tuple[str, str | None]:
     query, expires = make_local_signed_query(storage_key)
     expires_at = datetime.datetime.fromtimestamp(expires, tz=datetime.timezone.utc).isoformat()
     return f"/api/uploads/{storage_key}{query}", expires_at
+
+
+async def resolve_thumbnail_urls(storage_keys: list[str | None]) -> list[str | None]:
+    """教材一覧（S-02/S-03/S-12/S-14）向け: 複数のmaterials.thumbnail_keyを並列に署名付き
+    表示用URLへ解決する。Noneの要素はI/Oを発生させずそのままNoneを返す（2026-09-28新設。
+    一覧1件ずつ直列にawaitすると、Supabase Storage署名APIの往復回数がページ件数分積み重なる
+    ため、asyncio.gatherでまとめて発行する）。"""
+
+    async def _resolve_one(key: str | None) -> str | None:
+        if key is None:
+            return None
+        url, _ = await create_download_url(key)
+        return url
+
+    return await asyncio.gather(*(_resolve_one(key) for key in storage_keys))
 
 
 async def copy_object(src_storage_key: str, dest_prefix: str, filename: str) -> str:

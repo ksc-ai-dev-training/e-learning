@@ -107,6 +107,7 @@ export interface MaterialSource {
   created_by_name: string
   chapter_count: number
   page_count: number
+  thumbnail_url: string | null
 }
 
 export type EnrollmentStatus = 'not_started' | 'in_progress' | 'completed'
@@ -130,6 +131,7 @@ export interface MaterialSearchItem {
   // マイ学習への登録有無（F-31）。全社ライブラリ所属の任意教材の行にのみ登録ボタンを出す判定に使う
   registered: boolean
   updated_at: string
+  thumbnail_url: string | null
 }
 
 // A-14のレスポンス
@@ -160,6 +162,8 @@ export interface MyLearningItem {
   updated_at: string | null
   // 必修/任意一覧（history=false）のみ。学習履歴（history=true）では常にundefined
   registered?: boolean
+  // 教材一覧サムネイル表示用。未設定（null）の場合はフロントエンド側でプレースホルダーを表示する
+  thumbnail_url: string | null
 }
 
 // A-39のレスポンス（history=false）
@@ -407,6 +411,9 @@ export interface Material {
   // S-05のアーカイブ／削除ボタンの出し分け用。編集権限者向けアクセスのみtrue/falseが入り、
   // 受講者向けアクセスでは常にfalse（2026-09-18追加）
   has_learning_history?: boolean
+  // 教材一覧（S-02/S-03/S-12/S-14）サムネイル表示用。未設定（null）の場合、フロントエンド側で
+  // タグ・IDから機械的に生成したプレースホルダー画像を表示する（2026-09-28新設）。
+  thumbnail_url?: string | null
 }
 
 export type ProjectRole = 'admin' | 'editor' | 'learner'

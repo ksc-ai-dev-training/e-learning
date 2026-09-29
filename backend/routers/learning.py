@@ -12,6 +12,7 @@ from pydantic import BaseModel
 
 import ai_client
 import slack_client
+import storage
 from auth_helpers import CurrentUser, check_project_role, has_active_project_role, require_auth
 from database import get_pool
 from routers.materials import _fetch_tree, _require_view_access
@@ -1831,6 +1832,7 @@ async def get_my_learning(history: bool = False, user: CurrentUser = Depends(req
     if history:
         rows = await pool.fetch(
             """SELECT m.id, m.title, m.tags, m.project_id, p.name AS project_name, p.is_company_wide,
+                      m.thumbnail_key,
                       COALESCE(nc.page_count, 0) AS page_count,
                       COALESCE(asg.required, false) AS required, asg.due_at,
                       ep.status AS progress_status, ep.completed_node_ids, ep.visited_node_ids, ep.completed_at,
@@ -1854,11 +1856,13 @@ async def get_my_learning(history: bool = False, user: CurrentUser = Depends(req
             user.id,
         )
         items = [_my_learning_item(r) for r in rows]
+        await _attach_thumbnail_urls(items)
         return {"items": items}
 
     grace_days = await get_setting_int("project_leave_grace_period_days", DEFAULT_GRACE_PERIOD_DAYS)
     rows = await pool.fetch(
         """SELECT m.id, m.title, m.tags, m.project_id, p.name AS project_name, p.is_company_wide,
+                  m.thumbnail_key,
                   COALESCE(nc.page_count, 0) AS page_count,
                   COALESCE(asg.required, false) AS required, asg.due_at,
                   ep.status AS progress_status, ep.completed_node_ids, ep.visited_node_ids, ep.completed_at,
@@ -1925,6 +1929,7 @@ async def get_my_learning(history: bool = False, user: CurrentUser = Depends(req
     # （2026-09-11新設）。
     pending_review_rows = await pool.fetch(
         """SELECT m.id, m.title, m.tags, m.project_id, p.name AS project_name, p.is_company_wide,
+                  m.thumbnail_key,
                   COALESCE(nc.page_count, 0) AS page_count,
                   COALESCE(asg.required, false) AS required, asg.due_at,
                   ep.status AS progress_status, ep.completed_node_ids, ep.visited_node_ids, ep.completed_at,
@@ -1953,6 +1958,7 @@ async def get_my_learning(history: bool = False, user: CurrentUser = Depends(req
         user.id,
     )
     pending_review_items = [_my_learning_item(r) for r in pending_review_rows]
+    await _attach_thumbnail_urls(required_items + optional_items + pending_review_items)
 
     return {
         "required": required_items,
@@ -1987,6 +1993,7 @@ def _my_learning_item(r) -> dict:
         "project_id": r["project_id"],
         "project_name": r["project_name"],
         "is_company_wide": r["is_company_wide"],
+        "thumbnail_key": r["thumbnail_key"],
         "page_count": page_count,
         "required": r["required"],
         "due_at": r["due_at"],
@@ -1997,6 +2004,16 @@ def _my_learning_item(r) -> dict:
         "completed_at": r["completed_at"],
         "updated_at": r["updated_at"] if "updated_at" in r.keys() else r["progress_updated_at"],
     }
+
+
+async def _attach_thumbnail_urls(items: list[dict]) -> None:
+    """_my_learning_itemが積んだthumbnail_key（storage_key）を、表示用の署名付きURLへ
+    まとめて解決してthumbnail_urlに差し替える（一覧内の対象件数分をasyncio.gatherで並列発行。
+    2026-09-28新設）。"""
+    keys = [item.pop("thumbnail_key") for item in items]
+    urls = await storage.resolve_thumbnail_urls(keys)
+    for item, url in zip(items, urls):
+        item["thumbnail_url"] = url
 
 
 @router.post("/materials/{id}/grading-results/ack")

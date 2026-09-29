@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router'
 import PageHeader from '../components/layout/PageHeader'
 import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
+import MaterialThumbnail from '../components/ui/MaterialThumbnail'
 import Select from '../components/ui/Select'
 import TextInput from '../components/ui/TextInput'
 import { useMaterials } from '../hooks/useMaterials'
@@ -195,6 +196,7 @@ export default function MaterialsList() {
             <table className="w-full text-sm [&_td]:align-top">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs text-slate-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300">
+                  <th className="w-[68px] px-3 py-2 font-semibold"></th>
                   <th className="px-3 py-2 font-semibold">教材</th>
                   <th className="w-24 px-3 py-2 font-semibold">状態</th>
                   <th className="w-28 px-3 py-2 font-semibold">構成</th>
@@ -211,6 +213,9 @@ export default function MaterialsList() {
                       i % 2 === 1 ? 'bg-slate-50 dark:bg-neutral-900/40' : ''
                     }`}
                   >
+                    <td className="px-3 py-3">
+                      <MaterialThumbnail material={m} size="sm" className={m.is_archived ? 'opacity-50' : ''} />
+                    </td>
                     <td className="px-3 py-3">
                       <Link
                         to={`/projects/${id}/materials/${m.id}/edit`}

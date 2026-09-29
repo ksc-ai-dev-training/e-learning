@@ -1,6 +1,7 @@
 import { Link } from 'react-router'
 import Badge from './Badge'
 import Chip from './Chip'
+import MaterialThumbnail from './MaterialThumbnail'
 import ProgressBar from './ProgressBar'
 import { formatDateJst } from '../../lib/datetime'
 import type { MyLearningItem } from '../../types'
@@ -43,12 +44,7 @@ export default function MaterialCard({ item, actionLabel, to, urgent = false }: 
             : ''
       }`}
     >
-      <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-400 dark:bg-neutral-800 dark:text-neutral-300">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
-          <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
-        </svg>
-      </div>
+      <MaterialThumbnail material={item} size="sm" />
 
       <div className="min-w-0 flex-1 basis-full sm:basis-0">
         <div className="truncate text-[15px] font-semibold text-slate-800 dark:text-neutral-50">{item.title}</div>

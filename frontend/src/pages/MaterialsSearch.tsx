@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
+import { Check } from 'lucide-react'
 import PageHeader from '../components/layout/PageHeader'
 import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
+import MaterialThumbnail from '../components/ui/MaterialThumbnail'
 import MyLearningToggle from '../components/ui/MyLearningToggle'
 import Select from '../components/ui/Select'
 import TextInput from '../components/ui/TextInput'
@@ -47,6 +49,23 @@ function actionLabel(status: EnrollmentStatus): string {
   // 常に目次タブへ遷移するボタンのため、必修・任意問わず「復習する」で統一する
   // （マイ学習と同じ理由。2026-09-09）。「練習」をしたい場合は目次タブから切り替える。
   return '復習する'
+}
+
+// 受講状況の可視化(2026-09-29、ユーザー要望)。数値の進捗%はA-14のレスポンスに含まれていない
+// ため、まずは状態ラベルのみをバッジで出す。
+function ProgressStatusBadge({ status }: { status: EnrollmentStatus }) {
+  if (status === 'completed') return <Badge variant="complete">受講済み</Badge>
+  if (status === 'in_progress') return <Badge variant="in-progress" />
+  return <Badge variant="not-started" />
+}
+
+// 受講中は「今やるべきもの」として塗りボタンで強調する。未受講・受講済みは従来どおり控えめな
+// 枠線ボタンのまま（2026-09-29、ユーザー要望。全ボタンが同じ見た目で状態が伝わらないとの指摘）。
+function actionButtonClass(status: EnrollmentStatus): string {
+  if (status === 'in_progress') {
+    return 'w-full whitespace-nowrap rounded-md border border-blue-700 bg-blue-700 px-2.5 py-1 text-center text-[12px] font-semibold text-white hover:bg-blue-800 dark:border-blue-600 dark:bg-blue-700 dark:hover:bg-blue-600'
+  }
+  return 'w-full whitespace-nowrap rounded-md border border-slate-300 bg-white px-2.5 py-1 text-center text-[12px] font-semibold text-slate-700 hover:bg-slate-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50 dark:hover:bg-neutral-700'
 }
 
 // URLクエリからの絞り込み込みリンク（S-09「未受講の必修教材」等）向け。個々のキーが無ければ
@@ -163,7 +182,7 @@ export default function MaterialsSearch() {
 
         <details className="mb-4 rounded-md border border-slate-200 dark:border-neutral-800" open>
           <summary className="cursor-pointer px-4 py-2.5 text-sm font-semibold text-slate-600 dark:text-neutral-200">
-            検索条件 <span className="ml-1 text-xs font-normal text-slate-400">クリックで開閉</span>
+            検索条件 <span className="ml-1 text-xs font-normal text-slate-400 dark:text-neutral-500">クリックで開閉</span>
           </summary>
           <div className="border-t border-slate-200 p-4 dark:border-neutral-800">
             <div className="grid grid-cols-2 gap-4">
@@ -247,7 +266,7 @@ export default function MaterialsSearch() {
           </div>
         </details>
 
-        {isLoading && <p className="text-sm text-slate-400">読み込み中...</p>}
+        {isLoading && <p className="text-sm text-slate-400 dark:text-neutral-500">読み込み中...</p>}
         {error && <p className="text-sm text-red-600 dark:text-red-400">教材一覧を取得できませんでした</p>}
 
         {!isLoading && !error && items.length === 0 && (
@@ -257,103 +276,100 @@ export default function MaterialsSearch() {
         )}
 
         {items.length > 0 && (
-          <div className="overflow-x-auto rounded-md border border-slate-200 dark:border-neutral-800">
-            <table className="w-full text-sm [&_td]:align-top">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs text-slate-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300">
-                  <th className="px-3 py-2 font-semibold">教材</th>
-                  <th className="px-3 py-2 font-semibold">プロジェクト</th>
-                  <th className="px-3 py-2 font-semibold">タグ</th>
-                  <th className="w-20 px-3 py-2 font-semibold">区分</th>
-                  <th className="w-24 px-3 py-2 font-semibold">作成者</th>
-                  <th className="w-28 px-3 py-2 font-semibold">更新日</th>
-                  <th className="w-32 px-3 py-2 font-semibold">操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((m, i) => (
-                  <tr
-                    key={m.id}
-                    className={`border-b border-slate-200 last:border-0 hover:bg-slate-100 dark:border-neutral-700 dark:hover:bg-neutral-800/60 ${
-                      i % 2 === 1 ? 'bg-slate-50 dark:bg-neutral-900/40' : ''
-                    }`}
-                  >
-                    <td className="px-3 py-3">
-                      <div className="text-slate-800 dark:text-neutral-100">{m.title}</div>
-                      <div className="mt-0.5 text-[13px] text-slate-400">
-                        {m.chapter_count}章・{m.page_count}ページ
-                        {m.question_count > 0 && (
-                          <>
-                            {' ／ '}
-                            {m.question_types.map(questionTypeLabel).join('・')} 全{m.question_count}問
-                          </>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-3 py-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+            {items.map((m) => (
+              <div
+                key={m.id}
+                className="flex flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-900"
+              >
+                <div className="relative">
+                  <MaterialThumbnail material={m} size="lg" />
+                  <span className="absolute left-1.5 top-1.5 rounded bg-white/95 px-0.5 py-0.5 shadow-sm dark:bg-neutral-900/90">
+                    <Badge variant={m.required ? 'required' : 'optional'} />
+                  </span>
+                  {m.progress_status === 'completed' && (
+                    <span className="absolute bottom-1.5 right-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-white/90 text-green-600 shadow-sm dark:bg-neutral-900/90 dark:text-green-400">
+                      <Check className="h-3.5 w-3.5" strokeWidth={3} />
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-1 flex-col gap-1.5 p-2.5">
+                  <div className="text-[13px] font-semibold leading-snug text-slate-800 dark:text-neutral-100">
+                    {m.title}
+                  </div>
+                  {m.description && (
+                    <div className="line-clamp-2 text-[11px] text-slate-400 dark:text-neutral-500">
+                      {m.description}
+                    </div>
+                  )}
+                  <div className="flex flex-wrap items-center gap-1">
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap ${projectColorClasses(m.project_id)}`}
+                    >
+                      {m.is_company_wide ? '📌 ' : ''}
+                      {m.project_name}
+                    </span>
+                    {m.tags.slice(0, 2).map((t) => (
                       <span
-                        className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[13px] font-medium whitespace-nowrap ${projectColorClasses(m.project_id)}`}
+                        key={t}
+                        className="rounded-full border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[11px] text-slate-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
                       >
-                        {m.is_company_wide ? '📌 ' : ''}
-                        {m.project_name}
+                        #{t}
                       </span>
-                    </td>
-                    <td className="px-3 py-3">
-                      {m.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                          {m.tags.map((t) => (
-                            <span
-                              key={t}
-                              className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[13px] text-slate-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200"
-                            >
-                              #{t}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-3 py-3">
-                      <Badge variant={m.required ? 'required' : 'optional'} />
-                    </td>
-                    <td className="px-3 py-3 text-slate-500 dark:text-neutral-300">{m.created_by_name}</td>
-                    <td className="px-3 py-3 text-slate-500 dark:text-neutral-300">{formatDateJst(m.updated_at)}</td>
-                    <td className="px-3 py-3">
-                      <div className="flex flex-col items-start gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => navigate(`/materials/${m.id}`)}
-                          className="w-[108px] whitespace-nowrap rounded-md border border-slate-300 bg-white px-3 py-1.5 text-center text-[13px] font-semibold text-slate-700 hover:bg-slate-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50 dark:hover:bg-neutral-700"
-                        >
-                          {actionLabel(m.progress_status)}
-                        </button>
-                        {m.is_company_wide && !m.required && (
-                          <MyLearningToggle
-                            materialId={m.id}
-                            registered={m.registered}
-                            onToggled={() => {
-                              void mutate()
-                            }}
-                          />
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    ))}
+                    {m.tags.length > 2 && (
+                      <span className="rounded-full border border-slate-200 bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-400 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-500">
+                        +{m.tags.length - 2}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-[11px] text-slate-400 dark:text-neutral-500">
+                    {m.chapter_count}章・{m.page_count}ページ
+                    {m.question_count > 0 && (
+                      <>
+                        {' ／ '}
+                        {m.question_types.map(questionTypeLabel).join('・')} 全{m.question_count}問
+                      </>
+                    )}
+                  </div>
+                  <div className="text-[10.5px] text-slate-400 dark:text-neutral-500">
+                    {m.created_by_name}・{formatDateJst(m.updated_at)}
+                  </div>
+                  <div className="mt-auto flex flex-col gap-1 pt-1">
+                    {m.is_company_wide && !m.required && (
+                      <MyLearningToggle
+                        materialId={m.id}
+                        registered={m.registered}
+                        onToggled={() => {
+                          void mutate()
+                        }}
+                      />
+                    )}
+                    <ProgressStatusBadge status={m.progress_status} />
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/materials/${m.id}`)}
+                      className={actionButtonClass(m.progress_status)}
+                    >
+                      {actionLabel(m.progress_status)}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
         <div className="mt-4 flex items-center justify-between text-sm text-slate-500 dark:text-neutral-300">
           <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-400">表示件数</span>
+            <span className="text-xs text-slate-400 dark:text-neutral-500">表示件数</span>
             <Select
               value={String(perPage)}
               onChange={changePerPage}
               options={PER_PAGE_OPTIONS}
               className="w-24"
             />
-            <span className="text-xs text-slate-400">
+            <span className="text-xs text-slate-400 dark:text-neutral-500">
               {rangeStart} - {rangeEnd} / {total}件
             </span>
           </div>
