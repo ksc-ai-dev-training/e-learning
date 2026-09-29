@@ -314,7 +314,10 @@ export default function MaterialView() {
     setActionError(null)
     try {
       await startAttempt(id, { mode: 'practice' })
-      const first = flatPages[0]
+      // 説明のみ（設問が無い）ページで練習が始まると解く問題が無く不自然なため、最初に設問がある
+      // ページまで進める（2026-09-29、ユーザー報告により修正。全ページが説明のみの教材は
+      // そもそも練習する意味が無いため、その場合のみ従来通り先頭ページにフォールバックする）。
+      const first = flatPages.find((p) => p.node.questions.length > 0) ?? flatPages[0]
       if (first) navigate(`/materials/${id}/pages/${first.node.id}?mode=practice${andFromQuery(from)}`)
     } catch (e) {
       setActionError(e instanceof ApiError ? e.message : '開始に失敗しました')

@@ -604,7 +604,7 @@ export default function MaterialPageView() {
                 前のページへ戻る
               </Button>
               <Button onClick={handleNext} disabled={!allResolved || advancing}>
-                {advancing ? '送信中…' : '回答して次のページへ'}
+                {advancing ? '送信中…' : questions.length > 0 ? '回答して次のページへ' : '次のページへ進む'}
               </Button>
               {mode === 'graded' && (
                 <span className="text-xs text-slate-400 dark:text-neutral-500">
