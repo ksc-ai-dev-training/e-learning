@@ -544,7 +544,7 @@ export default function MaterialView() {
                         key={a.question_id}
                         type="button"
                         onClick={() => toggleGradedAnswer(a.question_id)}
-                        className="flex w-full items-start gap-3 p-4 text-left hover:bg-slate-50 dark:hover:bg-neutral-800/60"
+                        className="flex w-full items-start gap-3 p-4 text-left hover:bg-slate-50 max-sm:flex-wrap dark:hover:bg-neutral-800/60"
                       >
                         <span className={`flex-shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${badgeClass}`}>
                           {badgeText}
@@ -573,7 +573,7 @@ export default function MaterialView() {
                             {a.grading_mode === 'manual' ? '手動採点' : 'AI採点'}
                           </span>
                         )}
-                        <div className="min-w-0 flex-1">
+                        <div className="min-w-0 flex-1 max-sm:basis-full">
                           <div className="text-[12.5px] font-semibold text-slate-700 dark:text-neutral-200">
                             {a.scope_label} {a.prompt}
                           </div>
