@@ -1,4 +1,4 @@
-import AttachmentEntry from './AttachmentEntry'
+import AttachmentEntryList from './AttachmentEntryList'
 import { useMaterialAttachments } from '../../hooks/useMaterialAttachments'
 
 // 新設: S-16教材受講：ページに、そのページ（node_id）に紐づく添付ファイル・リンクを表示する。
@@ -15,10 +15,8 @@ export default function PageAttachments({ materialId, nodeId }: { materialId: nu
       <div className="border-b border-slate-200 px-4 py-2.5 dark:border-neutral-800">
         <span className="text-sm font-semibold text-slate-700 dark:text-neutral-100">このページの資料</span>
       </div>
-      <div className="flex flex-col gap-3 p-4 text-sm">
-        {attachments.map((a) => (
-          <AttachmentEntry key={a.id} materialId={materialId} attachment={a} />
-        ))}
+      <div className="p-4 text-sm">
+        <AttachmentEntryList materialId={materialId} attachments={attachments} />
       </div>
     </section>
   )

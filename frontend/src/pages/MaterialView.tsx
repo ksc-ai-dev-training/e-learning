@@ -5,7 +5,7 @@ import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
 import MyLearningToggle from '../components/ui/MyLearningToggle'
 import SurveyModal from '../components/material/SurveyModal'
-import AttachmentEntry from '../components/material/AttachmentEntry'
+import AttachmentEntryList from '../components/material/AttachmentEntryList'
 import TocPageRow from '../components/material/TocPageRow'
 import { useMaterial } from '../hooks/useMaterial'
 import { useMaterialAttachments } from '../hooks/useMaterialAttachments'
@@ -598,10 +598,8 @@ export default function MaterialView() {
                 <div className="border-b border-slate-200 px-4 py-2.5 dark:border-neutral-800">
                   <span className="text-sm font-semibold text-slate-700 dark:text-neutral-100">教材全体の資料</span>
                 </div>
-                <div className="flex flex-col gap-3 p-4 text-sm">
-                  {wholeMaterialAttachments.map((a) => (
-                    <AttachmentEntry key={a.id} materialId={id} attachment={a} />
-                  ))}
+                <div className="p-4 text-sm">
+                  <AttachmentEntryList materialId={id} attachments={wholeMaterialAttachments} />
                 </div>
               </section>
             )}
