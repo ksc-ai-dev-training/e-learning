@@ -8,7 +8,6 @@ export interface MaterialSearchParams {
   projectId: number | null
   required: 'all' | 'required' | 'optional'
   incompleteOnly: boolean
-  myAssignmentsOnly: boolean
   page: number
   perPage: 20 | 50 | 100
 }
@@ -19,7 +18,6 @@ export const EMPTY_SEARCH_PARAMS: MaterialSearchParams = {
   projectId: null,
   required: 'all',
   incompleteOnly: false,
-  myAssignmentsOnly: false,
   page: 1,
   perPage: 20,
 }
@@ -31,7 +29,6 @@ function buildQuery(params: MaterialSearchParams): string {
   if (params.projectId !== null) sp.set('project_id', String(params.projectId))
   if (params.required !== 'all') sp.set('required', params.required === 'required' ? 'true' : 'false')
   if (params.incompleteOnly) sp.set('incomplete_only', 'true')
-  if (params.myAssignmentsOnly) sp.set('my_assignments_only', 'true')
   sp.set('page', String(params.page))
   sp.set('per_page', String(params.perPage))
   return sp.toString()

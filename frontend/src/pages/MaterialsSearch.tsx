@@ -33,14 +33,12 @@ type FilterForm = {
   tags: string[]
   required: MaterialSearchParams['required']
   incompleteOnly: boolean
-  myAssignmentsOnly: boolean
 }
 const EMPTY_FILTER: FilterForm = {
   q: '',
   tags: [],
   required: 'all',
   incompleteOnly: false,
-  myAssignmentsOnly: false,
 }
 
 function actionLabel(status: EnrollmentStatus): string {
@@ -76,7 +74,6 @@ function filterFromSearchParams(params: URLSearchParams): FilterForm {
     ...EMPTY_FILTER,
     required: required === 'required' || required === 'optional' ? required : EMPTY_FILTER.required,
     incompleteOnly: params.get('incomplete_only') === 'true',
-    myAssignmentsOnly: params.get('my_assignments_only') === 'true',
   }
 }
 
@@ -106,7 +103,6 @@ export default function MaterialsSearch() {
     projectId: selectedProjectId,
     required: filter.required,
     incompleteOnly: filter.incompleteOnly,
-    myAssignmentsOnly: filter.myAssignmentsOnly,
     page,
     perPage,
   }
@@ -166,6 +162,8 @@ export default function MaterialsSearch() {
               type="button"
               onClick={() => selectProject(p.id)}
               className={`rounded-md border px-3 py-1.5 text-sm font-semibold ${
+                !p.is_member && selectedProjectId !== p.id ? 'border-dashed' : ''
+              } ${
                 selectedProjectId === p.id
                   ? 'border-blue-800 bg-blue-900 text-white dark:border-blue-700 dark:bg-blue-800'
                   : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800'
@@ -176,6 +174,11 @@ export default function MaterialsSearch() {
               <span className="ml-1.5 text-xs font-normal opacity-70">
                 {p.material_published_count}件
               </span>
+              {!p.is_member && (
+                <span className="ml-1.5 rounded bg-slate-100 px-1 py-0.5 text-[10px] font-semibold text-slate-500 dark:bg-neutral-800 dark:text-neutral-400">
+                  未所属
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -244,14 +247,6 @@ export default function MaterialsSearch() {
                   onChange={(e) => applyImmediate({ incompleteOnly: e.target.checked })}
                 />
                 未受講のみ表示
-              </label>
-              <label className="flex items-center gap-1.5 text-sm text-slate-700 dark:text-neutral-200">
-                <input
-                  type="checkbox"
-                  checked={form.myAssignmentsOnly}
-                  onChange={(e) => applyImmediate({ myAssignmentsOnly: e.target.checked })}
-                />
-                自分が受講対象の教材のみ表示
               </label>
             </div>
 

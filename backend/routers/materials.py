@@ -117,7 +117,6 @@ async def search_materials(
     project_id: int | None = None,
     required: bool | None = None,
     incomplete_only: bool = False,
-    my_assignments_only: bool = False,
     page: int = 1,
     per_page: int = 20,
     user: CurrentUser = Depends(require_auth),
@@ -135,8 +134,15 @@ async def search_materials(
 
     レスポンスの`registered`（T-30 my_learning_registrations、F-31）は、全社ライブラリ所属の任意教材の
     行にのみ「マイ学習に追加」/「マイ学習から外す」ボタンを出し分けるためにS-02実装時に追加した。
-    my_assignments_onlyは5.3節の2条件（プロジェクトの現役メンバーである・個人指定の配信
-    〔assignments, scope_type='individual'〕がある）を判定する。
+
+    既定では自分が所属するプロジェクト＋個人指定の配信（5.3節の2条件）に一覧を絞り込む
+    （2026-09-29、ユーザー要望。従来は全社の公開教材を無条件で一覧に出していたため、
+    所属していないプロジェクトの教材までクリックでき、開こうとして初めて「受講対象では
+    ありません」に弾かれる分かりにくい体験になっていた）。旧`my_assignments_only`
+    クエリ（任意チェックボックス）はこの既定挙動に統合したため廃止した。
+    システムadminに限り、project_idを明示的に指定した場合はこの絞り込みを適用しない
+    （S-03の「その他のプロジェクト」タブから、所属していないプロジェクトに何があるかを
+    確認できるようにするため。実際に受講できるかは_require_view_accessが別途判定する）。
     """
     if per_page not in (20, 50, 100):
         raise HTTPException(422, detail="per_pageは20/50/100のいずれかを指定してください")
@@ -179,7 +185,8 @@ async def search_materials(
             f"NOT EXISTS (SELECT 1 FROM enrollment_progress ep "
             f"WHERE ep.user_id = {ph} AND ep.material_id = m.id AND ep.status != 'not_started')"
         )
-    if my_assignments_only:
+    admin_browsing_other_project = user.role == "admin" and project_id is not None
+    if not admin_browsing_other_project:
         ph = add_param(user.id)
         grace_ph = add_param(await get_setting_int("project_leave_grace_period_days", DEFAULT_GRACE_PERIOD_DAYS))
         conditions.append(f"""(

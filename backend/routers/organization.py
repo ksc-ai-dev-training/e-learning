@@ -52,7 +52,12 @@ async def list_projects(min_role: str = "editor", user: CurrentUser = Depends(re
     S-08受講状況ダッシュボードの担当範囲セレクトで発見した際はmin_role='admin'のみ対応したが、
     S-13教材編集：プロジェクト選択（min_role='editor'）で同種の不具合が見つかったため、min_roleに
     関わらずシステムadminは常に全件を返すよう修正した（システムadminがローカルメンバーでない
-    プロジェクトの教材を編集できない不具合の修正）。"""
+    プロジェクトの教材を編集できない不具合の修正）。
+
+    各項目に`is_member`（実際のproject_membershipsの行があるか）を追加した（2026-09-29、S-03
+    「教材一覧・検索」向け）。非adminは常にtrue（実際のメンバーシップでJOINしているため）。
+    システムadminはメンバーでないプロジェクトも返るため、S-03側でこれを使い「未所属」であることを
+    明示する。並び順も全社ライブラリ→自分の所属→その他の順になるよう変更した。"""
     if min_role not in ROLE_RANK:
         raise HTTPException(422, detail="min_roleが不正です")
     allowed_roles = [r for r, rank in ROLE_RANK.items() if rank >= ROLE_RANK[min_role]]
@@ -73,6 +78,7 @@ async def list_projects(min_role: str = "editor", user: CurrentUser = Depends(re
             p.name,
             p.is_company_wide,
             {role_column},
+            (pm.role IS NOT NULL) AS is_member,
             COALESCE(mc.published_count, 0) AS material_published_count,
             COALESCE(mc.draft_count, 0) AS material_draft_count,
             COALESCE(memc.member_count, 0) AS member_count
@@ -93,7 +99,7 @@ async def list_projects(min_role: str = "editor", user: CurrentUser = Depends(re
             GROUP BY project_id
         ) memc ON memc.project_id = p.id
         WHERE p.status = 'active'
-        ORDER BY p.is_company_wide DESC, p.name ASC
+        ORDER BY p.is_company_wide DESC, (pm.role IS NOT NULL) DESC, p.name ASC
         """,
         *args,
     )

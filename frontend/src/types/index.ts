@@ -424,6 +424,9 @@ export interface Project {
   name: string
   is_company_wide: boolean
   role: ProjectRole
+  // 実際にproject_membershipsの行があるか。システムadminが呼ぶと非所属プロジェクトも
+  // 返るため、S-03の「未所属」表示に使う（非adminは常にtrue。2026-09-29）
+  is_member: boolean
   material_published_count: number
   material_draft_count: number
   member_count: number
