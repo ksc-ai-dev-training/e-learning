@@ -241,14 +241,48 @@ export default function PersonalReport() {
                   ) : feedbackHistory.length <= 1 ? (
                     <p className="text-xs text-slate-400 dark:text-neutral-500">過去の実行はまだありません。</p>
                   ) : (
-                    <ul className="flex flex-col gap-3">
-                      {feedbackHistory.slice(1).map((h) => (
-                        <li key={h.generated_at} className="rounded-md border border-slate-100 p-2.5 text-xs dark:border-neutral-800">
-                          <div className="mb-1 text-slate-400 dark:text-neutral-500">{formatDateTimeJst(h.generated_at)}</div>
-                          <p className="text-slate-600 dark:text-neutral-300">{h.comment}</p>
-                        </li>
-                      ))}
-                    </ul>
+                    <>
+                      {(() => {
+                        // 弱点分野の傾向。既に取得済みの履歴データ（各回のweak_areas）を数えるだけで、
+                        // 新規のAI呼び出しは発生しない（2026-09-29、ユーザー要望：複数回分を横断して
+                        // 「この分野は毎回指摘されている」ことが分かるようにしたい）。
+                        const counts = new Map<string, number>()
+                        for (const h of feedbackHistory) {
+                          for (const tag of h.weak_areas) {
+                            counts.set(tag, (counts.get(tag) ?? 0) + 1)
+                          }
+                        }
+                        const trend = Array.from(counts.entries())
+                          .map(([tag, count]) => ({ tag, count }))
+                          .sort((a, b) => b.count - a.count)
+                        if (trend.length === 0) return null
+                        return (
+                          <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 p-2.5 dark:border-amber-900 dark:bg-amber-950/30">
+                            <div className="mb-1.5 text-xs font-semibold text-slate-600 dark:text-neutral-300">
+                              弱点分野の傾向（直近{feedbackHistory.length}回中）
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                              {trend.map(({ tag, count }) => (
+                                <span
+                                  key={tag}
+                                  className="rounded border border-amber-200 bg-white px-1.5 py-0.5 text-[11px] text-amber-700 dark:border-amber-800 dark:bg-neutral-900 dark:text-amber-200"
+                                >
+                                  {tag} {count}/{feedbackHistory.length}回
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )
+                      })()}
+                      <ul className="flex flex-col gap-3">
+                        {feedbackHistory.slice(1).map((h) => (
+                          <li key={h.generated_at} className="rounded-md border border-slate-100 p-2.5 text-xs dark:border-neutral-800">
+                            <div className="mb-1 text-slate-400 dark:text-neutral-500">{formatDateTimeJst(h.generated_at)}</div>
+                            <p className="text-slate-600 dark:text-neutral-300">{h.comment}</p>
+                          </li>
+                        ))}
+                      </ul>
+                    </>
                   )}
                 </div>
               )}
