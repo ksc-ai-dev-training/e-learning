@@ -1,6 +1,7 @@
 import type { SlideBlock } from '../../types'
 import { defaultBlockForType } from '../../lib/slideBlockDefaults'
 import BlockEditCard from './BlockEditCard'
+import { SlideBlockView } from './SlideBlockViews'
 
 // S-17説明文パネル（記述形式「スライド」選択時）。1ページ分のブロックの並びを編集する
 // （F-33フェーズ0）。QuestionEditCardの並びと同じ構造だが、こちらは並び替え（↑↓）も持つ
@@ -27,33 +28,46 @@ export default function SlideBlockEditor({
   }
 
   return (
-    <div className="flex flex-col gap-1">
-      {blocks.map((block, i) => (
-        <BlockEditCard
-          key={i}
-          block={block}
-          index={i}
-          materialId={materialId}
-          onChange={(b) => updateBlock(i, b)}
-          onDelete={() => deleteBlock(i)}
-          onMoveUp={() => moveBlock(i, -1)}
-          onMoveDown={() => moveBlock(i, 1)}
-          canMoveUp={i > 0}
-          canMoveDown={i < blocks.length - 1}
-        />
-      ))}
-      {blocks.length === 0 && (
-        <p className="mb-1 text-xs text-slate-400 dark:text-neutral-500">
-          まだブロックがありません。下の「+ ブロックを追加」から作り始めてください。
-        </p>
-      )}
-      <button
-        type="button"
-        onClick={addBlock}
-        className="self-start rounded-md border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
-      >
-        + ブロックを追加
-      </button>
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className="flex flex-col gap-1">
+        {blocks.map((block, i) => (
+          <BlockEditCard
+            key={i}
+            block={block}
+            index={i}
+            materialId={materialId}
+            onChange={(b) => updateBlock(i, b)}
+            onDelete={() => deleteBlock(i)}
+            onMoveUp={() => moveBlock(i, -1)}
+            onMoveDown={() => moveBlock(i, 1)}
+            canMoveUp={i > 0}
+            canMoveDown={i < blocks.length - 1}
+          />
+        ))}
+        {blocks.length === 0 && (
+          <p className="mb-1 text-xs text-slate-400 dark:text-neutral-500">
+            まだブロックがありません。下の「+ ブロックを追加」から作り始めてください。
+          </p>
+        )}
+        <button
+          type="button"
+          onClick={addBlock}
+          className="self-start rounded-md border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
+        >
+          + ブロックを追加
+        </button>
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <span className="text-xs font-semibold text-slate-500 dark:text-neutral-300">プレビュー（編集するとすぐ反映されます）</span>
+        <div className="flex flex-col gap-5 rounded-lg border border-slate-200 bg-white p-6 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+          {blocks.length === 0 ? (
+            <p className="text-xs text-slate-400 dark:text-neutral-500">ブロックを追加するとここに表示されます</p>
+          ) : (
+            blocks.map((block, i) => <SlideBlockView key={i} block={block} materialId={materialId} />)
+          )}
+        </div>
+      </div>
     </div>
   )
 }
