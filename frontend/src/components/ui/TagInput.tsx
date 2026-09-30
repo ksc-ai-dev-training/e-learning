@@ -5,6 +5,9 @@ const MAX_TAGS = 10
 const MAX_TAG_LENGTH = 50
 
 // タグの複数入力（詳細設計書2.1.5節）。Enterで確定、×で削除。1タグ50文字以内、最大10個（10.5節）
+// 上限は常時ヒントとして表示し、超過・重複時は入力内容を消さずにエラーだけ出す
+// （2026-09-30、ユーザー報告により発見・修正。以前は上限を超えて確定しようとすると、
+// エラー表示も上限の告知もないまま入力した文字列がそのまま消えていた）。
 export default function TagInput({
   id,
   value,
@@ -16,13 +19,26 @@ export default function TagInput({
 }) {
   const [draft, setDraft] = useState('')
   const [focused, setFocused] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const atMaxTags = value.length >= MAX_TAGS
 
   const addTag = () => {
     const tag = draft.trim().replace(/^#/, '')
-    setDraft('')
-    if (!tag || tag.length > MAX_TAG_LENGTH || value.includes(tag) || value.length >= MAX_TAGS) {
+    if (!tag) {
+      setDraft('')
+      setError(null)
       return
     }
+    if (atMaxTags) {
+      setError(`タグは最大${MAX_TAGS}個までです`)
+      return
+    }
+    if (value.includes(tag)) {
+      setError('同じタグが既にあります')
+      return
+    }
+    setDraft('')
+    setError(null)
     onChange([...value, tag])
   }
 
@@ -40,41 +56,53 @@ export default function TagInput({
   }
 
   return (
-    <div
-      id={id}
-      className="flex min-h-9 flex-wrap items-center gap-1.5 rounded-md border border-slate-300 px-2 py-1.5 focus-within:border-blue-700"
-    >
-      {value.map((tag) => (
-        <span
-          key={tag}
-          className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-800"
-        >
-          #{tag}
-          <button
-            type="button"
-            onClick={() => removeTag(tag)}
-            className="text-blue-400 hover:text-blue-700"
-            title="削除"
+    <div className="flex flex-col gap-1">
+      <div
+        id={id}
+        className="flex min-h-9 flex-wrap items-center gap-1.5 rounded-md border border-slate-300 px-2 py-1.5 focus-within:border-blue-700"
+      >
+        {value.map((tag) => (
+          <span
+            key={tag}
+            className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-800"
           >
-            ×
-          </button>
-        </span>
-      ))}
-      <div className="flex min-w-[120px] flex-1 items-center gap-0.5">
-        {(focused || draft.length > 0) && <span className="text-slate-400">#</span>}
-        <input
-          value={draft}
-          onChange={(e) => setDraft(e.target.value.replace(/^#/, ''))}
-          onKeyDown={handleKeyDown}
-          onFocus={() => setFocused(true)}
-          onBlur={() => {
-            addTag()
-            setFocused(false)
-          }}
-          placeholder={value.length === 0 && !focused ? 'タグを設定する場合は入力してください' : ''}
-          className="w-full flex-1 border-none bg-transparent text-sm outline-none placeholder:text-slate-400"
-        />
+            #{tag}
+            <button
+              type="button"
+              onClick={() => removeTag(tag)}
+              className="text-blue-400 hover:text-blue-700"
+              title="削除"
+            >
+              ×
+            </button>
+          </span>
+        ))}
+        {!atMaxTags && (
+          <div className="flex min-w-[120px] flex-1 items-center gap-0.5">
+            {(focused || draft.length > 0) && <span className="text-slate-400">#</span>}
+            <input
+              value={draft}
+              maxLength={MAX_TAG_LENGTH}
+              onChange={(e) => {
+                setDraft(e.target.value.replace(/^#/, ''))
+                setError(null)
+              }}
+              onKeyDown={handleKeyDown}
+              onFocus={() => setFocused(true)}
+              onBlur={() => {
+                addTag()
+                setFocused(false)
+              }}
+              placeholder={value.length === 0 && !focused ? 'タグを設定する場合は入力してください' : ''}
+              className="w-full flex-1 border-none bg-transparent text-sm outline-none placeholder:text-slate-400"
+            />
+          </div>
+        )}
       </div>
+      <span className="text-[11px] text-slate-400 dark:text-neutral-500">
+        {atMaxTags ? `タグは最大${MAX_TAGS}個までです` : `1タグ${MAX_TAG_LENGTH}文字以内・最大${MAX_TAGS}個`}
+      </span>
+      {error && <span className="text-[11px] text-red-600 dark:text-red-400">{error}</span>}
     </div>
   )
 }
