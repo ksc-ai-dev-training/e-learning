@@ -61,7 +61,7 @@ export default function MaterialTocSidebar({
         type="button"
         onClick={toggle}
         aria-expanded={!collapsed}
-        className="flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 dark:hover:bg-neutral-800"
+        className="flex w-32 items-center justify-center gap-1 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 hover:shadow dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:hover:bg-neutral-800"
       >
         目次
         {collapsed ? <ChevronDown className="h-3.5 w-3.5 text-slate-400 dark:text-neutral-500" /> : <ChevronUp className="h-3.5 w-3.5 text-slate-400 dark:text-neutral-500" />}
