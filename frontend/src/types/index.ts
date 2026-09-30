@@ -210,8 +210,24 @@ export interface Question {
 export type ContentKind = 'explanation' | 'quiz' | 'mixed'
 export type QuizMode = 'all' | 'pool'
 
-// スライド形式（format='slide'）のページを構成するブロックの種別（F-33フェーズ0: 基盤6種）
-export type SlideBlockType = 'header' | 'banner' | 'bullet_list' | 'card_row' | 'highlight' | 'freeform'
+// スライド形式（format='slide'）のページを構成するブロックの種別
+// （F-33フェーズ0: 基盤6種、フェーズ1: 残り9種を追加）
+export type SlideBlockType =
+  | 'header'
+  | 'banner'
+  | 'bullet_list'
+  | 'card_row'
+  | 'highlight'
+  | 'freeform'
+  | 'compare'
+  | 'timeline'
+  | 'quote'
+  | 'table'
+  | 'qa'
+  | 'code_snippet'
+  | 'image_gallery'
+  | 'icon_list'
+  | 'image_caption'
 
 // card_rowブロックの1枚
 export interface SlideCard {
@@ -222,6 +238,30 @@ export interface SlideCard {
   stat: string
 }
 
+// timelineブロックの1ステップ
+export interface SlideTimelineStep {
+  label: string
+  desc: string
+}
+
+// qaブロックの1組
+export interface SlideQaItem {
+  question: string
+  answer: string
+}
+
+// icon_listブロックの1項目
+export interface SlideIconListItem {
+  icon: string
+  text: string
+}
+
+// image_galleryブロックの1枚（attachment_idはis_inline添付として登録した画像のID）
+export interface SlideGalleryImage {
+  attachment_id: number | null
+  caption: string
+}
+
 // S-17のスライド編集で扱う1ブロック。Questionと同じく「型ごとの全フィールドをoptionalで持つ
 // 1つの幅広い型」とし、TSの判別共用体にはしない（型を切り替えても持ち方が変わらないため、
 // 編集フォームの実装がシンプルになる。questionDefaults.tsのemptyQuestionForTypeと同じ設計判断）。
@@ -230,12 +270,27 @@ export interface SlideBlock {
   icon?: string // header
   title?: string // header
   pill?: string // header
-  text?: string // banner / highlight
+  text?: string // banner / highlight / quote（引用本文）
   items?: string[] // bullet_list
   cards?: SlideCard[] // card_row（2〜4枚）
   stat_label?: string // highlight
   stat_value?: string // highlight
   content?: string // freeform（Markdown本文）
+  before_label?: string // compare
+  before_items?: string[] // compare
+  after_label?: string // compare
+  after_items?: string[] // compare
+  steps?: SlideTimelineStep[] // timeline
+  source?: string // quote（出典）
+  headers?: string[] // table
+  rows?: string[][] // table
+  qa_items?: SlideQaItem[] // qa
+  code?: string // code_snippet
+  caption?: string // code_snippet（見出し的な注記）／image_caption（キャプション）共用
+  images?: SlideGalleryImage[] // image_gallery
+  icon_items?: SlideIconListItem[] // icon_list
+  attachment_id?: number | null // image_caption
+  image_position?: 'left' | 'right' | 'top' // image_caption
 }
 
 // A-15 GET /api/materials/{id} の toc 内の1ノード（章・小見出し・ページ）。

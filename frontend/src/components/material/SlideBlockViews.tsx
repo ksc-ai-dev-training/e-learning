@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { apiFetch } from '../../lib/api'
 import type { SlideBlock } from '../../types'
+import SlideImage from './SlideImage'
 
 // スライドブロックの表示用コンポーネント一式。SlideBody.tsx（S-16受講側）と
 // SlideBlockEditor.tsx（S-17編集側のライブプレビュー）の両方から共通で使う
@@ -22,6 +23,24 @@ export function SlideBlockView({ block, materialId }: { block: SlideBlock; mater
       return <HighlightView block={block} />
     case 'freeform':
       return <FreeformView block={block} materialId={materialId} />
+    case 'compare':
+      return <CompareView block={block} />
+    case 'timeline':
+      return <TimelineView block={block} />
+    case 'quote':
+      return <QuoteView block={block} />
+    case 'table':
+      return <TableView block={block} />
+    case 'qa':
+      return <QaView block={block} />
+    case 'code_snippet':
+      return <CodeSnippetView block={block} />
+    case 'image_gallery':
+      return <ImageGalleryView block={block} materialId={materialId} />
+    case 'icon_list':
+      return <IconListView block={block} />
+    case 'image_caption':
+      return <ImageCaptionView block={block} materialId={materialId} />
     default:
       return null
   }
@@ -168,4 +187,182 @@ function FreeformView({ block, materialId }: { block: SlideBlock; materialId: nu
   }
   if (error) return <p className="text-sm text-red-600 dark:text-red-400">本文の取得に失敗しました</p>
   return <div className="material-body text-sm text-slate-700 dark:text-neutral-200" dangerouslySetInnerHTML={{ __html: html }} />
+}
+
+function CompareView({ block }: { block: SlideBlock }) {
+  const beforeItems = (block.before_items ?? []).filter((v) => v.trim())
+  const afterItems = (block.after_items ?? []).filter((v) => v.trim())
+  return (
+    <div className="grid grid-cols-[1fr_auto_1fr] items-stretch gap-3">
+      <div className="rounded-md bg-rose-50 p-3.5 dark:bg-rose-950/30">
+        <div className="mb-1.5 text-xs font-bold text-rose-800 dark:text-rose-300">{block.before_label || 'Before'}</div>
+        <ul className="list-inside list-disc text-xs text-slate-700 dark:text-neutral-200">
+          {beforeItems.map((item, i) => (
+            <li key={i}>{item}</li>
+          ))}
+        </ul>
+      </div>
+      <div className="flex items-center text-slate-400 dark:text-neutral-500">→</div>
+      <div className="rounded-md bg-emerald-50 p-3.5 dark:bg-emerald-950/30">
+        <div className="mb-1.5 text-xs font-bold text-emerald-800 dark:text-emerald-300">{block.after_label || 'After'}</div>
+        <ul className="list-inside list-disc text-xs text-slate-700 dark:text-neutral-200">
+          {afterItems.map((item, i) => (
+            <li key={i}>{item}</li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  )
+}
+
+function TimelineView({ block }: { block: SlideBlock }) {
+  const steps = (block.steps ?? []).filter((s) => s.label.trim())
+  if (steps.length === 0) return null
+  return (
+    <div className="flex items-start gap-0">
+      {steps.map((step, i) => (
+        <div key={i} className="relative flex flex-1 flex-col items-center px-2 text-center">
+          {i < steps.length - 1 && (
+            <div className="absolute left-1/2 top-3.5 h-0.5 w-full bg-slate-200 dark:bg-neutral-700" />
+          )}
+          <div className="relative z-10 mb-2 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-blue-800 text-xs font-bold text-white dark:bg-blue-600">
+            {i + 1}
+          </div>
+          <div className="text-xs font-bold text-slate-800 dark:text-neutral-100">{step.label}</div>
+          {step.desc && <div className="text-[11px] text-slate-500 dark:text-neutral-400">{step.desc}</div>}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function QuoteView({ block }: { block: SlideBlock }) {
+  if (!block.text?.trim()) return null
+  return (
+    <div className="border-l-4 border-blue-800 pl-4 dark:border-blue-500">
+      <p className="text-base font-semibold italic text-slate-900 dark:text-neutral-100">{block.text}</p>
+      {block.source && <p className="mt-1 text-xs text-slate-400 dark:text-neutral-500">— {block.source}</p>}
+    </div>
+  )
+}
+
+function TableView({ block }: { block: SlideBlock }) {
+  const headers = block.headers ?? []
+  const rows = block.rows ?? []
+  if (headers.length === 0 && rows.length === 0) return null
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full border-collapse text-xs">
+        {headers.length > 0 && (
+          <thead>
+            <tr>
+              {headers.map((h, i) => (
+                <th key={i} className="border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-left font-semibold text-slate-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+        )}
+        <tbody>
+          {rows.map((row, i) => (
+            <tr key={i}>
+              {row.map((cell, j) => (
+                <td key={j} className="border border-slate-200 px-2.5 py-1.5 text-slate-700 dark:border-neutral-700 dark:text-neutral-200">
+                  {cell}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+function QaView({ block }: { block: SlideBlock }) {
+  const items = (block.qa_items ?? []).filter((q) => q.question.trim())
+  if (items.length === 0) return null
+  return (
+    <div className="flex flex-col gap-2.5">
+      {items.map((item, i) => (
+        <div key={i} className="rounded-md border border-slate-200 p-3 dark:border-neutral-800">
+          <div className="mb-1 flex gap-1.5 text-xs font-bold text-blue-800 dark:text-blue-300">
+            <span>Q.</span>
+            <span>{item.question}</span>
+          </div>
+          <div className="flex gap-1.5 text-xs text-slate-600 dark:text-neutral-300">
+            <span className="font-bold text-slate-400 dark:text-neutral-500">A.</span>
+            <span>{item.answer}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function CodeSnippetView({ block }: { block: SlideBlock }) {
+  if (!block.code?.trim()) return null
+  return (
+    <div>
+      {block.caption && <div className="mb-1 text-xs text-slate-400 dark:text-neutral-500">{block.caption}</div>}
+      <pre className="overflow-x-auto rounded-md bg-slate-900 px-4 py-3 font-mono text-xs leading-relaxed text-slate-100">
+        {block.code}
+      </pre>
+    </div>
+  )
+}
+
+function ImageGalleryView({ block, materialId }: { block: SlideBlock; materialId: number | null }) {
+  const images = (block.images ?? []).filter((img) => img.attachment_id !== null)
+  if (images.length === 0 || materialId === null) return null
+  return (
+    <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${Math.min(images.length, 3)}, minmax(0, 1fr))` }}>
+      {images.map((img, i) => (
+        <figure key={i} className="flex flex-col gap-1">
+          <SlideImage materialId={materialId} attachmentId={img.attachment_id} className="w-full rounded-md border border-slate-200 object-cover dark:border-neutral-800" />
+          {img.caption && <figcaption className="text-center text-xs text-slate-500 dark:text-neutral-400">{img.caption}</figcaption>}
+        </figure>
+      ))}
+    </div>
+  )
+}
+
+function IconListView({ block }: { block: SlideBlock }) {
+  const items = (block.icon_items ?? []).filter((it) => it.text.trim())
+  if (items.length === 0) return null
+  return (
+    <ul className="flex flex-col gap-1.5">
+      {items.map((item, i) => (
+        <li key={i} className="flex items-center gap-2 text-sm text-slate-700 dark:text-neutral-200">
+          {item.icon && <span className="flex-shrink-0">{item.icon}</span>}
+          <span>{item.text}</span>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function ImageCaptionView({ block, materialId }: { block: SlideBlock; materialId: number | null }) {
+  if (block.attachment_id === null || block.attachment_id === undefined || materialId === null) return null
+  const position = block.image_position ?? 'top'
+  const wrapClass = position === 'top' ? 'flex flex-col gap-2' : 'flex items-center gap-4'
+  const imageClass = position === 'top' ? 'w-full max-w-md rounded-md border border-slate-200 dark:border-neutral-800' : 'w-48 flex-shrink-0 rounded-md border border-slate-200 dark:border-neutral-800'
+  const image = <SlideImage materialId={materialId} attachmentId={block.attachment_id} className={imageClass} />
+  const caption = block.caption && <p className="text-sm text-slate-600 dark:text-neutral-300">{block.caption}</p>
+  return (
+    <div className={wrapClass}>
+      {position === 'right' ? (
+        <>
+          {caption}
+          {image}
+        </>
+      ) : (
+        <>
+          {image}
+          {caption}
+        </>
+      )}
+    </div>
+  )
 }
