@@ -30,6 +30,7 @@ from routers.materials import (
     MaterialCreate,
     UploadUrlRequest,
     _create_material_asset_impl,
+    _create_material_attachment_impl,
     _put_material_source_impl,
     create_attachment,
     create_attachment_upload_url,
@@ -295,6 +296,81 @@ async def upload_material_asset_tool(material_id: int, filename: str, mime_type:
     except Exception:
         raise ToolError("base64_dataのデコードに失敗しました。data URIのプレフィックスを含めない、正しいBase64文字列を渡してください。")
     result = await _call(_create_material_asset_impl(id=material_id, filename=filename, mime_type=mime_type, data=data))
+    return jsonable_encoder(result)
+
+
+@mcp.tool(
+    name="create_material_attachment_upload_url",
+    description=(
+        "ページの「資料」として添付するファイル（PDF等。本文に埋め込む画像はcreate_material_asset_"
+        "upload_urlを使うこと）をアップロードするための、2段階手順の1段階目。ファイルの中身はこの"
+        "道具には渡さない（一瞬で終わる）。シェルコマンドが使える場合はこちらを優先すること: "
+        "(1) この道具でupload_urlを取得する (2) ローカルのファイルをそのupload_urlへHTTP PUTで"
+        "直接アップロードする（例: curl -X PUT --data-binary @<ローカルのファイルパス> "
+        "-H \"Content-Type: <mime_type>\" \"<upload_url>\"） (3) アップロードが成功したら、"
+        "戻り値のstorage_keyを使ってfinalize_material_attachmentを呼び、指定ページの資料として"
+        "登録する。シェルでファイルを直接アップロードできない環境でのみ、代わりに"
+        "upload_material_attachment（base64方式。ファイルが大きいと非常に時間がかかる）を使うこと。"
+    ),
+)
+async def create_material_attachment_upload_url_tool(
+    material_id: int, filename: str, mime_type: str, size_bytes: int,
+) -> dict:
+    verified_user = await _call(_source_role_checker(id=material_id, user=_current_user()))
+    body = UploadUrlRequest(filename=filename, mime_type=mime_type, size_bytes=size_bytes)
+    result = await _call(create_attachment_upload_url(id=material_id, body=body, user=verified_user))
+    upload_url = result["upload_url"]
+    if upload_url.startswith("/"):
+        upload_url = f"{_PUBLIC_BASE_URL}{upload_url}"
+    return {"upload_url": upload_url, "storage_key": result["storage_key"]}
+
+
+@mcp.tool(
+    name="finalize_material_attachment",
+    description=(
+        "create_material_attachment_upload_urlの2段階目。発行されたupload_urlへファイルを直接"
+        "アップロードした後、この道具で指定ページの「資料」（受講画面の資料一覧・PDFならその場での"
+        "プレビューにも出る）として登録する。node_idは、get_material_sourceで取得した本文中の"
+        "対象ページ直後にある<!-- node:ID -->コメントのIDを指定すること。"
+    ),
+)
+async def finalize_material_attachment_tool(
+    material_id: int, node_id: int, storage_key: str, filename: str, mime_type: str, size_bytes: int,
+) -> dict:
+    verified_user = await _call(_source_role_checker(id=material_id, user=_current_user()))
+    body = AttachmentCreate(
+        node_id=node_id, kind="file", storage_key=storage_key,
+        filename=filename, mime_type=mime_type, size_bytes=size_bytes,
+        is_inline=False,
+    )
+    result = await _call(create_attachment(id=material_id, body=body, user=verified_user))
+    return jsonable_encoder(result)
+
+
+@mcp.tool(
+    name="upload_material_attachment",
+    description=(
+        "ページの「資料」として添付するファイル（PDF等）をアップロードする（base64方式）。"
+        "シェルコマンドが使えず、create_material_attachment_upload_url+finalize_material_attachmentの"
+        "2段階方式が使えない場合のみ使うこと。base64はモデル自身がデータ全体を生成する必要があるため、"
+        "ファイルが大きいと非常に時間がかかる。利用者が既存のPDF等の資料をページに添付してほしいと"
+        "依頼したときに使う（本文に画像として埋め込みたい場合はupload_material_assetを使うこと）。"
+        "node_idは、get_material_sourceで取得した本文中の対象ページ直後にある<!-- node:ID -->"
+        "コメントのIDを指定すること。base64_dataはdata URIのプレフィックスを含めない、ファイル本体"
+        "のみのBase64文字列を渡すこと。"
+    ),
+)
+async def upload_material_attachment_tool(
+    material_id: int, node_id: int, filename: str, mime_type: str, base64_data: str,
+) -> dict:
+    verified_user = await _call(_source_role_checker(id=material_id, user=_current_user()))
+    try:
+        data = base64.b64decode(base64_data, validate=True)
+    except Exception:
+        raise ToolError("base64_dataのデコードに失敗しました。data URIのプレフィックスを含めない、正しいBase64文字列を渡してください。")
+    result = await _call(_create_material_attachment_impl(
+        id=material_id, node_id=node_id, filename=filename, mime_type=mime_type, data=data,
+    ))
     return jsonable_encoder(result)
 
 
