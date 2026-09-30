@@ -1,10 +1,12 @@
-import type { Question } from '../types'
+import type { Question, SlideBlock } from '../types'
 
 export interface PageContentInput {
   title: string
   includeExplanation: boolean
   includeQuiz: boolean
+  format: 'markdown' | 'html' | 'slide'
   body: string
+  blocks: SlideBlock[]
   questions: Question[]
   quizMode: 'all' | 'pool'
   poolDrawCount: number | null
@@ -64,8 +66,12 @@ export function validatePageContent(input: PageContentInput): string | null {
   if (!input.includeExplanation && !input.includeQuiz) {
     return '説明文・問題のいずれかを含めてください'
   }
-  if (input.includeExplanation && !input.body.trim()) {
-    return '説明文を入力してください'
+  if (input.includeExplanation) {
+    if (input.format === 'slide') {
+      if (input.blocks.length === 0) return 'スライドのブロックを1つ以上追加してください'
+    } else if (!input.body.trim()) {
+      return '説明文を入力してください'
+    }
   }
   if (input.includeQuiz) {
     if (input.questions.length === 0) {

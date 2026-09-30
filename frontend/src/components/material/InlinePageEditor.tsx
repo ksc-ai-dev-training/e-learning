@@ -4,7 +4,7 @@ import TextInput from '../ui/TextInput'
 import PageContentFields from './PageContentFields'
 import type { EditableNode, PendingAttachment } from '../../lib/materialSource'
 import { validatePageContent } from '../../lib/pageValidation'
-import type { Question } from '../../types'
+import type { Question, SlideBlock } from '../../types'
 
 interface InlinePageEditorProps {
   // 教材がまだ保存されていない新規作成中はnull（PageContentFieldsへそのまま渡す）
@@ -36,10 +36,13 @@ export default function InlinePageEditor({
   onCancel,
 }: InlinePageEditorProps) {
   const [title, setTitle] = useState(initialPage?.title ?? '')
-  const [includeExplanation, setIncludeExplanation] = useState(initialPage ? !!initialPage.body : true)
+  const [includeExplanation, setIncludeExplanation] = useState(
+    initialPage ? !!initialPage.body || (initialPage.blocks?.length ?? 0) > 0 : true,
+  )
   const [includeQuiz, setIncludeQuiz] = useState(initialPage ? (initialPage.questions?.length ?? 0) > 0 : false)
-  const [format, setFormat] = useState<'markdown' | 'html'>(initialPage?.format ?? 'markdown')
+  const [format, setFormat] = useState<'markdown' | 'html' | 'slide'>(initialPage?.format ?? 'markdown')
   const [body, setBody] = useState(initialPage?.body ?? '')
+  const [blocks, setBlocks] = useState<SlideBlock[]>(initialPage?.blocks ?? [])
   const [questions, setQuestions] = useState<Question[]>(initialPage?.questions ?? [])
   const [quizMode, setQuizMode] = useState<'all' | 'pool'>(initialPage?.quizMode ?? 'all')
   const [poolDrawCount, setPoolDrawCount] = useState<number | null>(initialPage?.poolDrawCount ?? null)
@@ -102,7 +105,9 @@ export default function InlinePageEditor({
       title,
       includeExplanation,
       includeQuiz,
+      format,
       body,
+      blocks,
       questions,
       quizMode,
       poolDrawCount,
@@ -120,11 +125,12 @@ export default function InlinePageEditor({
       title,
       kind: 'page',
       children: [],
-      body: includeExplanation ? body : null,
+      body: includeExplanation && format !== 'slide' ? body : null,
       format,
       quizMode: includeQuiz ? quizMode : 'all',
       poolDrawCount: includeQuiz && quizMode === 'pool' ? poolDrawCount : null,
       questions: includeQuiz ? questions.map((q) => ({ ...q, pool_group: null })) : [],
+      blocks: includeExplanation && format === 'slide' ? blocks : [],
       pendingAttachments,
     }
     onConfirm(page)
@@ -156,6 +162,8 @@ export default function InlinePageEditor({
         onFormatChange={setFormat}
         body={body}
         onBodyChange={setBody}
+        blocks={blocks}
+        onBlocksChange={setBlocks}
         questions={questions}
         onQuestionsChange={setQuestions}
         quizMode={quizMode}

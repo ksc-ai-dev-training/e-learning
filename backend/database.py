@@ -160,7 +160,7 @@ CREATE TABLE IF NOT EXISTS material_nodes (
     kind            TEXT NOT NULL CHECK (kind IN ('chapter', 'section', 'page')),
     sort_order      INTEGER NOT NULL DEFAULT 0,
     content_kind    TEXT CHECK (content_kind IS NULL OR content_kind IN ('explanation', 'quiz', 'mixed')),
-    format          TEXT CHECK (format IS NULL OR format IN ('markdown', 'html')),
+    format          TEXT CHECK (format IS NULL OR format IN ('markdown', 'html', 'slide')),
     body            TEXT,
     quiz_mode       TEXT NOT NULL DEFAULT 'all' CHECK (quiz_mode IN ('all', 'pool')),
     pool_draw_count INTEGER,
@@ -171,6 +171,15 @@ CREATE TABLE IF NOT EXISTS material_nodes (
 CREATE INDEX IF NOT EXISTS idx_material_nodes_tree
     ON material_nodes (material_id, parent_node_id, sort_order);
 ALTER TABLE material_nodes ENABLE ROW LEVEL SECURITY;
+
+-- スライド形式（format='slide'）のページが持つブロック（ヘッダー/カード列等の構造化コンテンツ）。
+-- questionsと違い採点・分析対象がないためJSONB列で十分（2026-10-01、F-33スライド教材作成機能）。
+ALTER TABLE material_nodes ADD COLUMN IF NOT EXISTS blocks JSONB;
+-- 既存DB（作成時のCHECKに'slide'が含まれない）向けに制約を widen する。列作成時のCHECKは無名
+-- 制約のためデフォルト名（{table}_{column}_check）で処理する。
+ALTER TABLE material_nodes DROP CONSTRAINT IF EXISTS material_nodes_format_check;
+ALTER TABLE material_nodes ADD CONSTRAINT material_nodes_format_check
+    CHECK (format IS NULL OR format IN ('markdown', 'html', 'slide'));
 
 -- T-10 questions（問題）
 CREATE TABLE IF NOT EXISTS questions (

@@ -1,8 +1,15 @@
 import MarkdownHtmlEditor from '../ui/MarkdownHtmlEditor'
 import TextInput from '../ui/TextInput'
 import QuestionEditCard from './QuestionEditCard'
+import SlideBlockEditor from './SlideBlockEditor'
 import { emptyQuestionForType } from '../../lib/questionDefaults'
-import type { Question } from '../../types'
+import type { Question, SlideBlock } from '../../types'
+
+const FORMAT_OPTIONS: { value: 'markdown' | 'html' | 'slide'; label: string }[] = [
+  { value: 'markdown', label: 'Markdown' },
+  { value: 'html', label: 'HTML' },
+  { value: 'slide', label: 'スライド' },
+]
 
 export interface PageContentFieldsProps {
   // 保存前（materialId未確定）の新規ページ編集ではnull。MarkdownHtmlEditorのプレビュー可否に使う。
@@ -15,10 +22,12 @@ export interface PageContentFieldsProps {
   onIncludeExplanationChange: (v: boolean) => void
   includeQuiz: boolean
   onIncludeQuizChange: (v: boolean) => void
-  format: 'markdown' | 'html'
-  onFormatChange: (f: 'markdown' | 'html') => void
+  format: 'markdown' | 'html' | 'slide'
+  onFormatChange: (f: 'markdown' | 'html' | 'slide') => void
   body: string
   onBodyChange: (v: string) => void
+  blocks: SlideBlock[]
+  onBlocksChange: (v: SlideBlock[]) => void
   questions: Question[]
   onQuestionsChange: (qs: Question[]) => void
   quizMode: 'all' | 'pool'
@@ -47,6 +56,8 @@ export default function PageContentFields({
   onFormatChange,
   body,
   onBodyChange,
+  blocks,
+  onBlocksChange,
   questions,
   onQuestionsChange,
   quizMode,
@@ -106,13 +117,33 @@ export default function PageContentFields({
             <span className="text-sm font-semibold text-slate-700 dark:text-neutral-100">説明文</span>
           </div>
           <div className="p-4">
-            <MarkdownHtmlEditor
-              materialId={materialId}
-              format={format}
-              onFormatChange={onFormatChange}
-              body={body}
-              onBodyChange={onBodyChange}
-            />
+            <div className="mb-3 flex flex-col gap-1">
+              <label className="text-xs font-semibold text-slate-500 dark:text-neutral-300">記述形式</label>
+              <div className="flex gap-1">
+                {FORMAT_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => onFormatChange(opt.value)}
+                    className={`rounded-md border px-3 py-1 text-xs font-semibold ${
+                      format === opt.value
+                        ? 'border-blue-800 bg-blue-900 text-white'
+                        : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              <span className="text-xs text-slate-400 dark:text-neutral-500">
+                教材ごとにMarkdown/HTML/スライドのいずれかの形式で記述できます。「スライド」は1枚ずつブロック（ヘッダー・カード列等）を組み立てる、プレゼン資料に近い見た目になります。
+              </span>
+            </div>
+            {format === 'slide' ? (
+              <SlideBlockEditor blocks={blocks} onBlocksChange={onBlocksChange} materialId={materialId} />
+            ) : (
+              <MarkdownHtmlEditor materialId={materialId} format={format} body={body} onBodyChange={onBodyChange} />
+            )}
           </div>
         </section>
       )}

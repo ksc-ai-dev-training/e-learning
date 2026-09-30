@@ -5,6 +5,7 @@ import AnswerQuestionCard from '../components/material/AnswerQuestionCard'
 import MaterialTocSidebar from '../components/material/MaterialTocSidebar'
 import PageAttachments from '../components/material/PageAttachments'
 import PageBody from '../components/material/PageBody'
+import SlideBody from '../components/material/SlideBody'
 import SurveyModal from '../components/material/SurveyModal'
 import Button from '../components/ui/Button'
 import MyLearningToggle from '../components/ui/MyLearningToggle'
@@ -548,7 +549,12 @@ export default function MaterialPageView() {
           <span className="text-xs text-slate-500 dark:text-neutral-400">{progressPct}%</span>
         </div>
 
-        {!onlyQuestions && node.body && <PageBody materialId={id} body={node.body} format={node.format ?? 'markdown'} />}
+        {!onlyQuestions && node.body && (
+          <PageBody materialId={id} body={node.body} format={node.format === 'html' ? 'html' : 'markdown'} />
+        )}
+        {!onlyQuestions && node.format === 'slide' && (node.blocks?.length ?? 0) > 0 && (
+          <SlideBody materialId={id} blocks={node.blocks} />
+        )}
         {!onlyQuestions && node && <PageAttachments materialId={id} nodeId={node.id} />}
 
         {submittedResult ? (

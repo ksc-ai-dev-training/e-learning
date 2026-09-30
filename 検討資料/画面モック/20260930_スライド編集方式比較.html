@@ -74,7 +74,8 @@
   .slide-canvas-props .field-row { grid-template-columns:1fr 1fr; gap:0 10px; }
 
   /* ---- 案B拡張: リッチカード型（木村さん提示イメージに寄せた案） ---- */
-  .rich-slide { width:100%; aspect-ratio:16/9; background:#fff; border:1px solid var(--border-strong); border-radius:var(--radius-lg); box-shadow:var(--shadow-md); padding:22px 26px 16px; display:flex; flex-direction:column; gap:12px; position:relative; }
+  .rich-slide { width:100%; aspect-ratio:16/9; background:#fff; border:1px solid var(--border-strong); border-radius:var(--radius-lg); box-shadow:var(--shadow-md); padding:22px 26px 16px; display:flex; flex-direction:column; justify-content:center; gap:16px; position:relative; }
+  .rich-slide .rich-slide-head { margin-bottom:2px; }
   .rich-slide-head { display:flex; align-items:center; gap:12px; }
   .rich-icon-badge { width:36px; height:36px; border-radius:50%; background:#ea8a3c; color:#fff; display:flex; align-items:center; justify-content:center; font-size:17px; font-weight:700; flex-shrink:0; }
   .rich-slide-head h3 { font-size:19px; font-weight:800; color:#0f2d26; flex:1; }
@@ -130,6 +131,58 @@
   .empty-block-list { text-align:center; padding:22px 10px; color:var(--text-subtle); font-size:12px; border:1px dashed var(--border-strong); border-radius:8px; background:#fff; margin-bottom:10px; }
   .empty-preview-box { width:100%; aspect-ratio:16/9; background:#fff; border:1px dashed var(--border-strong); border-radius:var(--radius-lg); display:flex; align-items:center; justify-content:center; color:var(--text-subtle); font-size:12px; }
   .step-grid { display:grid; grid-template-columns:1fr 1.15fr; gap:20px; align-items:start; }
+
+  /* ---- 拡張ブロックライブラリ（自由度UP案） ---- */
+  .block-legend-grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; margin-bottom:20px; }
+  .block-legend-card { border:1px solid var(--border); border-radius:8px; padding:10px 12px; background:#fff; }
+  .block-legend-card.is-escape { border-style:dashed; background:var(--bg-subtle); }
+  .block-legend-name { font-size:12.5px; font-weight:700; color:var(--text); display:flex; align-items:center; gap:6px; margin-bottom:3px; }
+  .block-legend-desc { font-size:11px; color:var(--text-muted); line-height:1.6; }
+  .block-legend-badge { display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; border-radius:5px; background:var(--accent-100); color:var(--accent-700); font-size:11px; flex-shrink:0; }
+  .block-legend-card.is-escape .block-legend-badge { background:#fef3c7; color:#92400e; }
+
+  .demo-filmstrip { display:flex; gap:10px; overflow-x:auto; padding:4px 2px 12px; margin-bottom:14px; border-bottom:1px solid var(--border); }
+  .demo-thumb { flex-shrink:0; width:150px; height:84px; border-radius:6px; border:2px solid var(--border-strong); background:#fff; cursor:pointer; padding:8px; font-size:10px; font-weight:700; color:var(--text-muted); display:flex; align-items:flex-end; }
+  .demo-thumb.active { border-color:var(--accent-600); box-shadow:0 0 0 2px var(--accent-100); color:var(--accent-700); }
+  .demo-slide-view { display:none; }
+  .demo-slide-view.active { display:block; }
+
+  /* タイムライン/手順ブロック */
+  .rich-timeline { display:flex; align-items:flex-start; gap:0; }
+  .rich-timeline-step { flex:1; display:flex; flex-direction:column; align-items:center; text-align:center; position:relative; padding:0 8px; }
+  .rich-timeline-num { width:28px; height:28px; border-radius:50%; background:var(--accent-600); color:#fff; font-size:13px; font-weight:800; display:flex; align-items:center; justify-content:center; margin-bottom:8px; position:relative; z-index:1; }
+  .rich-timeline-step:not(:last-child)::after {
+    content:''; position:absolute; top:14px; left:calc(50% + 20px); right:calc(-50% + 20px); height:2px; background:var(--border-strong); z-index:0;
+  }
+  .rich-timeline-label { font-size:11.5px; font-weight:700; color:#0f2d26; margin-bottom:3px; }
+  .rich-timeline-desc { font-size:10px; color:#374151; line-height:1.5; }
+
+  /* 比較(Before/After)ブロック */
+  .rich-compare { display:grid; grid-template-columns:1fr auto 1fr; gap:14px; align-items:stretch; }
+  .rich-compare-col { border-radius:8px; padding:12px 14px; }
+  .rich-compare-col.before { background:#fbe9e7; }
+  .rich-compare-col.after { background:#e7f0ee; }
+  .rich-compare-col .label { font-size:11px; font-weight:800; margin-bottom:6px; }
+  .rich-compare-col.before .label { color:#a13a34; }
+  .rich-compare-col.after .label { color:#2c6e4f; }
+  .rich-compare-col ul { margin-left:16px; font-size:11px; color:#374151; line-height:1.8; }
+  .rich-compare-vs { display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:800; color:var(--text-subtle); }
+
+  /* コードスニペット・引用ブロック */
+  .rich-code-block { background:#1e2530; color:#dce3ec; border-radius:8px; padding:12px 16px; font-family:"SF Mono",ui-monospace,Consolas,monospace; font-size:11.5px; line-height:1.8; }
+  .rich-code-block .kw { color:#7dd3fc; }
+  .rich-code-block .str { color:#a5e0a5; }
+  .rich-code-block .cm { color:#7a8699; }
+  .rich-quote-block { border-left:4px solid var(--accent-600); padding:6px 0 6px 16px; font-size:13.5px; font-weight:700; color:#0f2d26; font-style:italic; }
+  .rich-quote-source { font-size:10.5px; font-weight:400; font-style:normal; color:var(--text-subtle); margin-top:4px; }
+
+  /* 自由記述ブロック（本文Markdown/HTMLと同じ、上から下へ流れるだけのレイアウト） */
+  .rich-freeform { font-size:11.5px; line-height:1.8; color:#374151; }
+  .rich-freeform h4 { font-size:14px; font-weight:800; color:#0f2d26; margin-bottom:6px; }
+  .rich-freeform code { background:#f1f5f9; padding:1px 5px; border-radius:4px; font-size:10.5px; }
+  .rich-freeform table { border-collapse:collapse; font-size:11px; margin-top:8px; }
+  .rich-freeform td, .rich-freeform th { border:1px solid var(--border); padding:4px 9px; text-align:left; }
+  .rich-freeform th { background:var(--bg-subtle); }
 </style>
 </head>
 <body>
@@ -157,14 +210,192 @@
   </div>
 
   <div class="compare-tabs">
-    <button class="compare-tab active" onclick="switchCompare('steps')">★作成手順（ゼロから組み立てる）</button>
+    <button class="compare-tab active" onclick="switchCompare('freedom')">★★拡張ブロックライブラリ（自由度UP案）</button>
+    <button class="compare-tab" onclick="switchCompare('steps')">★作成手順（ゼロから組み立てる）</button>
     <button class="compare-tab" onclick="switchCompare('b')">案B: テンプレート型</button>
     <button class="compare-tab" onclick="switchCompare('c')">案C: フリーキャンバス型</button>
     <button class="compare-tab" onclick="switchCompare('rich')">B拡張案: リッチカード型（完成形）</button>
   </div>
 
+  <!-- 拡張ブロックライブラリ: 自由度UP案 -->
+  <div class="compare-panel active" id="panel-freedom">
+    <div class="doc-desc" style="margin-bottom:14px">
+      「B拡張案は例のスライドの形にしかならないのでは」というご指摘への回答。<strong>座標を自由にする
+      （C案）方向ではなく、選べるブロックの種類と、ブロックごとの型を増やす</strong>方向で自由度を
+      伸ばした案。ブロックは何個でも・どんな順番でも組み合わせられるため、種類を増やすほど作れる
+      スライドの見た目のバリエーションは掛け算的に増える。以下は同じ「ブロックを組み合わせる」
+      方式のまま作った、見た目の異なる4パターン。すべてClaude Code（MCP）が構造化データとして
+      安定して生成できる形（座標を一切使わない）のまま。
+    </div>
+
+    <div class="block-legend-grid">
+      <div class="block-legend-card"><div class="block-legend-name"><span class="block-legend-badge">A</span>ヘッダー</div><div class="block-legend-desc">タイトル・アイコン・ピル文言</div></div>
+      <div class="block-legend-card"><div class="block-legend-name"><span class="block-legend-badge">B</span>目的バナー</div><div class="block-legend-desc">一言で目的を強調表示</div></div>
+      <div class="block-legend-card"><div class="block-legend-name"><span class="block-legend-badge">C</span>カード列（2〜4枚）</div><div class="block-legend-desc">色分け・アイコン付きの項目比較</div></div>
+      <div class="block-legend-card"><div class="block-legend-name"><span class="block-legend-badge">D</span>強調バナー</div><div class="block-legend-desc">本文＋大きな数値のハイライト</div></div>
+      <div class="block-legend-card"><div class="block-legend-name"><span class="block-legend-badge">E</span>箇条書き</div><div class="block-legend-desc">シンプルなリスト</div></div>
+      <div class="block-legend-card"><div class="block-legend-name"><span class="block-legend-badge">F</span>画像＋キャプション</div><div class="block-legend-desc">配置（左/右/上）を選べる</div></div>
+      <div class="block-legend-card"><div class="block-legend-name"><span class="block-legend-badge">G</span>比較（Before/After）</div><div class="block-legend-desc">2カラムで対比・A/B比較</div></div>
+      <div class="block-legend-card"><div class="block-legend-name"><span class="block-legend-badge">H</span>手順・タイムライン</div><div class="block-legend-desc">①→②→③の順序立った流れ</div></div>
+      <div class="block-legend-card"><div class="block-legend-name"><span class="block-legend-badge">I</span>引用・強調テキスト</div><div class="block-legend-desc">大きな一言＋出典</div></div>
+      <div class="block-legend-card"><div class="block-legend-name"><span class="block-legend-badge">J</span>表</div><div class="block-legend-desc">項目×数値の比較表</div></div>
+      <div class="block-legend-card"><div class="block-legend-name"><span class="block-legend-badge">K</span>Q&amp;A</div><div class="block-legend-desc">質問と答えのペアを並べる</div></div>
+      <div class="block-legend-card"><div class="block-legend-name"><span class="block-legend-badge">L</span>コードスニペット</div><div class="block-legend-desc">シンタックス風のコード例</div></div>
+      <div class="block-legend-card"><div class="block-legend-name"><span class="block-legend-badge">M</span>画像ギャラリー</div><div class="block-legend-desc">複数枚の画像を並べる</div></div>
+      <div class="block-legend-card"><div class="block-legend-name"><span class="block-legend-badge">N</span>アイコンリスト</div><div class="block-legend-desc">チェックリスト的な箇条書き</div></div>
+      <div class="block-legend-card is-escape"><div class="block-legend-name"><span class="block-legend-badge">?</span>自由記述（逃げ道）</div><div class="block-legend-desc">既存のMarkdown/HTMLと同じ書き方で自由に</div></div>
+    </div>
+
+    <div class="frame">
+      <div class="frame-head">同じブロック方式で作った、見た目が異なる4パターン（下のサムネイルで切り替え）</div>
+      <div class="frame-body">
+        <div class="demo-filmstrip">
+          <div class="demo-thumb active" onclick="switchDemo(1, this)">① カード列型<br>（前回提示分）</div>
+          <div class="demo-thumb" onclick="switchDemo(2, this)">② 手順・タイムライン型</div>
+          <div class="demo-thumb" onclick="switchDemo(3, this)">③ 比較（Before/After）型</div>
+          <div class="demo-thumb" onclick="switchDemo(4, this)">④ コード＋引用型</div>
+          <div class="demo-thumb" onclick="switchDemo(5, this)">⑤ 自由記述（逃げ道）</div>
+        </div>
+
+        <!-- デモ1: カード列型（既出） -->
+        <div class="demo-slide-view active" id="demo-1">
+          <div class="rich-slide">
+            <div class="rich-slide-head">
+              <div class="rich-icon-badge">?</div>
+              <h3>なぜ今、ブランチ運用を学ぶのか</h3>
+              <div class="rich-pill">はじめに</div>
+            </div>
+            <div class="rich-banner">目的：事故なく変更を統合し、レビューしやすいチーム開発ができるようになるため</div>
+            <div class="rich-card-row">
+              <div class="rich-card tone-rose"><div class="rich-card-head"><span class="rich-card-icon">🛡</span>守り：事故を防ぐ</div><div class="rich-card-desc">mainに直接コミットして本番を壊さない</div><div class="rich-card-stat">直push事故は復旧に平均2時間</div></div>
+              <div class="rich-card tone-green"><div class="rich-card-head"><span class="rich-card-icon">📈</span>攻め：速く進める</div><div class="rich-card-desc">並行作業とレビューで開発速度が上がる</div><div class="rich-card-stat">レビュー付きは手戻り約1/3</div></div>
+              <div class="rich-card tone-blue"><div class="rich-card-head"><span class="rich-card-icon">🔍</span>判断：差分が分かる</div><div class="rich-card-desc">変更内容を追いやすく、原因調査が早い</div><div class="rich-card-stat">粒度の細かいコミットで追跡容易</div></div>
+            </div>
+            <div class="rich-highlight"><div class="rich-highlight-text"><strong>なぜ今？</strong>チーム人数が増え、mainへの同時変更が発生しやすくなったため、ブランチ運用の徹底が急務になった</div><div class="rich-highlight-stat">コンフリクト対応<span class="big">週 約3件</span></div></div>
+            <div class="rich-page-num">3 / 12</div>
+          </div>
+          <div class="block-schema">
+            構成: <code>header</code> → <code>banner</code> → <code>card_row(3枚)</code> → <code>highlight</code>
+          </div>
+        </div>
+
+        <!-- デモ2: 手順・タイムライン型 -->
+        <div class="demo-slide-view" id="demo-2">
+          <div class="rich-slide">
+            <div class="rich-slide-head">
+              <div class="rich-icon-badge">🔀</div>
+              <h3>ブランチ作成からPRまでの流れ</h3>
+              <div class="rich-pill">全体像</div>
+            </div>
+            <div class="rich-timeline" style="margin-top:10px">
+              <div class="rich-timeline-step">
+                <div class="rich-timeline-num">1</div>
+                <div class="rich-timeline-label">ブランチ作成</div>
+                <div class="rich-timeline-desc">main から<br>作業ブランチを切る</div>
+              </div>
+              <div class="rich-timeline-step">
+                <div class="rich-timeline-num">2</div>
+                <div class="rich-timeline-label">コミット</div>
+                <div class="rich-timeline-desc">意味のある単位で<br>こまめに記録</div>
+              </div>
+              <div class="rich-timeline-step">
+                <div class="rich-timeline-num">3</div>
+                <div class="rich-timeline-label">push</div>
+                <div class="rich-timeline-desc">リモートへ<br>反映する</div>
+              </div>
+              <div class="rich-timeline-step">
+                <div class="rich-timeline-num">4</div>
+                <div class="rich-timeline-label">PR作成</div>
+                <div class="rich-timeline-desc">レビューを<br>依頼する</div>
+              </div>
+            </div>
+            <div class="rich-highlight" style="margin-top:14px"><div class="rich-highlight-text">4つの手順はどれも数分で終わる。慣れれば一連の流れとして自然に行えるようになる</div></div>
+            <div class="rich-page-num">4 / 12</div>
+          </div>
+          <div class="block-schema">
+            構成: <code>header</code> → <code>timeline(4ステップ)</code> → <code>highlight</code>
+          </div>
+        </div>
+
+        <!-- デモ3: 比較（Before/After）型 -->
+        <div class="demo-slide-view" id="demo-3">
+          <div class="rich-slide">
+            <div class="rich-slide-head">
+              <div class="rich-icon-badge">⚖</div>
+              <h3>レビュー依頼、変える前と後</h3>
+              <div class="rich-pill">改善例</div>
+            </div>
+            <div class="rich-compare" style="margin-top:10px">
+              <div class="rich-compare-col before">
+                <div class="label">Before</div>
+                <ul><li>「直しました」だけの一言</li><li>何を確認すればよいか不明</li><li>レビュアーが差分を全部読む</li></ul>
+              </div>
+              <div class="rich-compare-vs">→</div>
+              <div class="rich-compare-col after">
+                <div class="label">After</div>
+                <ul><li>変更の目的を1行で明記</li><li>確認してほしい点を箇条書き</li><li>動作確認の方法も添える</li></ul>
+              </div>
+            </div>
+            <div class="rich-page-num">5 / 12</div>
+          </div>
+          <div class="block-schema">
+            構成: <code>header</code> → <code>compare(before/after)</code>
+          </div>
+        </div>
+
+        <!-- デモ4: コード＋引用型 -->
+        <div class="demo-slide-view" id="demo-4">
+          <div class="rich-slide">
+            <div class="rich-slide-head">
+              <div class="rich-icon-badge">💬</div>
+              <h3>良いコミットメッセージの例</h3>
+              <div class="rich-pill">サンプル</div>
+            </div>
+            <div class="rich-code-block" style="margin-top:8px">
+              <span class="cm"># 変更内容が一目で分かる書き方</span><br>
+              <span class="kw">git commit</span> -m <span class="str">"ログイン画面のバリデーション不具合を修正"</span>
+            </div>
+            <div class="rich-quote-block" style="margin-top:14px">
+              「そのコミットだけを見て、後から誰が読んでも意図が伝わるように書く」
+              <div class="rich-quote-source">— 新人向けGit入門 第3章より</div>
+            </div>
+            <div class="rich-page-num">6 / 12</div>
+          </div>
+          <div class="block-schema">
+            構成: <code>header</code> → <code>code_snippet</code> → <code>quote</code>
+          </div>
+        </div>
+
+        <!-- デモ5: 自由記述（逃げ道） -->
+        <div class="demo-slide-view" id="demo-5">
+          <div class="rich-slide">
+            <div class="rich-slide-head">
+              <div class="rich-icon-badge">✎</div>
+              <h3>用語のミニ辞典</h3>
+              <div class="rich-pill">補足</div>
+            </div>
+            <div class="rich-freeform" style="margin-top:8px">
+              <h4>今日出てきた用語</h4>
+              <table>
+                <tr><th>用語</th><th>意味</th></tr>
+                <tr><td><code>HEAD</code></td><td>今チェックアウトしている場所を指す印</td></tr>
+                <tr><td><code>origin</code></td><td>リモートリポジトリの既定の呼び名</td></tr>
+                <tr><td><code>fast-forward</code></td><td>分岐なしでそのまま合流できるマージ</td></tr>
+              </table>
+              <p style="margin-top:8px">用意したブロックのどれにも当てはまらない内容は、この「自由記述」ブロックに既存の本文と同じ書き方（Markdown/HTML）でそのまま書ける。座標を伴わない、上から下へ流れるだけのレイアウトなのでClaude Codeにとって難易度は変わらない。</p>
+            </div>
+            <div class="rich-page-num">7 / 12</div>
+          </div>
+          <div class="block-schema">
+            構成: <code>header</code> → <code>freeform（Markdown/HTMLそのまま）</code>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- 作成手順: ゼロから組み立てる過程 -->
-  <div class="compare-panel active" id="panel-steps">
+  <div class="compare-panel" id="panel-steps">
     <div class="doc-desc" style="margin-bottom:14px">
       「＋ブロックを追加」ボタンがモックのどこにあるか分かりにくいとのご指摘を受け、<strong>空の状態から
       1枚のスライドが出来上がるまでの過程</strong>を4ステップに分けて再現した。各ステップで実際に押す
@@ -650,6 +881,12 @@
     document.querySelectorAll('.step-view').forEach((el) => el.classList.remove('active'));
     event.currentTarget.classList.add('active');
     document.getElementById('step-' + n).classList.add('active');
+  }
+  function switchDemo(n, el) {
+    document.querySelectorAll('.demo-thumb').forEach((t) => t.classList.remove('active'));
+    document.querySelectorAll('.demo-slide-view').forEach((v) => v.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById('demo-' + n).classList.add('active');
   }
 </script>
 </body>
