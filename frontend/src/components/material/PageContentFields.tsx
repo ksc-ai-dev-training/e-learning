@@ -81,6 +81,22 @@ export default function PageContentFields({
   const togglePoolMembership = (i: number) =>
     onPoolMembershipChange(poolMembership.map((v, idx) => (idx === i ? !v : v)))
 
+  // 記述形式の切替（2026-10-01、3形式化に伴いMarkdownHtmlEditor内にあった確認ダイアログを
+  // ここへ統合）。切り替え先のデータ自体は保持されるが、切替後の編集画面には表示されなくなるため、
+  // 現在の形式に入力済みの内容がある場合だけ確認する。
+  const handleFormatClick = (next: 'markdown' | 'html' | 'slide') => {
+    if (next === format) return
+    const currentHasContent = format === 'slide' ? blocks.length > 0 : body.trim().length > 0
+    if (currentHasContent) {
+      const message =
+        format === 'slide'
+          ? '作成済みのスライドのブロックは保持されますが、記述形式を変更すると編集画面には表示されなくなります。続けますか？'
+          : '入力済みの本文は保持されますが、記述形式を変更すると編集画面には表示されなくなります。続けますか？'
+      if (!window.confirm(message)) return
+    }
+    onFormatChange(next)
+  }
+
   return (
     <>
       <div className="mb-4 flex max-w-md flex-col gap-1">
@@ -124,7 +140,7 @@ export default function PageContentFields({
                   <button
                     key={opt.value}
                     type="button"
-                    onClick={() => onFormatChange(opt.value)}
+                    onClick={() => handleFormatClick(opt.value)}
                     className={`rounded-md border px-3 py-1 text-xs font-semibold ${
                       format === opt.value
                         ? 'border-blue-800 bg-blue-900 text-white'

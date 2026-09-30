@@ -393,6 +393,10 @@ async def get_material_source_tool(material_id: int) -> str:
         "教材の中身（章・ページ・説明文・設問）を、フロントマター付きMarkdownテキストで全置換保存する。"
         "get_material_sourceで取得したテキストを編集してから渡す。既存の目次・設問のうち、送信テキストに"
         "含まれないものは削除される（全置換）ため、必ず取得済みの内容をもとに編集すること。"
+        "ページの説明文はMarkdown/HTMLに加えて「スライド」形式（見出し直後に<!-- format:slide -->、"
+        "本文に```slideフェンス）でも書ける。スライド形式のページを新規に作る・既存のページを"
+        "スライド形式にする場合は、このツールを呼ぶ前に必ずget_slide_block_referenceでブロックの"
+        "書き方を確認すること（教材内に既存のスライドページが無い場合、他に仕様を知る手段が無いため）。"
     ),
 )
 async def put_material_source_tool(material_id: int, source: str) -> str:
@@ -401,6 +405,77 @@ async def put_material_source_tool(material_id: int, source: str) -> str:
         id=material_id, text=source, user=verified_user, expected_updated_at=None, changed_via="mcp",
     ))
     return response.body.decode("utf-8")
+
+
+_SLIDE_BLOCK_REFERENCE = """\
+スライド（format='slide'）ページの説明文は、本文中に```slideフェンスを1ページにつき1つ置き、
+その中にブロックのYAMLリストを書く（既存の```questionフェンスと同じページ・同じ本文に共存できる）。
+ブロックは上から書いた順にそのまま表示順になる。各ブロックは`type`で種別を指定し、種別ごとに
+決まったフィールドを持つ（使わないフィールドは省略してよい。フィールド名を間違えても保存エラーには
+ならず、単にその部分が表示されないだけなので、以下の名称を正確に使うこと）。
+
+ページの記述形式をスライドにするには、###見出し（ページ）の直後に<!-- format:slide -->コメントを
+1行追加する（<!-- node:ID -->がある場合はその直後）。既存のMarkdown/HTMLページと同じ書き方。
+
+【ブロック一覧】
+- header: icon（絵文字/短い文字）, title, pill（右上の短いラベル）
+- banner: text（1行の目的バナー）
+- bullet_list: items（文字列の配列）
+- card_row: cards（配列、2〜4枚目安）。各要素: tone（rose/green/blue/amberのいずれか）, icon, heading, desc, stat
+- highlight: text（本文）, stat_label, stat_value（右側の強調数値）
+- compare: before_label, before_items（配列）, after_label, after_items（配列）。Before/After比較
+- timeline: steps（配列）。各要素: label, desc。手順・タイムライン表示
+- quote: text（引用文）, source（出典、任意）
+- table: headers（文字列の配列）, rows（行の配列、各行はheadersと同じ列数の文字列配列）
+- qa: qa_items（配列）。各要素: question, answer
+- code_snippet: code（コード本文）, caption（注記、任意）
+- image_gallery: images（配列）。各要素: attachment_id, caption
+- icon_list: icon_items（配列）。各要素: icon, text
+- image_caption: attachment_id, caption, image_position（'top'/'left'/'right'。省略時'top'）
+- freeform: content（Markdown本文。上記のどれにも当てはまらない内容のための逃げ道）
+
+【画像を使うブロックについて】
+image_gallery・image_captionのattachment_idは、スライド専用のアップロード手段ではなく、本文埋め込み
+画像と同じ仕組み（create_material_asset_upload_url + finalize_material_asset、または
+upload_material_asset）でアップロードして得られるidをそのまま使う。
+
+【記述例】
+```slide
+- type: header
+  icon: "?"
+  title: "なぜ今、ブランチ運用を学ぶのか"
+  pill: "はじめに"
+- type: card_row
+  cards:
+    - tone: rose
+      icon: "🛡"
+      heading: "守り：事故を防ぐ"
+      desc: "mainに直接コミットして本番を壊さない"
+      stat: "直push事故は復旧に平均2時間"
+    - tone: green
+      icon: "📈"
+      heading: "攻め：速く進める"
+      desc: "並行作業とレビューで開発速度が上がる"
+      stat: "レビュー付きは手戻り約1/3"
+- type: highlight
+  text: "チーム人数が増え、mainへの同時変更が発生しやすくなった"
+  stat_label: "コンフリクト対応"
+  stat_value: "週 約3件"
+```
+"""
+
+
+@mcp.tool(
+    name="get_slide_block_reference",
+    description=(
+        "教材ページの説明文を「スライド」形式（format='slide'、```slideフェンス）で書く・編集する前に"
+        "必ず呼ぶ。対応するブロック種別（header/banner/bullet_list/card_row/highlight/compare/"
+        "timeline/quote/table/qa/code_snippet/image_gallery/icon_list/image_caption/freeform）と、"
+        "種別ごとのフィールド名・記述例を返す（引数なし、教材を問わない静的な仕様説明）。"
+    ),
+)
+async def get_slide_block_reference_tool() -> str:
+    return _SLIDE_BLOCK_REFERENCE
 
 
 @mcp.tool(
