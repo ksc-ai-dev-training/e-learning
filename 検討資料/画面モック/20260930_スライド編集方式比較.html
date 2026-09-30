@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="../../docs/03_画面モックアップ/mock.css">
 <style>
   body { background: var(--bg-muted); }
-  .doc-wrap { max-width: 1080px; margin: 0 auto; padding: 24px 20px 60px; }
+  .doc-wrap { max-width: 1320px; margin: 0 auto; padding: 24px 20px 60px; }
   .doc-head { margin-bottom: 18px; }
   .doc-head h1 { font-size: 19px; margin: 0 0 6px; }
   .status-pill {
@@ -101,6 +101,35 @@
 
   .block-schema { font-size:11.5px; line-height:1.9; background:#fff; border:1px solid var(--border); border-radius:8px; padding:12px 14px; margin-top:10px; }
   .block-schema code { background:#f1f5f9; padding:1px 5px; border-radius:4px; font-size:10.5px; }
+
+  /* ブロック編集フォーム（「どう操作して組み立てるか」を示す部分） */
+  .rich-editor-grid { display:grid; grid-template-columns:1fr 1.15fr; gap:20px; align-items:start; }
+  .block-list { display:flex; flex-direction:column; gap:6px; }
+  .block-row { display:flex; align-items:center; gap:8px; padding:8px 10px; border:1px solid var(--border-strong); border-radius:6px; background:#fff; font-size:12px; }
+  .block-row.active { border-color:var(--accent-600); background:var(--accent-50); }
+  .block-row-no { width:14px; flex-shrink:0; font-size:11px; color:var(--text-subtle); }
+  .block-row-type { flex-shrink:0; font-weight:700; width:78px; }
+  .block-row-summary { flex:1; min-width:0; color:var(--text-muted); font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .block-add-row { display:flex; gap:8px; margin-top:8px; align-items:center; }
+  .card-field-row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:6px; }
+  .step-badge { display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:50%; background:var(--accent-600); color:#fff; font-size:10.5px; font-weight:700; flex-shrink:0; margin-right:6px; }
+
+  /* ---- 作成手順タブ（ゼロから組み立てる過程） ---- */
+  .step-tabs { display:flex; gap:8px; margin-bottom:14px; }
+  .step-tab { min-width:32px; height:32px; padding:0 12px; border-radius:999px; border:1px solid var(--border-strong); background:#fff; font-size:12px; font-weight:700; color:var(--text-muted); cursor:pointer; }
+  .step-tab.active { background:var(--accent-600); border-color:var(--accent-600); color:#fff; }
+  .step-view { display:none; }
+  .step-view.active { display:block; }
+  .step-caption { font-size:13px; font-weight:700; color:var(--accent-700); background:var(--accent-50); border:1px solid var(--accent-100); border-radius:8px; padding:10px 14px; margin-bottom:14px; }
+  .step-caption .muted { font-weight:400; color:var(--text-muted); display:block; margin-top:3px; font-size:12px; }
+  .callout-ring { outline:3px solid #f59e0b; outline-offset:4px; border-radius:8px; position:relative; }
+  .callout-label {
+    position:absolute; top:-13px; left:10px; background:#f59e0b; color:#fff; font-size:10.5px; font-weight:700;
+    border-radius:4px; padding:2px 9px; white-space:nowrap; z-index:2; box-shadow:0 1px 3px rgba(0,0,0,0.25);
+  }
+  .empty-block-list { text-align:center; padding:22px 10px; color:var(--text-subtle); font-size:12px; border:1px dashed var(--border-strong); border-radius:8px; background:#fff; margin-bottom:10px; }
+  .empty-preview-box { width:100%; aspect-ratio:16/9; background:#fff; border:1px dashed var(--border-strong); border-radius:var(--radius-lg); display:flex; align-items:center; justify-content:center; color:var(--text-subtle); font-size:12px; }
+  .step-grid { display:grid; grid-template-columns:1fr 1.15fr; gap:20px; align-items:start; }
 </style>
 </head>
 <body>
@@ -128,9 +157,245 @@
   </div>
 
   <div class="compare-tabs">
+    <button class="compare-tab active" onclick="switchCompare('steps')">★作成手順（ゼロから組み立てる）</button>
     <button class="compare-tab" onclick="switchCompare('b')">案B: テンプレート型</button>
     <button class="compare-tab" onclick="switchCompare('c')">案C: フリーキャンバス型</button>
-    <button class="compare-tab active" onclick="switchCompare('rich')">B拡張案: リッチカード型（★理想形に近い）</button>
+    <button class="compare-tab" onclick="switchCompare('rich')">B拡張案: リッチカード型（完成形）</button>
+  </div>
+
+  <!-- 作成手順: ゼロから組み立てる過程 -->
+  <div class="compare-panel active" id="panel-steps">
+    <div class="doc-desc" style="margin-bottom:14px">
+      「＋ブロックを追加」ボタンがモックのどこにあるか分かりにくいとのご指摘を受け、<strong>空の状態から
+      1枚のスライドが出来上がるまでの過程</strong>を4ステップに分けて再現した。各ステップで実際に押す
+      ボタンをオレンジ色の枠と吹き出しで示す。下の①〜④で切り替えて見られます。
+    </div>
+    <div class="step-tabs">
+      <button class="step-tab active" onclick="switchStep(1)">① 空の状態</button>
+      <button class="step-tab" onclick="switchStep(2)">② 1つ目を追加</button>
+      <button class="step-tab" onclick="switchStep(3)">③ 続けて追加</button>
+      <button class="step-tab" onclick="switchStep(4)">④ 完成</button>
+    </div>
+
+    <!-- ステップ1: 空の状態 -->
+    <div class="step-view active" id="step-1">
+      <div class="step-caption">記述形式で「スライド」を選んだ直後。まだブロックは1つもない。
+        <span class="muted">ここでは「＋ブロックを追加」以外に押せるものがなく、次に何をすべきか迷わない状態にする。</span>
+      </div>
+      <div class="frame">
+        <div class="frame-body">
+          <div class="step-grid">
+            <div>
+              <div class="field">
+                <label>ブロック構成（まだ0件）</label>
+                <div class="empty-block-list">まだブロックがありません。下の「＋ブロックを追加」から作り始めてください。</div>
+                <div class="callout-ring" style="display:inline-block">
+                  <span class="callout-label">① まずはここを押す</span>
+                  <div class="block-add-row" style="margin-top:0">
+                    <select><option>ヘッダー</option><option>目的バナー</option><option>カード列</option><option>強調バナー</option><option>箇条書き</option><option>画像＋キャプション</option></select>
+                    <button class="add-row-btn" type="button">+ ブロックを追加</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div>
+              <div class="preview-label" style="margin-bottom:6px">プレビュー（16:9）</div>
+              <div class="empty-preview-box">（まだ何も配置されていません）</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ステップ2: 1つ目のブロック（ヘッダー）を追加 -->
+    <div class="step-view" id="step-2">
+      <div class="step-caption">①で「ヘッダー」を選んで「＋ブロックを追加」を押した直後。
+        <span class="muted">ブロック一覧に1件追加され、そのブロックの入力フォームが自動で開く。フォームに入力すると右のプレビューにすぐ反映される。</span>
+      </div>
+      <div class="frame">
+        <div class="frame-body">
+          <div class="step-grid">
+            <div>
+              <div class="field">
+                <label>ブロック構成（1件）</label>
+                <div class="block-list">
+                  <div class="block-row active">
+                    <span class="block-row-no">1</span>
+                    <span class="block-row-type">ヘッダー</span>
+                    <span class="block-row-summary">※追加直後で入力中</span>
+                    <button class="btn btn-ghost btn-sm" type="button" disabled>↑</button>
+                    <button class="btn btn-ghost btn-sm" type="button" disabled>↓</button>
+                    <button class="btn btn-primary btn-sm" type="button">編集中</button>
+                    <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
+                  </div>
+                </div>
+                <div class="block-add-row"><select><option>目的バナー</option></select><button class="add-row-btn" type="button">+ ブロックを追加</button></div>
+              </div>
+              <div class="callout-ring" style="display:block; margin-top:12px">
+                <span class="callout-label">② 自動で開いたフォームに入力</span>
+                <div class="edit-card" style="margin-top:0">
+                  <div class="edit-card-head"><span class="edit-card-title">ブロック1「ヘッダー」を編集中</span></div>
+                  <div class="card-field-row">
+                    <label style="width:56px;font-size:11px;color:var(--text-muted)">アイコン</label>
+                    <input type="text" value="?" style="width:50px;text-align:center">
+                  </div>
+                  <div class="card-field-row">
+                    <label style="width:56px;font-size:11px;color:var(--text-muted)">タイトル</label>
+                    <input type="text" value="なぜ今、ブランチ運用を学ぶのか" style="flex:1;min-width:200px">
+                  </div>
+                  <div class="card-field-row">
+                    <label style="width:56px;font-size:11px;color:var(--text-muted)">ピル文言</label>
+                    <input type="text" value="はじめに" style="width:140px">
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div>
+              <div class="preview-label" style="margin-bottom:6px">プレビュー（16:9・入力するとすぐ反映）</div>
+              <div class="rich-slide" style="justify-content:flex-start">
+                <div class="rich-slide-head">
+                  <div class="rich-icon-badge">?</div>
+                  <h3>なぜ今、ブランチ運用を学ぶのか</h3>
+                  <div class="rich-pill">はじめに</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ステップ3: 続けてブロックを追加（目的バナー・カード列） -->
+    <div class="step-view" id="step-3">
+      <div class="step-caption">同じ操作を繰り返し、「目的バナー」「カード列」を追加した状態。
+        <span class="muted">「カード列」ブロックの中では、さらに「＋カードを追加」で守り／攻め／判断のようなカードを好きな枚数（最大4枚）追加できる。</span>
+      </div>
+      <div class="frame">
+        <div class="frame-body">
+          <div class="step-grid">
+            <div>
+              <div class="field">
+                <label>ブロック構成（3件）</label>
+                <div class="block-list">
+                  <div class="block-row">
+                    <span class="block-row-no">1</span><span class="block-row-type">ヘッダー</span>
+                    <span class="block-row-summary">アイコン「?」／タイトル「なぜ今、ブランチ運用を学ぶのか」</span>
+                    <button class="btn btn-ghost btn-sm" type="button" disabled>↑</button><button class="btn btn-ghost btn-sm" type="button">↓</button>
+                    <button class="btn btn-secondary btn-sm" type="button">編集</button><button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
+                  </div>
+                  <div class="block-row">
+                    <span class="block-row-no">2</span><span class="block-row-type">目的バナー</span>
+                    <span class="block-row-summary">「目的：事故なく変更を統合し、レビューしやすい…」</span>
+                    <button class="btn btn-ghost btn-sm" type="button">↑</button><button class="btn btn-ghost btn-sm" type="button">↓</button>
+                    <button class="btn btn-secondary btn-sm" type="button">編集</button><button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
+                  </div>
+                  <div class="block-row active">
+                    <span class="block-row-no">3</span><span class="block-row-type">カード列</span>
+                    <span class="block-row-summary">2枚（守り／攻め）※下で編集中</span>
+                    <button class="btn btn-ghost btn-sm" type="button">↑</button><button class="btn btn-ghost btn-sm" type="button" disabled>↓</button>
+                    <button class="btn btn-primary btn-sm" type="button">編集中</button><button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
+                  </div>
+                </div>
+                <div class="block-add-row"><select><option>強調バナー</option></select><button class="add-row-btn" type="button">+ ブロックを追加</button></div>
+              </div>
+              <div class="edit-card" style="margin-top:12px">
+                <div class="edit-card-head"><span class="edit-card-title">ブロック3「カード列」を編集中</span></div>
+                <div class="field">
+                  <label>カード1</label>
+                  <div class="card-field-row">
+                    <select style="width:120px"><option>rose（赤系）</option></select>
+                    <input type="text" value="🛡" style="width:50px;text-align:center">
+                    <input type="text" value="守り：事故を防ぐ" style="flex:1;min-width:160px">
+                  </div>
+                </div>
+                <div class="field">
+                  <label>カード2</label>
+                  <div class="card-field-row">
+                    <select style="width:120px"><option>green（緑系）</option></select>
+                    <input type="text" value="📈" style="width:50px;text-align:center">
+                    <input type="text" value="攻め：速く進める" style="flex:1;min-width:160px">
+                  </div>
+                </div>
+                <div class="callout-ring" style="display:inline-block; margin-top:4px">
+                  <span class="callout-label">③ カードを増やすときはここ</span>
+                  <button class="add-row-btn" type="button">+ カードを追加（最大4枚）</button>
+                </div>
+              </div>
+            </div>
+            <div>
+              <div class="preview-label" style="margin-bottom:6px">プレビュー（16:9）</div>
+              <div class="rich-slide" style="justify-content:flex-start">
+                <div class="rich-slide-head">
+                  <div class="rich-icon-badge">?</div>
+                  <h3>なぜ今、ブランチ運用を学ぶのか</h3>
+                  <div class="rich-pill">はじめに</div>
+                </div>
+                <div class="rich-banner">目的：事故なく変更を統合し、レビューしやすいチーム開発ができるようになるため</div>
+                <div class="rich-card-row" style="grid-template-columns:repeat(2, 1fr)">
+                  <div class="rich-card tone-rose">
+                    <div class="rich-card-head"><span class="rich-card-icon">🛡</span>守り：事故を防ぐ</div>
+                  </div>
+                  <div class="rich-card tone-green">
+                    <div class="rich-card-head"><span class="rich-card-icon">📈</span>攻め：速く進める</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ステップ4: 完成 -->
+    <div class="step-view" id="step-4">
+      <div class="step-caption">「強調バナー」も追加し、4ブロックで完成した状態。
+        <span class="muted">最後に画面下部の「保存して目次に戻る」（S-17と同じ保存バー）を押せば確定。これ以降は既存のページ編集と同じ操作性。</span>
+      </div>
+      <div class="frame">
+        <div class="frame-body">
+          <div class="block-list" style="margin-bottom:10px">
+            <div class="block-row"><span class="block-row-no">1</span><span class="block-row-type">ヘッダー</span><span class="block-row-summary">アイコン「?」／タイトル「なぜ今、ブランチ運用を学ぶのか」／ピル「はじめに」</span><button class="btn btn-ghost btn-sm" type="button" disabled>↑</button><button class="btn btn-ghost btn-sm" type="button">↓</button><button class="btn btn-secondary btn-sm" type="button">編集</button><button class="btn btn-danger-ghost btn-sm" type="button">削除</button></div>
+            <div class="block-row"><span class="block-row-no">2</span><span class="block-row-type">目的バナー</span><span class="block-row-summary">「目的：事故なく変更を統合し、レビューしやすい…」</span><button class="btn btn-ghost btn-sm" type="button">↑</button><button class="btn btn-ghost btn-sm" type="button">↓</button><button class="btn btn-secondary btn-sm" type="button">編集</button><button class="btn btn-danger-ghost btn-sm" type="button">削除</button></div>
+            <div class="block-row"><span class="block-row-no">3</span><span class="block-row-type">カード列</span><span class="block-row-summary">3枚（守り／攻め／判断）</span><button class="btn btn-ghost btn-sm" type="button">↑</button><button class="btn btn-ghost btn-sm" type="button">↓</button><button class="btn btn-secondary btn-sm" type="button">編集</button><button class="btn btn-danger-ghost btn-sm" type="button">削除</button></div>
+            <div class="block-row"><span class="block-row-no">4</span><span class="block-row-type">強調バナー</span><span class="block-row-summary">「なぜ今？」／コンフリクト対応 週 約3件</span><button class="btn btn-ghost btn-sm" type="button">↑</button><button class="btn btn-ghost btn-sm" type="button" disabled>↓</button><button class="btn btn-secondary btn-sm" type="button">編集</button><button class="btn btn-danger-ghost btn-sm" type="button">削除</button></div>
+          </div>
+          <div class="block-add-row" style="margin-bottom:14px"><select><option>ヘッダー</option><option>目的バナー</option><option>カード列</option><option>強調バナー</option><option>箇条書き</option><option>画像＋キャプション</option></select><button class="add-row-btn" type="button">+ ブロックを追加</button></div>
+          <div class="rich-slide">
+            <div class="rich-slide-head">
+              <div class="rich-icon-badge">?</div>
+              <h3>なぜ今、ブランチ運用を学ぶのか</h3>
+              <div class="rich-pill">はじめに</div>
+            </div>
+            <div class="rich-banner">目的：事故なく変更を統合し、レビューしやすいチーム開発ができるようになるため</div>
+            <div class="rich-card-row">
+              <div class="rich-card tone-rose">
+                <div class="rich-card-head"><span class="rich-card-icon">🛡</span>守り：事故を防ぐ</div>
+                <div class="rich-card-desc">mainに直接コミットして本番を壊さない</div>
+                <div class="rich-card-stat">直push事故は復旧に平均2時間</div>
+              </div>
+              <div class="rich-card tone-green">
+                <div class="rich-card-head"><span class="rich-card-icon">📈</span>攻め：速く進める</div>
+                <div class="rich-card-desc">並行作業とレビューで開発速度が上がる</div>
+                <div class="rich-card-stat">レビュー付きは手戻り約1/3</div>
+              </div>
+              <div class="rich-card tone-blue">
+                <div class="rich-card-head"><span class="rich-card-icon">🔍</span>判断：差分が分かる</div>
+                <div class="rich-card-desc">変更内容を追いやすく、原因調査が早い</div>
+                <div class="rich-card-stat">粒度の細かいコミットで追跡容易</div>
+              </div>
+            </div>
+            <div class="rich-highlight">
+              <div class="rich-highlight-text"><strong>なぜ今？</strong>チーム人数が増え、mainへの同時変更が発生しやすくなったため、ブランチ運用の徹底が急務になった</div>
+              <div class="rich-highlight-stat">コンフリクト対応<span class="big">週 約3件</span></div>
+            </div>
+            <div class="rich-page-num">1 / 12</div>
+          </div>
+          <div class="form-actions" style="margin-top:14px">
+            <button class="btn btn-primary" type="button">保存して目次に戻る</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- 案B -->
@@ -212,7 +477,7 @@
   </div>
 
   <!-- B拡張案: リッチカード型 -->
-  <div class="compare-panel active" id="panel-rich">
+  <div class="compare-panel" id="panel-rich">
     <div class="frame">
       <div class="frame-head">説明文パネル（記述形式「スライド」選択時）／ B案のレイアウト種類を増やし、色付きカード・アイコン・強調数値ブロックを追加した案</div>
       <div class="frame-body">
@@ -222,35 +487,119 @@
           <button class="slide-thumb-add" type="button">＋ スライドを追加</button>
         </div>
 
-        <div class="rich-slide">
-          <div class="rich-slide-head">
-            <div class="rich-icon-badge">?</div>
-            <h3>なぜ今、ブランチ運用を学ぶのか</h3>
-            <div class="rich-pill">はじめに</div>
-          </div>
-          <div class="rich-banner">目的：事故なく変更を統合し、レビューしやすいチーム開発ができるようになるため</div>
-          <div class="rich-card-row">
-            <div class="rich-card tone-rose">
-              <div class="rich-card-head"><span class="rich-card-icon">🛡</span>守り：事故を防ぐ</div>
-              <div class="rich-card-desc">mainに直接コミットして本番を壊さない</div>
-              <div class="rich-card-stat">直push事故は復旧に平均2時間</div>
+        <div class="doc-desc" style="margin-bottom:14px">
+          <strong>操作の流れ</strong>：<span class="step-badge">1</span>下の「ブロック構成」で「＋ブロックを追加」からブロック種別（ヘッダー／目的バナー／カード列／強調バナー／箇条書き／画像＋キャプション）を選ぶ →
+          <span class="step-badge">2</span>追加されたブロックの「編集」を押すとフォームが開くので、色調・アイコン・見出し・本文・数値などのフィールドを埋める →
+          <span class="step-badge">3</span>右のプレビューに即座に反映される →
+          <span class="step-badge">4</span>ブロックの並び替え（↑↓）・削除も自由。これを繰り返して1枚のスライドを組み立てる。<br>
+          自由なのは「どのブロックを・何個・どの順で使うか」という組み合わせだけで、色・余白・アイコンの大きさ自体はブロックのデザインとしてManabi側で固定されている（＝C案のような座標のずれ・重なりは起きない）。
+        </div>
+
+        <div class="rich-editor-grid">
+          <div>
+            <div class="field">
+              <label>ブロック構成（上から順に描画される）</label>
+              <div class="block-list">
+                <div class="block-row">
+                  <span class="block-row-no">1</span>
+                  <span class="block-row-type">ヘッダー</span>
+                  <span class="block-row-summary">アイコン「?」／タイトル「なぜ今、ブランチ運用を学ぶのか」／ピル「はじめに」</span>
+                  <button class="btn btn-ghost btn-sm" type="button" disabled>↑</button>
+                  <button class="btn btn-ghost btn-sm" type="button">↓</button>
+                  <button class="btn btn-secondary btn-sm" type="button">編集</button>
+                  <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
+                </div>
+                <div class="block-row">
+                  <span class="block-row-no">2</span>
+                  <span class="block-row-type">目的バナー</span>
+                  <span class="block-row-summary">「目的：事故なく変更を統合し、レビューしやすい…」</span>
+                  <button class="btn btn-ghost btn-sm" type="button">↑</button>
+                  <button class="btn btn-ghost btn-sm" type="button">↓</button>
+                  <button class="btn btn-secondary btn-sm" type="button">編集</button>
+                  <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
+                </div>
+                <div class="block-row active">
+                  <span class="block-row-no">3</span>
+                  <span class="block-row-type">カード列</span>
+                  <span class="block-row-summary">3枚（守り／攻め／判断）※下に編集フォームを展開中</span>
+                  <button class="btn btn-ghost btn-sm" type="button">↑</button>
+                  <button class="btn btn-ghost btn-sm" type="button">↓</button>
+                  <button class="btn btn-primary btn-sm" type="button">編集中</button>
+                  <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
+                </div>
+                <div class="block-row">
+                  <span class="block-row-no">4</span>
+                  <span class="block-row-type">強調バナー</span>
+                  <span class="block-row-summary">「なぜ今？」／コンフリクト対応 週 約3件</span>
+                  <button class="btn btn-ghost btn-sm" type="button">↑</button>
+                  <button class="btn btn-ghost btn-sm" type="button" disabled>↓</button>
+                  <button class="btn btn-secondary btn-sm" type="button">編集</button>
+                  <button class="btn btn-danger-ghost btn-sm" type="button">削除</button>
+                </div>
+              </div>
+              <div class="block-add-row">
+                <select>
+                  <option>ヘッダー</option>
+                  <option>目的バナー</option>
+                  <option>カード列</option>
+                  <option>強調バナー</option>
+                  <option>箇条書き</option>
+                  <option>画像＋キャプション</option>
+                </select>
+                <button class="add-row-btn" type="button">+ ブロックを追加</button>
+              </div>
             </div>
-            <div class="rich-card tone-green">
-              <div class="rich-card-head"><span class="rich-card-icon">📈</span>攻め：速く進める</div>
-              <div class="rich-card-desc">並行作業とレビューで開発速度が上がる</div>
-              <div class="rich-card-stat">レビュー付きは手戻り約1/3</div>
-            </div>
-            <div class="rich-card tone-blue">
-              <div class="rich-card-head"><span class="rich-card-icon">🔍</span>判断：差分が分かる</div>
-              <div class="rich-card-desc">変更内容を追いやすく、原因調査が早い</div>
-              <div class="rich-card-stat">粒度の細かいコミットで追跡容易</div>
+
+            <div class="edit-card" style="margin-top:12px">
+              <div class="edit-card-head"><span class="edit-card-title">ブロック3「カード列」を編集中</span></div>
+              <div class="field">
+                <label>カード1</label>
+                <div class="card-field-row">
+                  <select style="width:120px"><option>rose（赤系）</option><option>green（緑系）</option><option>blue（青系）</option><option>amber（黄系）</option></select>
+                  <input type="text" value="🛡" style="width:50px;text-align:center">
+                  <input type="text" value="守り：事故を防ぐ" style="flex:1;min-width:160px">
+                </div>
+                <textarea rows="2" style="width:100%;box-sizing:border-box;margin-bottom:6px">mainに直接コミットして本番を壊さない</textarea>
+                <input type="text" value="直push事故は復旧に平均2時間" style="width:100%;box-sizing:border-box">
+              </div>
+              <p class="field-help">（カード2「攻め」・カード3「判断」も同じ形のフォームが続きます。省略）</p>
+              <button class="add-row-btn" type="button">+ カードを追加（最大4枚）</button>
             </div>
           </div>
-          <div class="rich-highlight">
-            <div class="rich-highlight-text"><strong>なぜ今？</strong>チーム人数が増え、mainへの同時変更が発生しやすくなったため、ブランチ運用の徹底が急務になった</div>
-            <div class="rich-highlight-stat">コンフリクト対応<span class="big">週 約3件</span></div>
+
+          <div>
+            <div class="preview-label" style="margin-bottom:6px">プレビュー（16:9・編集するとリアルタイムに反映）</div>
+            <div class="rich-slide">
+              <div class="rich-slide-head">
+                <div class="rich-icon-badge">?</div>
+                <h3>なぜ今、ブランチ運用を学ぶのか</h3>
+                <div class="rich-pill">はじめに</div>
+              </div>
+              <div class="rich-banner">目的：事故なく変更を統合し、レビューしやすいチーム開発ができるようになるため</div>
+              <div class="rich-card-row">
+                <div class="rich-card tone-rose">
+                  <div class="rich-card-head"><span class="rich-card-icon">🛡</span>守り：事故を防ぐ</div>
+                  <div class="rich-card-desc">mainに直接コミットして本番を壊さない</div>
+                  <div class="rich-card-stat">直push事故は復旧に平均2時間</div>
+                </div>
+                <div class="rich-card tone-green">
+                  <div class="rich-card-head"><span class="rich-card-icon">📈</span>攻め：速く進める</div>
+                  <div class="rich-card-desc">並行作業とレビューで開発速度が上がる</div>
+                  <div class="rich-card-stat">レビュー付きは手戻り約1/3</div>
+                </div>
+                <div class="rich-card tone-blue">
+                  <div class="rich-card-head"><span class="rich-card-icon">🔍</span>判断：差分が分かる</div>
+                  <div class="rich-card-desc">変更内容を追いやすく、原因調査が早い</div>
+                  <div class="rich-card-stat">粒度の細かいコミットで追跡容易</div>
+                </div>
+              </div>
+              <div class="rich-highlight">
+                <div class="rich-highlight-text"><strong>なぜ今？</strong>チーム人数が増え、mainへの同時変更が発生しやすくなったため、ブランチ運用の徹底が急務になった</div>
+                <div class="rich-highlight-stat">コンフリクト対応<span class="big">週 約3件</span></div>
+              </div>
+              <div class="rich-page-num">1 / 12</div>
+            </div>
           </div>
-          <div class="rich-page-num">1 / 12</div>
         </div>
 
         <div class="block-schema">
@@ -275,6 +624,16 @@
     </div>
   </div>
 
+  <div class="doc-desc" style="margin-top:18px">
+    <strong>①パワーポイントの読み込みについて</strong><br>
+    「.pptxを読み込んだら見た目そのままに再現する」は、実は別次元の難易度になる。PowerPointのファイル形式（OOXML）は文字・図形・画像をすべて座標とスタイルで持っており、それを寸分違わず再現するには本物のレイアウトエンジン（PowerPoint本体やLibreOfficeに近いもの）が必要で、今回のC案（フリーキャンバス）を自作するよりもさらに大きな開発になる。現実的な落としどころとして、<strong>「見た目を完全再現」ではなく「中身（タイトル・箇条書き・画像）を読み取って、一番近いブロックに自動で当てはめる」ベストエフォート型の取り込み</strong>を提案したい（例：スライド内の一番大きい文字→ヘッダーブロックのtitle、箇条書き→bullet_listブロック、画像→image_captionブロック）。色や配置の細部は当てはまらないぶん、取り込んだ後にブロック単位で手直しする前提になる。木村さんの「読み込めなくても、ある程度のスライドが作れればよい」というご要望にはこちらの方針で応えられると考えている。
+    <br><br>
+    <strong>②Claude Codeとの反復編集ループについて</strong><br>
+    実はこれは新しい仕組みを何も追加しなくても実現できる見込み。理由は、スライドをこの「ブロックの並び」としてテキスト（&#96;&#96;&#96;slideブロック）で保存する設計にする限り、既存の設問（&#96;&#96;&#96;question）や本文（Markdown/HTML）と全く同じ1本のテキストファイル（教材ソース）の一部になるから。つまり、既にMCPに用意されている<code>get_material_source</code>（今の教材ソースを取得）・<code>put_material_source</code>（書き戻す）の2つのツールだけで、
+    <br>「まず原案を作って」（Claude Codeがブロックを組み立てて&#96;put_material_source&#96;）→ 人がManabi画面 or チャットで見て「カード2は緑よりオレンジがいい」「4枚目のカードを足して」と自然言語で指示 → Claude Codeが&#96;get_material_source&#96;で読み直し、該当ブロックだけ書き換えて&#96;put_material_source&#96; → …という反復がそのまま成立する。今のMarkdown/HTML教材の「Claude Codeに直してもらう」体験と何も変わらない。<br>
+    唯一の条件は、スライドの保存形式を「座標を自由に置けるC案（フリーキャンバス）」にしないこと。座標ベースだと、Claude Codeが自然言語の指示だけで正確な位置調整をするのは苦手で、この反復編集の理想形と相性が悪い。この点からも、B拡張案（リッチカード型）のようなブロック単位の構造化形式が、木村さんの理想形に一番近いと考えている。
+  </div>
+
 </div>
 
 <div class="mock-note">検討資料 / 未確定</div>
@@ -285,6 +644,12 @@
     document.querySelectorAll('.compare-panel').forEach((el) => el.classList.remove('active'));
     event.currentTarget.classList.add('active');
     document.getElementById('panel-' + id).classList.add('active');
+  }
+  function switchStep(n) {
+    document.querySelectorAll('.step-tab').forEach((el) => el.classList.remove('active'));
+    document.querySelectorAll('.step-view').forEach((el) => el.classList.remove('active'));
+    event.currentTarget.classList.add('active');
+    document.getElementById('step-' + n).classList.add('active');
   }
 </script>
 </body>

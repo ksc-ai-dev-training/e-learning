@@ -1452,6 +1452,35 @@ async def _create_material_asset_impl(id: int, filename: str, mime_type: str, da
     return dict(row)
 
 
+async def _create_material_attachment_impl(
+    id: int, node_id: int, filename: str, mime_type: str, data: bytes
+) -> dict:
+    """MCPのupload_material_attachmentツール専用。_create_material_asset_implと同じくA-27＋A-29を
+    1回にまとめるが、こちらは受講画面の「資料」一覧に出す通常の添付（is_inline=false）を登録する。
+    本文への埋め込み画像ではなく特定ページに紐づく資料（PDF等）を想定するため、node_idは必須。"""
+    pool = get_pool()
+    node_belongs = await pool.fetchval(
+        "SELECT EXISTS(SELECT 1 FROM material_nodes WHERE id = $1 AND material_id = $2)",
+        node_id, id,
+    )
+    if not node_belongs:
+        raise HTTPException(422, detail="node_idがこの教材のノードではありません")
+    max_mb = int(os.environ.get("MAX_ATTACHMENT_SIZE_MB", "200"))
+    if len(data) > max_mb * 1024 * 1024:
+        raise HTTPException(413, detail=f"ファイルサイズは{max_mb}MB以内にしてください")
+    storage_key = await storage.upload_object(
+        prefix=f"materials/{id}", filename=filename, mime_type=mime_type, data=data,
+    )
+    row = await pool.fetchrow(
+        """INSERT INTO material_attachments
+               (material_id, node_id, kind, storage_key, filename, mime_type, size_bytes, is_inline)
+           VALUES ($1, $2, 'file', $3, $4, $5, $6, false)
+           RETURNING id, node_id, kind, filename, mime_type, size_bytes, external_url, created_at, is_inline""",
+        id, node_id, storage_key, filename, mime_type, len(data),
+    )
+    return dict(row)
+
+
 @detail_router.get("/{id}/attachments/{attachment_id}/download")
 async def get_attachment_download_url(
     id: int,
