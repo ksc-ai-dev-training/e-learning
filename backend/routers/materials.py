@@ -1389,6 +1389,9 @@ class AttachmentCreate(BaseModel):
     filename: str = Field(min_length=1)
     mime_type: str | None = None
     size_bytes: int | None = None
+    # 本文中に![alt](attachment:ID)で埋め込む画像用（2026-09-30新設）。trueの間は受講画面の
+    # 「資料」一覧に出さない（database.pyのis_inline列コメント参照）。
+    is_inline: bool = False
 
     @model_validator(mode="after")
     def _validate_kind(self):
@@ -1416,11 +1419,11 @@ async def create_attachment(
             raise HTTPException(422, detail="node_idがこの教材のノードではありません")
     row = await pool.fetchrow(
         """INSERT INTO material_attachments
-               (material_id, node_id, kind, storage_key, external_url, filename, mime_type, size_bytes)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-           RETURNING id, node_id, kind, filename, mime_type, size_bytes, external_url, created_at""",
+               (material_id, node_id, kind, storage_key, external_url, filename, mime_type, size_bytes, is_inline)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+           RETURNING id, node_id, kind, filename, mime_type, size_bytes, external_url, created_at, is_inline""",
         id, body.node_id, body.kind, body.storage_key, body.external_url,
-        body.filename, body.mime_type, body.size_bytes,
+        body.filename, body.mime_type, body.size_bytes, body.is_inline,
     )
     return dict(row)
 
@@ -1430,7 +1433,9 @@ async def _create_material_asset_impl(id: int, filename: str, mime_type: str, da
     1回にまとめ、Claude Code側からbase64で渡ってきたバイト列をサーバープロセス内で直接保存する
     （20260919_Manabi改善提案.html #3、MCPに画像を扱うツールが無かった問題への対応）。
     node_idは常にNULL（教材全体）とする。本文への埋め込みはmarkdown_render.pyの
-    attachment:ID記法（![alt](attachment:ID)）で行うため、特定ページに紐づける必要が無い。"""
+    attachment:ID記法（![alt](attachment:ID)）で行うため、特定ページに紐づける必要が無い。
+    is_inline=trueで登録し、受講画面の「資料」一覧には出さない（2026-09-30、資料一覧に
+    本文埋め込み画像が混ざっていたユーザー指摘を受けて追加）。"""
     max_mb = int(os.environ.get("MAX_ATTACHMENT_SIZE_MB", "200"))
     if len(data) > max_mb * 1024 * 1024:
         raise HTTPException(413, detail=f"ファイルサイズは{max_mb}MB以内にしてください")
@@ -1439,9 +1444,9 @@ async def _create_material_asset_impl(id: int, filename: str, mime_type: str, da
     )
     row = await get_pool().fetchrow(
         """INSERT INTO material_attachments
-               (material_id, node_id, kind, storage_key, filename, mime_type, size_bytes)
-           VALUES ($1, NULL, 'file', $2, $3, $4, $5)
-           RETURNING id, node_id, kind, filename, mime_type, size_bytes, external_url, created_at""",
+               (material_id, node_id, kind, storage_key, filename, mime_type, size_bytes, is_inline)
+           VALUES ($1, NULL, 'file', $2, $3, $4, $5, true)
+           RETURNING id, node_id, kind, filename, mime_type, size_bytes, external_url, created_at, is_inline""",
         id, storage_key, filename, mime_type, len(data),
     )
     return dict(row)
@@ -1523,7 +1528,7 @@ async def list_material_attachments(
     where = "material_id = $1" + (" AND node_id = $2" if node_id is not None else "")
     params = [id] + ([node_id] if node_id is not None else [])
     rows = await get_pool().fetch(
-        f"""SELECT id, node_id, kind, filename, mime_type, size_bytes, external_url, created_at
+        f"""SELECT id, node_id, kind, filename, mime_type, size_bytes, external_url, created_at, is_inline
             FROM material_attachments WHERE {where} ORDER BY created_at DESC""",
         *params,
     )

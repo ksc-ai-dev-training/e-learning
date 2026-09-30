@@ -23,6 +23,29 @@ export async function uploadFileAttachment(materialId: number, nodeId: number | 
   })
 }
 
+// 本文埋め込み用画像アップロード（MarkdownHtmlEditorの「画像を挿入」）。is_inline=trueで
+// 登録し、受講画面の「資料」一覧には出さない（2026-09-30新設）。戻り値のidを
+// ![alt](attachment:ID)の形で本文に書き込む。
+export async function uploadInlineImageAttachment(materialId: number, file: File): Promise<{ id: number }> {
+  const storage_key = await uploadToSignedUrl(
+    `/api/materials/${materialId}/attachments/upload-url`,
+    file,
+    '画像のアップロードに失敗しました',
+  )
+  return apiFetch<{ id: number }>(`/api/materials/${materialId}/attachments`, {
+    method: 'POST',
+    body: JSON.stringify({
+      node_id: null,
+      kind: 'file',
+      storage_key,
+      filename: file.name,
+      mime_type: file.type || null,
+      size_bytes: file.size,
+      is_inline: true,
+    }),
+  })
+}
+
 export async function addLinkAttachment(materialId: number, nodeId: number | null, url: string): Promise<void> {
   await apiFetch(`/api/materials/${materialId}/attachments`, {
     method: 'POST',

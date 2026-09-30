@@ -16,8 +16,12 @@ export default function AttachmentEntryList({
   attachments: MaterialAttachment[]
 }) {
   const [expanded, setExpanded] = useState(false)
-  const visible = expanded ? attachments : attachments.slice(0, COLLAPSED_COUNT)
-  const hiddenCount = attachments.length - COLLAPSED_COUNT
+  // is_inline（本文中に![alt](attachment:ID)で埋め込まれた画像）はこの「資料」一覧の対象外
+  // （2026-09-30新設。参考資料として教材全体を読み返さなくて済むための欄であり、本文の挿絵とは
+  // 別物にする、というユーザー方針）。
+  const listable = attachments.filter((a) => !a.is_inline)
+  const visible = expanded ? listable : listable.slice(0, COLLAPSED_COUNT)
+  const hiddenCount = listable.length - COLLAPSED_COUNT
 
   return (
     <div className="flex flex-col gap-3">

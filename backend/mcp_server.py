@@ -228,6 +228,7 @@ async def finalize_material_asset_tool(
     body = AttachmentCreate(
         node_id=None, kind="file", storage_key=storage_key,
         filename=filename, mime_type=mime_type, size_bytes=size_bytes,
+        is_inline=True,
     )
     result = await _call(create_attachment(id=material_id, body=body, user=verified_user))
     return jsonable_encoder(result)

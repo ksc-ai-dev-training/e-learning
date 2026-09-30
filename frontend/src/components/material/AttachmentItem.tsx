@@ -53,6 +53,7 @@ export default function AttachmentItem({
         <span className="max-w-[280px] flex-shrink-0 truncate text-xs text-slate-400 dark:text-neutral-500">
           {meta}
           {attachment.node_id === null ? '（教材全体）' : ''}
+          {attachment.is_inline ? '（本文埋め込み）' : ''}
         </span>
         {isPdfAttachment(attachment) && (
           <button

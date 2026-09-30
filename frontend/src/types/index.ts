@@ -569,6 +569,9 @@ export interface MaterialAttachment {
   size_bytes: number | null
   external_url: string | null
   created_at: string
+  // 本文中に![alt](attachment:ID)で埋め込まれた画像かどうか（2026-09-30新設）。trueの間は
+  // 受講画面の「資料」一覧（AttachmentEntryList）には表示しない
+  is_inline: boolean
 }
 
 // 新設GET /api/materials/{id}/questions-summary のitems（S-05「問題一覧」タブ）。

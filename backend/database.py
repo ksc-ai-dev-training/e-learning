@@ -404,6 +404,26 @@ CREATE INDEX IF NOT EXISTS idx_material_attachments_material_id
     ON material_attachments (material_id, node_id);
 ALTER TABLE material_attachments ENABLE ROW LEVEL SECURITY;
 
+-- is_inline: 本文中に![alt](attachment:ID)で埋め込まれた画像かどうか（2026-09-30新設）。
+-- trueの添付は受講画面の「資料」一覧（S-04教材全体の資料・S-16このページの資料）には出さない。
+-- 「資料」欄は元々「教材全体を読み返さなくて済むように」という参考資料目的だったが、本文への
+-- 画像埋め込み手段が無かったため、これまで挿絵もこの同じ添付の仕組みに乗せるしかなく、写真が
+-- 資料一覧に混ざってしまっていた（ユーザー指摘により発覚）。本文埋め込み専用の登録経路
+-- （MCPのfinalize_material_asset/upload_material_asset、および新設のMarkdownエディタ
+-- 「画像を挿入」）がis_inline=trueで登録するようにし、資料一覧側で除外する。
+ALTER TABLE material_attachments ADD COLUMN IF NOT EXISTS is_inline BOOLEAN NOT NULL DEFAULT false;
+
+-- 上記is_inline新設に伴う既存データの補正。is_inlineフラグが無かった間にMCP経由で本文に
+-- 埋め込まれていた画像（本文中にattachment:IDの参照が実在するもの）を、事後的にis_inline=trueへ
+-- 補正する。冪等（既にtrueなものは対象外）なため起動のたびに再実行して問題ない。
+UPDATE material_attachments ma
+SET is_inline = true, updated_at = now()
+WHERE ma.kind = 'file' AND ma.is_inline = false AND EXISTS (
+    SELECT 1 FROM material_nodes mn
+    WHERE mn.material_id = ma.material_id
+      AND mn.body ~ ('attachment:' || ma.id || '\\M')
+);
+
 -- T-08 material_revisions（教材改訂履歴。追記専用）
 CREATE TABLE IF NOT EXISTS material_revisions (
     id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
