@@ -16,13 +16,13 @@ import { useSurveys } from '../hooks/useSurveys'
 import { chapterAccentClass } from '../lib/chapterAccent'
 import { formatDateJst, formatDateTimeJst, formatDurationMinutes } from '../lib/datetime'
 import { pageKindLabel, toEditableChapters } from '../lib/materialTree'
-import { flattenPages, resolveScopeNodeId, type FlatPage } from '../lib/pageNav'
+import { flattenPages, resolveFirstQueueNodeId, resolveScopeNodeId } from '../lib/pageNav'
 import { startAttempt, startWrongQuestionsAttempt } from '../lib/attemptActions'
 import { ackGradingResults } from '../lib/gradingActions'
 import { andFromQuery, backTarget, fromQuery } from '../lib/backLink'
 import { ApiError } from '../lib/api'
 import type { EditableNode } from '../lib/materialSource'
-import type { PracticeAttemptSummary, QuizAttempt, Survey } from '../types'
+import type { PracticeAttemptSummary, Survey } from '../types'
 
 const TABS = [
   { key: 'toc', label: '目次' },
@@ -337,12 +337,6 @@ export default function MaterialView() {
     }
   }
 
-  const firstPageIdFor = (attempt: QuizAttempt, ownFlatPages: FlatPage[]): number => {
-    const keys = Object.keys(attempt.question_order).map(Number)
-    const matching = ownFlatPages.find((p) => keys.includes(p.node.id))
-    return matching ? matching.node.id : keys[0]
-  }
-
   const handleStartWrongOnly = async () => {
     setStartingWrongOnly(true)
     setActionError(null)
@@ -360,10 +354,7 @@ export default function MaterialView() {
       } else {
         sessionStorage.removeItem('wrongOnlyQueue')
       }
-      const firstNodeId =
-        firstAttempt.material_id === id
-          ? firstPageIdFor(firstAttempt, flatPages)
-          : firstPageIdFor(firstAttempt, [])
+      const firstNodeId = await resolveFirstQueueNodeId(firstAttempt, id, flatPages)
       navigate(
         `/materials/${firstAttempt.material_id}/pages/${firstNodeId}?mode=wrong_only&attemptId=${firstAttempt.id}${andFromQuery(from)}`,
       )

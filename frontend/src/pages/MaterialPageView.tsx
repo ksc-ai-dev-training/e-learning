@@ -13,7 +13,7 @@ import { useSurveys } from '../hooks/useSurveys'
 import { getAttempt, markPageVisited, saveAnswer, startAttempt, submitAttempt } from '../lib/attemptActions'
 import { ApiError } from '../lib/api'
 import { toEditableChapters } from '../lib/materialTree'
-import { flattenPages, findPageIndex, resolveScopeNodeId, type FlatPage } from '../lib/pageNav'
+import { flattenPages, findPageIndex, resolveFirstQueueNodeId, resolveScopeNodeId, type FlatPage } from '../lib/pageNav'
 import { andFromQuery, backTarget, fromQuery } from '../lib/backLink'
 import type { EditableNode } from '../lib/materialSource'
 import type { Answer, Question, QuizAttempt, Survey } from '../types'
@@ -462,7 +462,7 @@ export default function MaterialPageView() {
           sessionStorage.setItem(WRONG_ONLY_QUEUE_KEY, JSON.stringify({ ...q, queue: rest }))
           try {
             const nextAttempt = await getAttempt(nextItem.attemptId)
-            const firstNodeId = Number(Object.keys(nextAttempt.question_order)[0])
+            const firstNodeId = await resolveFirstQueueNodeId(nextAttempt, id, allPages)
             navigate(
               `/materials/${nextItem.materialId}/pages/${firstNodeId}?mode=wrong_only&attemptId=${nextItem.attemptId}${andFromQuery(from)}`,
             )
