@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>スライド教材作成機能: 編集方式の比較（検討中） | Manabi 検討資料</title>
+<link rel="stylesheet" href="../../docs/03_画面モックアップ/mock.css">
+<style>
+  body { background: var(--bg-muted); }
+  .doc-wrap { max-width: 1080px; margin: 0 auto; padding: 24px 20px 60px; }
+  .doc-head { margin-bottom: 18px; }
+  .doc-head h1 { font-size: 19px; margin: 0 0 6px; }
+  .status-pill {
+    display: inline-block; font-size: 11px; font-weight: 700; color: #92400e;
+    background: #fef3c7; border: 1px solid #fde68a; border-radius: 999px; padding: 3px 10px;
+    margin-bottom: 8px;
+  }
+  .doc-desc { font-size: 12.5px; line-height: 1.8; color: var(--text-muted); background: #fff;
+    border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; margin-bottom: 18px; }
+  .compare-tabs { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+  .compare-tab {
+    border: 1px solid var(--border-strong); background: #fff; border-radius: 8px;
+    padding: 8px 14px; font-size: 12.5px; font-weight: 700; cursor: pointer; color: var(--text-muted);
+  }
+  .compare-tab.active { border-color: var(--accent-600); background: var(--accent-50); color: var(--accent-600); }
+  .compare-panel { display: none; }
+  .compare-panel.active { display: block; }
+  .frame { background: #fff; border: 1px solid var(--border-strong); border-radius: 10px; overflow: hidden; box-shadow: var(--shadow-md); }
+  .frame-head { background: var(--bg-subtle); border-bottom: 1px solid var(--border); padding: 8px 14px; font-size: 11.5px; color: var(--text-subtle); }
+  .frame-body { padding: 20px; }
+  .note-box { font-size: 12px; line-height: 1.8; color: var(--text-muted); background: var(--bg-subtle);
+    border: 1px dashed var(--border-strong); border-radius: 8px; padding: 10px 12px; margin-top: 12px; }
+  .pro-con { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+  .pro-con > div { border-radius: 8px; padding: 10px 12px; font-size: 12px; line-height: 1.8; }
+  .pro-box { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; }
+  .con-box { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+  .pro-con strong { display: block; font-size: 11.5px; margin-bottom: 4px; }
+
+  /* ---- 案B: テンプレート型（穴埋め式レイアウト） ---- */
+  .slide-filmstrip { display:flex; gap:10px; overflow-x:auto; padding:4px 2px 12px; margin-bottom:14px; border-bottom:1px solid var(--border); }
+  .slide-thumb { flex-shrink:0; width:110px; height:62px; border-radius:6px; border:2px solid var(--border-strong); background:#fff; position:relative; cursor:pointer; padding:7px; display:flex; flex-direction:column; gap:3px; overflow:hidden; }
+  .slide-thumb.active { border-color:var(--accent-600); box-shadow:0 0 0 2px var(--accent-100); }
+  .slide-thumb-title { font-size:9px; font-weight:700; color:var(--text); }
+  .slide-thumb-line { height:3px; border-radius:2px; background:var(--border-strong); }
+  .slide-thumb-line.w70 { width:70%; } .slide-thumb-line.w50 { width:50%; } .slide-thumb-line.w80 { width:80%; }
+  .slide-thumb-num { position:absolute; bottom:3px; right:5px; font-size:9px; color:var(--text-subtle); font-weight:600; }
+  .slide-thumb-add { flex-shrink:0; width:110px; height:62px; border-radius:6px; border:2px dashed var(--border-strong); background:transparent; color:var(--text-muted); font-size:11px; cursor:pointer; }
+
+  .slide-editor-grid { display:grid; grid-template-columns:1.1fr 1fr; gap:20px; align-items:start; }
+  .layout-picker { display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; }
+  .layout-option { display:flex; flex-direction:column; align-items:center; gap:6px; padding:10px 6px; border:1px solid var(--border-strong); border-radius:8px; font-size:11px; text-align:center; cursor:pointer; color:var(--text-muted); }
+  .layout-option input { display:none; }
+  .layout-option.active { border-color:var(--accent-600); color:var(--accent-700); background:var(--accent-50); font-weight:700; }
+  .layout-icon { width:34px; height:24px; border-radius:3px; background:var(--bg-muted); border:1px solid var(--border-strong); position:relative; }
+  .layout-icon .bar { position:absolute; background:var(--border-strong); border-radius:1px; }
+  .layout-option.active .layout-icon .bar { background:var(--accent-500); }
+  .slide-canvas-preview { width:100%; aspect-ratio:16/9; background:#fff; border:1px solid var(--border-strong); border-radius:var(--radius-lg); box-shadow:var(--shadow-md); padding:28px 32px; display:flex; flex-direction:column; justify-content:center; gap:10px; }
+  .slide-canvas-preview h3 { font-size:20px; font-weight:700; color:var(--text); }
+  .slide-canvas-preview ul { margin-left:18px; }
+  .slide-canvas-preview li { font-size:13px; color:var(--text-muted); margin-bottom:5px; }
+
+  /* ---- 案C: フリーキャンバス型 ---- */
+  .slide-canvas-toolbar { display:flex; align-items:center; gap:8px; margin-bottom:12px; padding:8px 10px; background:var(--bg-muted); border:1px solid var(--border); border-radius:var(--radius); }
+  .slide-canvas-editor-grid { display:grid; grid-template-columns:1fr 220px; gap:16px; align-items:start; }
+  .slide-canvas-stage { position:relative; width:100%; aspect-ratio:16/9; background:#fff; border:1px solid var(--border-strong); border-radius:var(--radius-lg); box-shadow:var(--shadow-md);
+    background-image: linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px); background-size: 24px 24px; overflow:hidden; }
+  .canvas-el { position:absolute; border:1px dashed transparent; padding:4px 6px; font-size:12px; color:var(--text); cursor:move; background:rgba(255,255,255,0.6); }
+  .canvas-el-title { font-size:20px; font-weight:700; }
+  .canvas-el-text { font-size:12px; color:var(--text-muted); line-height:1.8; }
+  .canvas-el-image { display:flex; align-items:center; justify-content:center; background:var(--bg-muted); border:1px solid var(--border-strong); color:var(--text-subtle); font-size:11px; text-align:center; }
+  .canvas-el.selected { border-color:var(--accent-600); background:rgba(59,130,246,0.05); }
+  .canvas-el-handle { position:absolute; width:8px; height:8px; background:#fff; border:1.5px solid var(--accent-600); border-radius:2px; }
+  .slide-canvas-props .field { margin-bottom:10px; }
+  .slide-canvas-props .field-row { grid-template-columns:1fr 1fr; gap:0 10px; }
+
+  /* ---- 案B拡張: リッチカード型（木村さん提示イメージに寄せた案） ---- */
+  .rich-slide { width:100%; aspect-ratio:16/9; background:#fff; border:1px solid var(--border-strong); border-radius:var(--radius-lg); box-shadow:var(--shadow-md); padding:22px 26px 16px; display:flex; flex-direction:column; gap:12px; position:relative; }
+  .rich-slide-head { display:flex; align-items:center; gap:12px; }
+  .rich-icon-badge { width:36px; height:36px; border-radius:50%; background:#ea8a3c; color:#fff; display:flex; align-items:center; justify-content:center; font-size:17px; font-weight:700; flex-shrink:0; }
+  .rich-slide-head h3 { font-size:19px; font-weight:800; color:#0f2d26; flex:1; }
+  .rich-pill { background:#e7efec; color:#0f2d26; font-size:11px; font-weight:700; border-radius:999px; padding:6px 14px; flex-shrink:0; }
+  .rich-banner { background:#0f2d26; color:#fff; font-size:12.5px; font-weight:700; text-align:center; border-radius:8px; padding:10px 14px; }
+  .rich-card-row { display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; flex:1; }
+  .rich-card { border-radius:8px; padding:10px 12px; display:flex; flex-direction:column; gap:6px; }
+  .rich-card.tone-rose { background:#fbe9e7; }
+  .rich-card.tone-green { background:#e7f0ee; }
+  .rich-card.tone-blue { background:#e8eef4; }
+  .rich-card-head { display:flex; align-items:center; gap:6px; font-size:11.5px; font-weight:700; }
+  .rich-card-icon { width:20px; height:20px; border-radius:5px; display:flex; align-items:center; justify-content:center; font-size:11px; color:#fff; flex-shrink:0; }
+  .tone-rose .rich-card-icon { background:#c0554a; }
+  .tone-green .rich-card-icon { background:#3c7a63; }
+  .tone-blue .rich-card-icon { background:#3c6a8a; }
+  .rich-card-desc { font-size:10.5px; line-height:1.6; color:#374151; flex:1; }
+  .rich-card-stat { background:#fff; border-radius:6px; padding:7px 8px; font-size:10px; font-weight:700; text-align:center; color:#0f2d26; line-height:1.5; }
+  .rich-highlight { background:#fbf1de; border-radius:8px; padding:10px 14px; display:flex; align-items:center; gap:14px; }
+  .rich-highlight-text { flex:1; font-size:10.5px; line-height:1.6; color:#374151; }
+  .rich-highlight-text strong { display:block; font-size:12px; color:#0f2d26; margin-bottom:2px; }
+  .rich-highlight-stat { font-size:10.5px; font-weight:700; color:#0f2d26; text-align:right; }
+  .rich-highlight-stat .big { display:block; font-size:19px; color:#c0402f; font-weight:800; }
+  .rich-page-num { position:absolute; right:14px; bottom:8px; font-size:10px; color:var(--text-subtle); }
+
+  .block-schema { font-size:11.5px; line-height:1.9; background:#fff; border:1px solid var(--border); border-radius:8px; padding:12px 14px; margin-top:10px; }
+  .block-schema code { background:#f1f5f9; padding:1px 5px; border-radius:4px; font-size:10.5px; }
+</style>
+</head>
+<body>
+
+<div class="doc-wrap">
+  <div class="doc-head">
+    <span class="status-pill">検討中</span>
+    <h1>スライド教材作成機能: 編集方式の比較</h1>
+  </div>
+
+  <div class="doc-desc">
+    教材ページの記述形式に、現行のMarkdown/HTMLと並ぶ第三の選択肢として「スライド」を追加する検討。
+    当初はB（テンプレート型）・C（フリーキャンバス型）の2案を比較したが、木村さんに実際のモックを
+    見てもらったところ「基本の方式はB案でよいが、理想形は添付いただいた画像のような、アイコン・色分け
+    パネル・強調数値を使った自由度の高いスライドで、それをClaude Code（MCP）からも同じように
+    作成できるようにしたい」とのフィードバックを受けた。<br><br>
+    そこで3つ目のタブとして「B拡張案：リッチカード型」を追加した。フリーキャンバス（C案）のように
+    座標を自由指定するのではなく、<strong>あらかじめ用意した「ブロック（部品）」を組み合わせる</strong>
+    方式のまま、ブロックの種類を増やす（アイコン付き色分けカード、強調数値コールアウト、見出しバナー等）
+    ことで、木村さんの提示イメージに近い見た目を再現できるかを検証している。この方式なら、既存の
+    設問ブロック（<code>&#96;&#96;&#96;question</code>）と同じ「ブロック種別＋構造化されたテキスト」の形でMCP経由の
+    <code>put_material_source</code>からもそのまま書けるため、Claude Codeでの自動作成という要望も
+    B案の延長で満たせる、という仮説。下のタブで「案B」「案C」「B拡張案（リッチカード型）」を
+    切り替えて比較できます。
+  </div>
+
+  <div class="compare-tabs">
+    <button class="compare-tab" onclick="switchCompare('b')">案B: テンプレート型</button>
+    <button class="compare-tab" onclick="switchCompare('c')">案C: フリーキャンバス型</button>
+    <button class="compare-tab active" onclick="switchCompare('rich')">B拡張案: リッチカード型（★理想形に近い）</button>
+  </div>
+
+  <!-- 案B -->
+  <div class="compare-panel" id="panel-b">
+    <div class="frame">
+      <div class="frame-head">説明文パネル（記述形式「スライド」選択時）／ レイアウトを選び、フィールドを埋める穴埋め式</div>
+      <div class="frame-body">
+        <div class="slide-filmstrip">
+          <div class="slide-thumb active"><div class="slide-thumb-title">ブランチを作成する</div><div class="slide-thumb-line w70"></div><div class="slide-thumb-line w50"></div><div class="slide-thumb-line w80"></div><span class="slide-thumb-num">1</span></div>
+          <div class="slide-thumb"><div class="slide-thumb-title">コミットの粒度</div><div class="slide-thumb-line w80"></div><div class="slide-thumb-line w70"></div><span class="slide-thumb-num">2</span></div>
+          <button class="slide-thumb-add" type="button">＋ スライドを追加</button>
+        </div>
+        <div class="slide-editor-grid">
+          <div>
+            <div class="field">
+              <label>レイアウト</label>
+              <div class="layout-picker">
+                <label class="layout-option active"><div class="layout-icon"><span class="bar" style="left:6px;top:5px;width:22px;height:3px"></span><span class="bar" style="left:6px;top:11px;width:16px;height:2px"></span><span class="bar" style="left:6px;top:15px;width:18px;height:2px"></span></div>タイトル＋箇条書き<input type="radio" name="layout-b" checked></label>
+                <label class="layout-option"><div class="layout-icon"><span class="bar" style="left:6px;top:4px;width:22px;height:11px;background:var(--border-strong)"></span><span class="bar" style="left:6px;top:18px;width:22px;height:2px"></span></div>画像＋キャプション<input type="radio" name="layout-b"></label>
+                <label class="layout-option"><div class="layout-icon"><span class="bar" style="left:5px;top:6px;width:9px;height:12px"></span><span class="bar" style="left:19px;top:6px;width:9px;height:12px"></span></div>2カラム<input type="radio" name="layout-b"></label>
+              </div>
+            </div>
+            <div class="field"><label>タイトル</label><input type="text" value="ブランチを作成する"></div>
+            <div class="field" style="margin-bottom:0">
+              <label>箇条書き</label>
+              <div style="display:flex;flex-direction:column;gap:6px">
+                <div style="display:flex;align-items:center;gap:8px"><input type="text" value="作業前に必ず main から新しいブランチを作成する" style="flex:1"><button class="btn btn-secondary btn-sm" type="button">削除</button></div>
+                <div style="display:flex;align-items:center;gap:8px"><input type="text" value="コミットメッセージは変更内容が分かるように書く" style="flex:1"><button class="btn btn-secondary btn-sm" type="button">削除</button></div>
+              </div>
+              <button class="add-row-btn" type="button" style="margin-top:8px">+ 項目を追加</button>
+            </div>
+          </div>
+          <div>
+            <div class="preview-label" style="margin-bottom:6px">プレビュー（16:9）</div>
+            <div class="slide-canvas-preview">
+              <h3>ブランチを作成する</h3>
+              <ul><li>作業前に必ず main から新しいブランチを作成する</li><li>コミットメッセージは変更内容が分かるように書く</li></ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="pro-con">
+      <div class="pro-box"><strong>良い点</strong>フォームの穴埋めなのでMCP（Claude Code）からも構造化データとして確実に書ける。実装規模も比較的小さい。</div>
+      <div class="con-box"><strong>課題</strong>用意したレイアウトが5種類程度では単調。木村さんの提示イメージ（色分けカード・アイコン・強調数値）は再現できない。</div>
+    </div>
+  </div>
+
+  <!-- 案C -->
+  <div class="compare-panel" id="panel-c">
+    <div class="frame">
+      <div class="frame-head">説明文パネル（記述形式「スライド」選択時）／ 要素を自由な位置にドラッグ配置するキャンバス型</div>
+      <div class="frame-body">
+        <div class="slide-canvas-toolbar">
+          <button class="btn btn-secondary btn-sm" type="button">+ テキスト</button>
+          <button class="btn btn-secondary btn-sm" type="button">+ 画像</button>
+          <button class="btn btn-secondary btn-sm" type="button">+ 図形</button>
+        </div>
+        <div class="slide-canvas-editor-grid">
+          <div class="slide-canvas-stage">
+            <div class="canvas-el canvas-el-title selected" style="left:30px;top:24px;width:320px;height:40px">ブランチを作成する
+              <span class="canvas-el-handle" style="left:-4px;top:-4px"></span><span class="canvas-el-handle" style="right:-4px;top:-4px"></span><span class="canvas-el-handle" style="left:-4px;bottom:-4px"></span><span class="canvas-el-handle" style="right:-4px;bottom:-4px"></span>
+            </div>
+            <div class="canvas-el canvas-el-text" style="left:30px;top:78px;width:260px;height:90px">・作業前に必ず main から新しいブランチを作成する<br>・コミットメッセージは変更内容が分かるように書く</div>
+            <div class="canvas-el canvas-el-image" style="left:330px;top:56px;width:160px;height:120px">画像<br>branch-diagram.png</div>
+          </div>
+          <div class="slide-canvas-props">
+            <div class="preview-label">選択中の要素</div>
+            <div class="field"><label>種類</label><input type="text" value="テキストボックス（タイトル）" disabled></div>
+            <div class="field-row"><div class="field"><label>X</label><input type="text" value="30"></div><div class="field"><label>Y</label><input type="text" value="24"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="pro-con">
+      <div class="pro-box"><strong>良い点</strong>本物のパワポに一番近い自由度。木村さんの提示イメージのような複雑な配置も理論上は再現できる。</div>
+      <div class="con-box"><strong>課題</strong>座標を人が見て調整する前提の方式なので、Claude Code（MCP）に「テキストボックスを(30,78)に幅260で置いて」と座標だけで指示させると、重なりや余白の崩れたレイアウトになりやすい。理想形の「MCPからも同じように作れる」を満たしにくい。実装規模も最も大きい。</div>
+    </div>
+  </div>
+
+  <!-- B拡張案: リッチカード型 -->
+  <div class="compare-panel active" id="panel-rich">
+    <div class="frame">
+      <div class="frame-head">説明文パネル（記述形式「スライド」選択時）／ B案のレイアウト種類を増やし、色付きカード・アイコン・強調数値ブロックを追加した案</div>
+      <div class="frame-body">
+        <div class="slide-filmstrip">
+          <div class="slide-thumb active"><div class="slide-thumb-title">なぜ今、学ぶのか</div><div class="slide-thumb-line w70"></div><div class="slide-thumb-line w50"></div><span class="slide-thumb-num">1</span></div>
+          <div class="slide-thumb"><div class="slide-thumb-title">ブランチを作成する</div><div class="slide-thumb-line w80"></div><span class="slide-thumb-num">2</span></div>
+          <button class="slide-thumb-add" type="button">＋ スライドを追加</button>
+        </div>
+
+        <div class="rich-slide">
+          <div class="rich-slide-head">
+            <div class="rich-icon-badge">?</div>
+            <h3>なぜ今、ブランチ運用を学ぶのか</h3>
+            <div class="rich-pill">はじめに</div>
+          </div>
+          <div class="rich-banner">目的：事故なく変更を統合し、レビューしやすいチーム開発ができるようになるため</div>
+          <div class="rich-card-row">
+            <div class="rich-card tone-rose">
+              <div class="rich-card-head"><span class="rich-card-icon">🛡</span>守り：事故を防ぐ</div>
+              <div class="rich-card-desc">mainに直接コミットして本番を壊さない</div>
+              <div class="rich-card-stat">直push事故は復旧に平均2時間</div>
+            </div>
+            <div class="rich-card tone-green">
+              <div class="rich-card-head"><span class="rich-card-icon">📈</span>攻め：速く進める</div>
+              <div class="rich-card-desc">並行作業とレビューで開発速度が上がる</div>
+              <div class="rich-card-stat">レビュー付きは手戻り約1/3</div>
+            </div>
+            <div class="rich-card tone-blue">
+              <div class="rich-card-head"><span class="rich-card-icon">🔍</span>判断：差分が分かる</div>
+              <div class="rich-card-desc">変更内容を追いやすく、原因調査が早い</div>
+              <div class="rich-card-stat">粒度の細かいコミットで追跡容易</div>
+            </div>
+          </div>
+          <div class="rich-highlight">
+            <div class="rich-highlight-text"><strong>なぜ今？</strong>チーム人数が増え、mainへの同時変更が発生しやすくなったため、ブランチ運用の徹底が急務になった</div>
+            <div class="rich-highlight-stat">コンフリクト対応<span class="big">週 約3件</span></div>
+          </div>
+          <div class="rich-page-num">1 / 12</div>
+        </div>
+
+        <div class="block-schema">
+          このスライドは、次のような「ブロックの並び」として保存するイメージ（既存の<code>&#96;&#96;&#96;question</code>ブロックと同じ発想）:<br>
+          <code>&#96;&#96;&#96;slide</code><br>
+          <code>block: header　icon: "?"　title: "なぜ今、ブランチ運用を学ぶのか"　pill: "はじめに"</code><br>
+          <code>block: banner　text: "目的：事故なく変更を..."</code><br>
+          <code>block: card_row</code><br>
+          <code>&nbsp;&nbsp;- tone: rose　icon: "🛡"　heading: "守り：事故を防ぐ"　desc: "..."　stat: "..."</code><br>
+          <code>&nbsp;&nbsp;- tone: green　icon: "📈"　heading: "攻め：速く進める"　desc: "..."　stat: "..."</code><br>
+          <code>block: highlight　text: "..."　stat_label: "コンフリクト対応"　stat_value: "週 約3件"</code><br>
+          <code>&#96;&#96;&#96;</code><br>
+          Claude Codeは「どのブロックを・どんな色調（tone）で・何枚使うか」を選んでフィールドを埋めるだけでよく、
+          座標やピクセル単位の調整は一切発生しない。色・余白・アイコンの大きさ等はブロック側のデザインとして
+          Manabi側で固定するため、見た目の破綻も起きにくい。
+        </div>
+      </div>
+    </div>
+    <div class="pro-con">
+      <div class="pro-box"><strong>良い点</strong>木村さんの提示イメージに近い、色分け・アイコン・強調数値を使った見た目を再現できる。ブロック＋構造化フィールドという形は変わらないため、MCP（Claude Code）からの自動生成もB案と同じ信頼性を保てる。</div>
+      <div class="con-box"><strong>課題</strong>用意するブロック種類（header/banner/card_row/highlight/bullet_list/image_caption等）とカラーバリエーションの設計、各ブロックの見た目を作り込む実装工数がB案（素のテンプレート）より増える。自由な位置調整はできないため「この一枚だけ特別なレイアウトにしたい」には向かない（そのような特殊な1枚だけは従来のHTML形式で書く、という逃げ道は残せる）。</div>
+    </div>
+  </div>
+
+</div>
+
+<div class="mock-note">検討資料 / 未確定</div>
+
+<script>
+  function switchCompare(id) {
+    document.querySelectorAll('.compare-tab').forEach((el) => el.classList.remove('active'));
+    document.querySelectorAll('.compare-panel').forEach((el) => el.classList.remove('active'));
+    event.currentTarget.classList.add('active');
+    document.getElementById('panel-' + id).classList.add('active');
+  }
+</script>
+</body>
+</html>

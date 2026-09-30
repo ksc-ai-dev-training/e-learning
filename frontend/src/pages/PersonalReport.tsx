@@ -321,7 +321,7 @@ export default function PersonalReport() {
           <p className="text-sm text-slate-400 dark:text-neutral-500">学習履歴はまだありません。</p>
         ) : (
           <>
-            <div className="mb-3 flex gap-1 overflow-x-auto border-b border-slate-200 dark:border-neutral-800" role="tablist">
+            <div className="mb-3 flex gap-1 overflow-x-auto overflow-y-hidden border-b border-slate-200 dark:border-neutral-800" role="tablist">
               {HISTORY_TABS.map((tab) => (
                 <button
                   key={tab.key}

@@ -407,7 +407,7 @@ export default function MaterialView() {
           {material.due_at && <span>／ 期限: {formatDateJst(material.due_at)}</span>}
         </div>
 
-        <div className="mb-5 flex gap-1 overflow-x-auto border-b border-slate-200 dark:border-neutral-800" role="tablist">
+        <div className="mb-5 flex gap-1 overflow-x-auto overflow-y-hidden border-b border-slate-200 dark:border-neutral-800" role="tablist">
           {TABS.map((tab) => (
             <button
               key={tab.key}
