@@ -44,6 +44,7 @@ export default function TagInput({
 
   const removeTag = (tag: string) => {
     onChange(value.filter((t) => t !== tag))
+    setError(null)
   }
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
