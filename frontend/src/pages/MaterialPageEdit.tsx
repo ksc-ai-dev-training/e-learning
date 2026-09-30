@@ -322,7 +322,13 @@ export default function MaterialPageEdit() {
     return <div className="p-8 text-sm text-slate-400 dark:text-neutral-500">読み込み中...</div>
   }
 
-  if (materialError) {
+  // materialが一度も取得できていない（初回読み込み自体の失敗）場合のみ画面全体を差し替える。
+  // 一度取得済み（material有り）の状態でその後の再取得（保存直前のmutate()等）が失敗しても、
+  // 入力中の内容を隠さないよう、この分岐には入れず下の本編集画面をそのまま表示し続け、
+  // saveのcatchが設定するerror（366行目のバナー）で理由を伝える（2026-09-30、ユーザー報告により
+  // 発見・修正。以前はここで画面ごと差し替えていたため、保存直前の裏側の再取得が失敗しただけで
+  // 入力中の内容が丸ごと見えなくなり、「戻る」を押すと本当に失われていた）。
+  if (materialError && !material) {
     return (
       <div className="flex flex-1 flex-col">
         <PageHeader title="ページ編集" />
@@ -331,7 +337,7 @@ export default function MaterialPageEdit() {
             ← 目次編集に戻る
           </Link>
           <p className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200">
-            教材を取得できませんでした。
+            {materialError instanceof ApiError ? materialError.message : '教材を取得できませんでした。'}
           </p>
         </div>
       </div>

@@ -768,11 +768,12 @@ export default function MaterialEdit() {
     return <div className="p-8 text-sm text-slate-400 dark:text-neutral-500">読み込み中...</div>
   }
 
-  if (!isNew && materialError) {
-    const message =
-      materialError instanceof ApiError && materialError.status === 403
-        ? materialError.message || 'この教材を閲覧する権限がありません。'
-        : '教材を取得できませんでした。'
+  // materialが一度も取得できていない（初回読み込み自体の失敗）場合のみ画面全体を差し替える。
+  // 一度取得済みの状態でその後の再取得（保存後のmutate()等）が失敗しても、入力中の内容を
+  // 隠さないよう、この分岐には入れず本編集画面を表示し続け、saveDraftのcatchが設定するerror
+  // （947行目のバナー）で理由を伝える（2026-09-30、ユーザー報告により発見・修正）。
+  if (!isNew && materialError && !material) {
+    const message = materialError instanceof ApiError ? materialError.message : '教材を取得できませんでした。'
     return (
       <div className="flex flex-1 flex-col">
         <PageHeader title="教材編集" />
