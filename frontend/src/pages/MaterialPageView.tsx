@@ -507,15 +507,28 @@ export default function MaterialPageView() {
       <PageHeader
         title={`${node.title}${modeLabel}`}
         actions={
-          material.is_company_wide && !material.required ? (
-            <MyLearningToggle
+          <>
+            <MaterialTocSidebar
               materialId={id}
-              registered={material.registered ?? false}
-              onToggled={() => {
-                void mutateMaterial()
-              }}
+              chapters={chapters}
+              viewingNodeId={pageNodeId}
+              completedIds={completedIds}
+              visitedIds={visitedIds}
+              // practiceモード中に目次からページを移動しても練習の続き（?only=questions等）を
+              // 保てるよう、gradedと同じfromQueryではなくgoToPageと同じ組み立てにする
+              // （2026-09-29、目次パネルをpracticeにも表示するようにした際に対応）。
+              query={mode === 'practice' ? `?mode=practice${onlyQuestions ? '&only=questions' : ''}${andFromQuery(from)}` : fromQuery(from)}
             />
-          ) : undefined
+            {material.is_company_wide && !material.required && (
+              <MyLearningToggle
+                materialId={id}
+                registered={material.registered ?? false}
+                onToggled={() => {
+                  void mutateMaterial()
+                }}
+              />
+            )}
+          </>
         }
       />
       <div className="px-8 py-6">
@@ -533,17 +546,6 @@ export default function MaterialPageView() {
             <div className="h-full bg-blue-700 dark:bg-blue-500" style={{ width: `${progressPct}%` }} />
           </div>
           <span className="text-xs text-slate-500 dark:text-neutral-400">{progressPct}%</span>
-          <MaterialTocSidebar
-            materialId={id}
-            chapters={chapters}
-            viewingNodeId={pageNodeId}
-            completedIds={completedIds}
-            visitedIds={visitedIds}
-            // practiceモード中に目次からページを移動しても練習の続き（?only=questions等）を
-            // 保てるよう、gradedと同じfromQueryではなくgoToPageと同じ組み立てにする
-            // （2026-09-29、目次パネルをpracticeにも表示するようにした際に対応）。
-            query={mode === 'practice' ? `?mode=practice${onlyQuestions ? '&only=questions' : ''}${andFromQuery(from)}` : fromQuery(from)}
-          />
         </div>
 
         {!onlyQuestions && node.body && <PageBody materialId={id} body={node.body} format={node.format ?? 'markdown'} />}
