@@ -37,9 +37,15 @@ export default function ProjectCard({ project, pinned }: { project: Project; pin
           )}
           {project.name}
         </span>
-        <span className="rounded border border-dashed border-slate-300 px-1.5 text-xs font-semibold text-orange-700 dark:border-neutral-600 dark:text-orange-300">
-          {ROLE_LABELS[project.role]}
-        </span>
+        {project.is_member ? (
+          <span className="rounded border border-dashed border-slate-300 px-1.5 text-xs font-semibold text-orange-700 dark:border-neutral-600 dark:text-orange-300">
+            {ROLE_LABELS[project.role]}
+          </span>
+        ) : (
+          <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500 dark:bg-neutral-800 dark:text-neutral-400">
+            未所属
+          </span>
+        )}
       </div>
       <span className="text-[13px] text-slate-400 dark:text-neutral-300">
         {project.is_company_wide
