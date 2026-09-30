@@ -11,11 +11,13 @@ import yaml
 
 HEADING_RE = re.compile(r"^(#{1,3})\s+(.*)$")
 NODE_COMMENT_RE = re.compile(r"^<!--\s*node:(\d+)\s*-->$")
-FORMAT_COMMENT_RE = re.compile(r"^<!--\s*format:(markdown|html)\s*-->$")
+FORMAT_COMMENT_RE = re.compile(r"^<!--\s*format:(markdown|html|slide)\s*-->$")
 QUIZ_MODE_COMMENT_RE = re.compile(r"^<!--\s*quiz_mode:(all|pool)\s*-->$")
 POOL_DRAW_COUNT_COMMENT_RE = re.compile(r"^<!--\s*pool_draw_count:(\d+)\s*-->$")
 QUESTION_FENCE_START = "```question"
 QUESTION_FENCE_END = "```"
+SLIDE_FENCE_START = "```slide"
+SLIDE_FENCE_END = "```"
 
 META_FIELDS = (
     "id", "project_id", "title", "description", "tags", "format", "status",
@@ -39,10 +41,11 @@ class ParsedNode:
     node_id: int | None = None
     body: str | None = None
     content_kind: str | None = None
-    format: str | None = None  # kind='page'のみ意味を持つ（markdown/html。ページごとに独立して選べる）
+    format: str | None = None  # kind='page'のみ意味を持つ（markdown/html/slide。ページごとに独立して選べる）
     quiz_mode: str = "all"  # kind='page'のみ意味を持つ（'all'/'pool'）
     pool_draw_count: int | None = None  # kind='page'かつquiz_mode='pool'のときのみ意味を持つ
     questions: list[dict] = field(default_factory=list)
+    blocks: list[dict] = field(default_factory=list)  # kind='page'かつformat='slide'のときのみ意味を持つ
 
 
 def parse_source(text: str) -> tuple[dict, list[ParsedNode]]:
@@ -77,13 +80,15 @@ def parse_source(text: str) -> tuple[dict, list[ParsedNode]]:
         if current_page_idx is not None:
             page = nodes[current_page_idx]
             body, questions = _extract_questions("\n".join(body_buffer).strip("\n"))
+            body, blocks = _extract_slide_blocks(body)
             page.body = body or None
             page.questions = questions
-            if page.body and questions:
+            page.blocks = blocks
+            if (page.body or blocks) and questions:
                 page.content_kind = "mixed"
             elif questions:
                 page.content_kind = "quiz"
-            elif page.body:
+            elif page.body or blocks:
                 page.content_kind = "explanation"
             else:
                 raise MaterialParseError(f"ページ「{page.title}」に説明文・問題のいずれも設定されていません")
@@ -184,7 +189,12 @@ def _html_heading_match(line: str) -> tuple[int, str] | None:
 
 def _looks_like_heading(line: str, fmt: str) -> bool:
     """行が現在のドキュメント形式（markdown/html）の見出し記号と衝突するかどうか。
-    エスケープ要否の判定と、エスケープ解除時の「本当に見出しだったか」の再チェックの両方で使う。"""
+    エスケープ要否の判定と、エスケープ解除時の「本当に見出しだったか」の再チェックの両方で使う。
+    slide形式はプレーンな見出し記法を持たない構造化ブロック（```slideフェンス）のため、
+    見出しエスケープ自体が不要（フォールバックでmarkdown扱いにされてしまうと、フェンス内の
+    YAML/JSON行が誤ってバックスラッシュエスケープされる恐れがある。2026-10-01）。"""
+    if fmt == "slide":
+        return False
     if fmt == "html":
         return _html_heading_match(line) is not None
     return _markdown_heading_match(line) is not None
@@ -238,6 +248,41 @@ def _extract_questions(body: str) -> tuple[str, list[dict]]:
     return "\n".join(text_lines).strip("\n"), questions
 
 
+def _extract_slide_blocks(body: str) -> tuple[str, list[dict]]:
+    """```slide フェンスブロックを本文から取り除き、スライドブロックの並び（YAMLリスト）として
+    抽出する。questionと違い1ページにつき最大1つのフェンスで、中身はブロック1個ではなく
+    ブロックのリスト（- type: header ... のようなYAMLリスト）を想定する。"""
+    if SLIDE_FENCE_START not in body:
+        return body, []
+    lines = body.splitlines()
+    text_lines: list[str] = []
+    fence_buffer: list[str] = []
+    in_fence = False
+    found = False
+    for line in lines:
+        if not in_fence and not found and line.strip() == SLIDE_FENCE_START:
+            in_fence = True
+            fence_buffer = []
+            continue
+        if in_fence and line.strip() == SLIDE_FENCE_END:
+            in_fence = False
+            found = True
+            continue
+        if in_fence:
+            fence_buffer.append(line)
+        else:
+            text_lines.append(line)
+    if not found:
+        return body, []
+    try:
+        blocks = yaml.safe_load("\n".join(fence_buffer)) or []
+    except yaml.YAMLError as e:
+        raise MaterialParseError(f"スライドブロックのYAML解析に失敗しました: {e}")
+    if not isinstance(blocks, list):
+        raise MaterialParseError("スライドブロック（```slide）はブロックのリスト形式で記述してください")
+    return "\n".join(text_lines).strip("\n"), blocks
+
+
 QUESTION_FIELDS = (
     "id", "type", "prompt", "options", "correct_answer", "scoring_criteria",
     "code_language", "required", "counted", "is_critical", "feedback_style", "pool_group",
@@ -278,6 +323,10 @@ def serialize_source(material: dict, tree: list[dict]) -> str:
         lines.append("")
         if page.get("body"):
             lines.append(escape_body_for_source(page["body"], page_fmt))
+            lines.append("")
+        if page.get("blocks"):
+            blocks_yaml = yaml.safe_dump(page["blocks"], allow_unicode=True, sort_keys=False).rstrip("\n")
+            lines.append(f"{SLIDE_FENCE_START}\n{blocks_yaml}\n{SLIDE_FENCE_END}")
             lines.append("")
         for q in page.get("questions", []):
             lines.append(_serialize_question(q))

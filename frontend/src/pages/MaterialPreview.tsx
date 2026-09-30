@@ -1,5 +1,6 @@
 import { Link, useParams } from 'react-router'
 import PageBody from '../components/material/PageBody'
+import SlideBody from '../components/material/SlideBody'
 import PageHeader from '../components/layout/PageHeader'
 import { useMaterialPreview } from '../hooks/useMaterialPreview'
 import type { MaterialNode, Question } from '../types'
@@ -92,7 +93,10 @@ function PageView({ page, materialId }: { page: MaterialNode; materialId: number
   return (
     <div className="mb-8">
       <h4 className="mb-2 text-sm font-semibold text-slate-800 dark:text-neutral-100">{page.title}</h4>
-      {page.body && <PageBody materialId={materialId} body={page.body} format={page.format ?? 'markdown'} />}
+      {page.body && (
+        <PageBody materialId={materialId} body={page.body} format={page.format === 'html' ? 'html' : 'markdown'} />
+      )}
+      {page.format === 'slide' && page.blocks.length > 0 && <SlideBody materialId={materialId} blocks={page.blocks} />}
       {page.questions.map((q, i) => (
         <QuestionView key={q.id ?? `new-${i}`} question={q} index={i} />
       ))}

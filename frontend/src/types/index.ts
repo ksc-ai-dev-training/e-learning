@@ -210,6 +210,34 @@ export interface Question {
 export type ContentKind = 'explanation' | 'quiz' | 'mixed'
 export type QuizMode = 'all' | 'pool'
 
+// スライド形式（format='slide'）のページを構成するブロックの種別（F-33フェーズ0: 基盤6種）
+export type SlideBlockType = 'header' | 'banner' | 'bullet_list' | 'card_row' | 'highlight' | 'freeform'
+
+// card_rowブロックの1枚
+export interface SlideCard {
+  tone: 'rose' | 'green' | 'blue' | 'amber'
+  icon: string
+  heading: string
+  desc: string
+  stat: string
+}
+
+// S-17のスライド編集で扱う1ブロック。Questionと同じく「型ごとの全フィールドをoptionalで持つ
+// 1つの幅広い型」とし、TSの判別共用体にはしない（型を切り替えても持ち方が変わらないため、
+// 編集フォームの実装がシンプルになる。questionDefaults.tsのemptyQuestionForTypeと同じ設計判断）。
+export interface SlideBlock {
+  type: SlideBlockType
+  icon?: string // header
+  title?: string // header
+  pill?: string // header
+  text?: string // banner / highlight
+  items?: string[] // bullet_list
+  cards?: SlideCard[] // card_row（2〜4枚）
+  stat_label?: string // highlight
+  stat_value?: string // highlight
+  content?: string // freeform（Markdown本文）
+}
+
 // A-15 GET /api/materials/{id} の toc 内の1ノード（章・小見出し・ページ）。
 // content_kind以降はkind='page'のみ意味を持つ（chapter/sectionは常にnull/既定値/空配列）
 export interface MaterialNode {
@@ -219,11 +247,12 @@ export interface MaterialNode {
   kind: 'chapter' | 'section' | 'page'
   sort_order: number
   content_kind: ContentKind | null
-  format: 'markdown' | 'html' | null
+  format: 'markdown' | 'html' | 'slide' | null
   body: string | null
   quiz_mode: QuizMode
   pool_draw_count: number | null
   questions: Question[]
+  blocks: SlideBlock[]
   children: MaterialNode[]
 }
 

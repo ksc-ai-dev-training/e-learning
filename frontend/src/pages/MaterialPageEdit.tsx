@@ -16,7 +16,7 @@ import { buildMaterialSource } from '../lib/materialSource'
 import type { EditableNode, PendingAttachment } from '../lib/materialSource'
 import { findNode, insertPageInTree, replacePageInTree, toEditableChapters } from '../lib/materialTree'
 import { validatePageContent } from '../lib/pageValidation'
-import type { Material, Question } from '../types'
+import type { Material, Question, SlideBlock } from '../types'
 
 // poolMembershipでチェックされた設問のうち、保存済み（id !== null）のものだけを対象に
 // pool_group（DB上はpool_group_id、自己参照FK）を実IDへ解決する。2問未満しか対象が
@@ -64,8 +64,9 @@ export default function MaterialPageEdit() {
   const [title, setTitle] = useState('')
   const [includeExplanation, setIncludeExplanation] = useState(true)
   const [includeQuiz, setIncludeQuiz] = useState(false)
-  const [format, setFormat] = useState<'markdown' | 'html'>('markdown')
+  const [format, setFormat] = useState<'markdown' | 'html' | 'slide'>('markdown')
   const [body, setBody] = useState('')
+  const [blocks, setBlocks] = useState<SlideBlock[]>([])
   const [questions, setQuestions] = useState<Question[]>([])
   const [quizMode, setQuizMode] = useState<'all' | 'pool'>('all')
   const [poolDrawCount, setPoolDrawCount] = useState<number | null>(null)
@@ -99,10 +100,11 @@ export default function MaterialPageEdit() {
       const node = findNode(tree, Number(nodeId))
       if (node && node.kind === 'page') {
         setTitle(node.title)
-        setIncludeExplanation(!!node.body)
+        setIncludeExplanation(!!node.body || (node.blocks ?? []).length > 0)
         setIncludeQuiz((node.questions ?? []).length > 0)
         setFormat(node.format ?? 'markdown')
         setBody(node.body ?? '')
+        setBlocks(node.blocks ?? [])
         setQuestions(node.questions ?? [])
         setQuizMode(node.quizMode ?? 'all')
         setPoolDrawCount(node.poolDrawCount ?? null)
@@ -132,7 +134,9 @@ export default function MaterialPageEdit() {
       title,
       includeExplanation,
       includeQuiz,
+      format,
       body,
+      blocks,
       questions,
       quizMode,
       poolDrawCount,
@@ -151,11 +155,12 @@ export default function MaterialPageEdit() {
         title,
         kind: 'page',
         children: [],
-        body: includeExplanation ? body : null,
+        body: includeExplanation && format !== 'slide' ? body : null,
         format,
         quizMode: includeQuiz ? quizMode : 'all',
         poolDrawCount: includeQuiz && quizMode === 'pool' ? poolDrawCount : null,
         questions: includeQuiz ? resolvedQuestions : [],
+        blocks: includeExplanation && format === 'slide' ? blocks : [],
       }
       // 保存直前に最新の教材ツリーを取得し直す。自分が編集したページ（page）以外は常に
       // 最新のサーバー状態を反映することで、他の人が別ページを同時に編集していた場合に
@@ -386,6 +391,8 @@ export default function MaterialPageEdit() {
           onFormatChange={setFormat}
           body={body}
           onBodyChange={setBody}
+          blocks={blocks}
+          onBlocksChange={setBlocks}
           questions={questions}
           onQuestionsChange={setQuestions}
           quizMode={quizMode}

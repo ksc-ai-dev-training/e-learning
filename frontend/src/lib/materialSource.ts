@@ -1,4 +1,4 @@
-import type { Material, Question, QuizMode } from '../types'
+import type { Material, Question, QuizMode, SlideBlock } from '../types'
 
 // A-20 PUT /source が受け取るソーステキストの組み立て（バックエンドmaterial_parser.pyと対の実装）。
 
@@ -18,10 +18,11 @@ export type EditableNode = {
   children: EditableNode[] // sectionのみ持つ。chapterは持たない。pageは常に[]
   // 以下はkind='page'のみ意味を持つ（chapter/sectionでは無視される）
   body?: string | null
-  format?: 'markdown' | 'html'
+  format?: 'markdown' | 'html' | 'slide'
   quizMode?: QuizMode
   poolDrawCount?: number | null
   questions?: Question[]
+  blocks?: SlideBlock[]
   // ページがid===null（未保存）の間だけ意味を持つ。buildMaterialSourceは参照しない
   // （ソーステキストには含めず、保存後にMaterialEdit.tsx側で個別にA-27/A-29へ流し込む）。
   pendingAttachments?: PendingAttachment[]
@@ -77,7 +78,10 @@ const HTML_HEADING_LIKE_RE = /^<h([123])>.*<\/h\1>$/
 // backend/material_parser.pyのescape_body_for_source/_unescape_heading_lineと対。
 // ページごとのformat（markdown/html）に応じて対象の見出しパターンを切り替える）。
 // ユーザーが画面で見る本文自体は変えない。
-function escapeBodyForSource(body: string, format: 'markdown' | 'html' = 'markdown'): string {
+function escapeBodyForSource(body: string, format: 'markdown' | 'html' | 'slide' = 'markdown'): string {
+  // slide形式は本文（body）自体を使わない（内容は```slideフェンスのblocksに持つ）ため、
+  // 見出しエスケープは不要（backend/material_parser.pyの_looks_like_headingと対）。
+  if (format === 'slide') return body
   const pattern = format === 'html' ? HTML_HEADING_LIKE_RE : HEADING_LIKE_RE
   return body
     .split('\n')
@@ -151,6 +155,16 @@ export function buildMaterialSource(meta: SourceMeta, chapters: EditableNode[]):
     lines.push('')
     if (page.body) {
       lines.push(escapeBodyForSource(page.body, pageFormat))
+      lines.push('')
+    }
+    if (page.blocks && page.blocks.length > 0) {
+      // ネストしたオブジェクト（card_rowのcards等）を含むため、手書きYAML出力
+      // （yamlScalar/yamlList）では表現しきれない。JSONはYAMLの正当なサブセットで
+      // backendのyaml.safe_loadでそのまま読めるため、JSON.stringifyで書き出す
+      // （保存後はbackendが正規のYAML形式に書き直すため見た目の不一致は生じない）。
+      lines.push('```slide')
+      lines.push(JSON.stringify(page.blocks, null, 2))
+      lines.push('```')
       lines.push('')
     }
     for (const q of page.questions ?? []) {

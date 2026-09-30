@@ -274,7 +274,7 @@ async def _fetch_tree(executor, material_id: int, *, strip_answers: bool = False
     4.3節A-15の実装ノート参照）。"""
     rows = await executor.fetch(
         """SELECT id, parent_node_id, title, kind, sort_order,
-                  content_kind, format, body, quiz_mode, pool_draw_count
+                  content_kind, format, body, quiz_mode, pool_draw_count, blocks
            FROM material_nodes
            WHERE material_id = $1 ORDER BY parent_node_id NULLS FIRST, sort_order""",
         material_id,
@@ -310,7 +310,12 @@ async def _fetch_tree(executor, material_id: int, *, strip_answers: bool = False
         questions_by_node.setdefault(d["node_id"], []).append(d)
 
     by_id = {
-        r["id"]: {**dict(r), "children": [], "questions": questions_by_node.get(r["id"], [])}
+        r["id"]: {
+            **dict(r),
+            "blocks": json.loads(r["blocks"]) if r["blocks"] is not None else [],
+            "children": [],
+            "questions": questions_by_node.get(r["id"], []),
+        }
         for r in rows
     }
     roots: list[dict] = []
@@ -1087,6 +1092,7 @@ async def _put_material_source_impl(
                 node_format = node.format if is_page else None
                 node_quiz_mode = node.quiz_mode if is_page else "all"
                 node_pool_draw_count = node.pool_draw_count if is_page else None
+                node_blocks = json.dumps(node.blocks) if is_page and node.blocks else None
                 if node_quiz_mode == "pool" and (node_pool_draw_count is None or node_pool_draw_count < 1):
                     raise HTTPException(
                         422, detail=f"ページ「{node.title}」: 出題プールの抽出数（pool_draw_count）は1以上を指定してください"
@@ -1097,11 +1103,11 @@ async def _put_material_source_impl(
                     await conn.execute(
                         """UPDATE material_nodes SET title = $1, kind = $2, sort_order = $3,
                                parent_node_id = $4, content_kind = $5, format = $6, body = $7,
-                               quiz_mode = $8, pool_draw_count = $9,
-                               updated_at = now() WHERE id = $10 AND material_id = $11""",
+                               quiz_mode = $8, pool_draw_count = $9, blocks = $10,
+                               updated_at = now() WHERE id = $11 AND material_id = $12""",
                         node.title, node.kind, node.sort_order, parent_id,
                         node.content_kind, node_format, node.body,
-                        node_quiz_mode, node_pool_draw_count, node.node_id, id,
+                        node_quiz_mode, node_pool_draw_count, node_blocks, node.node_id, id,
                     )
                     index_to_id[idx] = node.node_id
                     seen_ids.add(node.node_id)
@@ -1109,11 +1115,11 @@ async def _put_material_source_impl(
                     new_id = await conn.fetchval(
                         """INSERT INTO material_nodes
                                (material_id, parent_node_id, title, kind, sort_order,
-                                content_kind, format, body, quiz_mode, pool_draw_count)
-                           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id""",
+                                content_kind, format, body, quiz_mode, pool_draw_count, blocks)
+                           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id""",
                         id, parent_id, node.title, node.kind, node.sort_order,
                         node.content_kind, node_format, node.body,
-                        node_quiz_mode, node_pool_draw_count,
+                        node_quiz_mode, node_pool_draw_count, node_blocks,
                     )
                     index_to_id[idx] = new_id
                     seen_ids.add(new_id)
@@ -1751,10 +1757,11 @@ async def _duplicate_material_into_project(conn, material_id: int, target_projec
             new_node_id = await conn.fetchval(
                 """INSERT INTO material_nodes
                        (material_id, parent_node_id, title, kind, sort_order,
-                        content_kind, format, body, quiz_mode, pool_draw_count)
-                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id""",
+                        content_kind, format, body, quiz_mode, pool_draw_count, blocks)
+                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id""",
                 new_material_id, parent_new_id, node["title"], node["kind"], node["sort_order"],
                 node["content_kind"], node["format"], node["body"], node["quiz_mode"], node["pool_draw_count"],
+                json.dumps(node["blocks"]) if node.get("blocks") else None,
             )
             node_id_map[node["id"]] = new_node_id
             for q in node.get("questions", []):

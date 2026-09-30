@@ -17,6 +17,7 @@ function convertPage(p: MaterialNode): EditableNode {
     quizMode: p.quiz_mode,
     poolDrawCount: p.pool_draw_count,
     questions: p.questions,
+    blocks: p.blocks ?? [],
   }
 }
 
@@ -45,7 +46,7 @@ export function toEditableChapters(toc: MaterialNode[]): EditableNode[] {
 
 // ページ行に表示する内容種別ラベル（画面モックアップの「説明」「問題×3」「説明＋問題×2」に対応）
 export function pageKindLabel(page: EditableNode): string {
-  const hasBody = !!page.body
+  const hasBody = !!page.body || (page.blocks?.length ?? 0) > 0
   const count = page.questions?.length ?? 0
   if (hasBody && count > 0) return `説明＋問題×${count}`
   if (count > 0) return `問題×${count}`
