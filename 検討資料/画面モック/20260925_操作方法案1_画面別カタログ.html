@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>【検討中】操作方法 案1: 画面別カタログ | Manabi</title>
+<link rel="stylesheet" href="../../docs/03_画面モックアップ/mock.css">
+<style>
+  .howto-toc {
+    width: 200px; flex-shrink: 0; border-right: 1px solid var(--border);
+    padding: 20px 12px; overflow-y: auto;
+  }
+  .howto-toc-group { margin-bottom: 4px; }
+  .howto-toc-group-label {
+    font-size: 11px; font-weight: 700; color: var(--text-subtle); text-transform: uppercase;
+    letter-spacing: 0.04em; padding: 8px 10px 4px;
+  }
+  .howto-toc a {
+    display: flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: var(--radius-sm);
+    font-size: 12.5px; color: var(--text-muted); border-left: 3px solid transparent;
+  }
+  .howto-toc a:hover { background: var(--bg-hover); color: var(--text); text-decoration: none; }
+  .howto-toc a .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .dot-blue { background: #3b82f6; } .dot-violet { background: #8b5cf6; }
+  .dot-emerald { background: #10b981; } .dot-amber { background: #f59e0b; }
+
+  .howto-main { flex: 1; min-width: 0; padding: 20px 32px 64px; }
+  .howto-search {
+    display: flex; align-items: center; gap: 8px; border: 1px solid var(--border-strong);
+    border-radius: var(--radius); padding: 8px 12px; margin-bottom: 20px; color: var(--text-subtle);
+    font-size: 12.5px; max-width: 420px;
+  }
+  .howto-group-title {
+    font-size: 13px; font-weight: 700; margin: 28px 0 10px; display: flex; align-items: center; gap: 8px;
+  }
+  .howto-group-title:first-child { margin-top: 0; }
+  .howto-group-title .dot { width: 8px; height: 8px; border-radius: 50%; }
+
+  details.screen-card {
+    border: 1px solid var(--border-strong); border-radius: var(--radius-lg); background: #fff;
+    margin-bottom: 10px; overflow: hidden;
+  }
+  details.screen-card summary {
+    cursor: pointer; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; list-style: none;
+  }
+  details.screen-card summary::-webkit-details-marker { display: none; }
+  details.screen-card summary .s-name { font-size: 13.5px; font-weight: 600; }
+  details.screen-card summary .s-sub { font-size: 12px; color: var(--text-subtle); font-weight: 400; }
+  details.screen-card summary .chev { color: var(--text-subtle); transition: transform 0.12s ease; }
+  details[open].screen-card summary .chev { transform: rotate(90deg); }
+  .screen-card-body { padding: 0 16px 16px; border-top: 1px solid var(--border); }
+  .screen-card-body p.purpose { font-size: 12.5px; color: var(--text-muted); margin: 12px 0; line-height: 1.7; }
+  .screen-card-body ol { margin: 0 0 8px 20px; font-size: 12.5px; line-height: 1.9; }
+  .screen-card-body .who {
+    display: inline-block; margin-top: 8px; font-size: 11px; color: var(--text-subtle);
+    border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 2px 8px;
+  }
+</style>
+</head>
+<body>
+
+<div style="background:#fef3c7;border-bottom:1px solid #fbbf24;color:#78350f;font-size:12px;font-weight:600;text-align:center;padding:6px;">
+  【検討中】操作方法ページ 案1: 画面別カタログ（サイドバーと同じ並び順・色分けの目次＋アコーディオン）／ 正式版ではありません。掲載画面は一部のみのサンプルです
+</div>
+
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-mark">M</div>
+      <div><div class="brand-name">Manabi</div><div class="brand-sub">社内学習管理システム</div></div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-label">メニュー</div>
+      <a class="nav-item" href="#"><span class="nav-icon nav-icon-blue"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h3.5v-6h5v6H18a1 1 0 0 0 1-1V9.5"/></svg></span>マイ学習</a>
+      <a class="nav-item" href="#"><span class="nav-icon nav-icon-blue"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></span>教材一覧・検索</a>
+      <a class="nav-item" href="#"><span class="nav-icon nav-icon-blue"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>個人学習レポート</a>
+      <div class="nav-divider"></div>
+      <a class="nav-item" href="#"><span class="nav-icon nav-icon-violet"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></span>教材作成・編集</a>
+      <a class="nav-item" href="#"><span class="nav-icon nav-icon-violet"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></span>採点</a>
+      <a class="nav-item" href="#"><span class="nav-icon nav-icon-violet"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></span>配信設定</a>
+      <div class="nav-divider"></div>
+      <a class="nav-item" href="#"><span class="nav-icon nav-icon-emerald"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></span>プロジェクト作成</a>
+      <a class="nav-item" href="#"><span class="nav-icon nav-icon-emerald"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg></span>プロジェクト管理</a>
+      <a class="nav-item" href="#"><span class="nav-icon nav-icon-emerald"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg></span>必修教材受講ダッシュボード</a>
+      <div class="nav-divider"></div>
+      <a class="nav-item" href="#"><span class="nav-icon nav-icon-amber"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>システム管理</a>
+      <a class="nav-item active" href="#"><span class="nav-icon nav-icon-amber"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>操作方法</a>
+    </nav>
+  </aside>
+
+  <div class="main">
+    <header class="page-header">
+      <div class="page-title-group">
+        <h1>操作方法</h1>
+        <span class="screen-id">案1: 画面別カタログ</span>
+      </div>
+    </header>
+
+    <div style="display:flex; flex:1; min-height:0;">
+      <nav class="howto-toc">
+        <div class="howto-toc-group">
+          <div class="howto-toc-group-label">受講する</div>
+          <a href="#s02"><span class="dot dot-blue"></span>マイ学習</a>
+          <a href="#s03"><span class="dot dot-blue"></span>教材一覧・検索</a>
+          <a href="#s09"><span class="dot dot-blue"></span>個人学習レポート</a>
+        </div>
+        <div class="howto-toc-group">
+          <div class="howto-toc-group-label">教材を作る</div>
+          <a href="#s05"><span class="dot dot-violet"></span>教材編集：目次編集</a>
+          <a href="#s20"><span class="dot dot-violet"></span>採点</a>
+          <a href="#s06"><span class="dot dot-violet"></span>配信設定</a>
+        </div>
+        <div class="howto-toc-group">
+          <div class="howto-toc-group-label">プロジェクトを運営</div>
+          <a href="#s08"><span class="dot dot-emerald"></span>必修教材受講ダッシュボード</a>
+          <a href="#s12"><span class="dot dot-emerald"></span>プロジェクト管理</a>
+        </div>
+        <div class="howto-toc-group">
+          <div class="howto-toc-group-label">システム管理</div>
+          <a href="#s10"><span class="dot dot-amber"></span>システム管理</a>
+        </div>
+      </nav>
+
+      <div class="howto-main">
+        <div class="howto-search">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          画面名・操作名で検索（例: 「配信」「採点」「Slack」）
+        </div>
+
+        <div class="howto-group-title"><span class="dot dot-blue"></span>受講する</div>
+
+        <details class="screen-card" id="s02" open>
+          <summary><span class="s-name">マイ学習 <span class="s-sub">— ログイン後の最初の画面</span></span><span class="chev">▶</span></summary>
+          <div class="screen-card-body">
+            <p class="purpose">自分の必修・任意教材の進捗、期限が近い必修教材、採点結果の更新、学習履歴をまとめて確認する画面です。</p>
+            <ol>
+              <li>「必修・任意」タブで、期限が近い必修教材（赤枠で強調）を優先して受講する。</li>
+              <li>任意教材は興味のあるものを選んで「受講を開始」。</li>
+              <li>教材名・タグでその場検索して絞り込める（2026-09-25新設）。</li>
+              <li>新しい教材を探して登録したい場合は右上の「新しい教材を探す」から教材一覧・検索へ。</li>
+            </ol>
+            <span class="who">対象: 全員</span>
+          </div>
+        </details>
+
+        <details class="screen-card" id="s03">
+          <summary><span class="s-name">教材一覧・検索</span><span class="chev">▶</span></summary>
+          <div class="screen-card-body">
+            <p class="purpose">自分が参加しているプロジェクトの公開済み教材をキーワード・タグ・区分で横断検索します。</p>
+            <ol>
+              <li>キーワード・タグ・必修/任意の区分で絞り込み、「検索」を押す。</li>
+              <li>任意教材は「マイ学習に追加」でマイ学習にも表示されるようになる。</li>
+              <li>教材を開くと目次（章・ページ）が表示され、そのまま受講できる。</li>
+            </ol>
+            <span class="who">対象: 全員</span>
+          </div>
+        </details>
+
+        <details class="screen-card" id="s09">
+          <summary><span class="s-name">個人学習レポート</span><span class="chev">▶</span></summary>
+          <div class="screen-card-body">
+            <p class="purpose">自分（または管理しているプロジェクトのメンバー）の受講済み教材・スコア・合否をまとめて振り返る画面です。</p>
+            <ol>
+              <li>「AIフィードバックを生成する」で、理解不足の分野・おすすめ教材のコメントを作成できる。</li>
+              <li>学習履歴の各行から「進捗リセット」（未受講に戻す。受験記録は残る）と「履歴から削除」（採点結果・AI集計から見えなくする。どちらも再受験回数の上限には影響しない）を行える。</li>
+            </ol>
+            <span class="who">対象: 全員（他人の分はプロジェクト管理者・システムadminのみ閲覧可）</span>
+          </div>
+        </details>
+
+        <div class="howto-group-title"><span class="dot dot-violet"></span>教材を作る</div>
+
+        <details class="screen-card" id="s05">
+          <summary><span class="s-name">教材編集：目次編集</span><span class="chev">▶</span></summary>
+          <div class="screen-card-body">
+            <p class="purpose">教材の章・ページ構成の組み立て、合否条件、AI採点の既定値などを設定する編集の起点画面です。</p>
+            <ol>
+              <li>「教材作成・編集」→対象プロジェクト→「＋新規教材を作成」、または既存教材の「編集する」。</li>
+              <li>「目次編集」タブで章・小見出し・ページを追加し、各ページの「編集する」で本文・設問を入力する。</li>
+              <li>合格基準・再受験可否・再受験回数の上限を設定する。</li>
+              <li>下書き保存で確認し、問題なければ「公開する」（配信設定の確認モーダルを経由）。</li>
+            </ol>
+            <span class="who">対象: プロジェクトの編集者・管理者</span>
+          </div>
+        </details>
+
+        <details class="screen-card" id="s20">
+          <summary><span class="s-name">採点</span><span class="chev">▶</span></summary>
+          <div class="screen-card-body">
+            <p class="purpose">記述式・コード記述式のうち「手動採点」設定の回答をまとめて採点するための、自分の担当教材を横断した一覧です。</p>
+            <ol>
+              <li>受験記録カード（受講者×提出日）をクリックすると、その回のすべての未採点設問がまとめて開く。</li>
+              <li>設問ごとに正誤・フィードバックを入力すると自動保存される。</li>
+              <li>すべて判定し終えたら「採点結果を送信」で受講者に公開する。</li>
+            </ol>
+            <span class="who">対象: 教材の作成者、全社ライブラリ必修教材はプロジェクト管理者も可</span>
+          </div>
+        </details>
+
+        <details class="screen-card" id="s06">
+          <summary><span class="s-name">配信設定</span><span class="chev">▶</span></summary>
+          <div class="screen-card-body">
+            <p class="purpose">教材ごとに必修/任意・受講期限を設定し、対象者（プロジェクト全体または個人）を決める画面です。</p>
+            <ol>
+              <li>対象教材の行を選び、「プロジェクト全体に必修として配信する」または個人を追加指定する。</li>
+              <li>必修にすると受講期限を設定でき、マイ学習に期限付きで表示されるようになる。</li>
+              <li>アーカイブ済み教材の状態確認・復元もこの画面から行える。</li>
+            </ol>
+            <span class="who">対象: 教材が属するプロジェクトの編集者・管理者、システムadmin</span>
+          </div>
+        </details>
+
+        <div class="howto-group-title"><span class="dot dot-emerald"></span>プロジェクトを運営する</div>
+
+        <details class="screen-card" id="s08">
+          <summary><span class="s-name">必修教材受講ダッシュボード</span><span class="chev">▶</span></summary>
+          <div class="screen-card-body">
+            <p class="purpose">プロジェクト単位で必修教材の受講率・合格率・未受講者を確認し、AIによる組織向け所見を生成できます。</p>
+            <ol>
+              <li>担当範囲（管理者であるプロジェクト）を選択する。</li>
+              <li>「必修教材のリマインドをSlackに送信」で、そのプロジェクトのSlackチャンネルへ未受講件数をまとめて通知する。</li>
+              <li>「AI組織レポートを生成」で受講状況の所見コメントを作成できる。</li>
+            </ol>
+            <span class="who">対象: 対象プロジェクトの管理者、システムadmin</span>
+          </div>
+        </details>
+
+        <details class="screen-card" id="s12">
+          <summary><span class="s-name">プロジェクト管理</span><span class="chev">▶</span></summary>
+          <div class="screen-card-body">
+            <p class="purpose">プロジェクト情報の編集、メンバーの招待・ロール変更、他プロジェクトとの教材共有を行う画面です。</p>
+            <ol>
+              <li>「メンバー管理」タブで社員を検索して追加し、管理者/編集者/受講者のロールを設定する。</li>
+              <li>「教材の共有」タブで、公開済み教材を他プロジェクトへ共有申請できる（下書きは共有不可）。</li>
+              <li>条件を満たす（教材が0件または下書きのみ・自分以外のメンバーがいない）場合のみ「プロジェクトを削除」が有効になる。</li>
+            </ol>
+            <span class="who">対象: 対象プロジェクトの管理者、システムadmin（一般メンバーは閲覧のみ）</span>
+          </div>
+        </details>
+
+        <div class="howto-group-title"><span class="dot dot-amber"></span>システム管理</div>
+
+        <details class="screen-card" id="s10">
+          <summary><span class="s-name">システム管理</span><span class="chev">▶</span></summary>
+          <div class="screen-card-body">
+            <p class="purpose">全社員のロール・有効/無効の管理と、AI利用状況・Slack通知などのシステム設定を行います。</p>
+            <ol>
+              <li>「ユーザー管理」タブでロール変更・アカウントの無効化を行う（システムadminが0人になる変更はブロックされる）。</li>
+              <li>「システム設定」タブで、今月のAI利用状況（機能別の呼び出し件数・概算コスト）を確認する。</li>
+            </ol>
+            <span class="who">対象: システムadminのみ</span>
+          </div>
+        </details>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="../../docs/03_画面モックアップ/mock-sidebar.js"></script>
+</body>
+</html>

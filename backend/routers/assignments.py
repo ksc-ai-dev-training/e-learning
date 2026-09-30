@@ -5,7 +5,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from auth_helpers import CurrentUser, require_auth, require_material_role
+from auth_helpers import CurrentUser, has_active_project_role, require_auth, require_material_role
 from database import get_pool
 
 router = APIRouter(prefix="/api", tags=["assignments"])
@@ -41,22 +41,49 @@ async def _fetch_assignment_rows(pool, material_ids: list[int]) -> dict[int, lis
 async def list_assignments(
     q: str | None = None,
     status: Literal["draft", "published"] | None = None,
+    include_archived: bool = False,
     user: CurrentUser = Depends(require_auth),
 ):
-    """A-36: 配信設定の一覧（S-06）。adminは全教材、それ以外は自分がローカル管理者を務める
+    """A-36: 配信設定の一覧（S-06）。adminは全教材、それ以外は自分がローカル管理者・編集者を務める
     プロジェクトに属する教材（下書き含む）のみを対象にする。管理対象が無い一般社員は0件を返す
-    （画面側で「配信設定できる教材がありません」を表示する）。"""
+    （画面側で「配信設定できる教材がありません」を表示する）。公開・非公開の切り替え（A-17）等の
+    他の教材操作が編集者にも開放されているのに、配信設定（誰向けに必修/任意か）だけ管理者限定なのは
+    権限として非対称という指摘を受け、編集者にも開放した（2026-09-10）。
+
+    全社ライブラリはrequire_material_role/list_materials_source（A-21）と同じ基準に揃える
+    （2026-09-18、ユーザー指摘により発見・修正）。以前は「adminなら無条件で全件、editorでも
+    このプロジェクトのeditor以上なら全件」だったため、全社ライブラリの必修教材・他人が作成した
+    任意教材が一覧には見えるのに実際の保存（A-38、require_material_role）では403になる不整合が
+    あった（A-21で発見したのと同じ種類の不具合）。全社ライブラリ以外の通常プロジェクトは
+    従来通り（adminは無条件全件、editorは自分がeditor以上のプロジェクトの教材）。
+
+    include_archived（既定false）はA-21のlist_materials_sourceと同じ意味（2026-09-18新設）。
+    以前は本APIからアーカイブ済み教材へ一切到達できず、教材編集画面（S-05）を経由しないと
+    アーカイブ解除ができなかった（配信設定〔S-06〕で公開条件そのものを扱っているのに、
+    アーカイブ状態の変更だけそこから行えないのは非対称という指摘を受けて追加した）。"""
     pool = get_pool()
     is_system_admin = user.role == "admin"
-    conditions = ["m.is_archived = false"]
-    params: list = []
-    if not is_system_admin:
-        params.append(user.id)
+    conditions = [] if include_archived else ["m.is_archived = false"]
+    params: list = [user.id]
+    user_ph = f"${len(params)}"
+    company_wide_ok = (
+        f"(m.created_by = {user_ph} OR ("
+        f"EXISTS (SELECT 1 FROM assignments a2 WHERE a2.material_id = m.id AND a2.required = true) "
+        f"AND EXISTS (SELECT 1 FROM project_memberships pmadmin WHERE pmadmin.project_id = m.project_id "
+        f"AND pmadmin.user_id = {user_ph} AND pmadmin.role = 'admin' AND pmadmin.status = 'active' "
+        f"AND pmadmin.left_at IS NULL)))"
+    )
+    if is_system_admin:
+        conditions.append(f"(NOT p.is_company_wide OR {company_wide_ok})")
+    else:
         conditions.append(
-            f"""EXISTS (
-                SELECT 1 FROM project_memberships pm
-                 WHERE pm.project_id = m.project_id AND pm.user_id = ${len(params)}
-                   AND pm.role = 'admin' AND pm.status = 'active' AND pm.left_at IS NULL
+            f"""(
+                (NOT p.is_company_wide AND EXISTS (
+                    SELECT 1 FROM project_memberships pm
+                     WHERE pm.project_id = m.project_id AND pm.user_id = {user_ph}
+                       AND pm.role IN ('admin', 'editor') AND pm.status = 'active' AND pm.left_at IS NULL
+                ))
+                OR (p.is_company_wide AND {company_wide_ok})
             )"""
         )
     if q:
@@ -66,10 +93,36 @@ async def list_assignments(
         params.append(status)
         conditions.append(f"m.status = ${len(params)}")
 
+    # can_archive: materials.pyの_require_owner_or_project_admin（作成者本人、またはこの教材の
+    # プロジェクトの実際の管理者。全社ライブラリかどうかは問わない共通ルールで、システムadminの
+    # 無条件許可は含まない）と同じ判定をここで一括計算し、一覧側に「実際にアーカイブ・復元できるか」
+    # を返す。全社ライブラリ以外の通常プロジェクトはeditorでも一覧自体には出るが、アーカイブ操作は
+    # 管理者・作成者限定のため、一覧に見えるのにボタンを押すと403になる不整合（A-21・A-36で過去に
+    # 見つけたのと同じ種類の不具合）を防ぐために必要（2026-09-18新設）。
+    # has_learning_history: materials.pyの_has_learning_historyと同じ判定。アーカイブ→復元を経て
+    # status='draft'に戻った教材は、受講実績があれば削除できず再アーカイブのみ可能になるため
+    # （2026-09-18、S-05で見つけた「削除もアーカイブもできない」手詰まりと同じ問題がこの一覧の
+    # アーカイブボタン表示条件〔status='published'のみ〕にも残っていたため追加）、
+    # フロントエンドがアーカイブボタンの表示条件に使う。
     rows = await pool.fetch(
         f"""SELECT m.id, m.title, m.status, m.project_id, p.name AS project_name,
-                   p.is_company_wide, m.updated_at
+                   p.is_company_wide, m.updated_at, m.is_archived, u.name AS created_by_name,
+                   (m.created_by = $1 OR EXISTS (
+                       SELECT 1 FROM project_memberships pmarchive
+                        WHERE pmarchive.project_id = m.project_id AND pmarchive.user_id = $1
+                          AND pmarchive.role = 'admin' AND pmarchive.status = 'active'
+                          AND pmarchive.left_at IS NULL
+                   )) AS can_archive,
+                   EXISTS (
+                       SELECT 1 FROM quiz_attempts qa WHERE qa.material_id = m.id
+                       UNION ALL
+                       SELECT 1 FROM enrollment_progress ep WHERE ep.material_id = m.id
+                       UNION ALL
+                       SELECT 1 FROM survey_responses sr
+                         JOIN surveys sv ON sv.id = sr.survey_id WHERE sv.material_id = m.id
+                   ) AS has_learning_history
               FROM materials m JOIN projects p ON p.id = m.project_id
+                   JOIN users u ON u.id = m.created_by
              WHERE {' AND '.join(conditions)}
              ORDER BY m.updated_at DESC""",
         *params,
@@ -81,9 +134,13 @@ async def list_assignments(
 
 @router.get("/materials/{id}/assignments")
 async def get_material_assignments(
-    id: int, user: CurrentUser = Depends(require_material_role(min_role="admin"))
+    id: int,
+    user: CurrentUser = Depends(require_material_role(min_role="editor", bypass_system_admin=True)),
 ):
-    """A-37: 特定教材の配信設定行を取得する（S-06編集パネルの初期表示用）。"""
+    """A-37: 特定教材の配信設定行を取得する（S-06編集パネルの初期表示用）。編集者にも開放
+    （2026-09-10、A-17公開操作等との権限の非対称を解消）。配信設定はadminが全教材を対象にできる
+    既定の設計（基本設計書4.8節）のため、2026-09-16のrequire_material_role既定変更後も
+    bypass_system_admin=Trueを明示して従来どおりの挙動を維持する。"""
     pool = get_pool()
     assignment_map = await _fetch_assignment_rows(pool, [id])
     return {"items": assignment_map.get(id, [])}
@@ -103,12 +160,22 @@ class AssignmentsUpdate(BaseModel):
 
 @router.put("/materials/{id}/assignments")
 async def update_material_assignments(
-    id: int, body: AssignmentsUpdate, user: CurrentUser = Depends(require_material_role(min_role="admin"))
+    id: int,
+    body: AssignmentsUpdate,
+    user: CurrentUser = Depends(require_material_role(min_role="editor", bypass_system_admin=True)),
 ):
-    """A-38: 教材の配信設定を全置換する（A-31と同じ全置換セマンティクス）。プロジェクトスコープの
+    """A-38: 教材の配信設定を全置換する（A-31と同じ全置換セマンティクス）。編集者にも開放
+    （2026-09-10、A-17公開操作等との権限の非対称を解消）。配信設定はadminが全教材を対象にできる
+    既定の設計（基本設計書4.8節）のため、2026-09-16のrequire_material_role既定変更後も
+    bypass_system_admin=Trueを明示して従来どおりの挙動を維持する。プロジェクトスコープの
     scope_idは教材自身のproject_idに固定、個人スコープのscope_idはそのプロジェクトの現役メンバーに
-    限る（他プロジェクトへの一方的な配信を防ぐ、基本設計書5.9節）。全社Wikiに属する教材は
-    required=trueの行を1つでも含めば拒否する（常に任意固定、5.9節「設計判断」参照）。
+    限る（他プロジェクトへの一方的な配信を防ぐ、基本設計書5.9節）。全社ライブラリに属する教材は
+    required=trueの行を1つでも含める場合、そのプロジェクト（全社ライブラリ）の実際のadminロールを要求する
+    （2026-09-17、以前は誰であっても一律拒否〔常に任意固定〕していたが、全社ライブラリに実際のプロジェクト
+    adminが存在するようになったため〔システムadminを実データとして登録する方針、database.py参照〕、
+    プロジェクトadminのみ必修を作成できるよう緩和した。editorはこれまで通り不可）。同様に
+    scope_type='individual'の行も拒否する（全員がeditorとして自動参加済みのため個人指定が
+    無意味なことが判明したため、2026-09-03追加）。
     pass_score_pct・retake_allowed・retake_limitはこのAPIでは扱わない（画面モックアップ
     S-06_assignment-settings.htmlに該当UIが無く、未設定時はNULLのままlearning.py側の
     既定値〔DEFAULT_PASS_SCORE_PCT等〕にフォールバックする設計のため。2026-09-01時点で整理）。"""
@@ -122,7 +189,14 @@ async def update_material_assignments(
         raise HTTPException(404, detail="教材が見つかりません")
 
     if material["is_company_wide"] and any(a.required for a in body.assignments):
-        raise HTTPException(400, detail="全社Wikiの教材は必修に設定できません（常に任意です）")
+        if not await has_active_project_role(material["project_id"], user.id, "admin"):
+            raise HTTPException(403, detail="全社ライブラリの教材を必修にできるのはプロジェクト管理者のみです")
+    if material["is_company_wide"] and any(a.scope_type == "individual" for a in body.assignments):
+        # 全社ライブラリは初回ログイン時に全員がeditorとして自動参加する（project_membershipsが
+        # 必ず存在する）ため、個人指定は「プロジェクト全体配信」に対して何の効果も持たない
+        # （対象判定・必修上書き・F-31登録ゲートのいずれも個人指定の有無を見ていない）。
+        # 意味の無い設定を保存させないため拒否する（2026-09-03、ユーザー指摘で調査の上判明）。
+        raise HTTPException(400, detail="全社ライブラリの教材は個人指定できません（プロジェクト全体の設定のみです）")
 
     for a in body.assignments:
         if a.required and not a.due_at:

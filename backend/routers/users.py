@@ -1,4 +1,5 @@
 # ユーザー管理API（A-53〜A-54。S-10「管理」ユーザー管理タブ）
+import json
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -20,7 +21,15 @@ async def list_users(
     user: CurrentUser = Depends(require_roles("admin")),
 ):
     """A-53: ユーザー一覧（システムadmin専用）。プロジェクトのローカル管理者向けの招待候補検索は
-    別途軽量なA-90（member-candidates）を使う（本APIとは権限・用途が異なるため使い分ける）。"""
+    別途軽量なA-90（member-candidates）を使う（本APIとは権限・用途が異なるため使い分ける）。
+
+    各ユーザーが管理者（role='admin'）になっているプロジェクトの一覧（admin_projects）を付加する
+    （2026-09-09、新設。誰がどのプロジェクトの管理者かをシステム管理者が横断的に把握できるようにする
+    要望への対応）。退任済み（left_at設定済み）・招待中（status!='active'）の行は含めない
+    （has_active_project_roleと同じ「現役admin」の基準）。全社ライブラリは以前は構造上adminロールを
+    誰も持てなかったが、2026-09-17にシステムadminを全社ライブラリの実際のadminメンバーとして登録する
+    方針に変更したため（database.pyのバックフィル参照）、システムadminについては全社ライブラリも
+    この一覧に含まれる。"""
     if per_page not in (20, 50, 100):
         raise HTTPException(422, detail="per_pageは20/50/100のいずれかを指定してください")
     if page < 1:
@@ -49,12 +58,26 @@ async def list_users(
     limit_ph = add_param(per_page)
     offset_ph = add_param((page - 1) * per_page)
     rows = await pool.fetch(
-        f"""SELECT id, name, email, role, is_active, created_at
-            FROM users WHERE {where_sql}
-            ORDER BY name LIMIT {limit_ph} OFFSET {offset_ph}""",
+        f"""SELECT u.id, u.name, u.email, u.role, u.is_active, u.created_at,
+                   COALESCE(ap.admin_projects, '[]') AS admin_projects
+            FROM users u
+            LEFT JOIN LATERAL (
+                SELECT jsonb_agg(jsonb_build_object('id', p.id, 'name', p.name) ORDER BY p.name) AS admin_projects
+                FROM project_memberships pm
+                JOIN projects p ON p.id = pm.project_id
+                WHERE pm.user_id = u.id AND pm.role = 'admin'
+                  AND pm.status = 'active' AND pm.left_at IS NULL
+            ) ap ON true
+            WHERE {where_sql}
+            ORDER BY u.name LIMIT {limit_ph} OFFSET {offset_ph}""",
         *params,
     )
-    return {"items": [dict(r) for r in rows], "total": total}
+    items = []
+    for r in rows:
+        d = dict(r)
+        d["admin_projects"] = json.loads(d["admin_projects"])
+        items.append(d)
+    return {"items": items, "total": total}
 
 
 class UserUpdate(BaseModel):
@@ -64,7 +87,13 @@ class UserUpdate(BaseModel):
 
 @router.put("/{id}")
 async def update_user(id: int, body: UserUpdate, user: CurrentUser = Depends(require_roles("admin"))):
-    """A-54: ロール変更・有効/無効切替。自分自身のadmin降格・無効化は拒否する（画面設計書4.12節）。
+    """A-54: ロール変更・有効/無効切替。自分自身の無効化は理由を問わず拒否する（自分で自分を
+    ロックアウトしてしまう事故防止）。自分自身の降格（admin→member）は、他に有効なadminが
+    1人以上いれば許可する（2026-09-16、ユーザー要望。プロジェクト内ロール〔organization.py〕は
+    元々自分自身かどうかを区別せず「最後の1人でなければ許可」という設計だったため、それに揃えた。
+    画面側は保存ボタン方式〔自動保存ではない〕になっているため、誤操作で自分を降格してしまう
+    リスクも小さい）。
+
     設計書には明記が無いが、システムadminが実質1人しかいない状態でその最後の1人を降格・無効化
     できてしまうと、以後システム全体でadminが不在になり管理機能自体が使えなくなるため、プロジェクトの
     「唯一の管理者は降格・削除不可」（organization.py）と同じ考え方でこのガードも追加した
@@ -77,9 +106,10 @@ async def update_user(id: int, body: UserUpdate, user: CurrentUser = Depends(req
     件数を読んでしまい、両方とも許可されてadminが0人になってしまう（F-26のA-65で見つけた
     二重承認の競合と同じ種類の不具合）。行ロック（SELECT ... FOR UPDATE）で対象行と
     現役admin行を先に確定させることで解消した。"""
+    if id == user.id and body.is_active is False:
+        raise HTTPException(400, detail="自分自身を無効化することはできません")
+
     demoting_or_deactivating = (body.role is not None and body.role != "admin") or body.is_active is False
-    if id == user.id and demoting_or_deactivating:
-        raise HTTPException(400, detail="自分自身の権限は変更できません")
 
     pool = get_pool()
     async with pool.acquire() as conn:
@@ -103,4 +133,17 @@ async def update_user(id: int, body: UserUpdate, user: CurrentUser = Depends(req
                    RETURNING id, name, email, role, is_active, created_at""",
                 body.role, body.is_active, id,
             )
+
+            # システムadminへ新たに昇格した場合、全社ライブラリのadminメンバーシップも実際に付与する
+            # （2026-09-17、権限モデル整理。database.pyの起動時バックフィルと同じ考え方だが、
+            # 昇格はいつでも起こり得るため、その場でも同期させる）。降格時にこの逆〔全社ライブラリ
+            # adminを剥奪〕は行わない（以後は通常のプロジェクト管理〔organization.py〕に委ねる、
+            # ユーザー確認済み）。
+            if body.role == "admin" and existing["role"] != "admin":
+                await conn.execute(
+                    """INSERT INTO project_memberships (project_id, user_id, role, status, joined_at)
+                       SELECT p.id, $1, 'admin', 'active', now() FROM projects p WHERE p.is_company_wide = true
+                       ON CONFLICT (project_id, user_id) DO UPDATE SET role = 'admin', updated_at = now()""",
+                    id,
+                )
     return dict(row)

@@ -23,7 +23,7 @@ def load_root_env() -> dict[str, str]:
 ROOT_ENV = load_root_env()
 # ルート.envの値をプロセス環境変数へ反映する（既に実OS環境変数が設定されている場合はそちらを優先、
 # setdefaultのため上書きしない）。これが無いと、database.py以外のモジュール（ai_client.pyの
-# ANTHROPIC_API_KEY、auth_helpers.pyのJWT_SECRET、google_auth.pyのGOOGLE_CLIENT_ID等）が素の
+# OPENAI_API_KEY、auth_helpers.pyのJWT_SECRET、google_auth.pyのGOOGLE_CLIENT_ID等）が素の
 # os.environ.get()で読んでいるため、.envに値を書いても一切反映されない不具合になっていた
 # （Google OAuth実装時に発見。start.bat未整備でこれまで顕在化していなかった）。
 for _k, _v in ROOT_ENV.items():
@@ -61,6 +61,18 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+-- F-12（Slack受講催促通知）: 当初は個人ごとのOAuth連携（本人宛てDM）を実装したが、社内Slack
+-- ワークスペースのカスタムアプリ数上限により新規アプリを作成できず利用できなかった（検討資料/
+-- 20260903_Slack連携方式比較.html参照）。既存のIncoming Webhook（新規アプリ作成不要）を使い、
+-- プロジェクト単位でチャンネルへ通知する方式（下記 projects.slack_webhook_url）に置き換えた
+-- ため、個人連携用のカラムは撤去する（2026-09-04）。
+ALTER TABLE users DROP COLUMN IF EXISTS slack_user_id;
+ALTER TABLE users DROP COLUMN IF EXISTS slack_access_token;
+ALTER TABLE users DROP COLUMN IF EXISTS slack_connected_at;
+-- Claude Code連携（F-05）のCLIトークンをセルフサービスで発行できるようにするための案内画面
+-- （初回ログイン直後に一度だけ表示、スキップ可）を、まだ見せた/対応させたことがあるかの記録。
+-- NULLのまま追加するため既存ユーザーも含めて次回ログイン時に一度だけ表示される（2026-09-14）。
+ALTER TABLE users ADD COLUMN IF NOT EXISTS cli_key_prompt_seen_at TIMESTAMPTZ;
 
 -- T-03 projects
 CREATE TABLE IF NOT EXISTS projects (
@@ -76,6 +88,9 @@ CREATE TABLE IF NOT EXISTS projects (
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
+-- F-12: このプロジェクトの必修教材リマインドを送信するIncoming Webhook URL（プロジェクト単位で
+-- 1本。Slack側でチャンネルを指定して発行したURLを、S-12プロジェクト管理から貼り付けて使う）。
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS slack_webhook_url TEXT;
 
 -- T-04 project_memberships
 CREATE TABLE IF NOT EXISTS project_memberships (
@@ -111,6 +126,9 @@ CREATE TABLE IF NOT EXISTS materials (
                             CHECK (attempt_scope IN ('material', 'chapter', 'section', 'page')),
     retake_scope            TEXT NOT NULL DEFAULT 'all'
                             CHECK (retake_scope IN ('all', 'wrong_only')),
+    pass_score_pct          NUMERIC(5, 2),
+    retake_allowed          BOOLEAN NOT NULL DEFAULT true,
+    retake_limit            INTEGER,
     default_feedback_style  TEXT NOT NULL DEFAULT 'show_answer'
                             CHECK (default_feedback_style IN ('show_answer', 'review_only', 'hint_only')),
     ai_context              TEXT,
@@ -125,6 +143,13 @@ CREATE TABLE IF NOT EXISTS materials (
 CREATE INDEX IF NOT EXISTS idx_materials_project_id ON materials(project_id);
 CREATE INDEX IF NOT EXISTS idx_materials_tags ON materials USING GIN (tags jsonb_path_ops);
 ALTER TABLE materials ENABLE ROW LEVEL SECURITY;
+ALTER TABLE materials ADD COLUMN IF NOT EXISTS pass_score_pct NUMERIC(5, 2);
+ALTER TABLE materials ADD COLUMN IF NOT EXISTS retake_allowed BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE materials ADD COLUMN IF NOT EXISTS retake_limit INTEGER;
+-- 教材一覧（S-02/S-03/S-12/S-14）のサムネイル表示用。usersのcustom_picture_keyと同じくstorage_key
+-- を保存し、表示時にストレージから署名付きURLへ解決する（署名付きURLは有効期限があり永続化できないため）。
+-- 未設定（NULL）の教材はフロントエンド側でタグ等から機械的に生成したプレースホルダー画像を表示する（2026-09-28）。
+ALTER TABLE materials ADD COLUMN IF NOT EXISTS thumbnail_key TEXT;
 
 -- T-23 material_nodes（教材の目次ノード: 章・小見出し・ページの自己参照ツリー）
 CREATE TABLE IF NOT EXISTS material_nodes (
@@ -171,9 +196,10 @@ CREATE TABLE IF NOT EXISTS questions (
 CREATE INDEX IF NOT EXISTS idx_questions_node_sort ON questions (node_id, sort_order);
 CREATE INDEX IF NOT EXISTS idx_questions_pool_group_id ON questions (pool_group_id);
 ALTER TABLE questions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE questions ADD COLUMN IF NOT EXISTS counted BOOLEAN NOT NULL DEFAULT true;
 
--- T-11 assignments（配信設定）。S-06（配信設定画面、A-36〜A-38）は本書の時点では未実装だが、
--- S-03「区分」バッジ・「未受講のみ」等のフィルタが参照する土台としてテーブルのみ先行して用意する。
+-- T-11 assignments（配信設定）。S-06（配信設定画面、A-36〜A-38）で実際に作成・編集される他、
+-- S-03「区分」バッジ・「未受講のみ」等のフィルタも参照する。
 -- scope_typeは当初'company'/'project'/'individual'の3種だったが、'company'（全社スコープ）はプロジェクト
 -- 管理者が実質的な全社必修を作れてしまう抜け道があったため2026-08-28に廃止し、'project'/'individual'の
 -- 2種に簡素化した（プロジェクトスコープは常にmaterials.project_idと同値に固定。基本設計書5.9節参照）。
@@ -184,18 +210,21 @@ CREATE TABLE IF NOT EXISTS assignments (
     scope_id        BIGINT NOT NULL,
     required        BOOLEAN NOT NULL DEFAULT true,
     due_at          TIMESTAMPTZ,
-    pass_score_pct  NUMERIC(5, 2),
-    retake_allowed  BOOLEAN NOT NULL DEFAULT true,
-    retake_limit    INTEGER,
     created_by      BIGINT NOT NULL REFERENCES users(id),
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_assignments_material_id ON assignments (material_id);
 ALTER TABLE assignments ENABLE ROW LEVEL SECURITY;
+-- pass_score_pct・retake_allowed・retake_limitは配信設定（S-06）の画面に該当UIが無く、書き込み経路が
+-- 一度も実装されなかった死んだカラムだったため撤去し、代わりに教材全体で1つに決まる設定として
+-- materials側へ移設した（S-05「合否判定・再受験設定」に実際のUIを新設。2026-09-11）。
+ALTER TABLE assignments DROP COLUMN IF EXISTS pass_score_pct;
+ALTER TABLE assignments DROP COLUMN IF EXISTS retake_allowed;
+ALTER TABLE assignments DROP COLUMN IF EXISTS retake_limit;
 
--- T-12 enrollment_progress（受講進捗）。S-16（受講API、A-39〜A-44）は本書の時点では未実装だが、
--- S-03「未受講のみ表示」フィルタ・一覧の受講状況表示が参照する土台としてテーブルのみ先行して用意する
+-- T-12 enrollment_progress（受講進捗）。S-16（受講API、A-39〜A-44）で実際に更新される他、
+-- S-03「未受講のみ表示」フィルタ・一覧の受講状況表示も参照する
 CREATE TABLE IF NOT EXISTS enrollment_progress (
     id                  BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     user_id             BIGINT NOT NULL REFERENCES users(id),
@@ -204,6 +233,8 @@ CREATE TABLE IF NOT EXISTS enrollment_progress (
                         CHECK (status IN ('not_started', 'in_progress', 'completed')),
     current_node_id     BIGINT REFERENCES material_nodes(id) ON DELETE SET NULL,
     completed_node_ids  JSONB NOT NULL DEFAULT '[]',
+    visited_node_ids    JSONB NOT NULL DEFAULT '[]',
+    reset_at            TIMESTAMPTZ,
     started_at          TIMESTAMPTZ,
     completed_at        TIMESTAMPTZ,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -211,8 +242,15 @@ CREATE TABLE IF NOT EXISTS enrollment_progress (
     UNIQUE (user_id, material_id)
 );
 ALTER TABLE enrollment_progress ENABLE ROW LEVEL SECURITY;
+-- visited_node_ids: 目次の✓マーク用「閲覧済み」記録（合否判定用のcompleted_node_idsとは別物。
+-- 「次のページへ」を押して読み進めた時点で追加され、合否・完了率の集計には使わない。2026-09-03追加）
+ALTER TABLE enrollment_progress ADD COLUMN IF NOT EXISTS visited_node_ids JSONB NOT NULL DEFAULT '[]';
+-- reset_at: A-95「未受講に戻す」が押された時刻。quiz_attempts/answersは消さない方針
+-- （学習記録は失われない）のため、A-40が「合格済みスコープは閲覧専用で再利用する」際に
+-- リセット前の古い合格記録を再利用してしまわないよう判定に使う（2026-09-03追加）。
+ALTER TABLE enrollment_progress ADD COLUMN IF NOT EXISTS reset_at TIMESTAMPTZ;
 
--- T-30 my_learning_registrations（マイ学習登録、F-31）。全社Wiki所属の任意教材は、本人がここに
+-- T-30 my_learning_registrations（マイ学習登録、F-31）。全社ライブラリ所属の任意教材は、本人がここに
 -- 登録しない限りA-39（マイ学習一覧）に表示しない（招待制プロジェクトの任意教材・必修教材は対象外）
 CREATE TABLE IF NOT EXISTS my_learning_registrations (
     id           BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -223,8 +261,8 @@ CREATE TABLE IF NOT EXISTS my_learning_registrations (
 );
 ALTER TABLE my_learning_registrations ENABLE ROW LEVEL SECURITY;
 
--- T-13 quiz_attempts（受験記録）。S-04/S-16（受講・受験API、A-39〜A-44）は本書の時点では未実装だが、
--- S-05「問題一覧」タブ・S-19・S-20が参照する集計の土台としてテーブルのみ先行して用意する
+-- T-13 quiz_attempts（受験記録）。S-04/S-16（受講・受験API、A-39〜A-44）で実際に記録される他、
+-- S-05「問題一覧」タブ・S-19・S-20も集計に参照する
 CREATE TABLE IF NOT EXISTS quiz_attempts (
     id                        BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     user_id                   BIGINT NOT NULL REFERENCES users(id),
@@ -254,7 +292,40 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_quiz_attempts_active
     WHERE submitted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_quiz_attempts_material_id ON quiz_attempts (material_id);
 CREATE INDEX IF NOT EXISTS idx_quiz_attempts_user_id ON quiz_attempts (user_id);
+-- 「本人・教材・スコープ・モードで最新のattemptを1件取る」（ORDER BY attempt_no DESC LIMIT 1）が
+-- learning.py（A-40開始判定・A-42提出後の再計算・A-86採点結果パネル等）の随所で繰り返し実行される
+-- 最頻出クエリ形のため、専用の複合インデックスを用意する（2026-09-28、上記2つの単一列インデックスだけでは
+-- この形を効率よく絞り込めていなかった）。
+CREATE INDEX IF NOT EXISTS idx_quiz_attempts_lookup
+    ON quiz_attempts (user_id, material_id, scope_node_id, mode, attempt_no DESC);
 ALTER TABLE quiz_attempts ENABLE ROW LEVEL SECURITY;
+-- deleted_at: 個人学習レポートの「学習履歴から削除」（本人のみ実行可）が押された時刻。論理削除に
+-- 留め、行自体・answersは物理削除しない。理由: A-40の合格済みブロック（frozen_attempt）・再受験回数
+-- 上限のカウント（submitted_count）はどちらもquiz_attemptsの実在行数に直接依存しており、物理削除
+-- すると「受けていないこと」にできてしまい再受験し放題になる。そのためこの2箇所を含む受験の仕組み
+-- （A-40本体・retake_scope='wrong_only'の繰越判定等）は一切deleted_atを見ず、これまでどおり全行を
+-- 対象にする。deleted_atは、本人が自分の学習履歴・採点結果パネル・AI個人フィードバックの弱点分析/
+-- おすすめ教材候補という「本人が自分の実績を振り返る画面」からのみ除外するために使う（2026-09-25新設。
+-- 組織側の集計・採点キュー・教材/プロジェクトの削除可否判定など、本人以外が見る・使う経路は対象外とし、
+-- 従来どおりdeleted_atの有無に関わらず全件を扱う）。
+ALTER TABLE quiz_attempts ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+
+-- T-32 attempt_limit_resets（REQ-F-09/F-14: 再受験回数上限のリセット）。quiz_attemptsは
+-- 学習記録として削除しないため（学習記録は失われない、という一貫方針）、上限に達した後に
+-- 「あと何回まで解き直せるか」を回復させる手段として、このテーブルに記録した時刻より後の
+-- 提出済み受験記録のみを回数カウントの対象にする。対象プロジェクトのadmin、またはシステムadmin
+-- のみが操作できる（プロジェクト管理S-12「メンバー管理」タブから、2026-09-03検討）。
+CREATE TABLE IF NOT EXISTS attempt_limit_resets (
+    id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    user_id       BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    material_id   BIGINT NOT NULL REFERENCES materials(id) ON DELETE CASCADE,
+    scope_node_id BIGINT REFERENCES material_nodes(id) ON DELETE SET NULL,
+    reset_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    reset_by      BIGINT NOT NULL REFERENCES users(id)
+);
+CREATE INDEX IF NOT EXISTS idx_attempt_limit_resets_lookup
+    ON attempt_limit_resets (user_id, material_id, scope_node_id);
+ALTER TABLE attempt_limit_resets ENABLE ROW LEVEL SECURITY;
 
 -- T-14 answers（回答）。grading_mode='manual'の設問はis_correct・ai_score_pct・ai_feedbackが
 -- reviewed_by設定（S-20の採点操作）まで常にNULLのまま（「未採点」、5.20節）
@@ -275,6 +346,16 @@ CREATE TABLE IF NOT EXISTS answers (
 CREATE INDEX IF NOT EXISTS idx_answers_attempt_id ON answers (attempt_id);
 CREATE INDEX IF NOT EXISTS idx_answers_question_id ON answers (question_id);
 ALTER TABLE answers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE answers ADD COLUMN IF NOT EXISTS result_seen_at TIMESTAMPTZ;
+-- S-20採点画面の「教材×受講者×提出日」単位まとめ採点（F-32）用。手動採点の判断を一旦下書きとして
+-- 保存できるようにする列。is_correct/ai_feedback（受講者にも見える本採用の値）とは別に持たせる。
+-- is_correctは値がNULLかどうかだけで受講者側の「採点中」表示が切り替わる仕様のため、下書き中の
+-- 判断をis_correctへ直接書くと、その場で受講者に正誤が漏れてしまう（2026-09-15、実装前レビューで
+-- 発見）。受験記録内の対象設問がすべて下書き入力済みになって「送信」されたときに初めて、
+-- draft_is_correct/draft_ai_feedbackの内容をis_correct/ai_feedbackへコピーし、reviewed_by・
+-- reviewed_atを設定する（backend/routers/learning.pyのfinalize_attempt_grading参照）。
+ALTER TABLE answers ADD COLUMN IF NOT EXISTS draft_is_correct BOOLEAN;
+ALTER TABLE answers ADD COLUMN IF NOT EXISTS draft_ai_feedback TEXT;
 
 -- T-19 ai_usage_logs（AI利用ログ）。F-08/F-20〜F-23共通で`ai_client.py`が呼び出しのたびに1行書き込む。
 -- 質問・回答の内容そのものは保存しない（Keireki T-09と同方針）
@@ -282,7 +363,7 @@ CREATE TABLE IF NOT EXISTS ai_usage_logs (
     id             BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     user_id        BIGINT REFERENCES users(id) ON DELETE SET NULL,
     feature        TEXT NOT NULL
-                   CHECK (feature IN ('material_review', 'grading', 'insight_analysis', 'personal_feedback', 'org_report')),
+                   CHECK (feature IN ('material_review', 'grading', 'personal_feedback', 'org_report')),
     model          TEXT NOT NULL,
     input_tokens   INTEGER NOT NULL DEFAULT 0,
     output_tokens  INTEGER NOT NULL DEFAULT 0,
@@ -323,6 +404,26 @@ CREATE INDEX IF NOT EXISTS idx_material_attachments_material_id
     ON material_attachments (material_id, node_id);
 ALTER TABLE material_attachments ENABLE ROW LEVEL SECURITY;
 
+-- is_inline: 本文中に![alt](attachment:ID)で埋め込まれた画像かどうか（2026-09-30新設）。
+-- trueの添付は受講画面の「資料」一覧（S-04教材全体の資料・S-16このページの資料）には出さない。
+-- 「資料」欄は元々「教材全体を読み返さなくて済むように」という参考資料目的だったが、本文への
+-- 画像埋め込み手段が無かったため、これまで挿絵もこの同じ添付の仕組みに乗せるしかなく、写真が
+-- 資料一覧に混ざってしまっていた（ユーザー指摘により発覚）。本文埋め込み専用の登録経路
+-- （MCPのfinalize_material_asset/upload_material_asset、および新設のMarkdownエディタ
+-- 「画像を挿入」）がis_inline=trueで登録するようにし、資料一覧側で除外する。
+ALTER TABLE material_attachments ADD COLUMN IF NOT EXISTS is_inline BOOLEAN NOT NULL DEFAULT false;
+
+-- 上記is_inline新設に伴う既存データの補正。is_inlineフラグが無かった間にMCP経由で本文に
+-- 埋め込まれていた画像（本文中にattachment:IDの参照が実在するもの）を、事後的にis_inline=trueへ
+-- 補正する。冪等（既にtrueなものは対象外）なため起動のたびに再実行して問題ない。
+UPDATE material_attachments ma
+SET is_inline = true, updated_at = now()
+WHERE ma.kind = 'file' AND ma.is_inline = false AND EXISTS (
+    SELECT 1 FROM material_nodes mn
+    WHERE mn.material_id = ma.material_id
+      AND mn.body ~ ('attachment:' || ma.id || '\\M')
+);
+
 -- T-08 material_revisions（教材改訂履歴。追記専用）
 CREATE TABLE IF NOT EXISTS material_revisions (
     id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -336,8 +437,13 @@ CREATE TABLE IF NOT EXISTS material_revisions (
 CREATE INDEX IF NOT EXISTS idx_material_revisions_material_id
     ON material_revisions (material_id, created_at DESC);
 ALTER TABLE material_revisions ENABLE ROW LEVEL SECURITY;
+-- MCPサーバー（backend/mcp_server.py）経由のput_material_sourceを、Claude Code CLI直接連携
+-- （'claude_code'）と区別して記録できるようにする（2026-09-14）。
+ALTER TABLE material_revisions DROP CONSTRAINT IF EXISTS material_revisions_changed_via_check;
+ALTER TABLE material_revisions ADD CONSTRAINT material_revisions_changed_via_check
+    CHECK (changed_via IN ('web', 'claude_code', 'mcp'));
 
--- T-26 surveys（受験後アンケート。node_id=NULLは教材全体、設定時は対象の章）
+-- T-26 surveys（受講後アンケート。node_id=NULLは教材全体、設定時は対象の章）
 CREATE TABLE IF NOT EXISTS surveys (
     id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     material_id   BIGINT NOT NULL REFERENCES materials(id) ON DELETE CASCADE,
@@ -392,6 +498,20 @@ CREATE TABLE IF NOT EXISTS cli_token_revocations (
 );
 ALTER TABLE cli_token_revocations ENABLE ROW LEVEL SECURITY;
 
+-- T-33 cli_tokens（発行済みCLIトークンの記録。cli_token_revocationsが「失効させたもの」だけを
+-- 持つのに対し、こちらは「発行したもの全て」を持つ。セルフサービスの鍵一覧・個別失効UI
+-- （プロフィール画面）のために新設。JWT自体はステートレスなためトークンの中身は保存せず、
+-- 識別に使うjtiと発行時刻のみ持つ。失効しているかどうかは、この行が持つ独自のフラグではなく、
+-- 常にcli_token_revocations（jtiで突き合わせ）を正とする＝二重管理・食い違いを防ぐ（2026-09-14）。
+CREATE TABLE IF NOT EXISTS cli_tokens (
+    id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    user_id     BIGINT NOT NULL REFERENCES users(id),
+    jti         TEXT NOT NULL UNIQUE,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_cli_tokens_user_id ON cli_tokens (user_id);
+ALTER TABLE cli_tokens ENABLE ROW LEVEL SECURITY;
+
 -- T-22 material_project_shares（F-26 教材のプロジェクト間共有。複製モデル、基本設計書5.27節）。
 -- statusが'accepted'になった時点で共有先プロジェクトへ教材の複製が新規作成される（この行自体は
 -- 複製先教材への参照を持たない。複製後は独立した教材のため、以後この行は履歴として残るのみ）。
@@ -433,6 +553,43 @@ CREATE TABLE IF NOT EXISTS ai_personal_feedback (
 );
 CREATE INDEX IF NOT EXISTS idx_ai_personal_feedback_user_id ON ai_personal_feedback (user_id, created_at DESC);
 ALTER TABLE ai_personal_feedback ENABLE ROW LEVEL SECURITY;
+
+-- T-18 ai_org_reports（F-23 AI組織レポート。S-08受講状況ダッシュボード、A-48/A-49）。
+-- ai_personal_feedbackと同じ非同期ジョブ方式（8.2節）。scope_type='company'の全社スコープは
+-- scope_id無し、'project'はscope_idにprojects.idを持つ（詳細設計書T-18）。
+CREATE TABLE IF NOT EXISTS ai_org_reports (
+    id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    scope_type    TEXT NOT NULL CHECK (scope_type IN ('company', 'project')),
+    scope_id      BIGINT REFERENCES projects(id) ON DELETE CASCADE,
+    requested_by  BIGINT NOT NULL REFERENCES users(id),
+    requested_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    content       TEXT,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CHECK (scope_type = 'company' OR scope_id IS NOT NULL)
+);
+CREATE INDEX IF NOT EXISTS idx_ai_org_reports_scope ON ai_org_reports (scope_type, scope_id, created_at DESC);
+ALTER TABLE ai_org_reports ENABLE ROW LEVEL SECURITY;
+
+-- 全社ライブラリのadminをシステムadminへ実データとして付与する（2026-09-17、権限モデル整理）。
+-- 従来は「全社ライブラリは構造上adminロールを誰にも付与できず、コード側のバイパス（user.role=='admin'は
+-- 無条件許可）で運用していたが、このバイパスを撤去する方針にしたため、システムadminは全社ライブラリの
+-- adminメンバーシップを実際に持つ必要がある。以後の管理者の追加・変更は全社ライブラリであっても通常の
+-- メンバー管理（プロジェクトadminのみが付与可、organization.py参照）に従う。冪等なUPDATE/INSERTの
+-- ため、システムadminが増える・全社ライブラリの初回参加が遅れる等があっても起動のたびに再実行して問題ない。
+UPDATE project_memberships pm
+SET role = 'admin', updated_at = now()
+FROM users u, projects p
+WHERE pm.user_id = u.id AND pm.project_id = p.id
+  AND u.role = 'admin' AND p.is_company_wide = true
+  AND pm.status = 'active' AND pm.role != 'admin';
+
+INSERT INTO project_memberships (project_id, user_id, role, status, joined_at)
+SELECT p.id, u.id, 'admin', 'active', now()
+FROM users u, projects p
+WHERE u.role = 'admin' AND p.is_company_wide = true
+  AND NOT EXISTS (
+    SELECT 1 FROM project_memberships pm2 WHERE pm2.project_id = p.id AND pm2.user_id = u.id
+  );
 """
 
 

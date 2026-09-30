@@ -4,7 +4,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, model_validator
 
-from auth_helpers import ROLE_RANK, CurrentUser, check_project_role, require_auth
+from auth_helpers import ROLE_RANK, CurrentUser, check_project_role, has_active_project_role, require_auth
 from database import get_pool
 
 router = APIRouter(prefix="/api/projects", tags=["organization"])
@@ -20,7 +20,7 @@ class ProjectCreate(BaseModel):
 async def create_project(body: ProjectCreate, user: CurrentUser = Depends(require_auth)):
     """A-09: プロジェクト作成（S-11）。誰でも作成でき、作成者は自動的にそのプロジェクトの
     ローカル管理者（project_memberships.role='admin'）になる。is_company_wideは常にfalseで
-    作成する（is_company_wide=trueの行は全社Wiki1件のみで、マイグレーションでのみ投入する。
+    作成する（is_company_wide=trueの行は全社ライブラリ1件のみで、マイグレーションでのみ投入する。
     基本設計書5.26節）。"""
     pool = get_pool()
     async with pool.acquire() as conn:
@@ -44,24 +44,46 @@ async def create_project(body: ProjectCreate, user: CurrentUser = Depends(requir
 async def list_projects(min_role: str = "editor", user: CurrentUser = Depends(require_auth)):
     """A-81: 自分がmin_role以上のプロジェクト一覧（教材件数・メンバー数つき）。全社公開を先頭固定。
     既定はeditor（S-13教材編集：プロジェクト選択と同じ、従来どおり）。S-03（教材一覧・検索）は
-    min_role='learner'を指定し、学習者としてのみ参加しているプロジェクトも含める（新規、2026-08-28）。"""
+    min_role='learner'を指定し、学習者としてのみ参加しているプロジェクトも含める（新規、2026-08-28）。
+
+    システムadminが呼んだ場合は、min_roleの値によらず、自分のメンバーシップ行の有無に関わらず
+    全プロジェクトを返す（システムadminは`check_project_role`・`require_material_role`等の判定で
+    常にローカル管理者・編集者と同等に扱われるため、このAPIも同じ基準に揃えた。2026-09-08新設、
+    S-08受講状況ダッシュボードの担当範囲セレクトで発見した際はmin_role='admin'のみ対応したが、
+    S-13教材編集：プロジェクト選択（min_role='editor'）で同種の不具合が見つかったため、min_roleに
+    関わらずシステムadminは常に全件を返すよう修正した（システムadminがローカルメンバーでない
+    プロジェクトの教材を編集できない不具合の修正）。
+
+    各項目に`is_member`（実際のproject_membershipsの行があるか）を追加した（2026-09-29、S-03
+    「教材一覧・検索」向け）。非adminは常にtrue（実際のメンバーシップでJOINしているため）。
+    システムadminはメンバーでないプロジェクトも返るため、S-03側でこれを使い「未所属」であることを
+    明示する。並び順も全社ライブラリ→自分の所属→その他の順になるよう変更した。"""
     if min_role not in ROLE_RANK:
         raise HTTPException(422, detail="min_roleが不正です")
     allowed_roles = [r for r, rank in ROLE_RANK.items() if rank >= ROLE_RANK[min_role]]
+    system_admin_sees_all = user.role == "admin"
+    membership_join = (
+        "LEFT JOIN project_memberships pm ON pm.project_id = p.id AND pm.user_id = $1"
+        if system_admin_sees_all
+        else """JOIN project_memberships pm
+            ON pm.project_id = p.id AND pm.user_id = $1
+            AND pm.status = 'active' AND pm.role = ANY($2::text[])"""
+    )
+    role_column = "COALESCE(pm.role, 'admin') AS role" if system_admin_sees_all else "pm.role"
+    args = [user.id] if system_admin_sees_all else [user.id, allowed_roles]
     rows = await get_pool().fetch(
-        """
+        f"""
         SELECT
             p.id,
             p.name,
             p.is_company_wide,
-            pm.role,
+            {role_column},
+            (pm.role IS NOT NULL) AS is_member,
             COALESCE(mc.published_count, 0) AS material_published_count,
             COALESCE(mc.draft_count, 0) AS material_draft_count,
             COALESCE(memc.member_count, 0) AS member_count
         FROM projects p
-        JOIN project_memberships pm
-            ON pm.project_id = p.id AND pm.user_id = $1
-            AND pm.status = 'active' AND pm.role = ANY($2::text[])
+        {membership_join}
         LEFT JOIN (
             SELECT project_id,
                 COUNT(*) FILTER (WHERE status = 'published') AS published_count,
@@ -77,15 +99,15 @@ async def list_projects(min_role: str = "editor", user: CurrentUser = Depends(re
             GROUP BY project_id
         ) memc ON memc.project_id = p.id
         WHERE p.status = 'active'
-        ORDER BY p.is_company_wide DESC, p.name ASC
+        ORDER BY p.is_company_wide DESC, (pm.role IS NOT NULL) DESC, p.name ASC
         """,
-        user.id, allowed_roles,
+        *args,
     )
     return {"items": [dict(r) for r in rows]}
 
 
 async def _delete_blocked_reason(pool, project_id: int, is_company_wide: bool, requester_user_id: int) -> str | None:
-    """プロジェクトの完全削除（A-93）を拒否すべき理由を1つ返す（無ければNone）。全社Wikiは常に
+    """プロジェクトの完全削除（A-93）を拒否すべき理由を1つ返す（無ければNone）。全社ライブラリは常に
     不可。自分以外の現役メンバーがいる場合も不可（先にメンバーを外してもらう運用を想定）。A-91の
     can_delete算出とA-93本体の両方から呼ぶ共通ロジック（判定基準を1箇所にまとめるため）。
 
@@ -98,7 +120,7 @@ async def _delete_blocked_reason(pool, project_id: int, is_company_wide: bool, r
     （ユーザー報告により発見。公開済みだが受験記録0件のテスト用プロジェクトが「受講記録が残っている」
     という誤った理由で削除できなかった）。実データの存在を直接見ることで、より正確に判定する。"""
     if is_company_wide:
-        return "全社Wikiは全社員が利用するプロジェクトのため削除できません。停止のみ可能です。"
+        return "全社ライブラリは全社員が利用するプロジェクトのため削除できません。停止のみ可能です。"
     has_learning_records = await pool.fetchval(
         """SELECT EXISTS(
                SELECT 1 FROM materials m
@@ -133,13 +155,20 @@ async def _delete_blocked_reason(pool, project_id: int, is_company_wide: bool, r
 async def get_project(id: int, user: CurrentUser = Depends(require_auth)):
     """A-91: プロジェクト詳細（S-12プロジェクト情報タブ）。A-81（一覧）は名称・件数の
     要約のみでdescription/created_by/created_atを含まないため、A-10（更新）と対になる単体取得
-    APIとして新設した。権限はA-10と同じ（対象プロジェクトの管理者, admin）。can_delete・
-    cannot_delete_reasonを追加した（2026-09-01。S-12の削除ボタンを、押してからエラーになる
-    のではなく最初から無効化＋理由表示できるようにするため、A-93と同じ判定を事前に返す）。"""
+    APIとして新設した。can_delete・cannot_delete_reasonを追加した（2026-09-01。S-12の削除ボタンを、
+    押してからエラーになるのではなく最初から無効化＋理由表示できるようにするため、A-93と同じ判定を
+    事前に返す）。
+
+    閲覧権限は対象プロジェクトの現役メンバー（admin/editor/learnerいずれでも可）またはシステムadmin
+    まで緩和した（2026-09-09。従来はA-10と同じくadminのみだったが、S-12を編集者・受講者にも
+    「閲覧のみ」で開放する要望への対応。更新・削除・Slackリマインド等の操作系エンドポイントは
+    従来どおりadmin限定のまま）。slack_webhook_urlはSlackへ直接投稿できてしまう秘密情報相当のため、
+    プロジェクトのadmin・システムadmin以外にはnullで返す（値そのものは編集フォームにも出さない）。"""
     pool = get_pool()
-    await check_project_role(user, id, min_role="admin")
+    await check_project_role(user, id, min_role="learner")
+    is_admin_viewer = user.role == "admin" or await has_active_project_role(id, user.id, "admin")
     row = await pool.fetchrow(
-        """SELECT p.id, p.name, p.description, p.status, p.is_company_wide,
+        """SELECT p.id, p.name, p.description, p.status, p.is_company_wide, p.slack_webhook_url,
                   p.created_by, u.name AS created_by_name, p.created_at, p.updated_at
            FROM projects p JOIN users u ON u.id = p.created_by
            WHERE p.id = $1""",
@@ -147,16 +176,21 @@ async def get_project(id: int, user: CurrentUser = Depends(require_auth)):
     )
     if row is None:
         raise HTTPException(404, detail="プロジェクトが見つかりません")
-    reason = await _delete_blocked_reason(pool, id, row["is_company_wide"], user.id)
     result = dict(row)
-    result["can_delete"] = reason is None
-    result["cannot_delete_reason"] = reason
+    if not is_admin_viewer:
+        result["slack_webhook_url"] = None
+        result["can_delete"] = False
+        result["cannot_delete_reason"] = None
+    else:
+        reason = await _delete_blocked_reason(pool, id, row["is_company_wide"], user.id)
+        result["can_delete"] = reason is None
+        result["cannot_delete_reason"] = reason
     return result
 
 
 @router.delete("/{id}", status_code=204)
 async def delete_project(id: int, user: CurrentUser = Depends(require_auth)):
-    """A-93（新規）: プロジェクトの完全削除。判定基準は_delete_blocked_reason参照（全社Wiki不可・
+    """A-93（新規）: プロジェクトの完全削除。判定基準は_delete_blocked_reason参照（全社ライブラリ不可・
     実際の受講記録〔quiz_attempts・enrollment_progress・survey_responses〕が無いこと・自分以外の
     現役メンバーがいないこと）。判定を通過した時点で対象教材に実データが存在しないことは保証されて
     いるため、DELETE FROM materialsだけで目次・設問・添付・改訂履歴・（空の）受験記録・受講進捗・
@@ -180,30 +214,38 @@ class ProjectUpdate(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     description: str | None = None
     status: Literal["active", "completed"]
+    slack_webhook_url: str | None = None
 
 
 @router.put("/{id}")
 async def update_project(id: int, body: ProjectUpdate, user: CurrentUser = Depends(require_auth)):
     """A-10: プロジェクト情報（名称・説明・状態）更新。
 
-    全社Wiki（is_company_wide=true）の名称・説明も変更を許可する。基本設計書5.26節の当初案は
-    「全社Wikiはstatusのみ変更可、name/descriptionは400で拒否」だったが、S-12実装時にユーザーと
-    再検討した結果、この案から撤回した。理由: 全社Wikiの管理者はシステム管理者のみであり
-    （A-12/A-13が全社Wikiに対するrole='admin'の付与・変更を拒否することで担保する。5.26節の
-    本来の防御対象は「システムadminでない人物が全社Wikiの管理者になり名称等を操作できてしまう
-    こと」であり、name/description自体の変更操作を一律禁止する必要は無いと判断した）、
-    その防御さえ機能していれば、システム管理者本人による名称・説明の変更を禁止する積極的な理由は
-    無い（2026-09-01）。"""
+    全社ライブラリ（is_company_wide=true）の名称・説明も変更を許可する。基本設計書5.26節の当初案は
+    「全社ライブラリはstatusのみ変更可、name/descriptionは400で拒否」だったが、S-12実装時にユーザーと
+    再検討した結果、この案から撤回した（2026-09-01）。理由: name/description自体の変更操作を
+    一律禁止する積極的な理由は無く、実際に管理者であるプロジェクトadmin本人による変更を妨げる必要は
+    無いと判断した。
+
+    2026-09-17追記: 当初は「全社ライブラリの管理者は常にシステムadminのみ」（A-12/A-13がそれ以外への
+    role='admin'付与を一律拒否）という前提があったが、権限モデル整理によりこの前提自体を撤回した
+    （システムadminを全社ライブラリの実データとして登録したうえで、以後の管理者追加は通常のプロジェクト
+    運用〔既存adminが招待〕に委ねる方針にした）。そのため現在は、システムadmin以外でも実際に
+    全社ライブラリのプロジェクトadminになった人物は、他プロジェクトの管理者と同様にここで名称・
+    説明を変更できる。これは意図した挙動であり（実際の管理者に管理者相当の操作を許可するのは
+    一貫している）、追加のガードは設けていない。"""
     pool = get_pool()
     await check_project_role(user, id, min_role="admin")
     row = await pool.fetchrow("SELECT is_company_wide, name, description FROM projects WHERE id = $1", id)
     if row is None:
         raise HTTPException(404, detail="プロジェクトが見つかりません")
     updated = await pool.fetchrow(
-        """UPDATE projects SET name = $1, description = $2, status = $3, updated_at = now()
-           WHERE id = $4
-           RETURNING id, name, description, status, is_company_wide, created_by, created_at, updated_at""",
-        body.name, body.description, body.status, id,
+        """UPDATE projects SET name = $1, description = $2, status = $3, slack_webhook_url = $4,
+                  updated_at = now()
+           WHERE id = $5
+           RETURNING id, name, description, status, is_company_wide, slack_webhook_url,
+                     created_by, created_at, updated_at""",
+        body.name, body.description, body.status, body.slack_webhook_url, id,
     )
     return dict(updated)
 
@@ -256,19 +298,6 @@ async def list_member_candidates(id: int, q: str | None = None, user: CurrentUse
     return {"items": [dict(r) for r in rows]}
 
 
-async def _reject_admin_role_for_company_wide(pool, project_id: int, role: str | None) -> None:
-    """全社Wikiの管理者はシステム管理者のみとし、通常のメンバー管理API（A-12/A-13）では
-    新たに作成・変更できない（基本設計書5.26節）。A-12（招待）・A-13（ロール変更）の両方から
-    呼ぶ共通ガード。role以外（削除等）を扱う呼び出しではrole=Noneで呼び、常に素通りさせる。"""
-    if role != "admin":
-        return
-    is_company_wide = await pool.fetchval("SELECT is_company_wide FROM projects WHERE id = $1", project_id)
-    if is_company_wide:
-        raise HTTPException(
-            400, detail="全社Wikiの管理者はシステム管理者のみです。編集者・受講者のみ指定できます"
-        )
-
-
 class MemberInvite(BaseModel):
     user_id: int
     role: Literal["admin", "editor", "learner"]
@@ -277,10 +306,13 @@ class MemberInvite(BaseModel):
 @router.post("/{id}/members", status_code=201)
 async def invite_member(id: int, body: MemberInvite, user: CurrentUser = Depends(require_auth)):
     """A-12: メンバーを招待する（status='invited'で作成）。招待した時点では権限は発生せず、
-    招待された本人がA-67で承諾して初めてメンバーとして有効になる。"""
+    招待された本人がA-67で承諾して初めてメンバーとして有効になる。
+
+    全社ライブラリのadmin付与も他プロジェクトと同じ通常ルール（プロジェクトadminのみが付与可）に従う
+    （2026-09-17、以前は全社ライブラリのadminをシステムadmin限定で一律拒否していたが、システムadminを
+    全社ライブラリの実際のadminとして登録する方針にしたため、以後の付与は特別扱いせず通常運用に委ねる）。"""
     pool = get_pool()
     await check_project_role(user, id, min_role="admin")
-    await _reject_admin_role_for_company_wide(pool, id, body.role)
     existing = await pool.fetchval(
         """SELECT 1 FROM project_memberships
             WHERE project_id = $1 AND user_id = $2
@@ -314,10 +346,24 @@ async def update_member(
     id: int, user_id: int, body: MemberUpdate, user: CurrentUser = Depends(require_auth)
 ):
     """A-13: メンバーのロール変更、またはプロジェクトからの削除（left_at=now()を設定する論理削除。
-    招待中のまま削除も可）。唯一の管理者の削除・降格は400（基本設計書4.2節callout参照）。"""
+    招待中のまま削除も可）。唯一の管理者の削除・降格は400（基本設計書4.2節callout参照）。
+
+    本人が自分自身をaction='remove'で退出させる場合はプロジェクト管理者権限を要求しない
+    （2026-09-16新設、自己退出。S-12を一般メンバーにも閲覧開放したが、その画面から実際に行える
+    操作は各タブの閲覧と自分の退出のみに留める、というユーザー要望による）。それ以外
+    （他人の削除・自分を含む誰かのロール変更）は引き続きプロジェクト管理者限定。
+
+    全社ライブラリは自己退出（action='remove'をuser_id==user.idで呼ぶ場合）のみ拒否する
+    （2026-09-17、ユーザー要望。「全社ライブラリからの退出は管理者による削除のみとする」意図で、
+    管理者が他者を削除する経路は従来どおり許可する）。"""
     pool = get_pool()
-    await check_project_role(user, id, min_role="admin")
-    await _reject_admin_role_for_company_wide(pool, id, body.role)
+    if body.action == "remove" and user_id == user.id:
+        is_company_wide = await pool.fetchval("SELECT is_company_wide FROM projects WHERE id = $1", id)
+        if is_company_wide:
+            raise HTTPException(400, detail="全社ライブラリから自主退出することはできません（管理者に削除を依頼してください）")
+    is_self_leave = user_id == user.id and body.action == "remove"
+    if not is_self_leave:
+        await check_project_role(user, id, min_role="admin")
     row = await pool.fetchrow(
         "SELECT role, status, left_at FROM project_memberships WHERE project_id = $1 AND user_id = $2",
         id, user_id,
@@ -392,15 +438,17 @@ async def list_project_memberships(
     status: str | None = None,
     user: CurrentUser = Depends(require_auth),
 ):
-    """A-11: プロジェクトメンバー一覧。project_id指定時は対象プロジェクトの編集者以上（S-05の
-    プロジェクトメンバータブが参照専用で編集者にも見せる仕様のため、4.2節の「管理者のみ」から緩和した）。
-    user_id指定時は本人またはadminのみ。project_status（プロジェクト自体のstatus）を追加した
-    （S-12新設の「自分の全プロジェクト一覧」パネルが、状態で行を絞り込む・表示するために必要。
-    2026-09-01）。"""
+    """A-11: プロジェクトメンバー一覧。project_id指定時は対象プロジェクトの現役メンバー（admin/
+    editor/learnerいずれでも可）まで緩和した（S-05のプロジェクトメンバータブが参照専用で編集者にも
+    見せる仕様のため、当初4.2節の「管理者のみ」から編集者以上へ緩和し、2026-09-09にS-12を受講者にも
+    「閲覧のみ」で開放する要望を受けさらに受講者まで緩和した。行の並び替え・削除・ロール変更等の
+    操作系エンドポイントは従来どおり管理者限定のまま）。user_id指定時は本人またはadminのみ。
+    project_status（プロジェクト自体のstatus）を追加した（S-12新設の「自分の全プロジェクト一覧」
+    パネルが、状態で行を絞り込む・表示するために必要。2026-09-01）。"""
     if project_id is None and user_id is None:
         raise HTTPException(400, detail="project_id または user_id のいずれかが必要です")
     if project_id is not None:
-        await check_project_role(user, project_id, min_role="editor")
+        await check_project_role(user, project_id, min_role="learner")
     elif user_id != user.id and user.role != "admin":
         raise HTTPException(403, detail="この操作を行う権限がありません")
 
@@ -432,9 +480,11 @@ async def list_project_memberships(
 
 @router.get("/{id}/incoming-shares")
 async def list_incoming_shares(id: int, status: str = "pending", user: CurrentUser = Depends(require_auth)):
-    """A-66: 自プロジェクト宛ての教材共有申請一覧（F-26、基本設計書5.27節）。対象プロジェクトの
-    管理者・システムadminのみ閲覧できる。statusは既定でpending（承認待ち）のみを返す。"""
-    await check_project_role(user, id, min_role="admin")
+    """A-66: 自プロジェクト宛ての教材共有申請一覧（F-26、基本設計書5.27節）。閲覧は対象プロジェクトの
+    編集者以上・システムadminまで緩和した（2026-09-09。S-12「教材の共有」タブを編集者にも閲覧のみで
+    開放する要望への対応。承認・却下〔A-65〕は従来どおり管理者限定のまま）。statusは既定でpending
+    （承認待ち）のみを返す。"""
+    await check_project_role(user, id, min_role="editor")
     rows = await get_pool().fetch(
         """SELECT s.id, s.material_id, m.title AS material_title,
                   m.project_id AS shared_by_project_id, p.name AS shared_by_project_name,

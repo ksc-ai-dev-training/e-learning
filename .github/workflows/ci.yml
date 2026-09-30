@@ -1,0 +1,64 @@
+# push/PRのたびに型チェック・lint・自動テストを走らせる（2026-09-28新設）。
+# fly-deploy.ymlはデプロイのみでこの種のチェックを一切行っていなかったため、
+# コードの問題（型エラー・未使用importなど）がデプロイ前に機械的に検出されない状態だった。
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+jobs:
+  frontend:
+    name: Frontend (type check / lint / build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+
+  backend:
+    name: Backend (lint / tests)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: manabi
+          POSTGRES_PASSWORD: manabi
+          POSTGRES_DB: manabi_test
+        ports:
+          - 55433:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      # backend/tests/conftest.pyが読む。開発用DB（manabi）とは別のDBを使い、
+      # 開発中のデータに一切触れないようにする（ローカル実行時も同様の分離を推奨）。
+      TEST_DATABASE_URL: postgresql://manabi:manabi@localhost:55433/manabi_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-dev.txt
+      - run: pip install -r requirements.txt -r requirements-dev.txt
+      - run: ruff check .
+      - run: pytest

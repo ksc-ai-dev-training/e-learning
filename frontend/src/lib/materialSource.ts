@@ -2,6 +2,15 @@ import type { Material, Question, QuizMode } from '../types'
 
 // A-20 PUT /source が受け取るソーステキストの組み立て（バックエンドmaterial_parser.pyと対の実装）。
 
+// ページがまだサーバー未保存（node_idが無い）間、ローカルに保持しておく添付ファイル・リンク。
+// 保存（A-20）でページの実idが採番された後、まとめてA-27/A-29へ登録する
+// （InlinePageEditor・MaterialPageEditの新規ページ双方で共通利用、2026-09-24）。
+// previewUrlはPDFファイルのみ、選択した瞬間にURL.createObjectURLで発行し、
+// アップロード前でもブラウザ内だけでプレビューできるようにする。
+export type PendingAttachment =
+  | { key: string; kind: 'file'; file: File; previewUrl: string | null }
+  | { key: string; kind: 'link'; url: string }
+
 export type EditableNode = {
   id: number | null // nullは未保存（新規）。保存済みノードはDBの実id
   title: string
@@ -13,6 +22,9 @@ export type EditableNode = {
   quizMode?: QuizMode
   poolDrawCount?: number | null
   questions?: Question[]
+  // ページがid===null（未保存）の間だけ意味を持つ。buildMaterialSourceは参照しない
+  // （ソーステキストには含めず、保存後にMaterialEdit.tsx側で個別にA-27/A-29へ流し込む）。
+  pendingAttachments?: PendingAttachment[]
 }
 
 type SourceMeta = Pick<
@@ -26,6 +38,9 @@ type SourceMeta = Pick<
   | 'sort_order'
   | 'attempt_scope'
   | 'retake_scope'
+  | 'pass_score_pct'
+  | 'retake_allowed'
+  | 'retake_limit'
   | 'default_feedback_style'
   | 'ai_context'
   | 'grading_mode'
@@ -42,6 +57,10 @@ function yamlScalar(v: string): string {
 
 function yamlNullableScalar(v: string | null): string {
   return v === null ? 'null' : yamlScalar(v)
+}
+
+function yamlNullableNumber(v: number | null): string {
+  return v === null ? 'null' : String(v)
 }
 
 function yamlList(items: string[]): string {
@@ -74,7 +93,10 @@ function serializeQuestion(q: Question): string {
   if (q.options && q.options.length > 0) {
     lines.push(`options:${yamlList(q.options)}`)
   }
-  if (q.correct_answer !== null) {
+  // 複数選択の「記録」「任意」は正解未設定を許容し、その場合q.correct_answerは空配列になる
+  // （questionDefaults.tsのemptyQuestionForType参照）。空配列のまま書き出すと「正解: 空配列」という
+  // 状態がソースに残ってしまうため、未設定（省略）と同じ扱いにする（2026-09-16）。
+  if (q.correct_answer !== null && !(Array.isArray(q.correct_answer) && q.correct_answer.length === 0)) {
     if (Array.isArray(q.correct_answer)) {
       lines.push(`correct_answer:${yamlList(q.correct_answer)}`)
     } else {
@@ -84,6 +106,7 @@ function serializeQuestion(q: Question): string {
   if (q.scoring_criteria) lines.push(`scoring_criteria: ${yamlScalar(q.scoring_criteria)}`)
   if (q.code_language) lines.push(`code_language: ${yamlScalar(q.code_language)}`)
   if (!q.required) lines.push('required: false')
+  if (!q.counted) lines.push('counted: false')
   if (q.is_critical) lines.push('is_critical: true')
   if (q.feedback_style) lines.push(`feedback_style: ${q.feedback_style}`)
   if (q.score_unit) lines.push(`score_unit: ${yamlScalar(q.score_unit)}`)
@@ -104,6 +127,9 @@ export function buildMaterialSource(meta: SourceMeta, chapters: EditableNode[]):
     `sort_order: ${meta.sort_order}`,
     `attempt_scope: ${meta.attempt_scope}`,
     `retake_scope: ${meta.retake_scope}`,
+    `pass_score_pct: ${yamlNullableNumber(meta.pass_score_pct)}`,
+    `retake_allowed: ${meta.retake_allowed}`,
+    `retake_limit: ${yamlNullableNumber(meta.retake_limit)}`,
     `default_feedback_style: ${meta.default_feedback_style}`,
     `ai_context: ${yamlNullableScalar(meta.ai_context)}`,
     `grading_mode: ${meta.grading_mode}`,

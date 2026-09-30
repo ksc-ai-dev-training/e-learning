@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>【検討中】操作方法ページの新設 — 構成案比較</title>
+<link rel="stylesheet" href="../docs/03_画面モックアップ/mock.css">
+<style>
+  body { padding: 32px 40px 80px; max-width: 920px; margin: 0 auto; }
+  h1 { margin-bottom: 6px; }
+  .status { display:inline-block; font-size:12px; font-weight:700; padding:3px 10px; border-radius:999px;
+    background:#fffbeb; color:#b45309; border:1px solid #fde68a; margin-bottom: 20px; }
+  h2 { font-size: 15px; font-weight: 700; margin: 32px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+  p { font-size: 13px; line-height: 1.8; color: var(--text-muted); margin-bottom: 10px; }
+  table.compare { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 12.5px; }
+  table.compare th, table.compare td { border: 1px solid var(--border-strong); padding: 10px 12px; text-align: left; vertical-align: top; }
+  table.compare th { background: var(--bg-subtle); font-weight: 700; }
+  table.compare td.good { color: #15803d; }
+  table.compare td.bad { color: #b91c1c; }
+  a.mock-link {
+    display: inline-flex; align-items: center; gap: 6px; font-weight: 600; margin-top: 6px;
+  }
+
+  /* サイドバー配置の確認用ミニデモ */
+  .sidebar-demo-row { display: flex; gap: 24px; margin: 16px 0 8px; flex-wrap: wrap; }
+  .sidebar-demo { flex: 1; min-width: 220px; }
+  .sidebar-demo-label { font-size: 12px; font-weight: 700; color: var(--text-muted); margin-bottom: 8px; }
+  .mini-sidebar {
+    width: 100%; max-width: 260px; border: 1px solid var(--border-strong); border-radius: var(--radius-lg);
+    background: var(--bg-subtle); padding: 8px; font-size: 12.5px;
+  }
+  .mini-nav-item {
+    display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: var(--radius-sm);
+    border-left: 3px solid transparent; color: var(--text-muted);
+  }
+  .mini-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .mini-divider { margin: 5px 8px; border-top: 1px solid var(--border); }
+  .mini-nav-item.new-item { background: #fffbeb; border-left-color: #f59e0b; color: #78350f; font-weight: 700; }
+</style>
+</head>
+<body>
+
+<span class="status">検討中</span>
+<h1>操作方法ページの新設 — 構成案比較</h1>
+<p>
+  アプリの網羅的な操作マニュアルを、サイドバーの「システム管理」の下（システムadmin以外は「必修教材受講ダッシュボード」の下）に
+  「操作方法」という項目として新設したい、という依頼を受けての検討資料。内容の組み方（画面ごと／タスクごと／役割ごと）で
+  3案を実際に動く画面モックアップとして作成し、比較する。掲載内容はどの案も一部の画面・タスクのみのサンプルで、
+  方向性が決まり次第、全画面（S-01〜S-20）を対象に本実装する。
+</p>
+
+<h2>1. サイドバーの配置</h2>
+<p>
+  「操作方法」は<strong>色（amber、システム管理と同じ）を保ったまま、常に全員に表示</strong>し、直前に区切り線を1本引く。
+  システム管理（システムadmin限定）の直後に追加するだけで、フィルタ処理を新設しなくても目的の見え方になる
+  （システム管理が非表示になるユーザーには、区切り線ごと1つ上のダッシュボードの下に自然に繰り上がる）。
+</p>
+<div class="sidebar-demo-row">
+  <div class="sidebar-demo">
+    <div class="sidebar-demo-label">システムadminで見た場合</div>
+    <div class="mini-sidebar">
+      <div class="mini-nav-item"><span class="mini-dot" style="background:#3b82f6"></span>マイ学習</div>
+      <div class="mini-nav-item"><span class="mini-dot" style="background:#3b82f6"></span>教材一覧・検索</div>
+      <div class="mini-nav-item"><span class="mini-dot" style="background:#3b82f6"></span>個人学習レポート</div>
+      <div class="mini-divider"></div>
+      <div class="mini-nav-item"><span class="mini-dot" style="background:#8b5cf6"></span>教材作成・編集</div>
+      <div class="mini-nav-item"><span class="mini-dot" style="background:#8b5cf6"></span>採点</div>
+      <div class="mini-nav-item"><span class="mini-dot" style="background:#8b5cf6"></span>配信設定</div>
+      <div class="mini-divider"></div>
+      <div class="mini-nav-item"><span class="mini-dot" style="background:#10b981"></span>プロジェクト作成</div>
+      <div class="mini-nav-item"><span class="mini-dot" style="background:#10b981"></span>プロジェクト管理</div>
+      <div class="mini-nav-item"><span class="mini-dot" style="background:#10b981"></span>必修教材受講ダッシュボード</div>
+      <div class="mini-divider"></div>
+      <div class="mini-nav-item"><span class="mini-dot" style="background:#f59e0b"></span>システム管理</div>
+      <div class="mini-nav-item new-item"><span class="mini-dot" style="background:#f59e0b"></span>操作方法 ← 新設</div>
+    </div>
+  </div>
+  <div class="sidebar-demo">
+    <div class="sidebar-demo-label">システムadmin以外で見た場合</div>
+    <div class="mini-sidebar">
+      <div class="mini-nav-item"><span class="mini-dot" style="background:#3b82f6"></span>マイ学習</div>
+      <div class="mini-nav-item"><span class="mini-dot" style="background:#3b82f6"></span>教材一覧・検索</div>
+      <div class="mini-nav-item"><span class="mini-dot" style="background:#3b82f6"></span>個人学習レポート</div>
+      <div class="mini-divider"></div>
+      <div class="mini-nav-item"><span class="mini-dot" style="background:#8b5cf6"></span>教材作成・編集</div>
+      <div class="mini-nav-item"><span class="mini-dot" style="background:#8b5cf6"></span>採点</div>
+      <div class="mini-nav-item"><span class="mini-dot" style="background:#8b5cf6"></span>配信設定</div>
+      <div class="mini-divider"></div>
+      <div class="mini-nav-item"><span class="mini-dot" style="background:#10b981"></span>プロジェクト作成</div>
+      <div class="mini-nav-item"><span class="mini-dot" style="background:#10b981"></span>プロジェクト管理</div>
+      <div class="mini-nav-item"><span class="mini-dot" style="background:#10b981"></span>必修教材受講ダッシュボード</div>
+      <div class="mini-divider"></div>
+      <div class="mini-nav-item new-item"><span class="mini-dot" style="background:#f59e0b"></span>操作方法 ← 新設</div>
+    </div>
+  </div>
+</div>
+<p>アイコンは仮に <code>CircleHelp</code>（lucide-react）を想定。実装時に別のアイコンへ変更しても構わない。</p>
+
+<h2>2. 内容の組み方（3案）</h2>
+<p>各案は実際にクリックして開閉できるモックアップとして作成した。リンクを開いて操作感を確認してほしい。</p>
+
+<table class="compare">
+  <thead><tr><th>案</th><th>構成</th><th>長所</th><th>短所</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><strong>案1: 画面別カタログ</strong><br><a class="mock-link" href="画面モック/20260925_操作方法案1_画面別カタログ.html">モックアップを見る →</a></td>
+      <td>サイドバーと同じ並び順・色分けの目次＋画面ごとのアコーディオン</td>
+      <td class="good">サイドバーの並びと1:1対応するので迷わない／画面が増えるたびに1件追記するだけで拡張しやすい／基本設計書の「画面設計」章がほぼそのまま下敷きにできる</td>
+      <td class="bad">「何がしたいか」で調べる人には画面名を跨いだ検索・回遊が必要／機能横断のタスク（Slack通知など）は複数画面に分散してしまう</td>
+    </tr>
+    <tr>
+      <td><strong>案2: タスク指向ガイド</strong><br><a class="mock-link" href="画面モック/20260925_操作方法案2_タスク指向ガイド.html">モックアップを見る →</a></td>
+      <td>「教材を作りたい」「Slackで通知したい」等、やりたいこと別の手順書</td>
+      <td class="good">利用者の実際の困りごとに直接応える／複数画面にまたがる操作も1つの手順として通しで書ける</td>
+      <td class="bad">タスクの切り出し方に唯一の正解が無く、キュレーションの手間が大きい／新機能が既存タスクのどれに属すか判断が要る／同じ画面の説明が複数タスクに重複しがち</td>
+    </tr>
+    <tr>
+      <td><strong>案3: 役割別タブ</strong><br><a class="mock-link" href="画面モック/20260925_操作方法案3_役割別タブ.html">モックアップを見る →</a></td>
+      <td>受講者／教材作成者・編集者／プロジェクト管理者／システム管理者の4タブ</td>
+      <td class="good">自分に関係ない画面が最初から視界に入らない／新入社員のオンボーディング導線としてそのまま使える</td>
+      <td class="bad">複数の役割にまたがる機能（個人学習レポート等）はどこかのタブに寄せる判断が要る／役割が増えるとタブ自体の再設計が必要になる</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>3. 所感（たたき台）</h2>
+<p>
+  普段の「あの画面の使い方を思い出したい」的な参照には案1が引きやすく、実装コストも最も低い
+  （基本設計書の画面設計章をほぼそのまま流用できる）。ただし初めて触る人への導線としては案3、
+  「Slack連携を設定したい」のような機能横断の相談には案2が強い。3案は排他ではなく、
+  <strong>案1をベースに、ページ最上部に案3のような役割フィルタを軽く添える</strong>組み合わせも可能。
+  方向性が決まればこの資料のステータスを更新し、正式に<code>docs/</code>側（基本設計書・詳細設計書）へ反映する。
+</p>
+
+</body>
+</html>

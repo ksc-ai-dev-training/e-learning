@@ -1,15 +1,20 @@
 # 個人学習レポートAPI（A-50〜A-52。S-09、F-22 AI個人フィードバック）。
+# AI組織レポートAPI（A-48/A-49。S-08、F-23）もパスを/api/reports配下に揃えるためここに置く
+# （集計本体はdashboard.pyのA-45と共有、ロジックはdashboard.py側で一元管理する）。
 import asyncio
 import json
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 
 import ai_client
 from auth_helpers import CurrentUser, is_manager_of_target_user, require_auth
 from database import get_pool
+from routers.dashboard import _aggregate_dashboard_stats, _parse_scope, require_dashboard_scope
 
 router = APIRouter(prefix="/api/reports/personal", tags=["reports"])
+org_router = APIRouter(prefix="/api/reports/org", tags=["reports"])
 logger = logging.getLogger("manabi.reports")
 
 
@@ -67,14 +72,14 @@ async def _aggregate_personal_report(user_id: int) -> dict:
     )
 
     history_rows = await pool.fetch(
-        """SELECT m.id AS material_id, m.title AS material_title, ep.completed_at,
+        """SELECT m.id AS material_id, m.title AS material_title, m.is_archived, ep.status, ep.completed_at,
                   latest.score_pct, latest.passed
            FROM enrollment_progress ep
            JOIN materials m ON m.id = ep.material_id
            LEFT JOIN LATERAL (
                SELECT qa.score_pct, qa.passed FROM quiz_attempts qa
                 WHERE qa.material_id = ep.material_id AND qa.user_id = ep.user_id
-                  AND qa.mode = 'graded' AND qa.submitted_at IS NOT NULL
+                  AND qa.mode = 'graded' AND qa.submitted_at IS NOT NULL AND qa.deleted_at IS NULL
                   AND EXISTS (SELECT 1 FROM answers a JOIN questions q ON q.id = a.question_id
                                WHERE a.attempt_id = qa.id AND q.type != 'score_log')
                 ORDER BY qa.submitted_at DESC LIMIT 1
@@ -89,12 +94,16 @@ async def _aggregate_personal_report(user_id: int) -> dict:
             "completed_material_count": completed_count,
             "incomplete_required_count": incomplete_required_count,
             "required_completion_pct": required_completion_pct,
+            "completed_required_count": required_counts["completed_required"],
+            "total_required_count": total_required,
             "last_activity_at": last_activity_at,
         },
         "history": [
             {
                 "material_id": r["material_id"],
                 "material_title": r["material_title"],
+                "is_archived": r["is_archived"],
+                "status": r["status"],
                 "completed_at": r["completed_at"],
                 "score_pct": float(r["score_pct"]) if r["score_pct"] is not None else None,
                 "passed": r["passed"],
@@ -141,6 +150,7 @@ async def _aggregate_tag_stats(user_id: int) -> list[dict]:
            FROM quiz_attempts qa
            JOIN materials m ON m.id = qa.material_id
            WHERE qa.user_id = $1 AND qa.mode = 'graded' AND qa.submitted_at IS NOT NULL
+             AND qa.deleted_at IS NULL
              AND EXISTS (SELECT 1 FROM answers a JOIN questions q ON q.id = a.question_id
                           WHERE a.attempt_id = qa.id AND q.type != 'score_log')""",
         user_id,
@@ -166,7 +176,7 @@ async def _aggregate_candidate_materials(user_id: int, limit: int = 20) -> list[
            LEFT JOIN LATERAL (
                SELECT passed FROM quiz_attempts qa
                 WHERE qa.material_id = m.id AND qa.user_id = $1
-                  AND qa.mode = 'graded' AND qa.submitted_at IS NOT NULL
+                  AND qa.mode = 'graded' AND qa.submitted_at IS NOT NULL AND qa.deleted_at IS NULL
                 ORDER BY qa.submitted_at DESC LIMIT 1
            ) latest ON true
            WHERE m.status = 'published' AND m.is_archived = false
@@ -221,6 +231,16 @@ async def request_personal_ai_feedback(user_id: int, user: CurrentUser = Depends
     return {"status": "pending", "job_id": row["id"]}
 
 
+def _shape_personal_feedback_content(content: dict, materials_by_id: dict[int, str]) -> dict:
+    material_ids = content.get("recommended_material_ids", [])
+    materials = [{"id": mid, "title": materials_by_id[mid]} for mid in material_ids if mid in materials_by_id]
+    return {
+        "comment": content.get("comment", ""),
+        "weak_areas": content.get("weak_areas", []),
+        "recommended_materials": materials,
+    }
+
+
 @router.get("/{user_id}/ai-feedback")
 async def get_personal_ai_feedback(user_id: int, user: CurrentUser = Depends(require_auth)):
     """A-52: 直近のAI個人フィードバックを取得する。未完了（content未設定）または未リクエストは404。
@@ -238,16 +258,137 @@ async def get_personal_ai_feedback(user_id: int, user: CurrentUser = Depends(req
         raise HTTPException(404, detail="AI個人フィードバックはまだ生成されていません")
     content = json.loads(row["content"])
     material_ids = content.get("recommended_material_ids", [])
-    materials = []
+    materials_by_id: dict[int, str] = {}
     if material_ids:
+        # 生成時点ではis_archived=falseの候補から選ばれていても、その後アーカイブされている
+        # ことがあるため、表示のたびに現在の状態で除外し直す（2026-09-25、個人学習レポートの
+        # 学習履歴で同種の問題〔アーカイブ済み教材が受講可能に見えてしまう〕が見つかったのに
+        # 合わせて監査し発見）。
         material_rows = await pool.fetch(
-            "SELECT id, title FROM materials WHERE id = ANY($1::bigint[])", material_ids
+            "SELECT id, title FROM materials WHERE id = ANY($1::bigint[]) AND is_archived = false",
+            material_ids,
         )
-        by_id = {r["id"]: r["title"] for r in material_rows}
-        materials = [{"id": mid, "title": by_id[mid]} for mid in material_ids if mid in by_id]
+        materials_by_id = {r["id"]: r["title"] for r in material_rows}
+    return {**_shape_personal_feedback_content(content, materials_by_id), "generated_at": row["requested_at"]}
+
+
+@router.get("/{user_id}/ai-feedback/history")
+async def list_personal_ai_feedback(user_id: int, user: CurrentUser = Depends(require_auth)):
+    """A-104: 過去のAI個人フィードバックを新しい順に一覧取得する（新設）。実行のたびに
+    ai_personal_feedbackへ1行追加されるだけで従来から履歴自体は保存されていたが、A-52
+    （GET /ai-feedback）は直近の1件しか返していなかった（2026-09-28、ユーザー要望）。
+    直近20件まで返す。"""
+    await _require_report_access(user_id, user)
+    pool = get_pool()
+    rows = await pool.fetch(
+        """SELECT content, requested_at FROM ai_personal_feedback
+           WHERE user_id = $1 AND content IS NOT NULL
+           ORDER BY created_at DESC LIMIT 20""",
+        user_id,
+    )
+    contents = [json.loads(r["content"]) for r in rows]
+    all_material_ids = {mid for c in contents for mid in c.get("recommended_material_ids", [])}
+    materials_by_id: dict[int, str] = {}
+    if all_material_ids:
+        material_rows = await pool.fetch(
+            "SELECT id, title FROM materials WHERE id = ANY($1::bigint[]) AND is_archived = false",
+            list(all_material_ids),
+        )
+        materials_by_id = {r["id"]: r["title"] for r in material_rows}
+    items = [
+        {**_shape_personal_feedback_content(c, materials_by_id), "generated_at": r["requested_at"]}
+        for c, r in zip(contents, rows)
+    ]
+    return {"items": items}
+
+
+async def run_ai_org_report_job(
+    report_id: int, scope_id: int | None, scope_label: str, requested_by: int
+) -> None:
+    """A-48の非同期ジョブ本体（run_ai_personal_feedback_jobと同型、F-23）。"""
+    pool = get_pool()
+    try:
+        stats = await _aggregate_dashboard_stats(scope_id)
+        by_material = stats.pop("by_material")
+        result = await ai_client.generate_org_report(
+            scope_label=scope_label, stats=stats, by_material=by_material, user_id=requested_by
+        )
+        content = {
+            "summary": result.get("summary", ""),
+            "insight_tags": list(result.get("insight_tags", [])),
+        }
+        await pool.execute(
+            "UPDATE ai_org_reports SET content = $1 WHERE id = $2 AND content IS NULL",
+            json.dumps(content), report_id,
+        )
+    except Exception:
+        logger.exception("AI組織レポートのジョブに失敗しました（report_id=%s）", report_id)
+
+
+class OrgReportRequest(BaseModel):
+    scope_type: str
+    # 「全社」スコープ廃止（2026-09-17）に伴いscope_id=Noneのケースが無くなったため必須にした
+    # （scope_type='company'は無くなり、'project'のみ有効。dashboard.py._parse_scope参照）。
+    scope_id: int
+
+
+@org_router.post("", status_code=202)
+async def request_org_report(body: OrgReportRequest, user: CurrentUser = Depends(require_auth)):
+    """A-48: AI組織レポートの生成をリクエストする（非同期。S-08「レポートを再生成」ボタン）。
+
+    「全社」スコープは廃止した（2026-09-17、dashboard.py._parse_scope参照）。"""
+    if body.scope_type != "project":
+        raise HTTPException(422, detail="scope_typeが不正です")
+    await require_dashboard_scope(body.scope_id, user)
+    scope_label = f"project:{body.scope_id}"
+    row = await get_pool().fetchrow(
+        """INSERT INTO ai_org_reports (scope_type, scope_id, requested_by) VALUES ($1, $2, $3)
+           RETURNING id""",
+        body.scope_type, body.scope_id, user.id,
+    )
+    asyncio.create_task(run_ai_org_report_job(row["id"], body.scope_id, scope_label, user.id))
+    return {"status": "pending", "job_id": row["id"]}
+
+
+@org_router.get("")
+async def get_org_report(scope: str, user: CurrentUser = Depends(require_auth)):
+    """A-49: 直近のAI組織レポートを取得する。未完了・未リクエストは404（A-52と同方針）。"""
+    scope_type, scope_id = _parse_scope(scope)
+    await require_dashboard_scope(scope_id, user)
+    row = await get_pool().fetchrow(
+        """SELECT content, requested_at FROM ai_org_reports WHERE scope_type = $1 AND scope_id = $2
+           ORDER BY created_at DESC LIMIT 1""",
+        scope_type, scope_id,
+    )
+    if row is None or row["content"] is None:
+        raise HTTPException(404, detail="AI組織レポートはまだ生成されていません")
+    content = json.loads(row["content"])
     return {
-        "comment": content.get("comment", ""),
-        "weak_areas": content.get("weak_areas", []),
-        "recommended_materials": materials,
+        "summary": content.get("summary", ""),
+        "insight_tags": content.get("insight_tags", []),
         "generated_at": row["requested_at"],
     }
+
+
+@org_router.get("/history")
+async def list_org_reports(scope: str, user: CurrentUser = Depends(require_auth)):
+    """A-105: 過去のAI組織レポートを新しい順に一覧取得する（新設）。実行のたびにai_org_reportsへ
+    1行追加されるだけで従来から履歴自体は保存されていたが、A-49（GET /reports/org）は直近の1件しか
+    返していなかった（2026-09-28、ユーザー要望）。直近20件まで返す。"""
+    scope_type, scope_id = _parse_scope(scope)
+    await require_dashboard_scope(scope_id, user)
+    rows = await get_pool().fetch(
+        """SELECT content, requested_at FROM ai_org_reports
+           WHERE scope_type = $1 AND scope_id = $2 AND content IS NOT NULL
+           ORDER BY created_at DESC LIMIT 20""",
+        scope_type, scope_id,
+    )
+    items = []
+    for row in rows:
+        content = json.loads(row["content"])
+        items.append({
+            "summary": content.get("summary", ""),
+            "insight_tags": content.get("insight_tags", []),
+            "generated_at": row["requested_at"],
+        })
+    return {"items": items}

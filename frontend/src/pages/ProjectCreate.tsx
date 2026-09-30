@@ -47,14 +47,14 @@ export default function ProjectCreate() {
     <div className="flex flex-1 flex-col">
       <PageHeader title="プロジェクト作成" />
       <div className="px-8 py-6">
-        <p className="mb-4 text-[11.5px] text-slate-400">
+        <p className="mb-4 text-[11.5px] text-slate-400 dark:text-neutral-500">
           この画面は全員がアクセスできます。システム全体のロール（member/admin）に関わらず、誰でもプロジェクトを新規作成できます。
         </p>
 
         <div className="max-w-xl">
-          <div className="flex flex-col gap-4 rounded-md border border-slate-200 p-4">
+          <div className="flex flex-col gap-4 rounded-md border border-slate-200 p-4 dark:border-neutral-700">
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-semibold text-slate-500">プロジェクト名</label>
+              <label className="text-xs font-semibold text-slate-500 dark:text-neutral-300">プロジェクト名</label>
               <TextInput
                 placeholder="例: 経費精算システム刷新"
                 value={name}
@@ -63,7 +63,7 @@ export default function ProjectCreate() {
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-semibold text-slate-500">説明</label>
+              <label className="text-xs font-semibold text-slate-500 dark:text-neutral-300">説明</label>
               <TextArea
                 rows={4}
                 placeholder="プロジェクトの目的や概要を入力してください（後からいつでも編集できます）"
@@ -74,12 +74,12 @@ export default function ProjectCreate() {
             </div>
           </div>
 
-          <div className="mt-3 rounded-md border border-blue-100 bg-blue-50 px-4 py-3 text-xs text-blue-900">
+          <div className="mt-3 rounded-md border border-blue-100 bg-blue-50 px-4 py-3 text-xs text-blue-900 dark:border-blue-800 dark:bg-blue-950/30 dark:text-blue-200">
             <strong>作成すると何が起きるか:</strong>{' '}
             あなたは自動的にこのプロジェクトの管理者になります。プロジェクトの管理者は、プロジェクト情報の編集、メンバーの追加・削除・ロール（管理者/編集者/受講者）の設定ができます。
           </div>
 
-          {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+          {error && <p className="mt-3 text-sm text-red-600 dark:text-red-400">{error}</p>}
 
           <div className="mt-3 flex gap-2">
             <Button onClick={() => setConfirming(true)} disabled={submitting || name.trim().length === 0}>
@@ -91,14 +91,15 @@ export default function ProjectCreate() {
           </div>
         </div>
 
-        <section className="mt-8 max-w-xl rounded-md border border-slate-200">
-          <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-2.5">
-            <span className="text-sm font-semibold text-slate-700">自分が参加しているプロジェクト</span>
-            <span className="text-xs text-slate-400">{memberships.filter((m) => m.left_at === null).length}件</span>
+        <section className="mt-8 max-w-xl rounded-md border border-slate-200 dark:border-neutral-800">
+          <div className="flex flex-col gap-0.5 border-b border-slate-200 bg-slate-50 px-4 py-2.5 dark:border-neutral-800 dark:bg-neutral-900 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
+            <span className="text-sm font-semibold text-slate-700 dark:text-neutral-200">自分が参加しているプロジェクト</span>
+            <span className="text-xs text-slate-400 dark:text-neutral-500">{memberships.filter((m) => m.left_at === null).length}件</span>
           </div>
           <MyProjectsPanel
             memberships={memberships}
             isLoading={membershipsLoading}
+            isSystemAdmin={me?.role === 'admin'}
             onOpenManage={(projectId) => navigate(`/projects/${projectId}/manage`)}
             onStatusChanged={mutateMemberships}
           />
@@ -107,22 +108,22 @@ export default function ProjectCreate() {
 
       {confirming && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
-            <h2 className="mb-3 text-base font-bold text-slate-900">この内容でプロジェクトを作成しますか？</h2>
+          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-neutral-800">
+            <h2 className="mb-3 text-base font-bold text-slate-900 dark:text-neutral-100">この内容でプロジェクトを作成しますか？</h2>
             <dl className="mb-4 flex flex-col gap-2 text-sm">
               <div>
-                <dt className="text-xs font-semibold text-slate-500">プロジェクト名</dt>
-                <dd className="text-slate-800">{name}</dd>
+                <dt className="text-xs font-semibold text-slate-500 dark:text-neutral-300">プロジェクト名</dt>
+                <dd className="text-slate-800 dark:text-neutral-100">{name}</dd>
               </div>
               <div>
-                <dt className="text-xs font-semibold text-slate-500">説明</dt>
-                <dd className="whitespace-pre-wrap text-slate-800">{description || '（未入力）'}</dd>
+                <dt className="text-xs font-semibold text-slate-500 dark:text-neutral-300">説明</dt>
+                <dd className="whitespace-pre-wrap text-slate-800 dark:text-neutral-100">{description || '（未入力）'}</dd>
               </div>
             </dl>
-            <p className="mb-4 text-xs text-slate-500">
+            <p className="mb-4 text-xs text-slate-500 dark:text-neutral-400">
               作成すると、あなたは自動的にこのプロジェクトの管理者になります。
             </p>
-            {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
+            {error && <p className="mb-3 text-sm text-red-600 dark:text-red-400">{error}</p>}
             <div className="flex justify-end gap-2">
               <Button variant="secondary" onClick={() => setConfirming(false)} disabled={submitting}>
                 戻る

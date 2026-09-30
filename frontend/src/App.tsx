@@ -15,11 +15,17 @@ import ProjectManagement from './pages/ProjectManagement'
 import AssignmentSettings from './pages/AssignmentSettings'
 import AdminSettings from './pages/AdminSettings'
 import PersonalReport from './pages/PersonalReport'
+import Dashboard from './pages/Dashboard'
+import ProfileEdit from './pages/ProfileEdit'
+import Grading from './pages/Grading'
+import QuestionAnswers from './pages/QuestionAnswers'
+import HelpGuide from './pages/HelpGuide'
+import CliKeyOnboarding from './pages/CliKeyOnboarding'
 import AppShell from './components/layout/AppShell'
 
 // ルーティング定義・認証ガード。
 export default function App() {
-  const { me, isLoading } = useMe()
+  const { me, isLoading, mutate } = useMe()
 
   if (isLoading) {
     return <div className="p-8 text-center text-sm text-slate-400">読み込み中...</div>
@@ -34,6 +40,12 @@ export default function App() {
     )
   }
 
+  // 初回ログイン直後、Claude Code連携用APIキーのセルフ発行案内を一度だけ挟む（スキップ可。
+  // 2026-09-14）。通常画面（AppShell）はまだ無いため、単独の画面として描画する。
+  if (me.needs_cli_key_prompt) {
+    return <CliKeyOnboarding onDone={() => mutate()} />
+  }
+
   return (
     <AppShell me={me}>
       <Routes>
@@ -43,6 +55,7 @@ export default function App() {
         <Route path="/materials" element={<MaterialsSearch />} />
         <Route path="/materials/:materialId" element={<MaterialView />} />
         <Route path="/materials/:materialId/pages/:nodeId" element={<MaterialPageView />} />
+        <Route path="/materials/:materialId/questions/:questionId/answers" element={<QuestionAnswers />} />
         <Route path="/projects/:projectId/materials/edit" element={<MaterialsList />} />
         <Route path="/projects/:projectId/materials/:materialId/edit" element={<MaterialEdit />} />
         <Route path="/projects/:projectId/materials/:materialId/preview" element={<MaterialPreview />} />
@@ -54,8 +67,12 @@ export default function App() {
         <Route path="/projects/manage" element={<ProjectManagement />} />
         <Route path="/projects/:projectId/manage" element={<ProjectManagement />} />
         <Route path="/assignments" element={<AssignmentSettings />} />
+        <Route path="/grading" element={<Grading />} />
         <Route path="/admin/settings" element={<AdminSettings />} />
         <Route path="/reports/:userId" element={<PersonalReport />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/profile" element={<ProfileEdit />} />
+        <Route path="/help" element={<HelpGuide />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AppShell>

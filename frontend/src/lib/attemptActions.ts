@@ -1,5 +1,5 @@
 import { apiFetch } from './api'
-import type { Answer, MaterialNode, QuizAttempt } from '../types'
+import type { Answer, AttemptAnswerDetail, MaterialNode, QuizAttempt } from '../types'
 
 // A-40: 受験開始（未提出の試行があれば再開）。S-16のページ遷移のたびに呼び、続きから受講を実現する
 export function startAttempt(
@@ -10,6 +10,12 @@ export function startAttempt(
     method: 'POST',
     body: JSON.stringify(body),
   })
+}
+
+// A-96: 目次の✓マーク用「閲覧済み」記録。ページの「次へ」を押して読み進めた時点でのみ呼ぶ
+// （開いた時点では呼ばない）。合否判定・完了率の集計には使わない、ナビゲーション上の目印専用
+export function markPageVisited(materialId: number, nodeId: number): Promise<void> {
+  return apiFetch(`/api/materials/${materialId}/pages/${nodeId}/visit`, { method: 'POST' })
 }
 
 // A-41: 回答保存（都度呼び出しで中断・再開を実現する）
@@ -25,12 +31,12 @@ export function submitAttempt(attemptId: number): Promise<QuizAttempt> {
   return apiFetch(`/api/attempts/${attemptId}/submit`, { method: 'POST' })
 }
 
-// A-43: 結果取得。本人なら未提出でも取得できる（誤答のみ抽出モードの状態再取得に使う）
-export function getAttempt(attemptId: number): Promise<QuizAttempt & { answers: Answer[] }> {
+// A-43: 結果取得。本人なら未提出でも取得できる（誤答＆難問抽出モードの状態再取得に使う）
+export function getAttempt(attemptId: number): Promise<QuizAttempt & { answers: AttemptAnswerDetail[] }> {
   return apiFetch(`/api/attempts/${attemptId}`)
 }
 
-// A-44: 誤答のみ抽出出題を開始する
+// A-44: 誤答＆難問抽出出題を開始する
 export function startWrongQuestionsAttempt(
   materialId: number,
   scope: 'material' | 'all',
@@ -41,14 +47,14 @@ export function startWrongQuestionsAttempt(
   })
 }
 
-// A-88: スコア記録設問の「これまでの記録」
+// A-88: スコア記録型設問の「これまでの記録」
 export function getMyQuestionScores(
   questionId: number,
 ): Promise<{ items: { score: number; recorded_at: string }[] }> {
   return apiFetch(`/api/questions/${questionId}/my-scores`)
 }
 
-// A-72: 受験後アンケートへの回答送信
+// A-72: 受講後アンケートへの回答送信
 export function submitSurveyResponse(
   surveyId: number,
   answers: { survey_question_id: number; value: unknown }[],

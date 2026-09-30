@@ -1,15 +1,16 @@
-# 教材API（A-15〜A-22, A-27, A-29〜A-32/A-33, A-64, A-82, A-94）。AI機能のうちA-34/A-35（F-21）は未着手。
+# 教材API（A-15〜A-22, A-27, A-29〜A-33, A-64, A-82, A-94, A-97）。
 import json
 import os
 import random
+from datetime import datetime
 from typing import Literal
-from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import Response
 from pydantic import BaseModel, Field, model_validator
 
 import ai_client
+import material_presence
 import storage
 from auth_helpers import (
     CurrentUser,
@@ -30,17 +31,42 @@ detail_router = APIRouter(prefix="/api/materials", tags=["materials"])
 
 
 def _material_dict(row) -> dict:
-    return {**dict(row), "tags": json.loads(row["tags"])}
+    d = {**dict(row), "tags": json.loads(row["tags"])}
+    if "pass_score_pct" in d and d["pass_score_pct"] is not None:
+        d["pass_score_pct"] = float(d["pass_score_pct"])
+    return d
+
+
+async def _resolve_thumbnail_url(thumbnail_key: str | None) -> str | None:
+    """materials.thumbnail_key（storage_key）を表示用の署名付きURLへ解決する（未設定ならNone。
+    フロントエンド側でタグ等から生成したプレースホルダー画像に差し替える。2026-09-28）。"""
+    if thumbnail_key is None:
+        return None
+    url, _ = await storage.create_download_url(thumbnail_key)
+    return url
 
 
 async def _require_view_access(pool, id: int, user: CurrentUser) -> dict:
-    """A-15/A-28共通の閲覧権限判定。編集権限者（下書き含む、全社Wiki下書きは作成者・
+    """A-15/A-28共通の閲覧権限判定。編集権限者（下書き含む、全社ライブラリ下書きは作成者・
     プロジェクト管理者・システムadmin限定）と、受講対象者（公開済みのみ。require_material_access
     の2条件＝プロジェクトの現役メンバー・個人指定の配信、詳細設計書5.3節）の両方を許可する。
     S-04（教材受講：目次）着手時に受講対象者向けアクセスを追加した。プロジェクト離任後の猶予期間
-    （5.5節）はhas_active_project_role経由で、受講対象者側（learner相当）のみに適用される。"""
+    （5.5節）はhas_active_project_role経由で、受講対象者側（learner相当）のみに適用される。
+
+    is_editorの判定にシステムadminの無条件許可は含めない（2026-09-16。require_material_role
+    〔A-17/A-19/A-20等〕と同じ理由。実際にはeditor以上でないと保存系APIが403になるのに、この
+    画面だけ編集可能に見えてしまう不整合を避けるため、S-05を開く時点から実際のプロジェクトロールで
+    判定する）。
+
+    全社ライブラリはrequire_material_roleと同じ基準に揃える（2026-09-18）: 必修教材は
+    プロジェクトadminのみ、任意教材は作成者本人のみをis_editor=Trueとする（他のeditor・他の
+    adminも不可）。それ以外の通常プロジェクトは従来通りeditor以上ならis_editor=True（下書きも
+    含めて閲覧・編集できる）。"""
     row = await pool.fetchrow(
-        """SELECT m.project_id, m.status, m.created_by, p.is_company_wide
+        """SELECT m.project_id, m.status, m.created_by, m.is_archived, p.is_company_wide,
+                  EXISTS (
+                      SELECT 1 FROM assignments a WHERE a.material_id = m.id AND a.required = true
+                  ) AS is_required
            FROM materials m JOIN projects p ON p.id = m.project_id
            WHERE m.id = $1""",
         id,
@@ -48,7 +74,13 @@ async def _require_view_access(pool, id: int, user: CurrentUser) -> dict:
     if row is None:
         raise HTTPException(404, detail="教材が見つかりません")
 
-    is_editor = user.role == "admin" or await has_active_project_role(row["project_id"], user.id, "editor")
+    if row["is_company_wide"]:
+        if row["is_required"]:
+            is_editor = await has_active_project_role(row["project_id"], user.id, "admin")
+        else:
+            is_editor = row["created_by"] == user.id
+    else:
+        is_editor = await has_active_project_role(row["project_id"], user.id, "editor")
 
     if is_editor:
         if row["status"] == "draft" and row["created_by"] != user.id:
@@ -58,6 +90,14 @@ async def _require_view_access(pool, id: int, user: CurrentUser) -> dict:
 
     if row["status"] != "published":
         raise HTTPException(403, detail="この教材は受講対象ではありません")
+    # アーカイブ済み教材は編集者以外（受講者としてのアクセス）には一切見せない・受講させない
+    # （2026-09-25、ユーザー指摘。個人学習レポートの学習履歴から過去に受講した教材へのリンクを
+    # 辿ると、アーカイブ後もこのチェックが無かったため設問回答まで普通にできてしまっていた。
+    # F-30の設計上、アーカイブは「一覧・検索からの非表示」のみを意図しており、受講そのものを
+    # 止める仕組みは無かった。編集者側は従来通り閲覧・編集できる〔5.30節「アーカイブ中の閲覧・編集」〕
+    # ため、このガードはis_editor=Falseの分岐にのみ置く）。
+    if row["is_archived"]:
+        raise HTTPException(403, detail="この教材はアーカイブされているため受講できません")
     if not await has_active_project_role(row["project_id"], user.id, "learner"):
         is_individual_target = await pool.fetchval(
             """SELECT EXISTS(
@@ -77,7 +117,6 @@ async def search_materials(
     project_id: int | None = None,
     required: bool | None = None,
     incomplete_only: bool = False,
-    my_assignments_only: bool = False,
     page: int = 1,
     per_page: int = 20,
     user: CurrentUser = Depends(require_auth),
@@ -93,10 +132,17 @@ async def search_materials(
     共有された教材はproject_idが共有先プロジェクト自身になる通常の教材として一覧に現れる。
     共有元・共有先を横断する特別な判定は不要（F-26実装時に判明。CLAUDE.md参照）。
 
-    レスポンスの`registered`（T-30 my_learning_registrations、F-31）は、全社Wiki所属の任意教材の
+    レスポンスの`registered`（T-30 my_learning_registrations、F-31）は、全社ライブラリ所属の任意教材の
     行にのみ「マイ学習に追加」/「マイ学習から外す」ボタンを出し分けるためにS-02実装時に追加した。
-    my_assignments_onlyは5.3節の2条件（プロジェクトの現役メンバーである・個人指定の配信
-    〔assignments, scope_type='individual'〕がある）を判定する。
+
+    既定では自分が所属するプロジェクト＋個人指定の配信（5.3節の2条件）に一覧を絞り込む
+    （2026-09-29、ユーザー要望。従来は全社の公開教材を無条件で一覧に出していたため、
+    所属していないプロジェクトの教材までクリックでき、開こうとして初めて「受講対象では
+    ありません」に弾かれる分かりにくい体験になっていた）。旧`my_assignments_only`
+    クエリ（任意チェックボックス）はこの既定挙動に統合したため廃止した。
+    システムadminに限り、project_idを明示的に指定した場合はこの絞り込みを適用しない
+    （S-03の「その他のプロジェクト」タブから、所属していないプロジェクトに何があるかを
+    確認できるようにするため。実際に受講できるかは_require_view_accessが別途判定する）。
     """
     if per_page not in (20, 50, 100):
         raise HTTPException(422, detail="per_pageは20/50/100のいずれかを指定してください")
@@ -130,12 +176,17 @@ async def search_materials(
             f"EXISTS (SELECT 1 FROM assignments a WHERE a.material_id = m.id AND a.required = {ph})"
         )
     if incomplete_only:
+        # 「未受講のみ」は文字どおり未着手（enrollment_progressの行が無い、またはstatus='not_started'）
+        # のみを対象にする。以前はstatus != 'completed'（in_progressも含む）で判定していたため、
+        # 提出済み・採点中で「受講済み」の感覚のある教材まで「未受講」に混じって表示される不具合が
+        # あった（ユーザー報告で発覚。2026-09-18）。
         ph = add_param(user.id)
         conditions.append(
             f"NOT EXISTS (SELECT 1 FROM enrollment_progress ep "
-            f"WHERE ep.user_id = {ph} AND ep.material_id = m.id AND ep.status = 'completed')"
+            f"WHERE ep.user_id = {ph} AND ep.material_id = m.id AND ep.status != 'not_started')"
         )
-    if my_assignments_only:
+    admin_browsing_other_project = user.role == "admin" and project_id is not None
+    if not admin_browsing_other_project:
         ph = add_param(user.id)
         grace_ph = add_param(await get_setting_int("project_leave_grace_period_days", DEFAULT_GRACE_PERIOD_DAYS))
         conditions.append(f"""(
@@ -153,8 +204,9 @@ async def search_materials(
     limit_ph = add_param(per_page)
     offset_ph = add_param((page - 1) * per_page)
     rows = await pool.fetch(
-        f"""SELECT m.id, m.title, m.description, m.tags, m.project_id,
+        f"""SELECT m.id, m.title, m.description, m.tags, m.project_id, m.thumbnail_key,
                    p.name AS project_name, p.is_company_wide,
+                   u.name AS created_by_name,
                    COALESCE(nc.chapter_count, 0) AS chapter_count,
                    COALESCE(nc.page_count, 0) AS page_count,
                    COALESCE(qc.question_count, 0) AS question_count,
@@ -166,6 +218,7 @@ async def search_materials(
                    m.updated_at
             FROM materials m
             JOIN projects p ON p.id = m.project_id
+            JOIN users u ON u.id = m.created_by
             LEFT JOIN (
                 SELECT material_id,
                        COUNT(*) FILTER (WHERE kind = 'chapter') AS chapter_count,
@@ -180,7 +233,15 @@ async def search_materials(
             ) qc ON qc.material_id = m.id
             LEFT JOIN enrollment_progress ep ON ep.material_id = m.id AND ep.user_id = {user_ph}
             WHERE {where_sql}
-            ORDER BY m.updated_at DESC
+            -- 未受講の必修教材を先頭に並べる（2026-09-29、ユーザー要望。カード表示は一覧性が
+            -- テーブルより低いため、対応が必要な必修教材が更新日順に埋もれて見づらいとの指摘）。
+            -- ORDER BY句は複合式の中でSELECT句のエイリアス（required等）を参照できない
+            -- （Postgresが単純な識別子1個のときだけ出力名を解決する仕様のため）、同じ条件式を
+            -- そのまま書き直す。
+            ORDER BY (
+                EXISTS (SELECT 1 FROM assignments a WHERE a.material_id = m.id AND a.required = true)
+                AND COALESCE(ep.status, 'not_started') != 'completed'
+            ) DESC, m.updated_at DESC
             LIMIT {limit_ph} OFFSET {offset_ph}""",
         *params,
     )
@@ -196,6 +257,10 @@ async def search_materials(
         d["tags"] = json.loads(d["tags"])
         d["question_types"] = json.loads(d["question_types"])
         items.append(d)
+    thumbnail_keys = [item.pop("thumbnail_key") for item in items]
+    thumbnail_urls = await storage.resolve_thumbnail_urls(thumbnail_keys)
+    for item, url in zip(items, thumbnail_urls):
+        item["thumbnail_url"] = url
 
     return {"items": items, "total": total, "available_tags": [t["tag"] for t in tag_rows]}
 
@@ -216,7 +281,7 @@ async def _fetch_tree(executor, material_id: int, *, strip_answers: bool = False
     )
     question_rows = await executor.fetch(
         """SELECT id, node_id, type, prompt, options, correct_answer, scoring_criteria,
-                  code_language, sort_order, required, is_critical, feedback_style,
+                  code_language, sort_order, required, counted, is_critical, feedback_style,
                   pool_group_id, score_unit, grading_mode
            FROM questions WHERE material_id = $1 ORDER BY node_id, sort_order""",
         material_id,
@@ -227,6 +292,10 @@ async def _fetch_tree(executor, material_id: int, *, strip_answers: bool = False
         d["options"] = json.loads(d["options"]) if d["options"] is not None else None
         d["correct_answer"] = json.loads(d["correct_answer"]) if d["correct_answer"] is not None else None
         d["pool_group"] = d.pop("pool_group_id")
+        # 正解が設定されているかどうかは、strip_answers=Trueで実際のcorrect_answerを隠す受講者にも
+        # 伝える必要がある（単一選択・複数選択の「記録」「任意」は正解未設定を許容するため、
+        # 「採点中」と「そもそも採点しない」を受講者側の表示で区別できるようにする。2026-09-16）。
+        d["has_correct_answer"] = bool(d["correct_answer"]) if d["type"] == "multi" else d["correct_answer"] is not None
         if strip_answers:
             # 並び替え（reorder）はcorrect_answerが並び替え対象の項目そのものを保持する
             # （QuestionEditCardのReorderEditorがoptionsを使わない設計のため）。correct_answerを
@@ -273,6 +342,7 @@ class QuestionIn(BaseModel):
     scoring_criteria: str | None = None
     code_language: str | None = None
     required: bool = True
+    counted: bool = True
     is_critical: bool = False
     feedback_style: Literal["show_answer", "review_only", "hint_only"] | None = None
     pool_group: int | None = None
@@ -284,19 +354,27 @@ class QuestionIn(BaseModel):
         if self.type in ("single", "multi"):
             if not self.options:
                 raise ValueError(f"種別「{self.type}」には選択肢（options）が必須です")
-            if self.correct_answer is None:
-                raise ValueError(f"種別「{self.type}」には正解（correct_answer）が必須です")
+            # 「記録」「任意」（counted=false）は、答えの決まっていない意見・見解を書かせる設問にも
+            # 単一選択・複数選択のUIを使えるよう、正解を設定しなくてもよいことにする（自動採点自体を
+            # 行わず、is_correctは常にNULLのまま＝スコア記録型と同様の「回答記録のみ」として扱う。
+            # 2026-09-16、ユーザー要望）。counted=true（必須・スコア算入対象）は従来どおり必須。
+            has_correct = bool(self.correct_answer) if self.type == "multi" else self.correct_answer is not None
+            if self.counted and not has_correct:
+                raise ValueError(
+                    f"種別「{self.type}」には正解（correct_answer）が必須です（「記録」「任意」の場合は省略できます）"
+                )
         elif self.type == "reorder":
             if not isinstance(self.correct_answer, list) or len(self.correct_answer) < 2:
                 raise ValueError("並び替え（reorder）の正解は2件以上の配列で指定してください")
         elif self.type in ("free_text", "code"):
-            if not self.scoring_criteria:
-                raise ValueError(f"種別「{self.type}」には採点基準（scoring_criteria）が必須です")
+            # 採点基準（scoring_criteria）はAI採点プロンプトにのみ使うため、実際に採点する方式が
+            # AIかどうか（設問側のgrading_mode上書き、無指定なら教材既定）で必須かどうかが変わる。
+            # 教材既定はこの時点では分からない（教材単位の情報のため）ので、ここでは型の整合性のみ
+            # 見て、必須チェック自体はupsert_questions_for_node側で教材のgrading_modeと突き合わせて行う
+            # （2026-09-16、手動採点の設問にまで採点基準の入力を強制していたとの指摘を受け対応）。
             if self.type == "code" and not self.code_language:
                 raise ValueError("コード記述式（code）には言語（code_language）が必須です")
         elif self.type == "score_log":
-            if not self.score_unit:
-                raise ValueError("スコア記録（score_log）には単位（score_unit）が必須です")
             if self.is_critical:
                 raise ValueError("スコア記録（score_log）にはドボン問題（is_critical）を設定できません")
         if self.grading_mode is not None and self.type not in ("free_text", "code"):
@@ -309,6 +387,16 @@ async def upsert_questions_for_node(
 ) -> dict:
     """当該node_idの問題を送信内容で全置換する（A-20のページ全置換処理・A-31から共通で呼ぶ。
     詳細設計書07_教材連携詳細.html 7.3節「A-31と同一のロジックを適用する」に対応）。"""
+    material_grading_mode = await conn.fetchval(
+        "SELECT grading_mode FROM materials WHERE id = $1", material_id
+    )
+    for q in questions:
+        if q.type in ("free_text", "code"):
+            effective_mode = q.grading_mode or material_grading_mode
+            if effective_mode == "ai" and not q.scoring_criteria:
+                raise HTTPException(
+                    422, detail=f"種別「{q.type}」はAI採点のため採点基準（scoring_criteria）が必須です"
+                )
     existing_ids = {
         r["id"] for r in await conn.fetch("SELECT id FROM questions WHERE node_id = $1", node_id)
     }
@@ -322,12 +410,12 @@ async def upsert_questions_for_node(
                 raise HTTPException(422, detail=f"問題ID {q.id} はこのページに存在しません")
             await conn.execute(
                 """UPDATE questions SET type=$1, prompt=$2, options=$3, correct_answer=$4,
-                       sort_order=$5, required=$6, is_critical=$7, feedback_style=$8,
-                       pool_group_id=$9, scoring_criteria=$10, code_language=$11,
-                       score_unit=$12, grading_mode=$13, updated_at=now()
-                   WHERE id=$14 AND node_id=$15""",
+                       sort_order=$5, required=$6, counted=$7, is_critical=$8, feedback_style=$9,
+                       pool_group_id=$10, scoring_criteria=$11, code_language=$12,
+                       score_unit=$13, grading_mode=$14, updated_at=now()
+                   WHERE id=$15 AND node_id=$16""",
                 q.type, q.prompt, options_json, answer_json, idx,
-                q.required, q.is_critical, q.feedback_style, q.pool_group,
+                q.required, q.counted, q.is_critical, q.feedback_style, q.pool_group,
                 q.scoring_criteria, q.code_language, q.score_unit, q.grading_mode, q.id, node_id,
             )
             seen_ids.add(q.id)
@@ -335,11 +423,11 @@ async def upsert_questions_for_node(
         else:
             new_id = await conn.fetchval(
                 """INSERT INTO questions (material_id, node_id, type, prompt, options,
-                       correct_answer, sort_order, required, is_critical, feedback_style, pool_group_id,
+                       correct_answer, sort_order, required, counted, is_critical, feedback_style, pool_group_id,
                        scoring_criteria, code_language, score_unit, grading_mode)
-                   VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING id""",
+                   VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING id""",
                 material_id, node_id, q.type, q.prompt, options_json, answer_json, idx,
-                q.required, q.is_critical, q.feedback_style, q.pool_group,
+                q.required, q.counted, q.is_critical, q.feedback_style, q.pool_group,
                 q.scoring_criteria, q.code_language, q.score_unit, q.grading_mode,
             )
             seen_ids.add(new_id)
@@ -357,28 +445,44 @@ async def list_materials_source(
     user: CurrentUser = Depends(require_project_role(min_role="editor")),
 ):
     """A-21: 対象プロジェクトの教材一覧（下書き含む）。S-14の一覧表示・タグ検索・構成列に使う。
-    全社公開プロジェクトでは、作成者・プロジェクト管理者・システムadmin以外には他人の下書きを
-    一覧にも出さない（is_company_wide_draft_restricted、5.2節）。アーカイブ済み（is_archived=true）は
-    既定では除外し、S-14で「アーカイブ済み」を選んだ場合のみinclude_archived=trueで再取得して含める。"""
+
+    全社ライブラリはrequire_material_role/_require_view_accessと同じ基準に揃える（2026-09-18、
+    ユーザー指摘により発見・修正）。以前は「公開済みなら誰の教材でも表示、下書きだけ他人のものを
+    除外」という基準だったため、必修教材が一覧には見えるのに開こうとすると403になる（プロジェクト
+    adminでない場合）という不整合があった。今は
+    - 対象プロジェクトの実際のadmin: 必修教材（誰が作成したものでも）＋自分が作成した任意教材
+    - それ以外（editor）: 自分が作成した教材のみ（必修・任意・下書き・公開済み問わず）
+    のみを一覧に出す（開けない教材を一覧に表示しないため）。
+    全社ライブラリ以外の通常プロジェクトは従来通り、下書きも含めeditor以上なら全件表示する。
+    アーカイブ済み（is_archived=true）は既定では除外し、S-14で「アーカイブ済み」を選んだ場合のみ
+    include_archived=trueで再取得して含める。"""
     pool = get_pool()
     project = await pool.fetchrow("SELECT is_company_wide FROM projects WHERE id = $1", project_id)
-    restricted = await is_company_wide_draft_restricted(
-        user, project_id, project["is_company_wide"] if project else False
-    )
+    is_company_wide = bool(project["is_company_wide"]) if project else False
 
     where = "m.project_id = $1"
     params: list = [project_id]
     if not include_archived:
         where += " AND m.is_archived = false"
-    if restricted:
+    if is_company_wide:
+        is_admin = await has_active_project_role(project_id, user.id, "admin")
         params.append(user.id)
-        where += f" AND (m.status = 'published' OR m.created_by = ${len(params)})"
+        creator_ph = f"${len(params)}"
+        if is_admin:
+            where += (
+                f" AND (m.created_by = {creator_ph} OR EXISTS ("
+                f"SELECT 1 FROM assignments a WHERE a.material_id = m.id AND a.required = true))"
+            )
+        else:
+            where += f" AND m.created_by = {creator_ph}"
 
     rows = await pool.fetch(
-        f"""SELECT m.id, m.title, m.status, m.is_archived, m.updated_at, m.tags,
+        f"""SELECT m.id, m.title, m.status, m.is_archived, m.updated_at, m.tags, m.thumbnail_key,
+                   u.name AS created_by_name,
                    COALESCE(nc.chapter_count, 0) AS chapter_count,
                    COALESCE(nc.page_count, 0) AS page_count
             FROM materials m
+            JOIN users u ON u.id = m.created_by
             LEFT JOIN (
                 SELECT material_id,
                        COUNT(*) FILTER (WHERE kind = 'chapter') AS chapter_count,
@@ -390,7 +494,12 @@ async def list_materials_source(
             ORDER BY m.updated_at DESC""",
         *params,
     )
-    return {"items": [{**dict(r), "tags": json.loads(r["tags"])} for r in rows]}
+    items = [{**dict(r), "tags": json.loads(r["tags"])} for r in rows]
+    thumbnail_keys = [item.pop("thumbnail_key") for item in items]
+    thumbnail_urls = await storage.resolve_thumbnail_urls(thumbnail_keys)
+    for item, url in zip(items, thumbnail_urls):
+        item["thumbnail_url"] = url
+    return {"items": items}
 
 
 class MaterialCreate(BaseModel):
@@ -408,12 +517,24 @@ async def create_material(body: MaterialCreate, user: CurrentUser = Depends(requ
         project_id = await get_pool().fetchval(
             "SELECT id FROM projects WHERE is_company_wide = true LIMIT 1"
         )
-    await check_project_role(user, project_id, min_role="editor")
+    # 教材の新規作成も「教材内容の編集」の一種のため、システムadminでも実際のプロジェクトロールを
+    # 要求する（require_material_role・_require_view_accessと同じ2026-09-16の例外。ここを素通しにすると
+    # 作成はできるのにその後のA-19/A-20が403になる矛盾した状態が生まれるため）。
+    #
+    # 全社ライブラリでも通常プロジェクトと同じくeditor以上なら新規作成できる（2026-09-24、2026-09-17時点の
+    # 「新規作成はプロジェクトadmin限定」を撤回）。全社ライブラリの権限モデルの本来の意図は「必修教材は
+    # プロジェクトadmin限定・任意教材は作成者本人限定」（require_material_roleの3分岐、5.26節）であり、
+    # 必修化自体はA-38（配信設定）が独立してプロジェクトadmin限定にしている（assignments.py参照）。
+    # 新規作成の時点ではまだ必修/任意のどちらにもなり得ないため、ここをadmin限定にする必要はなく、
+    # 逆にeditorが「作成者」になる手段そのものを塞いでしまい、3分岐の「任意教材＝作成者限定」の
+    # 前提（editorも作成者になり得る）と矛盾していた。
+    await check_project_role(user, project_id, min_role="editor", bypass_system_admin=False)
     row = await get_pool().fetchrow(
         """INSERT INTO materials (project_id, title, description, tags, created_by)
            VALUES ($1, $2, $3, $4, $5)
            RETURNING id, project_id, title, description, tags, status, sort_order,
-                     attempt_scope, retake_scope, default_feedback_style, ai_context,
+                     attempt_scope, retake_scope, pass_score_pct, retake_allowed, retake_limit,
+                     default_feedback_style, ai_context,
                      grading_mode, is_archived, archived_at, created_at, updated_at""",
         project_id, body.title, body.description, json.dumps(body.tags), user.id,
     )
@@ -429,6 +550,57 @@ def _count_pages(nodes: list[dict]) -> int:
     return total
 
 
+@detail_router.get("/shareable")
+async def search_shareable_materials(
+    project_id: int, q: str | None = None, include_archived: bool = False,
+    user: CurrentUser = Depends(require_auth),
+):
+    """共有申請（A-60、S-12「教材の共有」タブ「このプロジェクトから申請した共有」）の対象教材検索。
+    指定したproject_idに属する公開済み教材を、作成者・必修/任意を問わず対象にする（元々の仕様
+    「プロジェクトadminなら誰の教材でも共有できる」〔A-60〕を実際に使うための入口。通常の教材編集
+    一覧・検索、A-21のlist_materials_sourceは全社ライブラリの任意教材を作成者本人のみに絞っている
+    ため、それとは別にこちらを用意する必要がある）。
+
+    2026-09-18: 当初「自分が管理者である全プロジェクトを横断検索する」実装だったが、ユーザーの
+    意図は「プロジェクトに関係なく（＝どのプロジェクトを見ていても同じように）、そのプロジェクトに
+    属する教材を共有できるように」であり、「複数プロジェクトをまたいで検索する」という意味では
+    なかったと判明したため、project_id必須のプロジェクト単位検索に修正した（元の横断検索UI
+    〔ShareSearchSection〕は撤去し、「このプロジェクトから申請した共有」の検索窓として統合）。
+
+    include_archived（既定false）はA-21のlist_materials_sourceと同じ意味。既定でアーカイブ済み
+    教材を除外するのは、共有は今後も使い続ける教材を前提とした操作であり、非表示にした教材が
+    検索結果に混ざると誤って共有してしまう恐れがあるため（2026-09-18、ユーザー要望により追加）。
+
+    「/{id}」（id: intの文字列プレースホルダ）より前に登録する必要がある（2026-09-18、実装時に
+    発見・修正）。FastAPI/Starletteはパス中の`{id}`をルーティング段階では単なる文字列ワイルド
+    カードとして扱い、Python側の型ヒント（int）はルート一致後の値検証にしか使われないため、
+    `/{id}`が先に登録されていると`/materials/shareable`もまずそちらにマッチしてしまい、
+    「shareableをintとして解釈できない」という422エラーになる。"""
+    pool = get_pool()
+    if not await has_active_project_role(project_id, user.id, "admin"):
+        raise HTTPException(403, detail="この操作を行う権限がありません")
+    conditions = ["m.project_id = $1", "m.status = 'published'"]
+    params: list = [project_id]
+    if not include_archived:
+        conditions.append("m.is_archived = false")
+    if q:
+        params.append(f"%{q}%")
+        conditions.append(f"m.title ILIKE ${len(params)}")
+    rows = await pool.fetch(
+        f"""SELECT m.id, m.title, m.project_id, u.name AS created_by_name, m.is_archived,
+                   EXISTS (
+                       SELECT 1 FROM assignments a WHERE a.material_id = m.id AND a.required = true
+                   ) AS is_required
+            FROM materials m
+            JOIN users u ON u.id = m.created_by
+            WHERE {" AND ".join(conditions)}
+            ORDER BY m.updated_at DESC
+            LIMIT 50""",
+        *params,
+    )
+    return {"items": [dict(r) for r in rows]}
+
+
 @detail_router.get("/{id}")
 async def get_material(id: int, user: CurrentUser = Depends(require_auth)):
     """A-15: 教材メタ＋目次ツリー。編集権限保持者（下書き含む）と受講対象者（公開済みのみ）の
@@ -437,12 +609,20 @@ async def get_material(id: int, user: CurrentUser = Depends(require_auth)):
     perm_row = await _require_view_access(pool, id, user)
     row = await pool.fetchrow(
         """SELECT id, project_id, title, description, tags, status, sort_order,
-                  attempt_scope, retake_scope, default_feedback_style, ai_context,
-                  grading_mode, is_archived, archived_at, created_at, updated_at
+                  attempt_scope, retake_scope, pass_score_pct, retake_allowed, retake_limit,
+                  default_feedback_style, ai_context,
+                  grading_mode, is_archived, archived_at, created_at, updated_at, thumbnail_key
            FROM materials WHERE id = $1""",
         id,
     )
     tree = await _fetch_tree(pool, id, strip_answers=not perm_row["is_editor"])
+    # S-05のアーカイブ/削除ボタンの出し分け用（編集権限者のみ計算し、受講者向けアクセスでは
+    # 無駄なクエリを避ける）。下書きに受講実績がある場合（アーカイブ→復元を経た教材）は
+    # 削除できず、代わりにアーカイブできる必要があるため、フロントエンドがこのフラグで
+    # 削除／アーカイブどちらのボタンを出すか判断する（2026-09-18、ユーザー報告により発見:
+    # アーカイブ→復元→下書きの教材が「削除も不可・アーカイブも不可（下書きのため）」という
+    # 手詰まりになっていた）。
+    has_learning_history = await _has_learning_history(pool, id) if perm_row["is_editor"] else False
 
     # S-04向け: 必修/任意・期限（自分に適用される配信設定のうち、必修優先・期限が近い順で1件に要約）
     assignment = await pool.fetchrow(
@@ -459,7 +639,7 @@ async def get_material(id: int, user: CurrentUser = Depends(require_auth)):
 
     # S-04向け: 自分の受講進捗（enrollment_progress未作成の間は未受講扱い）
     progress_row = await pool.fetchrow(
-        """SELECT status, current_node_id, completed_node_ids
+        """SELECT status, current_node_id, completed_node_ids, visited_node_ids
            FROM enrollment_progress WHERE user_id = $1 AND material_id = $2""",
         user.id, id,
     )
@@ -468,19 +648,22 @@ async def get_material(id: int, user: CurrentUser = Depends(require_auth)):
             "status": progress_row["status"],
             "current_node_id": progress_row["current_node_id"],
             "completed_node_ids": json.loads(progress_row["completed_node_ids"]),
+            "visited_node_ids": json.loads(progress_row["visited_node_ids"]),
         }
         if progress_row
-        else {"status": "not_started", "current_node_id": None, "completed_node_ids": []}
+        else {"status": "not_started", "current_node_id": None, "completed_node_ids": [], "visited_node_ids": []}
     )
 
-    # S-04/S-16向け: マイ学習登録有無（F-31）。全社Wiki所属の任意教材でのみボタンを表示する判定に使う
+    # S-04/S-16向け: マイ学習登録有無（F-31）。全社ライブラリ所属の任意教材でのみボタンを表示する判定に使う
     registered = await pool.fetchval(
         "SELECT EXISTS(SELECT 1 FROM my_learning_registrations WHERE user_id = $1 AND material_id = $2)",
         user.id, id,
     )
 
+    material = _material_dict(row)
+    thumbnail_key = material.pop("thumbnail_key")
     return {
-        **_material_dict(row),
+        **material,
         "toc": tree,
         "required": required,
         "due_at": due_at,
@@ -488,6 +671,8 @@ async def get_material(id: int, user: CurrentUser = Depends(require_auth)):
         "page_count": _count_pages(tree),
         "is_company_wide": perm_row["is_company_wide"],
         "registered": registered,
+        "has_learning_history": has_learning_history,
+        "thumbnail_url": await _resolve_thumbnail_url(thumbnail_key),
     }
 
 
@@ -512,14 +697,20 @@ async def get_material_preview_tree(
 
 async def _require_owner_or_project_admin(pool, id: int, user: CurrentUser) -> dict:
     """アーカイブ/復元/削除は、作成者本人またはプロジェクト管理者のみ実行できる（教材一覧から
-    非表示になる・完全に消える影響範囲がプロジェクトメンバー全員に及ぶため、通常の編集より一段厳しくする）。"""
+    非表示になる・完全に消える影響範囲がプロジェクトメンバー全員に及ぶため、通常の編集より一段厳しくする）。
+
+    システムadminでも実際のプロジェクトロール（管理者）を要求する（bypass_system_admin=False。
+    2026-09-16、ユーザー要望により修正。外側のrequire_material_role〔エディタ以上必須〕は既に
+    実ロールを要求していたが、この内側の管理者判定だけシステムadminの無条件許可が残っており、
+    実際にはそのプロジェクトの「エディタ」でしかないシステムadminでもアーカイブ・削除
+    〔本来は管理者限定の操作〕まで行えてしまう不整合があった）。"""
     row = await pool.fetchrow(
         "SELECT project_id, created_by, is_archived, status FROM materials WHERE id = $1", id
     )
     if row is None:
         raise HTTPException(404, detail="教材が見つかりません")
     if row["created_by"] != user.id:
-        await check_project_role(user, row["project_id"], min_role="admin")
+        await check_project_role(user, row["project_id"], min_role="admin", bypass_system_admin=False)
     return row
 
 
@@ -527,12 +718,20 @@ async def _require_owner_or_project_admin(pool, id: int, user: CurrentUser) -> d
 async def archive_material(id: int, user: CurrentUser = Depends(require_material_role(min_role="editor"))):
     """新規（A-84）: 教材のソフトデリート（アーカイブ）。目次・ページ・設問・添付ファイル・
     受験記録・アンケート回答は削除せず、一覧・検索（A-14/A-15/A-21）から除外するのみ。
-    「復元」（A-85）でいつでも元に戻せる。下書き（status='draft'）は対象外とし、代わりに
+    「復元」（A-85）でいつでも元に戻せる。下書き（status='draft'）は原則対象外とし、代わりに
     物理削除（A-18）を案内する（下書きは一度も公開していないため、アーカイブという
-    “消せない置き場”を経由する必要が無い）。"""
+    “消せない置き場”を経由する必要が無い）。
+
+    ただし受講実績（_has_learning_history）がある下書きは例外的にアーカイブできる
+    （2026-09-18、ユーザー報告により発見・修正）。A-85（復元）は必ずstatus='draft'に戻す仕様の
+    ため、一度公開されて受講実績のある教材がアーカイブ→復元を経由するとstatus='draft'になり、
+    かつA-18（物理削除）は受講実績があるため拒否する。この状態のままだと「削除もアーカイブも
+    できない」手詰まりになっていたため、受講実績がある場合に限りdraftのままでも再アーカイブを
+    許可する（本来「一度も公開していない」ことを前提にした本来の除外条件を、実際にそうである
+    ケース＝受講実績が無い場合だけに絞った）。"""
     pool = get_pool()
     row = await _require_owner_or_project_admin(pool, id, user)
-    if row["status"] != "published":
+    if row["status"] != "published" and not await _has_learning_history(pool, id):
         raise HTTPException(
             400, detail="下書きはアーカイブできません。不要な場合は削除をご利用ください"
         )
@@ -542,7 +741,8 @@ async def archive_material(id: int, user: CurrentUser = Depends(require_material
         """UPDATE materials SET is_archived = true, archived_at = now(), archived_by = $2, updated_at = now()
            WHERE id = $1
            RETURNING id, project_id, title, description, tags, status, sort_order,
-                     attempt_scope, retake_scope, default_feedback_style, ai_context,
+                     attempt_scope, retake_scope, pass_score_pct, retake_allowed, retake_limit,
+                     default_feedback_style, ai_context,
                      grading_mode, is_archived, archived_at, created_at, updated_at""",
         id, user.id,
     )
@@ -551,36 +751,86 @@ async def archive_material(id: int, user: CurrentUser = Depends(require_material
 
 @detail_router.put("/{id}/restore")
 async def restore_material(id: int, user: CurrentUser = Depends(require_material_role(min_role="editor"))):
-    """新規（A-85）: アーカイブ済み教材を一覧・検索に戻す。"""
+    """新規（A-85）: アーカイブ済み教材を一覧・検索に戻す。復元しても即座には再公開せず、
+    必ず下書き（status='draft'）に落とす。アーカイブ中に内容を直しかけている場合、以前の仕様
+    （復元＝即座に公開状態へ戻る）だと直しかけの内容がそのまま公開されてしまう事故につながるため
+    （2026-09-15、ユーザー指摘）。再公開するには、S-05の「公開する」を改めて明示的に押す必要がある
+    （配信設定の確認モーダルも通常の初回公開と同じく表示される）。"""
     pool = get_pool()
     row = await _require_owner_or_project_admin(pool, id, user)
     if not row["is_archived"]:
         raise HTTPException(409, detail="この教材はアーカイブされていません")
     updated = await pool.fetchrow(
-        """UPDATE materials SET is_archived = false, archived_at = NULL, archived_by = NULL, updated_at = now()
+        """UPDATE materials SET is_archived = false, archived_at = NULL, archived_by = NULL,
+                                 status = 'draft', updated_at = now()
            WHERE id = $1
            RETURNING id, project_id, title, description, tags, status, sort_order,
-                     attempt_scope, retake_scope, default_feedback_style, ai_context,
+                     attempt_scope, retake_scope, pass_score_pct, retake_allowed, retake_limit,
+                     default_feedback_style, ai_context,
                      grading_mode, is_archived, archived_at, created_at, updated_at""",
         id,
     )
     return _material_dict(updated)
 
 
+async def _has_learning_history(pool, material_id: int) -> bool:
+    """教材の受講実績（受験記録・進捗・アンケート回答）が1件でもあるかどうか。物理削除の可否判定に使う。"""
+    return await pool.fetchval(
+        """SELECT EXISTS(
+             SELECT 1 FROM quiz_attempts WHERE material_id = $1
+             UNION ALL
+             SELECT 1 FROM enrollment_progress WHERE material_id = $1
+             UNION ALL
+             SELECT 1 FROM survey_responses sr
+               JOIN surveys s ON s.id = sr.survey_id WHERE s.material_id = $1
+           )""",
+        material_id,
+    )
+
+
 @detail_router.delete("/{id}", status_code=204)
 async def delete_material(id: int, user: CurrentUser = Depends(require_material_role(min_role="editor"))):
-    """A-18: 教材の物理削除。一度も公開したことのない下書き（status='draft'）のみ対象とする。
-    目次・ページ・設問・添付ファイル・改訂履歴はCASCADEで削除される（受験記録・アンケート回答も
-    同様だが、下書きは受講対象になり得ないため実際には発生しない）。公開済みの教材はアーカイブ
-    （A-84）のみを案内し、この物理削除は400で拒否する（一度でも公開された教材は、既に受講記録が
-    生じている可能性を否定できないため）。"""
+    """A-18: 教材の物理削除。下書き（status='draft'）のみ対象とする。目次・ページ・設問・
+    添付ファイル・改訂履歴はCASCADEで削除される（受験記録・アンケート回答も同様）。公開済みの教材は
+    アーカイブ（A-84）のみを案内し、この物理削除は400で拒否する。
+    以前は「下書き＝一度も公開されたことがない＝受講実績があるはずがない」という前提で、
+    status='draft'であることのみを確認していた。しかしA-85（復元）を「復元しても常にdraftへ戻す」
+    仕様に変更したことで、一度公開されて実際に受講実績がある教材も、アーカイブ→復元を経由すると
+    status='draft'になり得るようになった。この前提が崩れたため、statusに関わらず受講実績の有無を
+    直接確認するようにした（2026-09-15、A-85仕様変更に伴う安全対策）。"""
     pool = get_pool()
     row = await _require_owner_or_project_admin(pool, id, user)
     if row["status"] != "draft":
         raise HTTPException(
             400, detail="公開済みの教材は削除できません。不要な場合はアーカイブをご利用ください"
         )
+    if await _has_learning_history(pool, id):
+        raise HTTPException(
+            400, detail="この教材には受講実績があるため削除できません。不要な場合はアーカイブをご利用ください"
+        )
     await pool.execute("DELETE FROM materials WHERE id = $1", id)
+
+
+@detail_router.delete("/{id}/progress", status_code=204)
+async def reset_material_progress(id: int, user: CurrentUser = Depends(require_auth)):
+    """A-95: 自分の受講進捗を未受講に戻す（S-09学習履歴の「未受講に戻す」ボタン）。本人の
+    enrollment_progressの位置情報（status・current_node_id・completed_node_ids・visited_node_ids・
+    started_at・completed_at）のみをリセットし、quiz_attempts・answers等の受験記録は削除しない
+    （学習記録は失われないという一貫方針。S-04の前回の受験結果パネル等には引き続き過去の記録が
+    表示される）。本人の行のみを対象とするため、対象教材への現在のアクセス権限は問わない
+    （過去に受講対象だった教材の進捗を後から自分でリセットすることも許容する）。"""
+    pool = get_pool()
+    material = await pool.fetchval("SELECT 1 FROM materials WHERE id = $1", id)
+    if material is None:
+        raise HTTPException(404, detail="教材が見つかりません")
+    await pool.execute(
+        """UPDATE enrollment_progress
+              SET status = 'not_started', current_node_id = NULL, completed_node_ids = '[]',
+                  visited_node_ids = '[]', reset_at = now(),
+                  started_at = NULL, completed_at = NULL, updated_at = now()
+            WHERE user_id = $1 AND material_id = $2""",
+        user.id, id,
+    )
 
 
 def _page_path(chapter_label: str, section_title: str | None, page_title: str) -> str:
@@ -595,10 +845,8 @@ def _page_path(chapter_label: str, section_title: str | None, page_title: str) -
 async def get_questions_summary(
     id: int, user: CurrentUser = Depends(require_material_role(min_role="editor"))
 ):
-    """新設: S-05「問題一覧」タブ用に、教材内の全設問をページ横断でフラットに集計する
-    （詳細設計書10.5節）。正答率・採点待ち件数はT-13 quiz_attempts/T-14 answersを参照するが、
-    S-04/S-16（受講・受験API、A-39〜A-44）が未実装のため、現状は常に「回答なし」になる
-    （配線のみ先行実装。v1.26）。"""
+    """S-05「問題一覧」タブ用に、教材内の全設問をページ横断でフラットに集計する
+    （詳細設計書10.5節）。正答率・採点待ち件数はT-14 answersを実際に集計して返す。"""
     pool = get_pool()
     material_row = await pool.fetchrow("SELECT id FROM materials WHERE id = $1", id)
     if material_row is None:
@@ -668,6 +916,10 @@ class MaterialUpdate(BaseModel):
     description: str | None = None
     tags: list[str] | None = None
     status: str | None = None
+    # サムネイル差し替え確定用。アップロード自体は/{id}/thumbnail/upload-urlで署名付きURLを
+    # 発行し、フロントエンドがそこへ直接PUTした後、ここでstorage_keyを確定させる（A-76/A-75の
+    # アイコンと同じ2段階方式）。nullを明示的に送るとサムネイルを削除できる（2026-09-28）。
+    thumbnail_key: str | None = None
 
 
 @detail_router.put("/{id}")
@@ -685,11 +937,21 @@ async def update_material(
         row = await get_pool().fetchrow(
             """SELECT id, project_id, title, description, tags, status, sort_order,
                       attempt_scope, retake_scope, default_feedback_style, ai_context,
-                      grading_mode, is_archived, archived_at, created_at, updated_at
+                      grading_mode, is_archived, archived_at, created_at, updated_at, thumbnail_key
                FROM materials WHERE id = $1""",
             id,
         )
-        return _material_dict(row)
+        material = _material_dict(row)
+        thumbnail_key = material.pop("thumbnail_key")
+        return {**material, "thumbnail_url": await _resolve_thumbnail_url(thumbnail_key)}
+
+    # サムネイル差し替え・削除時、古いストレージ上のファイルを消し忘れると孤児ファイルが
+    # 残り続けるため、更新前の値を控えておく（users.custom_picture_keyのA-75と同じ方式）。
+    old_thumbnail_key = None
+    if "thumbnail_key" in updates:
+        old_thumbnail_key = await get_pool().fetchval(
+            "SELECT thumbnail_key FROM materials WHERE id = $1", id
+        )
 
     set_clauses = []
     values = []
@@ -704,10 +966,14 @@ async def update_material(
             WHERE id = ${len(values)}
             RETURNING id, project_id, title, description, tags, status, sort_order,
                       attempt_scope, retake_scope, default_feedback_style, ai_context,
-                      grading_mode, is_archived, archived_at, created_at, updated_at""",
+                      grading_mode, is_archived, archived_at, created_at, updated_at, thumbnail_key""",
         *values,
     )
-    return _material_dict(row)
+    material = _material_dict(row)
+    new_thumbnail_key = material.pop("thumbnail_key")
+    if old_thumbnail_key and old_thumbnail_key != new_thumbnail_key:
+        await storage.delete_object(old_thumbnail_key)
+    return {**material, "thumbnail_url": await _resolve_thumbnail_url(new_thumbnail_key)}
 
 
 @detail_router.get("/{id}/source")
@@ -726,9 +992,25 @@ async def get_material_source(
 async def put_material_source(
     id: int, request: Request, user: CurrentUser = Depends(require_material_role(min_role="editor"))
 ):
-    """A-20: 目次構造の全置換保存（詳細設計書7.3節）。目次ツリー編集（章・小見出しの追加/削除/並び替え）は
-    このAPIを都度呼ぶ形にする（Claude Code連携A-19/A-20と同じ書き込み経路。7章参照）。"""
+    """A-20: 目次構造の全置換保存（詳細設計書7.3節）。リクエストボディ・ヘッダーを読み取り、
+    実処理は_put_material_source_implに委譲する（MCPサーバのput_material_sourceツールからも
+    Requestオブジェクトを介さず直接呼べるようにするための切り出し。2026-09-14）。"""
     text = (await request.body()).decode("utf-8")
+    expected_updated_at = request.headers.get("x-expected-updated-at")
+    return await _put_material_source_impl(id, text, user, expected_updated_at)
+
+
+async def _put_material_source_impl(
+    id: int, text: str, user: CurrentUser, expected_updated_at: str | None, changed_via: str | None = None
+) -> Response:
+    """changed_viaを省略すると、user.token_typeから'claude_code'/'web'を自動判定する（従来どおり）。
+    MCPサーバー（mcp_server.py）はこの自動判定と区別するため、明示的に'mcp'を渡す（2026-09-14）。
+    目次ツリー編集（章・小見出しの追加/削除/並び替え）は
+    このAPIを都度呼ぶ形にする（Claude Code連携A-19/A-20と同じ書き込み経路。7章参照）。
+    複数人での同時編集による無条件上書き事故を防ぐため、`X-Expected-Updated-At`ヘッダーで
+    クライアントが把握している時点のupdated_atを送らせ、現在のDBの値と食い違えば409で拒否する
+    （楽観的ロック。2026-09-10）。Claude Code CLI連携（A-19/A-20往復）・MCPサーバ経由の呼び出しは
+    このヘッダーを送らないため、省略時は従来通り無条件で保存する。"""
     try:
         meta, nodes = parse_source(text)
     except MaterialParseError as e:
@@ -740,16 +1022,26 @@ async def put_material_source(
             material_row = await conn.fetchrow("SELECT * FROM materials WHERE id = $1", id)
             if material_row is None:
                 raise HTTPException(404, detail="教材が見つかりません")
+
+            expected_dt = None
+            if expected_updated_at is not None:
+                try:
+                    expected_dt = datetime.fromisoformat(expected_updated_at)
+                except ValueError:
+                    raise HTTPException(400, detail="X-Expected-Updated-Atの形式が不正です")
+
             incoming_project_id = meta.get("project_id")
             if incoming_project_id is not None and incoming_project_id != material_row["project_id"]:
                 raise HTTPException(400, detail="プロジェクトの付け替えはA-17を使用してください")
 
-            await conn.execute(
-                """UPDATE materials SET
-                       title = $1, description = $2, tags = $3, status = $4, sort_order = $5,
-                       attempt_scope = $6, retake_scope = $7, default_feedback_style = $8,
-                       ai_context = $9, grading_mode = $10, updated_at = now()
-                   WHERE id = $11""",
+            # expected_dt指定時は、単に事前のSELECT値と比較するのではなく、UPDATE文自体の
+            # WHERE句にupdated_atの一致条件を含めて更新件数で判定する。事前比較だけだと、
+            # ほぼ同時に届いた2つの保存リクエストが両方とも同じ古いupdated_atを読み取って
+            # チェックを通過し、両方とも書き込めてしまう（TOCTOU競合）。WHERE句に含めることで
+            # PostgreSQLの行ロックにより2件目の更新は1件目コミット後に条件を再評価され、
+            # 確実に0件（競合）として検知できる（2026-09-10、レビューで発見・修正）。
+            where_version_clause = " AND updated_at = $15" if expected_dt is not None else ""
+            params = [
                 meta.get("title", material_row["title"]),
                 meta.get("description", material_row["description"]),
                 json.dumps(meta.get("tags") or []),
@@ -760,8 +1052,28 @@ async def put_material_source(
                 meta.get("default_feedback_style", material_row["default_feedback_style"]),
                 meta.get("ai_context", material_row["ai_context"]),
                 meta.get("grading_mode", material_row["grading_mode"]),
+                meta.get("pass_score_pct", material_row["pass_score_pct"]),
+                meta.get("retake_allowed", material_row["retake_allowed"]),
+                meta.get("retake_limit", material_row["retake_limit"]),
                 id,
+            ]
+            if expected_dt is not None:
+                params.append(expected_dt)
+            update_result = await conn.execute(
+                f"""UPDATE materials SET
+                       title = $1, description = $2, tags = $3, status = $4, sort_order = $5,
+                       attempt_scope = $6, retake_scope = $7, default_feedback_style = $8,
+                       ai_context = $9, grading_mode = $10, pass_score_pct = $11,
+                       retake_allowed = $12, retake_limit = $13, updated_at = now()
+                   WHERE id = $14{where_version_clause}""",
+                *params,
             )
+            if expected_dt is not None and update_result == "UPDATE 0":
+                raise HTTPException(
+                    409,
+                    detail="他のユーザーがこの教材を更新したため保存できませんでした。"
+                    "画面を再読み込みしてから、内容をご確認のうえ保存し直してください。",
+                )
 
             existing_ids = {r["id"] for r in await conn.fetch(
                 "SELECT id FROM material_nodes WHERE material_id = $1", id
@@ -836,7 +1148,8 @@ async def put_material_source(
                 summary_parts.append(f"問題を{q_added}件追加/{q_updated}件更新/{q_deleted}件削除")
             change_summary = "、".join(summary_parts) or "教材情報を更新"
 
-            changed_via = "claude_code" if user.token_type == "cli" else "web"
+            if changed_via is None:
+                changed_via = "claude_code" if user.token_type == "cli" else "web"
             await conn.execute(
                 """INSERT INTO material_revisions (material_id, source_snapshot, changed_by, changed_via, change_summary)
                    VALUES ($1, $2, $3, $4, $5)""",
@@ -844,6 +1157,18 @@ async def put_material_source(
             )
 
     return Response(content=new_source, media_type="text/plain")
+
+
+@detail_router.post("/{id}/presence")
+async def touch_presence(id: int, user: CurrentUser = Depends(require_material_role(min_role="editor"))):
+    """A-97（新規）: S-05/S-17編集画面が定期的に呼ぶハートビート。ロック取得は行わず、
+    在席通知（他に誰が編集画面を開いているか）とupdated_atの変化検知のみを行う
+    advisoryな仕組み（2026-09-10）。プロセス内メモリで完結し、DBの状態は変更しない。"""
+    others = material_presence.touch(id, user.id, user.name)
+    updated_at = await get_pool().fetchval("SELECT updated_at FROM materials WHERE id = $1", id)
+    if updated_at is None:
+        raise HTTPException(404, detail="教材が見つかりません")
+    return {"updated_at": updated_at, "others": others}
 
 
 class QuestionsReplaceRequest(BaseModel):
@@ -892,7 +1217,7 @@ async def preview_material_body(
     受講対象者は元々_fetch_tree経由でbody原文を取得できるため、そのサニタイズ結果を見られる
     ようにするのはセキュリティ上問題ない（S-16着手時にeditor専用から拡張、_require_view_access）。"""
     await _require_view_access(get_pool(), id, user)
-    return {"html": render_material_body(body.body, body.format)}
+    return {"html": await render_material_body(body.body, body.format, id, get_pool())}
 
 
 def _review_row_dict(row) -> dict:
@@ -902,12 +1227,18 @@ def _review_row_dict(row) -> dict:
 @detail_router.post("/{id}/ai-review")
 async def run_ai_review(id: int, user: CurrentUser = Depends(require_material_role(min_role="editor"))):
     """A-32: 教材AIレビューを実行する（F-08、8.6節）。同期呼び出し。教材本文（サニタイズ前の原文）・
-    問題定義をAnthropic Claude APIへ送り、結果をT-15へ保存して返す。AI呼び出しが最終的に失敗した場合は
-    502を返す（APIキー未設定・Anthropic側障害等を利用者に詳細を見せず伝える、8.7節）。"""
+    問題定義をOpenAI APIへ送り、結果をT-15へ保存して返す。教材に受講後アンケートが設置され回答が
+    ある場合は、その集計結果（評価点平均・自由記述）も判断材料として併せて送る
+    （2026-09-09、ユーザー要望：AIレビューに実際の受講者の感想も含めてほしい）。AI呼び出しが
+    最終的に失敗した場合は502を返す（APIキー未設定・OpenAI側障害等を利用者に詳細を見せず伝える、
+    8.7節）。"""
     pool = get_pool()
     source_text = await _rebuild_source(pool, id)
+    survey_summary = await _aggregate_survey_summary(pool, id)
     try:
-        findings = await ai_client.review_material(material_text=source_text, user_id=user.id)
+        findings = await ai_client.review_material(
+            material_text=source_text, survey_summary=survey_summary, user_id=user.id,
+        )
     except Exception:
         raise HTTPException(502, detail="AIレビューの実行に失敗しました。しばらくしてから再度お試しください")
 
@@ -938,6 +1269,76 @@ async def get_ai_review(id: int, user: CurrentUser = Depends(require_material_ro
     return _review_row_dict(row)
 
 
+@detail_router.get("/{id}/ai-reviews")
+async def list_ai_reviews(id: int, user: CurrentUser = Depends(require_material_role(min_role="editor"))):
+    """A-103: 過去のAIレビュー結果を新しい順に一覧取得する（新設）。実行のたびにai_material_reviewsへ
+    1行追加されるだけで従来から履歴自体は保存されていたが、A-33（GET /ai-review）は直近の1件しか
+    返しておらず、過去の指摘が直っているかを見比べる手段が無かった（2026-09-28、ユーザー要望）。
+    直近50件まで返す（無制限にすると教材を何度もレビューし続けた場合に応答が肥大化するため）。"""
+    pool = get_pool()
+    rows = await pool.fetch(
+        """SELECT r.*, u.name AS requested_by_name
+           FROM ai_material_reviews r JOIN users u ON u.id = r.requested_by
+           WHERE r.material_id = $1
+           ORDER BY r.created_at DESC LIMIT 50""",
+        id,
+    )
+    return {"items": [_review_row_dict(row) for row in rows]}
+
+
+async def _aggregate_survey_summary(pool, material_id: int) -> list[dict]:
+    """教材に設置された受講後アンケートの集計（評価点平均・自由記述テキスト群）を返す。
+    AIレビュー（F-08）に「実際の受講者の感想」も判断材料として渡すために使う（2026-09-09、
+    ユーザー要望）。個々の回答者は特定できない（氏名等は取得しない）。"""
+    survey_rows = await pool.fetch(
+        "SELECT id, title FROM surveys WHERE material_id = $1 AND is_active = true", material_id,
+    )
+    if not survey_rows:
+        return []
+    # 2026-09-28: 従来はアンケート単位・設問単位でネストしてループするN+1
+    # （1 + アンケート数 + 設問数ぶんのクエリ）だったため、設問一覧・回答一覧をそれぞれ
+    # 1クエリにまとめて取得し、Python側でグルーピングする方式に変更した。
+    survey_ids = [s["id"] for s in survey_rows]
+    sq_rows = await pool.fetch(
+        """SELECT id, survey_id, type, prompt FROM survey_questions
+            WHERE survey_id = ANY($1::bigint[]) ORDER BY survey_id, sort_order""",
+        survey_ids,
+    )
+    questions_by_survey: dict[int, list] = {}
+    for sq in sq_rows:
+        questions_by_survey.setdefault(sq["survey_id"], []).append(sq)
+
+    values_by_question: dict[int, list] = {}
+    if sq_rows:
+        question_ids = [sq["id"] for sq in sq_rows]
+        answer_rows = await pool.fetch(
+            """SELECT sa.survey_question_id, sa.value FROM survey_answers sa
+                JOIN survey_responses sr ON sr.id = sa.response_id
+               WHERE sa.survey_question_id = ANY($1::bigint[])""",
+            question_ids,
+        )
+        for r in answer_rows:
+            values_by_question.setdefault(r["survey_question_id"], []).append(json.loads(r["value"]))
+
+    survey_stats = []
+    for survey in survey_rows:
+        question_summaries = []
+        for sq in questions_by_survey.get(survey["id"], []):
+            values = values_by_question.get(sq["id"], [])
+            if not values:
+                continue
+            if sq["type"] == "rating_5":
+                summary = {"avg_rating": round(sum(values) / len(values), 1), "response_count": len(values)}
+            elif sq["type"] == "free_text":
+                summary = {"free_text_responses": values}
+            else:
+                summary = {"response_count": len(values)}
+            question_summaries.append({"prompt": sq["prompt"], "type": sq["type"], **summary})
+        if question_summaries:
+            survey_stats.append({"title": survey["title"], "questions": question_summaries})
+    return survey_stats
+
+
 class UploadUrlRequest(BaseModel):
     filename: str = Field(min_length=1)
     mime_type: str
@@ -960,6 +1361,26 @@ async def create_attachment_upload_url(
     return {"upload_url": upload_url, "storage_key": storage_key}
 
 
+@detail_router.post("/{id}/thumbnail/upload-url")
+async def create_thumbnail_upload_url(
+    id: int,
+    body: UploadUrlRequest,
+    user: CurrentUser = Depends(require_material_role(min_role="editor")),
+):
+    """新規: 教材一覧（S-02/S-03/S-12/S-14）サムネイル画像アップロード用の署名付きURLを発行する
+    （A-76アイコンアップロードと同じ方式）。PNG/JPEGのみ、MAX_THUMBNAIL_SIZE_MB（既定5MB）まで。
+    アップロード後はPUT /api/materials/{id}にthumbnail_keyを渡して確定する（A-17）。"""
+    if body.mime_type not in ("image/png", "image/jpeg"):
+        raise HTTPException(422, detail="PNG またはJPEG画像のみアップロードできます")
+    max_mb = int(os.environ.get("MAX_THUMBNAIL_SIZE_MB", "5"))
+    if body.size_bytes > max_mb * 1024 * 1024:
+        raise HTTPException(413, detail=f"サムネイル画像は{max_mb}MB以内にしてください")
+    storage_key, upload_url = await storage.create_upload_target(
+        prefix=f"materials/{id}/thumbnail", filename=body.filename, mime_type=body.mime_type,
+    )
+    return {"upload_url": upload_url, "storage_key": storage_key}
+
+
 class AttachmentCreate(BaseModel):
     node_id: int | None = None
     kind: Literal["file", "link"]
@@ -968,6 +1389,9 @@ class AttachmentCreate(BaseModel):
     filename: str = Field(min_length=1)
     mime_type: str | None = None
     size_bytes: int | None = None
+    # 本文中に![alt](attachment:ID)で埋め込む画像用（2026-09-30新設）。trueの間は受講画面の
+    # 「資料」一覧に出さない（database.pyのis_inline列コメント参照）。
+    is_inline: bool = False
 
     @model_validator(mode="after")
     def _validate_kind(self):
@@ -995,11 +1419,35 @@ async def create_attachment(
             raise HTTPException(422, detail="node_idがこの教材のノードではありません")
     row = await pool.fetchrow(
         """INSERT INTO material_attachments
-               (material_id, node_id, kind, storage_key, external_url, filename, mime_type, size_bytes)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-           RETURNING id, node_id, kind, filename, mime_type, size_bytes, external_url, created_at""",
+               (material_id, node_id, kind, storage_key, external_url, filename, mime_type, size_bytes, is_inline)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+           RETURNING id, node_id, kind, filename, mime_type, size_bytes, external_url, created_at, is_inline""",
         id, body.node_id, body.kind, body.storage_key, body.external_url,
-        body.filename, body.mime_type, body.size_bytes,
+        body.filename, body.mime_type, body.size_bytes, body.is_inline,
+    )
+    return dict(row)
+
+
+async def _create_material_asset_impl(id: int, filename: str, mime_type: str, data: bytes) -> dict:
+    """MCPのupload_material_assetツール専用。A-27（アップロードURL発行→PUT）＋A-29（メタ登録）を
+    1回にまとめ、Claude Code側からbase64で渡ってきたバイト列をサーバープロセス内で直接保存する
+    （20260919_Manabi改善提案.html #3、MCPに画像を扱うツールが無かった問題への対応）。
+    node_idは常にNULL（教材全体）とする。本文への埋め込みはmarkdown_render.pyの
+    attachment:ID記法（![alt](attachment:ID)）で行うため、特定ページに紐づける必要が無い。
+    is_inline=trueで登録し、受講画面の「資料」一覧には出さない（2026-09-30、資料一覧に
+    本文埋め込み画像が混ざっていたユーザー指摘を受けて追加）。"""
+    max_mb = int(os.environ.get("MAX_ATTACHMENT_SIZE_MB", "200"))
+    if len(data) > max_mb * 1024 * 1024:
+        raise HTTPException(413, detail=f"ファイルサイズは{max_mb}MB以内にしてください")
+    storage_key = await storage.upload_object(
+        prefix=f"materials/{id}", filename=filename, mime_type=mime_type, data=data,
+    )
+    row = await get_pool().fetchrow(
+        """INSERT INTO material_attachments
+               (material_id, node_id, kind, storage_key, filename, mime_type, size_bytes, is_inline)
+           VALUES ($1, NULL, 'file', $2, $3, $4, $5, true)
+           RETURNING id, node_id, kind, filename, mime_type, size_bytes, external_url, created_at, is_inline""",
+        id, storage_key, filename, mime_type, len(data),
     )
     return dict(row)
 
@@ -1080,7 +1528,7 @@ async def list_material_attachments(
     where = "material_id = $1" + (" AND node_id = $2" if node_id is not None else "")
     params = [id] + ([node_id] if node_id is not None else [])
     rows = await get_pool().fetch(
-        f"""SELECT id, node_id, kind, filename, mime_type, size_bytes, external_url, created_at
+        f"""SELECT id, node_id, kind, filename, mime_type, size_bytes, external_url, created_at, is_inline
             FROM material_attachments WHERE {where} ORDER BY created_at DESC""",
         *params,
     )
@@ -1117,7 +1565,7 @@ async def list_surveys(id: int, user: CurrentUser = Depends(require_auth)):
     _require_view_accessベースに拡張した（S-16着手時、A-64と同じ拡張パターン）。あわせて
     answered_by_me（自分が既に回答済みか）を追加し、repeat_mode='once'の表示要否判定に使う。"""
     pool = get_pool()
-    perm = await _require_view_access(pool, id, user)
+    await _require_view_access(pool, id, user)
     rows = await pool.fetch(
         """SELECT s.id, s.node_id, s.title, s.is_active, s.repeat_mode,
                   EXISTS (
@@ -1127,16 +1575,29 @@ async def list_surveys(id: int, user: CurrentUser = Depends(require_auth)):
            WHERE s.material_id = $1 ORDER BY s.node_id NULLS FIRST""",
         id, user.id,
     )
+    # 2026-09-28: 従来はアンケート単位でループして設問を取得するN+1だったため、
+    # 全アンケート分の設問を1クエリでまとめて取得しPython側でグルーピングする方式に変更した。
+    survey_ids = [r["id"] for r in rows]
+    qrows_by_survey: dict[int, list] = {}
+    if survey_ids:
+        all_qrows = await pool.fetch(
+            """SELECT id, survey_id, type, prompt, options FROM survey_questions
+                WHERE survey_id = ANY($1::bigint[]) ORDER BY survey_id, sort_order""",
+            survey_ids,
+        )
+        for q in all_qrows:
+            qrows_by_survey.setdefault(q["survey_id"], []).append(q)
+
     items = []
     for r in rows:
         # 編集者向け画面（S-05）は未回答者数の目安として、受講者は自分の回答状況のみ気にすればよいため
         # 設問一覧は常に返す（設問内容自体に受講者向けの機微情報は無い）。
-        qrows = await pool.fetch(
-            "SELECT id, type, prompt, options FROM survey_questions WHERE survey_id = $1 ORDER BY sort_order",
-            r["id"],
-        )
         questions = [
-            {**dict(q), "options": json.loads(q["options"]) if q["options"] is not None else None} for q in qrows
+            {
+                "id": q["id"], "type": q["type"], "prompt": q["prompt"],
+                "options": json.loads(q["options"]) if q["options"] is not None else None,
+            }
+            for q in qrows_by_survey.get(r["id"], [])
         ]
         items.append({**dict(r), "questions": questions})
     return {"items": items}
@@ -1240,11 +1701,13 @@ async def _duplicate_material_into_project(conn, material_id: int, target_projec
     material_row = await conn.fetchrow("SELECT * FROM materials WHERE id = $1", material_id)
     new_material_id = await conn.fetchval(
         """INSERT INTO materials (project_id, title, description, tags, created_by, status,
-               attempt_scope, retake_scope, default_feedback_style, ai_context, grading_mode)
-           VALUES ($1, $2, $3, $4, $5, 'draft', $6, $7, $8, $9, $10)
+               attempt_scope, retake_scope, pass_score_pct, retake_allowed, retake_limit,
+               default_feedback_style, ai_context, grading_mode)
+           VALUES ($1, $2, $3, $4, $5, 'draft', $6, $7, $8, $9, $10, $11, $12, $13)
            RETURNING id""",
         target_project_id, material_row["title"], material_row["description"], material_row["tags"],
         created_by, material_row["attempt_scope"], material_row["retake_scope"],
+        material_row["pass_score_pct"], material_row["retake_allowed"], material_row["retake_limit"],
         material_row["default_feedback_style"], material_row["ai_context"], material_row["grading_mode"],
     )
 
@@ -1270,11 +1733,11 @@ async def _duplicate_material_into_project(conn, material_id: int, target_projec
                 answer_json = json.dumps(q["correct_answer"]) if q["correct_answer"] is not None else None
                 new_q_id = await conn.fetchval(
                     """INSERT INTO questions (material_id, node_id, type, prompt, options,
-                           correct_answer, sort_order, required, is_critical, feedback_style,
+                           correct_answer, sort_order, required, counted, is_critical, feedback_style,
                            scoring_criteria, code_language, score_unit, grading_mode)
-                       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING id""",
+                       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING id""",
                     new_material_id, new_node_id, q["type"], q["prompt"], options_json, answer_json,
-                    q["sort_order"], q["required"], q["is_critical"], q["feedback_style"],
+                    q["sort_order"], q["required"], q["counted"], q["is_critical"], q["feedback_style"],
                     q["scoring_criteria"], q["code_language"], q["score_unit"], q["grading_mode"],
                 )
                 question_id_map[q["id"]] = new_q_id
@@ -1316,7 +1779,7 @@ async def _duplicate_material_into_project(conn, material_id: int, target_projec
                 new_material_id, new_node_id, att["external_url"], att["filename"],
             )
 
-    # 受験後アンケート（surveys/survey_questions）も複製する（2026-09-02、再監査で追加。
+    # 受講後アンケート（surveys/survey_questions）も複製する（2026-09-02、再監査で追加。
     # 5.27節は「目次・全ページ・問題・添付ファイル」とだけ書きアンケートに触れていなかったが、
     # 「内容を丸ごと複製する」という趣旨に合わせ、添付ファイルと同様に複製対象とした）。
     # 回答履歴（survey_responses/survey_answers）は複製先の新規受講者の回答であるべきため
@@ -1343,8 +1806,31 @@ async def _duplicate_material_into_project(conn, material_id: int, target_projec
 
 
 @detail_router.get("/{id}/shares")
-async def list_material_shares(id: int, user: CurrentUser = Depends(require_material_role(min_role="admin"))):
-    """A-59: 教材のプロジェクト間共有一覧取得。元プロジェクトの管理者のみ（5.27節）。"""
+async def list_material_shares(id: int, user: CurrentUser = Depends(require_auth)):
+    """A-59: 教材のプロジェクト間共有一覧取得。閲覧は元プロジェクトの編集者以上まで緩和した
+    （2026-09-09。S-12「教材の共有」タブを編集者にも閲覧のみで開放する要望への対応。共有申請の
+    作成〔A-60〕は従来どおり管理者限定のまま、5.27節）。
+
+    全社ライブラリはrequire_material_roleを使わず個別に判定する（2026-09-18）。共有の作成
+    〔A-60〕はプロジェクトadminなら必修・任意・作成者を問わず全教材が対象という既存仕様のため、
+    履歴閲覧だけそれより狭い「必修はadmin・任意は作成者のみ」に縛ると、adminが他人の任意教材を
+    共有しようとした際にまず履歴を見られず不整合になる。そのため全社ライブラリはA-60と同じ基準
+    （プロジェクトadminなら誰の教材でも可）に統一し、通常プロジェクトは従来通りeditor以上に
+    開放したままにする。"""
+    pool = get_pool()
+    material = await pool.fetchrow(
+        """SELECT m.project_id, m.created_by, p.is_company_wide
+           FROM materials m JOIN projects p ON p.id = m.project_id WHERE m.id = $1""",
+        id,
+    )
+    if material is None:
+        raise HTTPException(404, detail="教材が見つかりません")
+    if material["is_company_wide"]:
+        is_admin = await has_active_project_role(material["project_id"], user.id, "admin")
+        if not is_admin and material["created_by"] != user.id:
+            raise HTTPException(403, detail="この操作を行う権限がありません")
+    else:
+        await check_project_role(user, material["project_id"], min_role="editor")
     rows = await get_pool().fetch(
         """SELECT s.id, s.shared_to_project_id, p.name AS shared_to_project_name,
                   s.status, s.shared_at, s.responded_at

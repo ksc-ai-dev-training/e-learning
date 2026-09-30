@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import PageHeader from '../components/layout/PageHeader'
 import AnswerQuestionCard from '../components/material/AnswerQuestionCard'
+import MaterialTocSidebar from '../components/material/MaterialTocSidebar'
+import PageAttachments from '../components/material/PageAttachments'
 import PageBody from '../components/material/PageBody'
 import SurveyModal from '../components/material/SurveyModal'
 import Button from '../components/ui/Button'
@@ -10,9 +12,11 @@ import { useMaterial } from '../hooks/useMaterial'
 import { useSurveys } from '../hooks/useSurveys'
 import { getAttempt, markPageVisited, saveAnswer, startAttempt, submitAttempt } from '../lib/attemptActions'
 import { ApiError } from '../lib/api'
+import { toEditableChapters } from '../lib/materialTree'
 import { flattenPages, findPageIndex, resolveScopeNodeId, type FlatPage } from '../lib/pageNav'
 import { andFromQuery, backTarget, fromQuery } from '../lib/backLink'
-import type { Answer, QuizAttempt, Survey } from '../types'
+import type { EditableNode } from '../lib/materialSource'
+import type { Answer, Question, QuizAttempt, Survey } from '../types'
 
 type PageMode = 'graded' | 'practice' | 'wrong_only'
 
@@ -27,17 +31,68 @@ interface WrongOnlyQueue {
 
 const WRONG_ONLY_QUEUE_KEY = 'wrongOnlyQueue'
 
+// 任意（required=false）または記録専用（counted=false）の設問は合否判定から除外されるため、
+// それらの手動採点・AI採点が終わっていなくてもスコープ全体は「合格」で確定してしまう。この場合
+// StatusBadge（AnswerQuestionCard）は個々の設問カードに「回答済み・採点中」を出すが、
+// AttemptResultPanelの「合格」表示だけを見ると採点済みであるかのように誤解される
+// （2026-09-18、ユーザー報告により発見。「手動採点でまだ採点されていないのに合格と出る」）。
+// StatusBadgeの「採点中」判定条件（is_correct・ai_score_pctとも未確定）と揃え、合否には
+// 影響しないという注記をAttemptResultPanel側に追加するためだけに使う（合否ロジック自体は
+// 変更しない。合格済みスコープは再受験できない仕様上、事後に採点が完了してもこの表示は
+// 残り続けるが、それ自体は仕様どおり）。
+function hasPendingNonGradedAnswer(questions: Question[], answers: Record<number, Answer>): boolean {
+  return questions.some((q) => {
+    if (q.id === null) return false
+    const a = answers[q.id]
+    if (!a) return false
+    if (q.type === 'score_log') return false
+    if ((q.type === 'single' || q.type === 'multi') && !q.has_correct_answer) return false
+    return a.is_correct === null && a.ai_score_pct === null
+  })
+}
+
+function shuffle<T>(items: T[]): T[] {
+  const result = [...items]
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[result[i], result[j]] = [result[j], result[i]]
+  }
+  return result
+}
+
+// practiceモードの目次パネルは設問が無い（説明のみの）ページを表示しない。sequencePages
+// （次へ／前への遷移対象）と同じ基準にそろえないと、目次から直接そのページへ飛べてしまい、
+// 特に「問題のみ練習」では本文もfalseで隠しているため何も表示されない空白ページになって
+// しまうため（2026-09-29、目次パネルをpracticeにも表示するようにした際に対応）。
+function filterChaptersToQuestionsOnly(chapters: EditableNode[]): EditableNode[] {
+  const hasQuestions = (n: EditableNode) => (n.questions?.length ?? 0) > 0
+  return chapters
+    .map((chapter) => {
+      const children = chapter.children
+        .map((child) =>
+          child.kind === 'section' ? { ...child, children: child.children.filter(hasQuestions) } : child,
+        )
+        .filter((child) => (child.kind === 'section' ? child.children.length > 0 : hasQuestions(child)))
+      return { ...chapter, children }
+    })
+    .filter((chapter) => chapter.children.length > 0)
+}
+
 // S-16 教材受講：ページ（詳細設計書10.15節）。1ページ分の本文＋設問を表示し、回答して次のページへ進む。
 // 3つのモードを扱う（?modeクエリ）:
 // - graded（既定）: attempt_scope（教材/章/小見出し/ページ）ごとに独立した受験記録を扱う。ページ
 //   遷移のたびにA-40を呼び、現在のスコープの試行を再開または新規開始する（「続きから受講」の実体）。
-// - practice（反復演習）: scope_node_idは常にnull。教材の全ページを通しで解き、最後のページでのみ提出する。
-// - wrong_only（誤答のみ抽出）: A-44が作成済みの特定attemptを対象にする。A-40は呼ばずA-43
+// - practice（練習）: scope_node_idは常にnull。教材の全ページを通しで解き、最後のページでのみ提出する。
+// - wrong_only（誤答＆難問抽出）: A-44が作成済みの特定attemptを対象にする。A-40は呼ばずA-43
 //   （getAttempt）で状態取得する。対象ページはこのattemptのquestion_orderに含まれるものだけに絞る。
 export default function MaterialPageView() {
   const { materialId, nodeId } = useParams<{ materialId: string; nodeId: string }>()
   const [searchParams] = useSearchParams()
   const mode = (searchParams.get('mode') as PageMode | null) ?? 'graded'
+  // 「問題のみ練習」（2026-09-29新設）。practiceモードのみ意味を持ち、ページ本文・添付資料を
+  // 隠して設問だけを表示する。対象ページ自体（設問があるページのみ）はonlyQuestionsに関わらず
+  // 同じ（sequencePages参照）。
+  const onlyQuestions = mode === 'practice' && searchParams.get('only') === 'questions'
   const attemptIdParam = searchParams.get('attemptId')
   const from = searchParams.get('from')
   const id = Number(materialId)
@@ -64,16 +119,29 @@ export default function MaterialPageView() {
     nextChapterNumber: number
     nextChapterTitle: string
   } | null>(null)
+  // アンケートモーダルと章区切りモーダルが同時に出ないよう、アンケート表示中は章区切りを
+  // 保留し、アンケートを閉じた後に表示する（どちらもfixed inset-0の全画面モーダルのため。
+  // 2026-09-09、アンケート表示ロジックの根本修正の一部）。
+  const [pendingChapterTransition, setPendingChapterTransition] = useState<typeof chapterTransition>(null)
+  // 教材の最後の章の最後のページでは、教材全体アンケートと章単位アンケートの両方が該当しうる。
+  // 1つ目を閉じた後に2つ目を出すためのキュー（2026-09-09、両方設置時に章アンケートが
+  // 一切表示されなくなる問題への対応）。
+  const [pendingSurvey, setPendingSurvey] = useState<Survey | null>(null)
 
   const allPages = material ? flattenPages(material.toc ?? []) : []
   const allPageIndex = findPageIndex(allPages, pageNodeId)
   const flatPage = allPageIndex >= 0 ? allPages[allPageIndex] : null
   const node = flatPage?.node ?? null
 
+  // practiceは設問を解く練習が目的のため、次へ／前への遷移も設問の無い（説明のみの）ページを
+  // 飛ばす（2026-09-29、ユーザー指摘により修正：練習開始ページだけを設問ありに寄せても、
+  // その後の「次のページへ進む」で結局設問の無いページに遷移してしまっていたため）。
   const sequencePages: FlatPage[] =
     mode === 'wrong_only' && attempt
       ? allPages.filter((p) => Object.prototype.hasOwnProperty.call(attempt.question_order, String(p.node.id)))
-      : allPages
+      : mode === 'practice'
+        ? allPages.filter((p) => p.node.questions.length > 0)
+        : allPages
   const sequenceIndex = findPageIndex(sequencePages, pageNodeId)
 
   const scopeNodeId =
@@ -127,7 +195,7 @@ export default function MaterialPageView() {
   }, [id, pageNodeId, mode, attemptIdParam, material?.attempt_scope])
 
   if (materialLoading || (material && !loadError && attempt === null && !materialError)) {
-    return <div className="p-8 text-sm text-slate-400">読み込み中...</div>
+    return <div className="p-8 text-sm text-slate-400 dark:text-neutral-500">読み込み中...</div>
   }
 
   if (materialError || !material) {
@@ -135,10 +203,10 @@ export default function MaterialPageView() {
       <div className="flex flex-1 flex-col">
         <PageHeader title="教材受講" />
         <div className="px-8 py-6">
-          <Link to={backTarget(from).to} className="text-blue-800 hover:underline">
+          <Link to={backTarget(from).to} className="text-blue-800 hover:underline dark:text-blue-300">
             {backTarget(from).label}
           </Link>
-          <p className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          <p className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200">
             教材を取得できませんでした。
           </p>
         </div>
@@ -150,7 +218,7 @@ export default function MaterialPageView() {
     return (
       <div className="flex flex-1 flex-col">
         <PageHeader title="教材受講" actions={<BackToTocLink materialId={id} from={from} />} />
-        <div className="px-8 py-6 text-sm text-red-700">指定されたページが見つかりません。</div>
+        <div className="px-8 py-6 text-sm text-red-700 dark:text-red-300">指定されたページが見つかりません。</div>
       </div>
     )
   }
@@ -159,19 +227,34 @@ export default function MaterialPageView() {
     return (
       <div className="flex flex-1 flex-col">
         <PageHeader title={node.title} actions={<BackToTocLink materialId={id} from={from} />} />
-        <div className="px-8 py-6 text-sm text-red-700">{loadError}</div>
+        <div className="px-8 py-6 text-sm text-red-700 dark:text-red-300">{loadError}</div>
       </div>
     )
   }
 
   if (!attempt) {
-    return <div className="p-8 text-sm text-slate-400">読み込み中...</div>
+    return <div className="p-8 text-sm text-slate-400 dark:text-neutral-500">読み込み中...</div>
   }
 
   const questionIds = attempt.question_order[String(pageNodeId)] ?? []
   const questions = questionIds
     .map((qid) => node.questions.find((q) => q.id === qid))
     .filter((q): q is NonNullable<typeof q> => q !== undefined)
+    // 並び替え（reorder）の選択肢はGET /materials/{id}が編集権限保持者へ正解を隠さず返す
+    // （strip_answersしない）ため、optionsがサーバー側で組み立てられずnullのまま届く
+    // （このAPIは並び替え対象の項目をcorrect_answerにしか持たない設計のため）。教材編集者・
+    // 管理者自身が自分の教材を受講（自己確認）した際に並び替えの選択肢が一切表示されない
+    // 不具合になっていたため、表示専用でcorrect_answerを補完する（保存には一切使わない
+    // 読み取り専用の変換であり、正解の事前漏洩にはならない。編集者は元々correct_answerを
+    // 見られる立場のため）。correct_answerをそのままの順序で出すと出題が常に正解の順番に
+    // なってしまい設問として無意味になるため、シャッフルしてから使う
+    // （strip_answers=Trueの受講者向け経路が既に行っているシャッフルと同じ扱い。2026-09-11）。
+    .map((q) =>
+      q.type === 'reorder' && (!q.options || q.options.length === 0) && Array.isArray(q.correct_answer)
+        ? { ...q, options: shuffle(q.correct_answer as string[]) }
+        : q,
+    )
+  const pendingNonGraded = hasPendingNonGradedAnswer(questions, answers)
 
   const isResolved = (index: number) => {
     const q = questions[index]
@@ -194,14 +277,44 @@ export default function MaterialPageView() {
     setSkipped((prev) => new Set(prev).add(questionId))
   }
 
+  // アンケートを閉じた/提出した後、次に控えているものを表示する（同時にモーダルを2枚重ねて
+  // 出さないため）。もう1件アンケートが控えていればそれを先に、無ければ保留していた章区切り
+  // 画面を表示する（2026-09-09）。
+  const closeSurvey = () => {
+    setSurveyToShow(null)
+    if (pendingSurvey) {
+      setSurveyToShow(pendingSurvey)
+      setPendingSurvey(null)
+      return
+    }
+    if (pendingChapterTransition) {
+      setChapterTransition(pendingChapterTransition)
+      setPendingChapterTransition(null)
+    }
+  }
+
   const goToPage = (targetNodeId: number) => {
     const suffix =
       mode === 'graded'
         ? fromQuery(from)
         : mode === 'practice'
-          ? `?mode=practice${andFromQuery(from)}`
+          ? `?mode=practice${onlyQuestions ? '&only=questions' : ''}${andFromQuery(from)}`
           : `?mode=wrong_only&attemptId=${attemptIdParam}${andFromQuery(from)}`
     navigate(`/materials/${id}/pages/${targetNodeId}${suffix}`)
+  }
+
+  // 「前のページへ戻る」。handleNextと違い、来訪マーク・アンケート表示・章区切りモーダル・
+  // スコープ提出などの前進専用の副作用は一切持たせず、単にページを移動するだけにする
+  // （2026-09-09、スコープ提出まで回答を編集可能にする対応の一部）。graded時はattempt_scopeの
+  // 境界を越えて前の章・小見出し等へは戻れないようにする（そこはこのスコープの範囲外のため）。
+  const prevFlat = sequenceIndex > 0 ? sequencePages[sequenceIndex - 1] : null
+  const isFirstOfScope =
+    mode === 'graded'
+      ? !prevFlat || resolveScopeNodeId(allPages, material?.attempt_scope ?? 'material', prevFlat.node.id) !== scopeNodeId
+      : !prevFlat
+  const canGoPrev = !isFirstOfScope
+  const handlePrev = () => {
+    if (prevFlat && canGoPrev) goToPage(prevFlat.node.id)
   }
 
   const handleNext = async () => {
@@ -222,16 +335,73 @@ export default function MaterialPageView() {
         ? !nextFlat || resolveScopeNodeId(allPages, material.attempt_scope, nextFlat.node.id) !== scopeNodeId
         : !nextFlat
 
+    // アンケートの表示要否は、クイズの採点範囲（attempt_scope）とは独立に、実際にその章・教材を
+    // 読み終えたかどうか（ページ位置）だけで判定する。以前はscopeNodeId（attempt_scope由来）と
+    // survey.node_idの一致で判定していたため、attempt_scopeが'chapter'以外の教材では章単位の
+    // アンケートが、'material'以外の教材では教材全体のアンケートが、常に表示されない不具合が
+    // あった（2026-09-09、ユーザー報告により根本修正）。
+    const isEndOfChapter = !nextFlat || nextFlat.chapterId !== flatPage.chapterId
+    const isEndOfMaterial = !nextFlat
+    // 初めてこのスコープを完了した/この境界を越えたときの判定（repeat_mode='once'は未回答なら対象）
+    const findFreshSurvey = (nodeId: number | null) =>
+      surveys.find((s) => s.node_id === nodeId && s.is_active && (s.repeat_mode === 'every_time' || !s.answered_by_me))
+    // 一度提出済みのスコープを再度見たときの判定。repeat_mode='once'は初回完了時にすでに提出機会が
+    // あったため対象外にする（既存の挙動を踏襲。2026-09-07修正時の意図と同じ）。
+    const findRevisitSurvey = (nodeId: number | null) =>
+      surveys.find((s) => s.node_id === nodeId && s.is_active && s.repeat_mode === 'every_time')
+    // 教材の最後の章の最後のページでは、教材全体アンケート（isEndOfMaterial）と章単位アンケート
+    // （isEndOfChapter、isEndOfMaterialのときは常に真）の両方が該当しうる。両方設置されている
+    // 場合は章単位アンケートが一切表示される機会を失っていたため、両方を対象に含め、「章の終了→
+    // 教材の終了」という自然な順序に合わせて章単位を先に・教材全体を後に表示する2件のキューとして
+    // 返す（2026-09-09、レビューで発見・修正、表示順はユーザー指定）。
+    const applicableSurveys = (find: (nodeId: number | null) => Survey | undefined): Survey[] => {
+      const result: Survey[] = []
+      if (isEndOfChapter) {
+        const s = find(flatPage.chapterId)
+        if (s) result.push(s)
+      }
+      if (isEndOfMaterial) {
+        const s = find(null)
+        if (s) result.push(s)
+      }
+      return result
+    }
+    const showSurveyQueue = (list: Survey[]) => {
+      if (list.length === 0) return
+      setSurveyToShow(list[0])
+      if (list.length > 1) setPendingSurvey(list[1])
+    }
+
     if (!isLastOfScope) {
       if (nextFlat!.chapterId !== flatPage.chapterId) {
         const chapters = material.toc?.filter((n) => n.kind === 'chapter') ?? []
-        setChapterTransition({
+        const transition = {
           nextNodeId: nextFlat!.node.id,
           completedChapterNumber: chapterNumber + 1,
           completedChapterTitle: flatPage.chapterTitle,
           nextChapterNumber: chapters.findIndex((c) => c.id === nextFlat!.chapterId) + 1,
           nextChapterTitle: nextFlat!.chapterTitle,
-        })
+        }
+        // この分岐は「章の最後のページを読み終えて次の章へ進む」タイミングそのものなので、
+        // まだ採点範囲全体は終わっていなくても、この章のアンケートはここで表示してよい
+        // （章単位アンケートは「この章の感想」を聞くものであり、採点の合否とは無関係）。
+        // ただし、attempt_scope='material'等の複数章にまたがる採点範囲では、この境界越えは
+        // 初回の通読時にも「一度合格済みのスコープを見返している」ときにも起こりうる。
+        // attempt.submitted_atが既にセットされていれば後者（再訪問）なので、repeat_mode='once'
+        // 未回答の章アンケートを毎回出し直してしまわないよう、revisit判定を使う
+        // （2026-09-09、実装直後のレビューで発見・修正）。
+        if (mode === 'graded') {
+          const survey =
+            attempt.submitted_at !== null
+              ? findRevisitSurvey(flatPage.chapterId)
+              : findFreshSurvey(flatPage.chapterId)
+          if (survey) {
+            setSurveyToShow(survey)
+            setPendingChapterTransition(transition)
+            return
+          }
+        }
+        setChapterTransition(transition)
         return
       }
       goToPage(nextFlat!.node.id)
@@ -241,7 +411,14 @@ export default function MaterialPageView() {
     // 合格済みスコープを閲覧専用で開いている場合（A-40が既存の合格済み受験記録を返す。
     // 2026-09-03）、この受験記録は既に提出済みのためsubmitAttemptを呼ばず、既知の結果を
     // そのまま使う（呼ぶと「既に提出済みです」エラーになる）。
+    // ただし、この分岐は「合格済みスコープを再度最後まで見た」タイミングそのものなので、
+    // repeat_mode='every_time'のアンケートはここでも表示する。以前はこの早期returnにより
+    // 下のsubmitAttempt成功時のみアンケート判定が走っていたため、2回目以降の閲覧では
+    // 「毎回」設定でも一切表示されなくなっていた（2026-09-07、ユーザー報告により修正）。
     if (attempt.submitted_at !== null) {
+      if (mode === 'graded') {
+        showSurveyQueue(applicableSurveys(findRevisitSurvey))
+      }
       setSubmittedResult(attempt)
       return
     }
@@ -251,12 +428,10 @@ export default function MaterialPageView() {
       const result = await submitAttempt(attempt.id)
       if (mode === 'graded') {
         await mutateMaterial()
-        if (result.passed) {
-          const survey = surveys.find(
-            (s) => s.node_id === scopeNodeId && s.is_active && (s.repeat_mode === 'every_time' || !s.answered_by_me),
-          )
-          if (survey) setSurveyToShow(survey)
-        }
+        // 受講後アンケートは「このスコープを読み終えたか」だけで判定し、合否（採点中を含む）
+        // とは無関係に表示する（章単位アンケートの判定・findRevisitSurveyの判定と同じ方針。
+        // 2026-09-11、合否で出し分けていた不具合を修正）。
+        showSurveyQueue(applicableSurveys(findFreshSurvey))
       }
       setSubmittedResult(result)
     } catch (e) {
@@ -313,7 +488,19 @@ export default function MaterialPageView() {
   }
 
   const alreadySubmitted = attempt.submitted_at !== null
-  const modeLabel = mode === 'practice' ? '（反復演習）' : mode === 'wrong_only' ? '（誤答のみ抽出）' : ''
+  const modeLabel = mode === 'practice' ? '（練習）' : mode === 'wrong_only' ? '（誤答＆難問抽出）' : ''
+
+  // 目次のミニ版サイドバー（graded・practice）。誤答＆難問抽出は特定の設問だけの受験記録で
+  // 章・ページ単位の目次と噛み合わないため対象外（2026-09-29、ユーザー要望によりpracticeにも表示）。
+  // practiceはsequencePagesと同じく設問の無いページを一覧からも除く。
+  const chapters =
+    mode === 'graded'
+      ? toEditableChapters(material.toc ?? [])
+      : mode === 'practice'
+        ? filterChaptersToQuestionsOnly(toEditableChapters(material.toc ?? []))
+        : []
+  const completedIds = new Set(material.progress?.completed_node_ids ?? [])
+  const visitedIds = new Set(material.progress?.visited_node_ids ?? [])
 
   return (
     <div className="flex flex-1 flex-col">
@@ -321,6 +508,17 @@ export default function MaterialPageView() {
         title={`${node.title}${modeLabel}`}
         actions={
           <>
+            <MaterialTocSidebar
+              materialId={id}
+              chapters={chapters}
+              viewingNodeId={pageNodeId}
+              completedIds={completedIds}
+              visitedIds={visitedIds}
+              // practiceモード中に目次からページを移動しても練習の続き（?only=questions等）を
+              // 保てるよう、gradedと同じfromQueryではなくgoToPageと同じ組み立てにする
+              // （2026-09-29、目次パネルをpracticeにも表示するようにした際に対応）。
+              query={mode === 'practice' ? `?mode=practice${onlyQuestions ? '&only=questions' : ''}${andFromQuery(from)}` : fromQuery(from)}
+            />
             {material.is_company_wide && !material.required && (
               <MyLearningToggle
                 materialId={id}
@@ -330,32 +528,50 @@ export default function MaterialPageView() {
                 }}
               />
             )}
-            <BackToTocLink materialId={id} from={from} />
           </>
         }
       />
       <div className="px-8 py-6">
-        <div className="mb-3 text-xs text-slate-400">
+        <div className="mb-3 text-xs text-slate-400 dark:text-neutral-500">
           {material.title}
           {chapterNumber >= 0 && ` ／ 第${chapterNumber + 1}章 ${flatPage.chapterTitle}`}
           {flatPage.sectionTitle && ` ／ ${flatPage.sectionTitle}`}
         </div>
 
         <div className="mb-5 flex items-center gap-3">
-          <span className="text-xs text-slate-500">
+          <span className="text-xs text-slate-500 dark:text-neutral-400">
             ページ {sequenceIndex + 1}/{sequencePages.length}
           </span>
-          <div className="h-2 w-full max-w-xs overflow-hidden rounded-full bg-slate-100">
-            <div className="h-full bg-blue-700" style={{ width: `${progressPct}%` }} />
+          <div className="h-2 w-full max-w-xs overflow-hidden rounded-full bg-slate-100 dark:bg-neutral-800">
+            <div className="h-full bg-blue-700 dark:bg-blue-500" style={{ width: `${progressPct}%` }} />
           </div>
-          <span className="text-xs text-slate-500">{progressPct}%</span>
+          <span className="text-xs text-slate-500 dark:text-neutral-400">{progressPct}%</span>
         </div>
 
-        {node.body && <PageBody materialId={id} body={node.body} format={node.format ?? 'markdown'} />}
+        {!onlyQuestions && node.body && <PageBody materialId={id} body={node.body} format={node.format ?? 'markdown'} />}
+        {!onlyQuestions && node && <PageAttachments materialId={id} nodeId={node.id} />}
 
         {submittedResult ? (
           <>
-            <AttemptResultPanel attempt={submittedResult} mode={mode} />
+            <AttemptResultPanel attempt={submittedResult} mode={mode} hasPendingNonGraded={pendingNonGraded} />
+            {questions.map((q, i) => (
+              // keyにattempt.idも含める。qだけをkeyにすると、以前の受験記録（合格済み・閲覧専用）
+              // から新しい受験記録（再受験の解答可能な状態）へ切り替わってもReactが同じ
+              // AnswerQuestionCardインスタンスを使い回し、内部state（singleValue等）が古い
+              // 回答のまま残ってしまう不具合があった（2026-09-11、ユーザー報告により発見・修正。
+              // 「再受験しても以前の回答が入力済みのまま変更できない」ように見えていた）。
+              <AnswerQuestionCard
+                key={`${attempt.id}-${q.id}`}
+                question={q}
+                index={i}
+                answer={answers[q.id as number]}
+                locked={false}
+                skipped={skipped.has(q.id as number)}
+                revealResult={true}
+                onSave={async () => {}}
+                onSkip={() => {}}
+              />
+            ))}
             <div className="mt-4">
               <Button onClick={handleContinueAfterResult}>
                 {mode === 'wrong_only'
@@ -370,48 +586,77 @@ export default function MaterialPageView() {
           </>
         ) : alreadySubmitted ? (
           <>
-            <AttemptResultPanel attempt={attempt} mode={mode} />
-            <div className="mt-4 flex items-center gap-3">
+            <AttemptResultPanel attempt={attempt} mode={mode} hasPendingNonGraded={pendingNonGraded} />
+            {/* 提出済みスコープの読み返し。回答中は採点のズルを防ぐため正誤を隠しているので
+                （AnswerQuestionCardのrevealResult=false）、提出後にここで各設問の正誤・AI採点結果を
+                確認できるようにする（2026-09-09、スコープ提出まで回答を編集可能にする対応の一部）。
+                onSave/onSkipはrevealResult=trueの間は入力UI自体が出ないため呼ばれないダミー。 */}
+            {questions.map((q, i) => (
+              <AnswerQuestionCard
+                key={`${attempt.id}-${q.id}`}
+                question={q}
+                index={i}
+                answer={answers[q.id as number]}
+                locked={false}
+                skipped={skipped.has(q.id as number)}
+                revealResult={true}
+                onSave={async () => {}}
+                onSkip={() => {}}
+              />
+            ))}
+            <div className="mt-4 flex flex-wrap items-center gap-3">
               <Link
                 to={`/materials/${id}${fromQuery(from)}`}
-                className="rounded-md border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                className="flex-shrink-0 whitespace-nowrap rounded-md border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 dark:hover:bg-neutral-700"
               >
                 目次へ戻る
               </Link>
+              <Button variant="secondary" onClick={handlePrev} disabled={!canGoPrev || advancing}>
+                前のページへ戻る
+              </Button>
               <Button onClick={handleNext} disabled={advancing}>
                 次のページへ
               </Button>
-              <span className="text-xs text-slate-400">合格済みのため閲覧のみです（再提出はされません）</span>
+              {attempt.passed === null && (
+                <span className="text-xs text-slate-400 dark:text-neutral-500">
+                  採点中のため閲覧のみです（採点が完了すると合否が確定します）
+                </span>
+              )}
             </div>
           </>
         ) : (
           <>
             {questions.map((q, i) => (
               <AnswerQuestionCard
-                key={q.id}
+                key={`${attempt.id}-${q.id}`}
                 question={q}
                 index={i}
                 answer={answers[q.id as number]}
                 locked={i > firstUnresolvedIndex && firstUnresolvedIndex !== -1}
                 skipped={skipped.has(q.id as number)}
+                revealResult={mode !== 'graded'}
                 onSave={(response) => handleSave(q.id as number, response)}
                 onSkip={() => handleSkip(q.id as number)}
               />
             ))}
 
-            <div className="mt-6 flex items-center gap-3 border-t border-slate-200 pt-5">
+            <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-slate-200 pt-5 dark:border-neutral-800">
               <Link
                 to={`/materials/${id}${fromQuery(from)}`}
-                className="rounded-md border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                className="flex-shrink-0 whitespace-nowrap rounded-md border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 dark:hover:bg-neutral-700"
               >
                 目次へ戻る
               </Link>
+              <Button variant="secondary" onClick={handlePrev} disabled={!canGoPrev || advancing}>
+                前のページへ戻る
+              </Button>
               <Button onClick={handleNext} disabled={!allResolved || advancing}>
-                {advancing ? '送信中…' : '回答して次のページへ'}
+                {advancing ? '送信中…' : questions.length > 0 ? '回答して次のページへ' : '次のページへ進む'}
               </Button>
               {mode === 'graded' && (
-                <span className="text-xs text-slate-400">
-                  中断しても回答内容は保存され、次回この続きから再開できます
+                <span className="text-xs text-slate-400 dark:text-neutral-500">
+                  中断しても回答内容は保存され、次回この続きから再開できます（スコープを提出するまでは、
+                  前のページに戻って回答を変更することもできます）
                 </span>
               )}
             </div>
@@ -420,20 +665,19 @@ export default function MaterialPageView() {
       </div>
 
       {surveyToShow && (
-        <SurveyModal
-          survey={surveyToShow}
-          onClose={() => setSurveyToShow(null)}
-          onSubmitted={() => setSurveyToShow(null)}
-        />
+        // key={survey.id}: 教材全体アンケート→章単位アンケートと連続表示する場合に、前の
+        // フォーム入力内容（values等の内部state）を引き継がず、確実にまっさらな状態で
+        // 表示させるため（2026-09-09）。
+        <SurveyModal key={surveyToShow.id} survey={surveyToShow} onClose={closeSurvey} onSubmitted={closeSurvey} />
       )}
 
       {chapterTransition && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-md bg-white p-5 shadow-lg">
-            <p className="mb-1 text-sm font-semibold text-green-700">
+          <div className="w-full max-w-md rounded-md bg-white p-5 shadow-lg dark:bg-neutral-800">
+            <p className="mb-1 text-sm font-semibold text-green-700 dark:text-green-300">
               第{chapterTransition.completedChapterNumber}章「{chapterTransition.completedChapterTitle}」を完了しました
             </p>
-            <p className="mb-4 text-sm text-slate-600">
+            <p className="mb-4 text-sm text-slate-600 dark:text-neutral-300">
               次は第{chapterTransition.nextChapterNumber}章「{chapterTransition.nextChapterTitle}」です。
             </p>
             <div className="flex justify-end gap-2">
@@ -462,40 +706,64 @@ function BackToTocLink({ materialId, from }: { materialId: number; from: string 
   return (
     <Link
       to={`/materials/${materialId}${fromQuery(from)}`}
-      className="rounded-md border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+      className="flex-shrink-0 whitespace-nowrap rounded-md border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 dark:hover:bg-neutral-700"
     >
       目次へ戻る
     </Link>
   )
 }
 
-function AttemptResultPanel({ attempt, mode }: { attempt: QuizAttempt; mode: PageMode }) {
+function AttemptResultPanel({
+  attempt,
+  mode,
+  hasPendingNonGraded = false,
+}: {
+  attempt: QuizAttempt
+  mode: PageMode
+  hasPendingNonGraded?: boolean
+}) {
   if (mode !== 'graded') {
     return (
-      <div className="rounded-md border border-slate-200 bg-slate-50 p-4 text-sm">
-        <div className="mb-1 font-semibold">
+      <div className="rounded-md border border-slate-200 bg-slate-50 p-4 text-sm dark:border-neutral-800 dark:bg-neutral-800/60">
+        <div className="mb-1 font-semibold text-slate-800 dark:text-neutral-100">
           提出済み{attempt.score_pct !== null && ` ／ 正答率${Math.round(attempt.score_pct)}%`}
         </div>
-        <p className="text-xs text-slate-500">
-          {mode === 'practice' ? '反復演習' : '誤答のみ抽出'}は合否に影響しません。習熟のための記録として保存されました。
+        <p className="text-xs text-slate-500 dark:text-neutral-400">
+          {mode === 'practice' ? '練習' : '誤答＆難問抽出'}は合否に影響しません。習熟のための記録として保存されました。
         </p>
       </div>
     )
   }
   return (
     <div
-      className={`rounded-md border p-4 text-sm ${attempt.passed ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}
+      className={`rounded-md border p-4 text-sm ${
+        attempt.passed === null
+          ? 'border-slate-200 bg-slate-50 dark:border-neutral-800 dark:bg-neutral-800/60'
+          : attempt.passed
+            ? 'border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/40'
+            : 'border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/40'
+      }`}
     >
-      <div className="mb-1 font-semibold">
+      <div className="mb-1 font-semibold text-slate-800 dark:text-neutral-100">
         {attempt.passed === null ? '提出済み' : attempt.passed ? '合格' : '不合格'}
         {attempt.score_pct !== null && ` ／ 正答率${Math.round(attempt.score_pct)}%`}
       </div>
       {attempt.fail_reason && (
-        <p className="text-red-700">
+        <p className="text-red-700 dark:text-red-300">
           ⚠ ドボン設問「{attempt.fail_reason}」に正解しなかったため、この範囲は不合格と判定されました。
         </p>
       )}
-      <p className="mt-1 text-xs text-slate-500">このページを含む範囲は提出済みです。目次から他のページへ進んでください。</p>
+      <p className="mt-1 text-xs text-slate-500 dark:text-neutral-400">このページを含む範囲は提出済みです。目次から他のページへ進んでください。</p>
+      {attempt.passed === true && (
+        <p className="mt-2 text-sm font-semibold text-green-800 dark:text-green-300">
+          合格済みのため再提出はされません。復習のため問題を解き直したい場合は「練習」をご利用ください。
+        </p>
+      )}
+      {attempt.passed !== null && hasPendingNonGraded && (
+        <p className="mt-2 text-xs text-slate-500 dark:text-neutral-400">
+          ※ 合否には影響しない設問の採点がまだ完了していません。結果は担当者の採点が終わり次第、下の一覧に反映されます。
+        </p>
+      )}
     </div>
   )
 }

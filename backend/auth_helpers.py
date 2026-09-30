@@ -32,6 +32,7 @@ class CurrentUser:
     picture_url: str | None
     token_type: str = "session"
     jti: str | None = None
+    cli_key_prompt_seen_at: datetime | None = None
 
 
 def issue_jwt(
@@ -60,14 +61,9 @@ def verify_jwt(token: str) -> dict:
         raise HTTPException(401, detail="認証が必要です")
 
 
-async def require_auth(request: Request) -> CurrentUser:
-    token = request.cookies.get(SESSION_COOKIE)
-    if token is None:
-        auth_header = request.headers.get("Authorization", "")
-        if auth_header.startswith("Bearer "):
-            token = auth_header[len("Bearer "):]
-    if token is None:
-        raise HTTPException(401, detail="認証が必要です")
+async def resolve_current_user_from_token(token: str) -> CurrentUser:
+    """トークン検証→CLI失効チェック→ユーザー行取得までを行う。require_auth（Cookie/Bearer両対応）と
+    MCPサーバ（Bearerのみ、FastAPIの依存性注入を経由しない）の双方から共有する（2026-09-14新設）。"""
     payload = verify_jwt(token)
     if payload.get("token_type") == "cli":
         jti = payload.get("jti")
@@ -77,7 +73,7 @@ async def require_auth(request: Request) -> CurrentUser:
         if revoked:
             raise HTTPException(401, detail="失効済みのCLIトークンです")
     row = await get_pool().fetchrow(
-        "SELECT id, email, name, role, is_active, picture_url FROM users WHERE id = $1",
+        "SELECT id, email, name, role, is_active, picture_url, cli_key_prompt_seen_at FROM users WHERE id = $1",
         int(payload["sub"]),
     )
     if row is None or not row["is_active"]:
@@ -86,7 +82,19 @@ async def require_auth(request: Request) -> CurrentUser:
         id=row["id"], email=row["email"], name=row["name"],
         role=row["role"], picture_url=row["picture_url"],
         token_type=payload.get("token_type", "session"), jti=payload.get("jti"),
+        cli_key_prompt_seen_at=row["cli_key_prompt_seen_at"],
     )
+
+
+async def require_auth(request: Request) -> CurrentUser:
+    token = request.cookies.get(SESSION_COOKIE)
+    if token is None:
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            token = auth_header[len("Bearer "):]
+    if token is None:
+        raise HTTPException(401, detail="認証が必要です")
+    return await resolve_current_user_from_token(token)
 
 
 def require_roles(*roles: str):
@@ -125,13 +133,22 @@ async def has_active_project_role(project_id: int, user_id: int, min_role: str) 
     return row["left_at"] + timedelta(days=grace_days) >= datetime.now(timezone.utc)
 
 
-async def check_project_role(user: CurrentUser, project_id: int, min_role: str) -> None:
-    """プロジェクトのローカルロールを判定する（詳細設計書5.2節）。システムadminは常に許可。
+async def check_project_role(
+    user: CurrentUser, project_id: int, min_role: str, *, bypass_system_admin: bool = True
+) -> None:
+    """プロジェクトのローカルロールを判定する（詳細設計書5.2節）。システムadminは既定で常に許可。
 
     project_idがパスパラメータでない場合（例: A-16のようにリクエストボディに含まれる場合）に
     エンドポイント内から直接呼び出す。パスパラメータの場合は`require_project_role`を使う。
+
+    bypass_system_adminをFalseにすると、システムadminであっても実際のプロジェクトロールで判定する。
+    教材内容の編集（require_material_role）専用の例外。「システム管理者でもそのプロジェクトの
+    エディタ以上でなければ教材内容を編集できないようにしてほしい」というユーザー要望を受け
+    2026-09-16に追加した。それ以外の全呼び出し元（採点・プロジェクト管理・ダッシュボード等）の
+    admin無条件許可は意図的に変更していない（同ユーザーが別途「採点権限が無くても採点できてしまう」
+    点は「変更せずに必要なら今度修正する」と明示的に据え置いた経緯があるため）。
     """
-    if user.role == "admin":
+    if user.role == "admin" and bypass_system_admin:
         return
     if not await has_active_project_role(project_id, user.id, min_role):
         raise HTTPException(403, detail="この操作を行う権限がありません")
@@ -139,9 +156,13 @@ async def check_project_role(user: CurrentUser, project_id: int, min_role: str) 
 
 async def is_manager_of_target_user(target_user_id: int, requester: CurrentUser) -> bool:
     """「対象者が所属するプロジェクトの管理者」判定（詳細設計書5.4節）。S-09個人学習レポート・
-    A-50〜A-52で、本人以外に対象者の上長として閲覧できる相手を判定するのに使う。"""
-    if requester.role == "admin":
-        return True
+    A-50〜A-52で、本人以外に対象者の上長として閲覧できる相手を判定するのに使う。
+
+    システムadminの無条件バイパスは廃止した（2026-09-17、権限モデル整理）。個人の学習記録は
+    プロジェクトのローカル管理者（対象者の上長として実際に管理している相手）のみが閲覧できる
+    べきで、プロジェクトに一切関与していないシステムadminにまで無条件で開放する理由は無いという
+    判断による。システムadminであっても、対象者のプロジェクトの実際のローカル管理者であれば
+    下記のループで許可される。"""
     target_project_ids = await get_pool().fetch(
         """SELECT project_id FROM project_memberships
            WHERE user_id = $1 AND status = 'active' AND left_at IS NULL""",
@@ -184,23 +205,57 @@ async def is_company_wide_draft_restricted(user: CurrentUser, project_id: int, i
     return project_role != "admin"
 
 
-def require_material_role(min_role: str):
+def require_material_role(min_role: str, *, bypass_system_admin: bool = False):
     """教材IDから所属プロジェクトを引いてローカルロールを判定する（A-15/A-17/A-18/A-20等）。
-    全社公開プロジェクトの下書きは、作成者・プロジェクト管理者・システムadmin以外は403にする
-    （is_company_wide_draft_restricted、5.2節）。
+
+    既定（bypass_system_admin=False）では、教材内容の編集はシステムadminでも実際の
+    プロジェクトロール（エディタ以上）を要求する（2026-09-16、ユーザー要望）。ただしS-06配信設定
+    （assignments.py）は「adminは全教材を対象にできる」という別の既定設計（基本設計書4.8節）が
+    元々あるため、そちらの2箇所の呼び出しのみbypass_system_admin=Trueを明示して従来どおりとする。
+
+    全社ライブラリ（is_company_wide）は通常のプロジェクトと異なり全員が自動でeditorになる特殊
+    プロジェクトのため、要求されたmin_roleがadmin未満（editor/learner）の場合は下記のように
+    上書きする（2026-09-17〜18、ユーザー要望。教材を「作成者の所有物」として扱い、改善は作成者に
+    委ねるという方針による）。
+
+    - **必修教材**: 常にプロジェクトadmin限定（システムadmin含む、全社ライブラリの実データとして
+      登録済み）。全社必修教材はプロジェクトadminが共同で保守する運用のため、作成者以外の
+      adminも編集できる。
+      → 【admin＝必修教材を編集できる】【editor＝必修教材は編集できない】
+    - **任意教材**: 作成者本人のみ（他のeditorはもちろん、作成者でなければ他のプロジェクトadminも
+      不可）。「全社ライブラリの任意教材は作成者の所有物」という考え方のため、admin/editorの
+      ロール差では判定しない。
+      → 【admin＝自分が作成した任意教材のみ編集できる】【editor＝自分が作成した任意教材のみ
+      編集できる】（結局この2つは同条件。要求されたmin_role自体がadmin以上の場合はこの上書きを
+      行わない＝S-06配信設定〔材料共有のcreate_material_share等〕は従来通りプロジェクトadmin全員が
+      対象、必修か・作成者かを問わない。get_grading_queue等ドキュストリング参照）。
+
+    全社ライブラリ以外の通常プロジェクトの下書きは、作成者・プロジェクト管理者・システムadmin
+    以外は403にする（is_company_wide_draft_restricted、5.2節）が、全社ライブラリ以外では
+    is_company_wide=falseのため常にFalseを返し、editor以上なら誰の下書きでも閲覧・編集できる
+    （2026-09-18、ユーザー確認済み。実機で編集者が他人の下書きを開けることを確認した）。
 
     パスパラメータ `id`（教材ID）を持つルート（例: /api/materials/{id}）で使う。
     """
     async def checker(id: int, user: CurrentUser = Depends(require_auth)) -> CurrentUser:
         row = await get_pool().fetchrow(
-            """SELECT m.project_id, m.status, m.created_by, p.is_company_wide
+            """SELECT m.project_id, m.status, m.created_by, p.is_company_wide,
+                      EXISTS (
+                          SELECT 1 FROM assignments a WHERE a.material_id = m.id AND a.required = true
+                      ) AS is_required
                FROM materials m JOIN projects p ON p.id = m.project_id
                WHERE m.id = $1""",
             id,
         )
         if row is None:
             raise HTTPException(404, detail="教材が見つかりません")
-        await check_project_role(user, row["project_id"], min_role)
+        if row["is_company_wide"] and ROLE_RANK[min_role] < ROLE_RANK["admin"]:
+            if row["is_required"]:
+                await check_project_role(user, row["project_id"], "admin", bypass_system_admin=bypass_system_admin)
+            elif row["created_by"] != user.id:
+                raise HTTPException(403, detail="全社ライブラリの任意教材を編集できるのは作成者のみです")
+        else:
+            await check_project_role(user, row["project_id"], min_role, bypass_system_admin=bypass_system_admin)
         if row["status"] == "draft" and row["created_by"] != user.id:
             if await is_company_wide_draft_restricted(user, row["project_id"], row["is_company_wide"]):
                 raise HTTPException(403, detail="この下書きを閲覧できるのは作成者とプロジェクト管理者のみです")

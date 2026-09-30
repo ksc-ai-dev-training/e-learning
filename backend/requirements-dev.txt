@@ -1,0 +1,5 @@
+# 開発・CI専用の依存関係（本番デプロイ用のrequirements.txtには含めない）。
+-r requirements.txt
+pytest>=8.3
+pytest-asyncio>=0.24
+ruff>=0.7

@@ -13,15 +13,17 @@ export default function ProjectCard({ project, pinned }: { project: Project; pin
   return (
     <Link
       to={`/projects/${project.id}/materials/edit`}
-      className={`flex flex-col gap-2 rounded-lg border p-4 no-underline ${
-        pinned ? 'border-blue-200 bg-blue-50' : 'border-slate-300 bg-white hover:border-blue-700'
+      className={`flex flex-col gap-2 rounded-lg border p-4 no-underline dark:hover:border-blue-500 ${
+        pinned
+          ? 'border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/40'
+          : 'border-slate-300 bg-white hover:border-blue-700 dark:border-neutral-700 dark:bg-neutral-900'
       }`}
     >
       <div className="flex items-center justify-between gap-2">
-        <span className="flex items-center gap-1.5 text-sm font-bold text-slate-900">
+        <span className="flex items-center gap-1.5 text-[15px] font-bold text-slate-900 dark:text-neutral-50">
           {pinned && (
             <svg
-              className="h-[13px] w-[13px] flex-shrink-0 text-blue-700"
+              className="h-[13px] w-[13px] flex-shrink-0 text-blue-700 dark:text-blue-400"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -35,11 +37,17 @@ export default function ProjectCard({ project, pinned }: { project: Project; pin
           )}
           {project.name}
         </span>
-        <span className="rounded border border-dashed border-slate-300 px-1.5 text-[11px] font-semibold text-orange-700">
-          {ROLE_LABELS[project.role]}
-        </span>
+        {project.is_member ? (
+          <span className="rounded border border-dashed border-slate-300 px-1.5 text-xs font-semibold text-orange-700 dark:border-neutral-600 dark:text-orange-300">
+            {ROLE_LABELS[project.role]}
+          </span>
+        ) : (
+          <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500 dark:bg-neutral-800 dark:text-neutral-400">
+            未所属
+          </span>
+        )}
       </div>
-      <span className="text-[11.5px] text-slate-400">
+      <span className="text-[13px] text-slate-400 dark:text-neutral-300">
         {project.is_company_wide
           ? '全社員が自動参加'
           : `教材${project.material_published_count + project.material_draft_count}件（公開${project.material_published_count}・下書き${project.material_draft_count}）／ メンバー${project.member_count}名`}

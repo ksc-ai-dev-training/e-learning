@@ -1,27 +1,39 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import PageHeader from '../components/layout/PageHeader'
+import AssignmentEditPanel from '../components/material/AssignmentEditPanel'
 import AttachmentList from '../components/material/AttachmentList'
+import AttachmentUploadForm from '../components/material/AttachmentUploadForm'
+import InlinePageEditor from '../components/material/InlinePageEditor'
 import SurveyEditModal from '../components/material/SurveyEditModal'
 import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
+import MaterialThumbnail from '../components/ui/MaterialThumbnail'
 import Select from '../components/ui/Select'
 import TagInput from '../components/ui/TagInput'
 import TextArea from '../components/ui/TextArea'
 import TextInput from '../components/ui/TextInput'
+import Toast from '../components/ui/Toast'
+import UnsavedChangesModal from '../components/ui/UnsavedChangesModal'
 import { useMaterial } from '../hooks/useMaterial'
 import { useMaterialAttachments } from '../hooks/useMaterialAttachments'
-import { useAiReview, runAiReview } from '../hooks/useAiReview'
+import { useAiReview, useAiReviewHistory, runAiReview } from '../hooks/useAiReview'
 import { useMaterialRevisions } from '../hooks/useMaterialRevisions'
 import { useProjectMemberships } from '../hooks/useProjectMemberships'
 import { useProjects } from '../hooks/useProjects'
 import { useQuestionsSummary } from '../hooks/useQuestionsSummary'
+import { useSaveShortcut } from '../hooks/useSaveShortcut'
 import { useSurveys } from '../hooks/useSurveys'
-import { ApiError, apiFetch, apiFetchText } from '../lib/api'
+import { useUnsavedChangesGuard } from '../hooks/useUnsavedChangesGuard'
+import { ApiError, apiFetch, apiFetchText, conflictAwareMessage } from '../lib/api'
+import { useMaterialEditPresence } from '../hooks/useMaterialEditPresence'
+import { chapterAccentClass } from '../lib/chapterAccent'
 import { formatDateJst, formatDateTimeJst, formatYearMonthJst } from '../lib/datetime'
 import { buildMaterialSource } from '../lib/materialSource'
-import type { EditableNode } from '../lib/materialSource'
+import type { EditableNode, PendingAttachment } from '../lib/materialSource'
+import { addLinkAttachment, deleteAttachment, uploadFileAttachment } from '../lib/attachmentActions'
 import { archiveMaterial, deleteMaterial, publishMaterial, restoreMaterial } from '../lib/materialActions'
+import { resetMaterialThumbnail, uploadMaterialThumbnail } from '../lib/materialThumbnailActions'
 import { pageKindLabel, toEditableChapters } from '../lib/materialTree'
 import { questionTypeLabel } from '../lib/questionDefaults'
 import type { Material } from '../types'
@@ -36,11 +48,84 @@ const TABS = [
 ] as const
 type TabKey = (typeof TABS)[number]['key']
 
+// InlinePageEditorで追加したpendingAttachmentsを持つページは、保存前は id===null のため
+// idでは対応づけられない。木構造上の位置（何章目の、section有無、何番目の子か）で
+// 保存前後を対応づける（2026-09-24、目次画面から添付できない不便さの解消）。
+type PendingLocation = { chapterIdx: number; sectionIdx: number | null; childIdx: number }
+
+function collectPendingLocations(
+  chapters: EditableNode[],
+): { loc: PendingLocation; pending: PendingAttachment[] }[] {
+  const result: { loc: PendingLocation; pending: PendingAttachment[] }[] = []
+  chapters.forEach((chapter, chapterIdx) => {
+    chapter.children.forEach((child, childIdx) => {
+      if (child.kind === 'section') {
+        child.children.forEach((page, sectionChildIdx) => {
+          if (page.pendingAttachments && page.pendingAttachments.length > 0) {
+            result.push({
+              loc: { chapterIdx, sectionIdx: childIdx, childIdx: sectionChildIdx },
+              pending: page.pendingAttachments,
+            })
+          }
+        })
+      } else if (child.pendingAttachments && child.pendingAttachments.length > 0) {
+        result.push({ loc: { chapterIdx, sectionIdx: null, childIdx }, pending: child.pendingAttachments })
+      }
+    })
+  })
+  return result
+}
+
+function resolveNodeAtLocation(chapters: EditableNode[], loc: PendingLocation): EditableNode | null {
+  const chapter = chapters[loc.chapterIdx]
+  if (!chapter) return null
+  if (loc.sectionIdx === null) return chapter.children[loc.childIdx] ?? null
+  const section = chapter.children[loc.sectionIdx]
+  return section ? (section.children[loc.childIdx] ?? null) : null
+}
+
+// 保存直後の木構造をサーバーから取り直し、保存前に記録した位置でページの実idを引いて
+// 保留していた添付ファイル・リンクをまとめて登録する。ツリー自体の保存は既に成功済みのため、
+// ここで失敗しても保存全体は失敗にせず、警告メッセージを返すだけにとどめる。
+async function flushPendingAttachments(materialId: number, oldChapters: EditableNode[]): Promise<string | null> {
+  const items = collectPendingLocations(oldChapters)
+  if (items.length === 0) return null
+  let freshChapters: EditableNode[]
+  try {
+    const fresh = await apiFetch<Material>(`/api/materials/${materialId}`)
+    freshChapters = toEditableChapters(fresh.toc ?? [])
+  } catch {
+    return '添付ファイル・リンクの登録に失敗しました。目次を開き直し、該当ページの編集画面から改めて追加してください。'
+  }
+  let failed = false
+  for (const { loc, pending } of items) {
+    const node = resolveNodeAtLocation(freshChapters, loc)
+    if (!node || node.id === null) {
+      failed = true
+      continue
+    }
+    for (const p of pending) {
+      try {
+        if (p.kind === 'file') {
+          await uploadFileAttachment(materialId, node.id, p.file)
+          if (p.previewUrl) URL.revokeObjectURL(p.previewUrl)
+        } else {
+          await addLinkAttachment(materialId, node.id, p.url)
+        }
+      } catch {
+        failed = true
+      }
+    }
+  }
+  return failed ? '一部の添付ファイル・リンクの登録に失敗しました。該当ページの編集画面から改めて追加してください。' : null
+}
+
 // S-05 教材編集：目次編集（詳細設計書10.5節）の縮小版。今回のスコープは教材の新規作成と
 // 章・小見出しの目次構造編集まで（ページ内容編集=S-17、公開判定・AI設定・アンケート等は対象外）。
 export default function MaterialEdit() {
   const { projectId, materialId } = useParams<{ projectId: string; materialId: string }>()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const isNew = materialId === 'new'
   const { material, isLoading, error: materialError, mutate } = useMaterial(isNew ? null : Number(materialId))
   const { projects } = useProjects()
@@ -52,17 +137,31 @@ export default function MaterialEdit() {
   const saveButtonLabel = material?.status === 'published' ? '変更を保存・公開' : '下書き保存'
 
   const [savedId, setSavedId] = useState<number | null>(isNew ? null : Number(materialId))
-  const [activeTab, setActiveTab] = useState<TabKey>('structure')
+  const { others: editingOthers, changedSinceLoad, acknowledgeSave } = useMaterialEditPresence(savedId)
+  // S-19「← 問題一覧に戻る」から?tab=questionsで戻ってきたとき、該当タブを開いた状態にする
+  const requestedTab = searchParams.get('tab')
+  const initialTab = TABS.some((t) => t.key === requestedTab) ? (requestedTab as TabKey) : 'structure'
+  const [activeTab, setActiveTab] = useState<TabKey>(initialTab)
   const [title, setTitle] = useState('')
   const [tags, setTags] = useState<string[]>([])
   const [description, setDescription] = useState('')
   const [attemptScope, setAttemptScope] = useState<Material['attempt_scope']>('material')
   const [retakeScope, setRetakeScope] = useState<Material['retake_scope']>('all')
+  // 合否判定・再受験設定。いずれも空欄可（passScorePct空欄="合格基準なし・常に合格"、
+  // retakeLimit空欄="再受験回数無制限"）で、必須項目ではない（2026-09-11新設）。
+  const [passScorePct, setPassScorePct] = useState('')
+  const [retakeAllowed, setRetakeAllowed] = useState(true)
+  const [retakeLimit, setRetakeLimit] = useState('')
   const [gradingMode, setGradingMode] = useState<Material['grading_mode']>('ai')
   const [defaultFeedbackStyle, setDefaultFeedbackStyle] =
     useState<Material['default_feedback_style']>('show_answer')
   const [aiContext, setAiContext] = useState('')
-  const [chapters, setChapters] = useState<EditableNode[]>([])
+  // 新規教材は最初から空の第1章を1つ用意しておく（既存教材はmaterial取得後のuseEffectで
+  // 上書きされる）。「+ 見出しを追加」を最初の1回押させるだけの手間を省くため（2026-09-09、
+  // ユーザー要望）。
+  const [chapters, setChapters] = useState<EditableNode[]>(
+    isNew ? [{ id: null, title: '第1章', kind: 'chapter', children: [] }] : [],
+  )
   const [saving, setSaving] = useState(false)
   const [duplicating, setDuplicating] = useState(false)
   const [archiving, setArchiving] = useState(false)
@@ -70,9 +169,23 @@ export default function MaterialEdit() {
   const [deleting, setDeleting] = useState(false)
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
   const [publishing, setPublishing] = useState(false)
+  const [publishModalOpen, setPublishModalOpen] = useState(false)
+  const [thumbnailUploading, setThumbnailUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [savedMessage, setSavedMessage] = useState<string | null>(null)
+  const [attachmentWarning, setAttachmentWarning] = useState<string | null>(null)
   const [pendingDelete, setPendingDelete] = useState<string | null>(null)
+  // インラインページ編集パネルをどこで開いているか（2026-09-09）。'new'は章・小見出し直下への
+  // 新規ページ追加、'edit'はまだサーバー未保存（id=null）のページをその場で再編集するモード。
+  // sectionIdx・childIdxはchapter.children／section.children内のインデックス（ページ・小見出しが
+  // 混在する配列、既存のsi/renameSection等と同じ考え方）。sectionIdx=nullは章の直下（小見出しを
+  // 介さない）を意味する。同時に開けるのは1箇所のみ（直列の操作フローのため）。
+  type InlineEditorTarget =
+    | { mode: 'new'; chapterIdx: number; sectionIdx: number | null }
+    | { mode: 'edit'; chapterIdx: number; sectionIdx: number | null; childIdx: number }
+  const [inlineTarget, setInlineTarget] = useState<InlineEditorTarget | null>(null)
+  // 折りたたんだ章のインデックス集合（2026-09-09、目次の見やすさ改善）。既定は全展開。
+  const [collapsedChapters, setCollapsedChapters] = useState<Set<number>>(new Set())
   const [historyYear, setHistoryYear] = useState('')
   const [historyMonth, setHistoryMonth] = useState('all')
   // 目次編集タブの未保存の変更フラグ。true の間はページ編集（S-17）への移動を禁止する
@@ -80,8 +193,13 @@ export default function MaterialEdit() {
   // 保存し直すと復活・重複してしまう不具合があった。2026-08-27発見）
   const [dirty, setDirty] = useState(false)
   const markDirty = () => setDirty(true)
+  // 保存していない変更があるときにページ離脱を警告する（サイドバーのリンク・戻る/進むボタン
+  // 含む。2026-09-09）。既存の「ページ編集への移動だけ禁止する」上記の仕組みとは独立で、
+  // こちらはあらゆる画面遷移をモーダルで確認する汎用の仕組み（ページ編集への遷移も含めて
+  // 警告されるが、互いに競合しない）。
+  const unsavedBlocker = useUnsavedChangesGuard(dirty)
 
-  const { attachments, isLoading: attachmentsLoading } = useMaterialAttachments(
+  const { attachments, isLoading: attachmentsLoading, mutate: mutateAttachments } = useMaterialAttachments(
     activeTab === 'attach' ? savedId : null,
   )
   // ヘッダーの「プロジェクト管理者」表示にも使うため、タブ表示中かどうかに関わらず取得する
@@ -103,6 +221,11 @@ export default function MaterialEdit() {
   } = useAiReview(activeTab === 'review' ? savedId : null)
   const [runningAiReview, setRunningAiReview] = useState(false)
   const [aiReviewRunError, setAiReviewRunError] = useState<string | null>(null)
+  // 過去のAIレビュー結果を見返す（新設、2026-09-28）。開いたときだけ取得する。
+  const [aiReviewHistoryOpen, setAiReviewHistoryOpen] = useState(false)
+  const { items: aiReviewHistory, isLoading: aiReviewHistoryLoading } = useAiReviewHistory(
+    aiReviewHistoryOpen ? savedId : null,
+  )
 
   useEffect(() => {
     if (material) {
@@ -111,6 +234,9 @@ export default function MaterialEdit() {
       setDescription(material.description ?? '')
       setAttemptScope(material.attempt_scope)
       setRetakeScope(material.retake_scope)
+      setPassScorePct(material.pass_score_pct !== null ? String(material.pass_score_pct) : '')
+      setRetakeAllowed(material.retake_allowed)
+      setRetakeLimit(material.retake_limit !== null ? String(material.retake_limit) : '')
       setGradingMode(material.grading_mode)
       setDefaultFeedbackStyle(material.default_feedback_style)
       setAiContext(material.ai_context ?? '')
@@ -161,6 +287,8 @@ export default function MaterialEdit() {
     setHistoryMonth('all')
   }
 
+  const parseNullableNumber = (v: string): number | null => (v.trim() ? Number(v) : null)
+
   const withMeta = (m: Material): Material => ({
     ...m,
     title,
@@ -168,6 +296,9 @@ export default function MaterialEdit() {
     description: description.trim() ? description : null,
     attempt_scope: attemptScope,
     retake_scope: retakeScope,
+    pass_score_pct: parseNullableNumber(passScorePct),
+    retake_allowed: retakeAllowed,
+    retake_limit: parseNullableNumber(retakeLimit),
     grading_mode: gradingMode,
     default_feedback_style: defaultFeedbackStyle,
     ai_context: aiContext.trim() ? aiContext : null,
@@ -176,12 +307,23 @@ export default function MaterialEdit() {
   // 「下書き保存」押下時にタイトル・タグ・目次構造をまとめて保存する。章・小見出しの
   // 追加/削除/並び替え/リネームはこの保存まではローカルstateのみで、A-20は呼ばない
   // （以前は操作のたびに自動保存していたが、保存押下時にまとめて確定する方式に変更した）。
-  const saveDraft = async () => {
+  // 呼び出し元（ページ編集への自動保存等）が成否を判定できるよう、成功時true・失敗時falseを
+  // 返す（2026-09-09）。
+  const saveDraft = async (options?: { skipRedirectAfterCreate?: boolean }): Promise<boolean> => {
     setError(null)
     setSavedMessage(null)
+    setAttachmentWarning(null)
     if (title.trim().length === 0) {
       setError('教材タイトルを入力してください')
-      return
+      return false
+    }
+    if (passScorePct.trim() && (Number.isNaN(Number(passScorePct)) || Number(passScorePct) < 0 || Number(passScorePct) > 100)) {
+      setError('合格基準スコアは0〜100の数値で入力してください')
+      return false
+    }
+    if (retakeLimit.trim() && (Number.isNaN(Number(retakeLimit)) || Number(retakeLimit) < 1 || !Number.isInteger(Number(retakeLimit)))) {
+      setError('再受験回数の上限は1以上の整数で入力してください')
+      return false
     }
     setSaving(true)
     try {
@@ -190,21 +332,73 @@ export default function MaterialEdit() {
           method: 'POST',
           body: JSON.stringify({ project_id: Number(projectId), title, tags }),
         })
+        // 新規作成の初回保存では、ここまでにタイトル入力と並行してインライン編集で組み立てていた
+        // 章・ページ（本文・問題込み）も同じ保存操作でまとめて送る（duplicateMaterialと同じ
+        // POST→PUT /sourceの2段呼び出しパターン。2026-09-09、「タイトル→章作成→ページ作成→保存」
+        // を1回の保存で完結させたいという要望への対応）。chaptersが空（章を1つも追加していない）
+        // 場合は空のツリーが送られるだけなので、「タイトルだけ決めて保存」も従来どおり動く。
+        const source = buildMaterialSource(
+          {
+            ...created,
+            attempt_scope: attemptScope,
+            retake_scope: retakeScope,
+            pass_score_pct: parseNullableNumber(passScorePct),
+            retake_allowed: retakeAllowed,
+            retake_limit: parseNullableNumber(retakeLimit),
+            grading_mode: gradingMode,
+            default_feedback_style: defaultFeedbackStyle,
+            ai_context: aiContext.trim() ? aiContext : null,
+          },
+          chapters,
+        )
+        await apiFetchText(`/api/materials/${created.id}/source`, source)
+        const flushWarning = await flushPendingAttachments(created.id, chapters)
+        if (flushWarning) setAttachmentWarning(flushWarning)
         setSavedId(created.id)
-        navigate(`/projects/${projectId}/materials/${created.id}/edit`, { replace: true })
+        setDirty(false)
+        // 保存直後のこのnavigateは自分自身が起こす画面遷移（新規作成後の作成済みURLへの
+        // 置き換え）であって、保存していない変更の破棄ではない。setDirty(false)だけでは
+        // useBlockerの判定関数がレンダーを経てからでないと更新されず、この直後の同期的な
+        // navigate()には間に合わない（Reactのstate更新は非同期のため）ので、bypassOnce()で
+        // 同期的にもブロックを解除しておく（2026-09-09、setDirty(false)だけでは不十分と判明し修正）。
+        // skipRedirectAfterCreateは「保存して移動」から呼ばれた場合のみtrueにする（2026-09-16、
+        // 実装後レビューで発見: この直後のnavigateが常に実行されるため、「保存して移動」で
+        // 別の行き先へ遷移しようとしても新規作成された教材自身の編集画面に上書きされ、
+        // 本来の移動先へ行けなくなっていた）。呼び出し元がunsavedBlocker.proceed()で
+        // 本来の行き先へ遷移する。
+        if (!options?.skipRedirectAfterCreate) {
+          unsavedBlocker.bypassOnce()
+          navigate(`/projects/${projectId}/materials/${created.id}/edit`, { replace: true })
+        }
       } else if (material) {
         const source = buildMaterialSource(withMeta(material), chapters)
-        await apiFetchText(`/api/materials/${savedId}/source`, source)
-        await mutate()
+        await apiFetchText(`/api/materials/${savedId}/source`, source, {
+          'X-Expected-Updated-At': material.updated_at,
+        })
+        const flushWarning = await flushPendingAttachments(savedId, chapters)
+        if (flushWarning) setAttachmentWarning(flushWarning)
+        const refreshed = await mutate()
+        if (refreshed) acknowledgeSave(refreshed.updated_at)
+        setDirty(false)
+      } else {
+        // savedId!==nullだがmaterial未取得（読み込み中）。ここで何もせず「保存しました」を
+        // 表示すると、実際には未保存のまま成功したかのように見えてしまう
+        // （2026-09-10、レビューで発見・修正）。
+        setError('教材を読み込み中です。少し待ってから保存し直してください。')
+        return false
       }
-      setDirty(false)
       setSavedMessage('保存しました')
+      return true
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : '保存に失敗しました')
+      setError(conflictAwareMessage(e, '保存に失敗しました'))
+      return false
     } finally {
       setSaving(false)
     }
   }
+
+  // Ctrl+S/Cmd+Sで保存できるようにする（2026-09-09、ユーザー要望）
+  useSaveShortcut(saveDraft, !saving)
 
   // 章・小見出し・ページ・設問のidをすべてnullにし、書き戻し時にA-20が新規ノードとして
   // 採番するようにする（複製先の教材に元教材のノードIDをそのまま送ると「存在しません」で422になる）。
@@ -236,6 +430,9 @@ export default function MaterialEdit() {
           ...created,
           attempt_scope: attemptScope,
           retake_scope: retakeScope,
+          pass_score_pct: parseNullableNumber(passScorePct),
+          retake_allowed: retakeAllowed,
+          retake_limit: parseNullableNumber(retakeLimit),
           grading_mode: gradingMode,
           default_feedback_style: defaultFeedbackStyle,
           ai_context: aiContext.trim() ? aiContext : null,
@@ -259,7 +456,8 @@ export default function MaterialEdit() {
     setError(null)
     setArchiving(true)
     try {
-      await archiveMaterial(savedId)
+      const result = await archiveMaterial(savedId)
+      acknowledgeSave(result.updated_at)
       await mutate()
       setArchiveModalOpen(false)
     } catch (e) {
@@ -274,7 +472,8 @@ export default function MaterialEdit() {
     setError(null)
     setArchiving(true)
     try {
-      await restoreMaterial(savedId)
+      const result = await restoreMaterial(savedId)
+      acknowledgeSave(result.updated_at)
       await mutate()
     } catch (e) {
       setError(e instanceof ApiError ? e.message : '復元に失敗しました')
@@ -291,11 +490,50 @@ export default function MaterialEdit() {
     setDeleting(true)
     try {
       await deleteMaterial(savedId)
+      // 削除ボタン自体はdirtyで無効化していないため、未保存の変更があるまま削除した場合、
+      // navigate()前にdirtyを落とし、bypassOnce()で同期的にもブロックを解除しておく
+      // （教材はもう存在しないため確認する意味が無い。setDirty(false)だけでは不十分な理由は
+      // saveDraft内のコメント参照。2026-09-09）。
+      setDirty(false)
+      unsavedBlocker.bypassOnce()
       navigate(`/projects/${projectId}/materials/edit`)
     } catch (e) {
       setError(e instanceof ApiError ? e.message : '削除に失敗しました')
     } finally {
       setDeleting(false)
+    }
+  }
+
+  // サムネイル画像のアップロード・削除。タイトル・タグ・description等（「下書き保存」でまとめて
+  // 保存する）とは違い、プロフィールアイコンと同じくファイル選択・削除操作の都度サーバーへ即時反映する
+  // （2026-09-28新設）。
+  const handleThumbnailSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file || savedId === null) return
+    setError(null)
+    setThumbnailUploading(true)
+    try {
+      await uploadMaterialThumbnail(savedId, file)
+      await mutate()
+    } catch (e2) {
+      setError(e2 instanceof ApiError ? e2.message : 'サムネイル画像のアップロードに失敗しました')
+    } finally {
+      setThumbnailUploading(false)
+    }
+  }
+
+  const handleThumbnailRemove = async () => {
+    if (savedId === null) return
+    setError(null)
+    setThumbnailUploading(true)
+    try {
+      await resetMaterialThumbnail(savedId)
+      await mutate()
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'サムネイル画像の削除に失敗しました')
+    } finally {
+      setThumbnailUploading(false)
     }
   }
 
@@ -321,7 +559,8 @@ export default function MaterialEdit() {
     setError(null)
     setPublishing(true)
     try {
-      await publishMaterial(savedId)
+      const result = await publishMaterial(savedId)
+      acknowledgeSave(result.updated_at)
       await mutate()
     } catch (e) {
       setError(e instanceof ApiError ? e.message : '公開に失敗しました')
@@ -399,22 +638,70 @@ export default function MaterialEdit() {
     setPendingDelete(null)
   }
 
-  // ページ編集（S-17）は開くたびにサーバーから目次を取り直すため、目次編集タブに
-  // 未保存の変更がある状態で移動すると、その変更（削除等）が無かったことになってしまう。
-  // そのため未保存の間は移動させず、先に「下書き保存」を促す。
-  const goToNewPage = (parentNodeId: number) => {
-    if (dirty) {
-      setError(`保存していない変更があります。ページ編集に移動する前に「${saveButtonLabel}」を押してください。`)
-      return
-    }
-    navigate(`/projects/${projectId}/materials/${savedId}/pages/new/edit?parentNodeId=${parentNodeId}`)
+  // 新規ページ作成のインラインパネルを開く／閉じる。以前は別画面（S-17）への遷移だったが、
+  // 章・ページを追加してすぐ中身を書きたいという自然な操作のたびに保存・画面遷移を挟む必要があり
+  // 負担というフィードバックを受け、目次画面内でその場编集できるように変更した（2026-09-09）。
+  const openNewPageEditor = (chapterIdx: number, sectionIdx: number | null) => {
+    setInlineTarget({ mode: 'new', chapterIdx, sectionIdx })
+  }
+  // まだサーバー未保存（id=null）のページをインラインパネルで再編集する（2026-09-09、
+  // 「追加した直後のページを開き直して編集できない」というフィードバックへの対応。
+  // 保存済み〔id!==null〕のページは従来どおりgoToEditPageでS-17を開く）。
+  const openExistingPageEditor = (chapterIdx: number, sectionIdx: number | null, childIdx: number) => {
+    setInlineTarget({ mode: 'edit', chapterIdx, sectionIdx, childIdx })
+  }
+  const closeInlinePageEditor = () => setInlineTarget(null)
+
+  // インラインパネルで確定したページをローカルの章ツリーへ反映する（新規なら追加、編集なら
+  // その位置を差し替え。サーバー保存はまだしない。「下書き保存」を押したときにsaveDraft()が
+  // まとめて送信する）。
+  const confirmInlinePage = (page: EditableNode) => {
+    if (!inlineTarget) return
+    const { chapterIdx, sectionIdx } = inlineTarget
+    markDirty()
+    setChapters((prev) =>
+      prev.map((c, i) => {
+        if (i !== chapterIdx) return c
+        if (sectionIdx === null) {
+          const children =
+            inlineTarget.mode === 'new'
+              ? [...c.children, page]
+              : c.children.map((ch, j) => (j === inlineTarget.childIdx ? page : ch))
+          return { ...c, children }
+        }
+        return {
+          ...c,
+          children: c.children.map((s, j) => {
+            if (j !== sectionIdx) return s
+            const children =
+              inlineTarget.mode === 'new'
+                ? [...s.children, page]
+                : s.children.map((ch, k) => (k === inlineTarget.childIdx ? page : ch))
+            return { ...s, children }
+          }),
+        }
+      }),
+    )
+    closeInlinePageEditor()
   }
 
-  const goToEditPage = (nodeId: number) => {
-    if (dirty) {
-      setError(`保存していない変更があります。ページ編集に移動する前に「${saveButtonLabel}」を押してください。`)
-      return
-    }
+  const toggleChapterCollapsed = (chapterIdx: number) => {
+    setCollapsedChapters((prev) => {
+      const next = new Set(prev)
+      if (next.has(chapterIdx)) next.delete(chapterIdx)
+      else next.add(chapterIdx)
+      return next
+    })
+  }
+
+  // 章に含まれるページ数（小見出し配下も含めて再帰的に数える）。折りたたみ時のサマリー表示用
+  // （2026-09-09）。
+  const countPages = (nodes: EditableNode[]): number =>
+    nodes.reduce((sum, n) => sum + (n.kind === 'page' ? 1 : countPages(n.children)), 0)
+
+  const goToEditPage = async (nodeId: number) => {
+    if (dirty && !(await saveDraft())) return
+    unsavedBlocker.bypassOnce()
     navigate(`/projects/${projectId}/materials/${savedId}/pages/${nodeId}/edit`)
   }
 
@@ -478,22 +765,23 @@ export default function MaterialEdit() {
   }
 
   if (!isNew && isLoading) {
-    return <div className="p-8 text-sm text-slate-400">読み込み中...</div>
+    return <div className="p-8 text-sm text-slate-400 dark:text-neutral-500">読み込み中...</div>
   }
 
-  if (!isNew && materialError) {
-    const message =
-      materialError instanceof ApiError && materialError.status === 403
-        ? 'この教材を閲覧できません。全社Wikiプロジェクトの下書きは作成者とプロジェクト管理者のみ閲覧できます。'
-        : '教材を取得できませんでした。'
+  // materialが一度も取得できていない（初回読み込み自体の失敗）場合のみ画面全体を差し替える。
+  // 一度取得済みの状態でその後の再取得（保存後のmutate()等）が失敗しても、入力中の内容を
+  // 隠さないよう、この分岐には入れず本編集画面を表示し続け、saveDraftのcatchが設定するerror
+  // （947行目のバナー）で理由を伝える（2026-09-30、ユーザー報告により発見・修正）。
+  if (!isNew && materialError && !material) {
+    const message = materialError instanceof ApiError ? materialError.message : '教材を取得できませんでした。'
     return (
       <div className="flex flex-1 flex-col">
         <PageHeader title="教材編集" />
         <div className="px-8 py-6">
-          <Link to={`/projects/${projectId}/materials/edit`} className="text-blue-800 hover:underline">
+          <Link to={`/projects/${projectId}/materials/edit`} className="text-blue-800 hover:underline dark:text-blue-300">
             ← 教材一覧に戻る
           </Link>
-          <p className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{message}</p>
+          <p className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200">{message}</p>
         </div>
       </div>
     )
@@ -501,13 +789,13 @@ export default function MaterialEdit() {
 
   const headerActions = (
     <>
-      <Button variant="primary" onClick={saveDraft} disabled={saving}>
+      <Button variant="primary" onClick={() => saveDraft()} disabled={saving}>
         {saveButtonLabel}
       </Button>
       {savedId !== null && (
         <Link
           to={`/projects/${projectId}/materials/${savedId}/preview`}
-          className="flex h-9 items-center rounded-md border border-slate-300 bg-white px-3.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          className="flex h-9 flex-shrink-0 items-center whitespace-nowrap rounded-md border border-slate-300 bg-white px-3.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 dark:hover:bg-neutral-700"
         >
           プレビュー
         </Link>
@@ -515,7 +803,7 @@ export default function MaterialEdit() {
       {savedId !== null && material?.status === 'draft' && (
         <Button
           variant="secondary"
-          onClick={doPublish}
+          onClick={() => setPublishModalOpen(true)}
           disabled={publishing || dirty}
           title={dirty ? `保存していない変更があります。先に「${saveButtonLabel}」を押してください` : undefined}
         >
@@ -533,21 +821,32 @@ export default function MaterialEdit() {
         </Button>
       )}
       {savedId !== null && material?.is_archived && (
-        <Button variant="secondary" onClick={doRestore} disabled={archiving}>
+        <Button
+          variant="secondary"
+          onClick={doRestore}
+          disabled={archiving || dirty}
+          title={dirty ? `保存していない変更があります。先に「${saveButtonLabel}」を押してください` : undefined}
+        >
           {archiving ? '復元中...' : '復元'}
         </Button>
       )}
-      {savedId !== null && !material?.is_archived && material?.status === 'published' && (
-        <Button
-          variant="danger-ghost"
-          onClick={() => setArchiveModalOpen(true)}
-          disabled={archiving}
-          title="教材一覧・検索から非表示にします（データは削除されず、いつでも復元できます）"
-        >
-          アーカイブ
-        </Button>
-      )}
-      {savedId !== null && material?.status === 'draft' && (
+      {savedId !== null &&
+        !material?.is_archived &&
+        (material?.status === 'published' || material?.has_learning_history) && (
+          <Button
+            variant="danger-ghost"
+            onClick={() => setArchiveModalOpen(true)}
+            disabled={archiving || dirty}
+            title={
+              dirty
+                ? `保存していない変更があります。先に「${saveButtonLabel}」を押してください`
+                : '教材一覧・検索から非表示にします（データは削除されず、いつでも復元できます）'
+            }
+          >
+            アーカイブ
+          </Button>
+        )}
+      {savedId !== null && !material?.is_archived && material?.status === 'draft' && !material?.has_learning_history && (
         <Button
           variant="danger-ghost"
           onClick={() => setDeleteModalOpen(true)}
@@ -560,16 +859,40 @@ export default function MaterialEdit() {
     </>
   )
 
+  // インラインパネルを開いたまま章・小見出し・ページの並び替えや削除を行うと、パネルが保持している
+  // 位置情報（chapterIdx/sectionIdx/childIdx）と実際の配列インデックスがずれ、確定時に別のページへ
+  // 誤って上書き・挿入してしまう（最悪、無関係なページの内容が入れ替わる）。並び替え・削除・
+  // 他の位置での新規パネルオープンをインライン編集中は禁止することで防ぐ（2026-09-09）。
+  const inlineEditorOpen = inlineTarget !== null
+
+  // 「公開する」確認モーダルに埋め込むAssignmentEditPanel用のアダプタ（AssignmentListItem形状）。
+  // materialにはA-15/F-31向けの別目的のis_company_wide?があるため、project.is_company_wideを
+  // 後から明示的に上書きする順序にしている（2026-09-10）。
+  const assignmentTarget = material && {
+    ...material,
+    project_name: project?.name ?? '',
+    is_company_wide: project?.is_company_wide ?? false,
+    // この画面（S-05）を開けている時点で編集権限は既にあるが、can_archive・has_learning_history
+    // 自体はS-06のアーカイブ・復元ボタン専用のフィールドでこのモーダル内では使わないため、
+    // 型を満たすだけの値（material.has_learning_historyはoptionalなためundefinedの可能性があり、
+    // AssignmentListItemの必須booleanと型が合わないのでここで明示的に上書きする）
+    can_archive: false,
+    // created_by_name（S-06一覧の作成者列専用）もこのモーダル内では使わないため、型を満たすだけの値
+    created_by_name: '',
+    has_learning_history: material.has_learning_history ?? false,
+    assignments: [],
+  }
+
   return (
     <div className="flex flex-1 flex-col">
       <PageHeader title={`教材編集${title ? ` — ${title}` : ''}`} actions={headerActions} />
       <div className="px-8 py-6">
-        <p className="mb-4 flex flex-wrap items-center gap-1.5 text-[11.5px] text-slate-400">
-          <Link to="/materials/edit-projects" className="text-blue-800 hover:underline">
+        <p className="mb-4 flex flex-wrap items-center gap-1.5 text-[11.5px] text-slate-400 dark:text-neutral-500">
+          <Link to="/materials/edit-projects" className="text-blue-800 hover:underline dark:text-blue-300">
             ← プロジェクト選択に戻る
           </Link>
           <span>／</span>
-          <Link to={`/projects/${projectId}/materials/edit`} className="text-blue-800 hover:underline">
+          <Link to={`/projects/${projectId}/materials/edit`} className="text-blue-800 hover:underline dark:text-blue-300">
             ← 教材一覧に戻る
           </Link>
           {savedId !== null && (
@@ -590,7 +913,7 @@ export default function MaterialEdit() {
           )}
         </p>
 
-        <div className="mb-5 flex gap-1 border-b border-slate-200" role="tablist">
+        <div className="mb-5 flex gap-1 overflow-x-auto border-b border-slate-200 dark:border-neutral-800" role="tablist">
           {TABS.map((tab) => (
             <button
               key={tab.key}
@@ -598,10 +921,10 @@ export default function MaterialEdit() {
               role="tab"
               aria-selected={activeTab === tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`-mb-px border-b-2 px-3 py-2 text-sm font-semibold ${
+              className={`-mb-px flex-shrink-0 whitespace-nowrap border-b-2 px-3 py-2 text-sm font-semibold ${
                 activeTab === tab.key
-                  ? 'border-blue-800 text-blue-900'
-                  : 'border-transparent text-slate-500 hover:text-slate-800'
+                  ? 'border-blue-800 text-blue-900 dark:border-blue-500 dark:text-blue-300'
+                  : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-neutral-400 dark:hover:text-neutral-100'
               }`}
             >
               {tab.label}
@@ -609,19 +932,38 @@ export default function MaterialEdit() {
           ))}
         </div>
 
-        {error && (
-          <p className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
-        )}
-        {savedMessage && (
-          <p className="mb-4 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
-            {savedMessage}
+        {editingOthers.length > 0 && (
+          <p className="mb-4 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400">
+            {editingOthers.map((o) => `${o.name}さんが編集中です（最終確認: ${o.seconds_ago}秒前）`).join('、')}
           </p>
         )}
 
+        {changedSinceLoad && (
+          <p className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+            他のユーザーがこの教材を更新しました。このまま保存すると競合エラーになる場合があります。
+            早めに保存するか、一度画面を再読み込みしてください。
+          </p>
+        )}
+
+        {error && (
+          <p className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200">{error}</p>
+        )}
+        {attachmentWarning && (
+          <p className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+            {attachmentWarning}
+          </p>
+        )}
+        {savedMessage && <Toast message={savedMessage} />}
+
         {activeTab === 'structure' && (
         <>
+        {dirty && (
+          <p className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+            保存していない変更があります。
+          </p>
+        )}
         <div className="mb-4 flex max-w-xl flex-col gap-1">
-          <label htmlFor="m-title" className="text-xs font-semibold text-slate-500">
+          <label htmlFor="m-title" className="text-xs font-semibold text-slate-500 dark:text-neutral-300">
             教材タイトル
           </label>
           <TextInput
@@ -637,13 +979,13 @@ export default function MaterialEdit() {
 
         <div className="mb-5 flex max-w-xl gap-4">
           <div className="flex flex-1 flex-col gap-1">
-            <label className="text-xs font-semibold text-slate-500">プロジェクト</label>
-            <div className="flex h-9 items-center rounded-md border border-slate-200 bg-slate-50 px-3 text-sm text-slate-600">
+            <label className="text-xs font-semibold text-slate-500 dark:text-neutral-300">プロジェクト</label>
+            <div className="flex h-9 items-center rounded-md border border-slate-200 bg-slate-50 px-3 text-sm text-slate-600 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300">
               {project?.name ?? '—'}
             </div>
           </div>
           <div className="flex flex-1 flex-col gap-1">
-            <label htmlFor="m-tags" className="text-xs font-semibold text-slate-500">
+            <label htmlFor="m-tags" className="text-xs font-semibold text-slate-500 dark:text-neutral-300">
               タグ（任意）
             </label>
             <TagInput
@@ -658,7 +1000,7 @@ export default function MaterialEdit() {
         </div>
 
         <div className="mb-5 flex max-w-xl flex-col gap-1">
-          <label htmlFor="m-description" className="text-xs font-semibold text-slate-500">
+          <label htmlFor="m-description" className="text-xs font-semibold text-slate-500 dark:text-neutral-300">
             概要（一覧表示用、任意）
           </label>
           <TextArea
@@ -673,13 +1015,59 @@ export default function MaterialEdit() {
           />
         </div>
 
-        <section className="mb-5 max-w-xl rounded-md border border-slate-200">
-          <div className="border-b border-slate-200 px-4 py-2.5">
-            <span className="text-sm font-semibold text-slate-700">合否判定・再受験設定</span>
+        <div className="mb-5 flex max-w-xl flex-col gap-1">
+          <span className="text-xs font-semibold text-slate-500 dark:text-neutral-300">
+            サムネイル画像（任意、一覧表示用）
+          </span>
+          {savedId === null ? (
+            <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-500">
+              先に「下書き保存」してください。教材を保存すると設定できます。
+            </p>
+          ) : (
+            <div className="flex items-center gap-3">
+              <MaterialThumbnail
+                material={{ id: savedId, title, thumbnail_url: material?.thumbnail_url }}
+                size="sm"
+                className="border border-slate-200 dark:border-neutral-700"
+              />
+              <div className="flex flex-col gap-1.5">
+                <div className="flex gap-2">
+                  <label className="flex h-8 cursor-pointer items-center rounded-md border border-slate-300 px-3 text-xs font-semibold text-slate-600 hover:bg-slate-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800">
+                    {thumbnailUploading ? '処理中...' : '画像を変更'}
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg"
+                      className="hidden"
+                      onChange={handleThumbnailSelect}
+                      disabled={thumbnailUploading}
+                    />
+                  </label>
+                  {material?.thumbnail_url && (
+                    <button
+                      type="button"
+                      onClick={handleThumbnailRemove}
+                      disabled={thumbnailUploading}
+                      className="text-xs font-semibold text-slate-500 hover:text-red-700 hover:underline disabled:opacity-50 dark:text-neutral-400 dark:hover:text-red-400"
+                    >
+                      削除する
+                    </button>
+                  )}
+                </div>
+                <span className="text-[11px] text-slate-400 dark:text-neutral-500">
+                  PNG・JPEG、5MBまで。未設定の間は一覧に自動でプレースホルダー画像が表示されます
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <section className="mb-5 max-w-xl rounded-md border border-slate-200 dark:border-neutral-800">
+          <div className="border-b border-slate-200 px-4 py-2.5 dark:border-neutral-800">
+            <span className="text-sm font-semibold text-slate-700 dark:text-neutral-100">合否判定・再受験設定</span>
           </div>
           <div className="flex flex-wrap gap-4 p-4">
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-semibold text-slate-500">受験単位</label>
+              <label className="text-xs font-semibold text-slate-500 dark:text-neutral-300">受験単位</label>
               <Select
                 value={attemptScope}
                 onChange={(v) => {
@@ -696,7 +1084,7 @@ export default function MaterialEdit() {
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-semibold text-slate-500">再受験範囲</label>
+              <label className="text-xs font-semibold text-slate-500 dark:text-neutral-300">再受験範囲</label>
               <Select
                 value={retakeScope}
                 onChange={(v) => {
@@ -710,17 +1098,97 @@ export default function MaterialEdit() {
                 className="w-32"
               />
             </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-semibold text-slate-500 dark:text-neutral-300">合格基準</label>
+              <Select
+                value={passScorePct.trim() ? 'set' : 'none'}
+                onChange={(v) => {
+                  markDirty()
+                  setPassScorePct(v === 'set' ? '70' : '')
+                }}
+                options={[
+                  { value: 'none', label: '設定しない（常に合格）' },
+                  { value: 'set', label: '設定する' },
+                ]}
+                className="w-44"
+              />
+            </div>
+            {passScorePct.trim() && (
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-semibold text-slate-500 dark:text-neutral-300">合格基準スコア</label>
+                <div className="flex items-center gap-1.5">
+                  <TextInput
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={passScorePct}
+                    onChange={(e) => {
+                      markDirty()
+                      setPassScorePct(e.target.value)
+                    }}
+                    className="w-20"
+                  />
+                  <span className="text-xs text-slate-500 dark:text-neutral-400">% 以上で合格</span>
+                </div>
+              </div>
+            )}
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-semibold text-slate-500 dark:text-neutral-300">再受験</label>
+              <Select
+                value={retakeAllowed ? 'allow' : 'deny'}
+                onChange={(v) => {
+                  markDirty()
+                  setRetakeAllowed(v === 'allow')
+                }}
+                options={[
+                  { value: 'allow', label: '許可する' },
+                  { value: 'deny', label: '許可しない' },
+                ]}
+                className="w-32"
+              />
+            </div>
+            {retakeAllowed && (
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-semibold text-slate-500 dark:text-neutral-300">再受験回数上限</label>
+                <div className="flex items-center gap-1.5">
+                  <TextInput
+                    type="number"
+                    min={1}
+                    step={1}
+                    placeholder="無制限"
+                    value={retakeLimit}
+                    onChange={(e) => {
+                      markDirty()
+                      setRetakeLimit(e.target.value)
+                    }}
+                    className="w-24"
+                  />
+                  {retakeLimit.trim() && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        markDirty()
+                        setRetakeLimit('')
+                      }}
+                      className="text-xs text-blue-700 hover:underline dark:text-blue-300"
+                    >
+                      無制限に戻す
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </section>
 
-        <section className="mb-5 max-w-xl rounded-md border border-slate-200">
-          <div className="border-b border-slate-200 px-4 py-2.5">
-            <span className="text-sm font-semibold text-slate-700">AI採点・AIアシスト設定</span>
+        <section className="mb-5 max-w-xl rounded-md border border-slate-200 dark:border-neutral-800">
+          <div className="border-b border-slate-200 px-4 py-2.5 dark:border-neutral-800">
+            <span className="text-sm font-semibold text-slate-700 dark:text-neutral-100">AI採点・AIアシスト設定</span>
           </div>
           <div className="flex flex-col gap-4 p-4">
             <div className="flex flex-wrap gap-4">
               <div className="flex flex-col gap-1">
-                <label className="text-xs font-semibold text-slate-500">採点方式の既定</label>
+                <label className="text-xs font-semibold text-slate-500 dark:text-neutral-300">採点方式の既定</label>
                 <Select
                   value={gradingMode}
                   onChange={(v) => {
@@ -735,7 +1203,7 @@ export default function MaterialEdit() {
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-xs font-semibold text-slate-500">AI講評スタイルの既定</label>
+                <label className="text-xs font-semibold text-slate-500 dark:text-neutral-300">AI講評スタイルの既定</label>
                 <Select
                   value={defaultFeedbackStyle}
                   onChange={(v) => {
@@ -752,7 +1220,7 @@ export default function MaterialEdit() {
               </div>
             </div>
             <div className="flex flex-col gap-1">
-              <label htmlFor="m-ai-context" className="text-xs font-semibold text-slate-500">
+              <label htmlFor="m-ai-context" className="text-xs font-semibold text-slate-500 dark:text-neutral-300">
                 AI採点・AIアシストへの指示（任意）
               </label>
               <TextArea
@@ -770,17 +1238,21 @@ export default function MaterialEdit() {
           </div>
         </section>
 
-        <section className="mb-5 max-w-xl rounded-md border border-slate-200">
-          <div className="border-b border-slate-200 px-4 py-2.5">
-            <span className="text-sm font-semibold text-slate-700">受験後アンケート（教材全体）</span>
+        <section className="mb-5 max-w-xl rounded-md border border-slate-200 dark:border-neutral-800">
+          <div className="border-b border-slate-200 px-4 py-2.5 dark:border-neutral-800">
+            <span className="text-sm font-semibold text-slate-700 dark:text-neutral-100">受講後アンケート（教材全体）</span>
           </div>
           <div className="flex items-center justify-between gap-3 p-4">
-            {surveyFor(null) ? (
-              <span className="text-sm text-slate-600">
+            {savedId === null ? (
+              <span className="text-sm text-slate-400 dark:text-neutral-500">
+                先に「下書き保存」を行うとアンケートを設置できます
+              </span>
+            ) : surveyFor(null) ? (
+              <span className="text-sm text-slate-600 dark:text-neutral-300">
                 「{surveyFor(null)!.title}」を設置中{surveyFor(null)!.is_active ? '' : '（現在OFF）'}
               </span>
             ) : (
-              <span className="text-sm text-slate-400">まだ設置されていません</span>
+              <span className="text-sm text-slate-400 dark:text-neutral-500">まだ設置されていません</span>
             )}
             {savedId !== null && (
               <Button
@@ -795,23 +1267,25 @@ export default function MaterialEdit() {
 
         {archiveModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-            <div className="w-full max-w-md rounded-md bg-white p-5 shadow-lg">
+            <div className="w-full max-w-md rounded-md bg-white p-5 shadow-lg dark:bg-neutral-800">
               <div className="mb-3 flex items-center justify-between">
-                <span className="text-base font-semibold text-slate-800">教材をアーカイブしますか？</span>
+                <span className="text-base font-semibold text-slate-800 dark:text-neutral-100">教材をアーカイブしますか？</span>
                 <button
                   type="button"
                   onClick={() => setArchiveModalOpen(false)}
-                  className="text-slate-400 hover:text-slate-600"
+                  className="text-slate-400 hover:text-slate-600 dark:text-neutral-500 dark:hover:text-neutral-300"
                 >
                   ×
                 </button>
               </div>
-              <p className="mb-3 text-sm leading-relaxed text-slate-600">
+              <p className="mb-3 text-sm leading-relaxed text-slate-600 dark:text-neutral-300">
                 「{title}」を教材一覧・検索から非表示にします。目次・ページ・設問・添付ファイルは削除されず、受験記録やアンケート回答がある場合もそのまま保持されます。一覧の「状態」絞り込みで「アーカイブ済み」を選ぶといつでも一覧に戻して復元できます。
               </p>
-              <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs leading-relaxed text-red-800">
-                公開中の教材をアーカイブすると、受講者からもこの教材が見えなくなります。
-              </div>
+              {material?.status === 'published' && (
+                <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs leading-relaxed text-red-800 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200">
+                  公開中の教材をアーカイブすると、受講者からもこの教材が見えなくなります。
+                </div>
+              )}
               <div className="flex justify-end gap-2">
                 <Button variant="secondary" onClick={() => setArchiveModalOpen(false)}>
                   キャンセル
@@ -826,18 +1300,18 @@ export default function MaterialEdit() {
 
         {deleteModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-            <div className="w-full max-w-md rounded-md bg-white p-5 shadow-lg">
+            <div className="w-full max-w-md rounded-md bg-white p-5 shadow-lg dark:bg-neutral-800">
               <div className="mb-3 flex items-center justify-between">
-                <span className="text-base font-semibold text-slate-800">教材を削除しますか？</span>
+                <span className="text-base font-semibold text-slate-800 dark:text-neutral-100">教材を削除しますか？</span>
                 <button
                   type="button"
                   onClick={() => setDeleteModalOpen(false)}
-                  className="text-slate-400 hover:text-slate-600"
+                  className="text-slate-400 hover:text-slate-600 dark:text-neutral-500 dark:hover:text-neutral-300"
                 >
                   ×
                 </button>
               </div>
-              <p className="mb-3 text-sm leading-relaxed text-slate-600">
+              <p className="mb-3 text-sm leading-relaxed text-slate-600 dark:text-neutral-300">
                 「{title}」を完全に削除します。目次・ページ・設問・添付ファイルもすべて削除され、<strong>元に戻せません</strong>。不要になった下書きを完全に消したい場合のみお使いください（公開後の教材は削除できず、アーカイブのみ利用できます）。
               </p>
               <div className="flex justify-end gap-2">
@@ -852,51 +1326,59 @@ export default function MaterialEdit() {
           </div>
         )}
 
-        <section className="rounded-md border border-slate-200">
-          <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2.5">
-            <span className="text-sm font-semibold text-slate-700">目次構造</span>
-            <span className="text-xs text-slate-400">
+        <section className="rounded-md border border-slate-200 dark:border-neutral-800">
+          <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2.5 dark:border-neutral-800">
+            <span className="text-sm font-semibold text-slate-700 dark:text-neutral-100">目次構造</span>
+            <span className="text-xs text-slate-400 dark:text-neutral-500">
               {chapters.length}章（変更は上の「{saveButtonLabel}」を押すまで確定しません）
             </span>
           </div>
-          {dirty && (
-            <p className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-800">
-              保存していない変更があります。ページ編集画面に移動する前に「{saveButtonLabel}」を押してください。
-            </p>
-          )}
           <div className="p-4">
-            {savedId === null && (
-              <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400">
-                先に「下書き保存」してください。教材が作成されると章・小見出しを追加できます。
+            {chapters.length === 0 && (
+              <p className="mb-3 rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-500">
+                まだ章がありません。「+ 見出しを追加」から始めてください。
               </p>
             )}
-
-            {savedId !== null && (
-              <>
-                {chapters.map((chapter, ci) => (
-                  <div key={chapter.id ?? `new-${ci}`} className="mb-3 rounded-md border border-slate-200">
-                    <div className="flex items-center gap-2 rounded-t-md bg-slate-50 px-3 py-2">
-                      <span className="flex-shrink-0 text-xs font-bold text-blue-800">第{ci + 1}章</span>
-                      <TextInput
-                        value={chapter.title}
-                        onChange={(e) => renameChapter(ci, e.target.value)}
-                        className="flex-1"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => moveChapter(ci, -1)}
-                        disabled={ci === 0}
-                        title="上へ"
-                        className="rounded p-1 text-slate-400 hover:bg-slate-200 disabled:opacity-30"
-                      >
-                        ↑
-                      </button>
+            {chapters.map((chapter, ci) => {
+              const collapsed = collapsedChapters.has(ci)
+              return (
+                <div
+                  key={chapter.id ?? `new-${ci}`}
+                  className={`mb-3 rounded-md border border-l-[3px] border-slate-200 dark:border-neutral-800 ${chapterAccentClass(ci)}`}
+                >
+                  <div className="flex items-center gap-2 rounded-t-md bg-slate-50 px-3 py-2 dark:bg-neutral-900">
+                    <button
+                      type="button"
+                      onClick={() => toggleChapterCollapsed(ci)}
+                      title={collapsed ? '展開' : '折りたたむ'}
+                      className="flex-shrink-0 rounded p-1 text-slate-400 hover:bg-slate-200 dark:text-neutral-500 dark:hover:bg-neutral-700"
+                    >
+                      {collapsed ? '▶' : '▼'}
+                    </button>
+                    <span className="flex-shrink-0 text-xs font-bold text-blue-800 dark:text-blue-300">第{ci + 1}章</span>
+                    <TextInput
+                      value={chapter.title}
+                      onChange={(e) => renameChapter(ci, e.target.value)}
+                      className="flex-1"
+                    />
+                    {collapsed && (
+                      <span className="flex-shrink-0 text-xs text-slate-400 dark:text-neutral-500">{countPages(chapter.children)}ページ</span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => moveChapter(ci, -1)}
+                      disabled={ci === 0 || inlineEditorOpen}
+                      title="上へ"
+                      className="rounded p-1 text-slate-400 hover:bg-slate-200 disabled:opacity-30 dark:text-neutral-500 dark:hover:bg-neutral-700"
+                    >
+                      ↑
+                    </button>
                       <button
                         type="button"
                         onClick={() => moveChapter(ci, 1)}
-                        disabled={ci === chapters.length - 1}
+                        disabled={ci === chapters.length - 1 || inlineEditorOpen}
                         title="下へ"
-                        className="rounded p-1 text-slate-400 hover:bg-slate-200 disabled:opacity-30"
+                        className="rounded p-1 text-slate-400 hover:bg-slate-200 disabled:opacity-30 dark:text-neutral-500 dark:hover:bg-neutral-700"
                       >
                         ↓
                       </button>
@@ -906,7 +1388,7 @@ export default function MaterialEdit() {
                           onClick={() => setSurveyModal({ nodeId: chapter.id, targetLabel: chapter.title || `第${ci + 1}章` })}
                           disabled={dirty}
                           title={dirty ? `保存していない変更があります。先に「${saveButtonLabel}」を押してください` : undefined}
-                          className="flex-shrink-0 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white"
+                          className="flex-shrink-0 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 dark:hover:bg-neutral-700 dark:disabled:hover:bg-neutral-800"
                         >
                           {surveyFor(chapter.id) ? 'アンケート編集' : 'アンケート設置'}
                         </button>
@@ -917,14 +1399,15 @@ export default function MaterialEdit() {
                           <button
                             type="button"
                             onClick={() => deleteChapter(ci)}
-                            className="rounded bg-red-600 px-2 py-1 font-semibold text-white hover:bg-red-700"
+                            disabled={inlineEditorOpen}
+                            className="rounded bg-red-600 px-2 py-1 font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
                           >
                             削除する
                           </button>
                           <button
                             type="button"
                             onClick={() => setPendingDelete(null)}
-                            className="rounded border border-slate-300 px-2 py-1 text-slate-500 hover:bg-slate-100"
+                            className="rounded border border-slate-300 px-2 py-1 text-slate-500 hover:bg-slate-100 dark:border-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-700"
                           >
                             キャンセル
                           </button>
@@ -933,19 +1416,22 @@ export default function MaterialEdit() {
                         <button
                           type="button"
                           onClick={() => setPendingDelete(`chapter:${ci}`)}
-                          className="flex-shrink-0 rounded border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+                          disabled={inlineEditorOpen}
+                          title={inlineEditorOpen ? 'インライン編集中は並び替え・削除できません' : undefined}
+                          className="flex-shrink-0 rounded border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950/40 dark:disabled:hover:bg-transparent"
                         >
                           削除
                         </button>
                       )}
                     </div>
 
+                    {!collapsed && (
                     <div className="p-3">
                       {chapter.children.map((child, si) =>
                         child.kind === 'page' ? (
+                          <div key={child.id ?? `new-${si}`} className="mb-1.5">
                           <div
-                            key={child.id ?? `new-${si}`}
-                            className="mb-1.5 ml-6 flex items-center gap-2 rounded-md border-l-2 border-slate-200 bg-slate-50 px-2.5 py-1.5"
+                            className="ml-6 flex items-center gap-2 rounded-md border-l-2 border-slate-200 bg-slate-50 px-2.5 py-1.5 dark:border-neutral-700 dark:bg-neutral-900/60"
                           >
                             <TextInput
                               value={child.title}
@@ -953,32 +1439,42 @@ export default function MaterialEdit() {
                               placeholder="ページタイトルを入力"
                               className="flex-1"
                             />
-                            <span className="flex-shrink-0 text-xs text-slate-400">{pageKindLabel(child)}</span>
+                            <span className="flex-shrink-0 text-xs text-slate-400 dark:text-neutral-500">{pageKindLabel(child)}</span>
                             <button
                               type="button"
                               onClick={() => movePageInChapter(ci, si, -1)}
-                              disabled={si === 0}
+                              disabled={si === 0 || inlineEditorOpen}
                               title="上へ"
-                              className="rounded p-1 text-slate-400 hover:bg-slate-200 disabled:opacity-30"
+                              className="rounded p-1 text-slate-400 hover:bg-slate-200 disabled:opacity-30 dark:text-neutral-500 dark:hover:bg-neutral-700"
                             >
                               ↑
                             </button>
                             <button
                               type="button"
                               onClick={() => movePageInChapter(ci, si, 1)}
-                              disabled={si === chapter.children.length - 1}
+                              disabled={si === chapter.children.length - 1 || inlineEditorOpen}
                               title="下へ"
-                              className="rounded p-1 text-slate-400 hover:bg-slate-200 disabled:opacity-30"
+                              className="rounded p-1 text-slate-400 hover:bg-slate-200 disabled:opacity-30 dark:text-neutral-500 dark:hover:bg-neutral-700"
                             >
                               ↓
                             </button>
-                            {child.id !== null && (
+                            {child.id !== null ? (
                               <button
                                 type="button"
                                 onClick={() => goToEditPage(child.id!)}
-                                disabled={dirty}
-                                title={dirty ? `保存していない変更があります。先に「${saveButtonLabel}」を押してください` : undefined}
-                                className="flex-shrink-0 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white"
+                                disabled={inlineEditorOpen}
+                                title={inlineEditorOpen ? 'インライン編集中は他のページを開けません' : '未保存の変更は自動で保存してから移動します'}
+                                className="flex-shrink-0 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 dark:hover:bg-neutral-700 dark:disabled:hover:bg-neutral-800"
+                              >
+                                編集する
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => openExistingPageEditor(ci, null, si)}
+                                disabled={inlineEditorOpen && !(inlineTarget?.mode === 'edit' && inlineTarget.chapterIdx === ci && inlineTarget.sectionIdx === null && inlineTarget.childIdx === si)}
+                                title="この場で編集できます"
+                                className="flex-shrink-0 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 dark:hover:bg-neutral-700 dark:disabled:hover:bg-neutral-800"
                               >
                                 編集する
                               </button>
@@ -989,14 +1485,15 @@ export default function MaterialEdit() {
                                 <button
                                   type="button"
                                   onClick={() => deleteSection(ci, si)}
-                                  className="rounded bg-red-600 px-2 py-1 font-semibold text-white hover:bg-red-700"
+                                  disabled={inlineEditorOpen}
+                                  className="rounded bg-red-600 px-2 py-1 font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
                                 >
                                   削除する
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => setPendingDelete(null)}
-                                  className="rounded border border-slate-300 px-2 py-1 text-slate-500 hover:bg-slate-100"
+                                  className="rounded border border-slate-300 px-2 py-1 text-slate-500 hover:bg-slate-100 dark:border-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-700"
                                 >
                                   キャンセル
                                 </button>
@@ -1005,39 +1502,56 @@ export default function MaterialEdit() {
                               <button
                                 type="button"
                                 onClick={() => setPendingDelete(`section:${ci}:${si}`)}
-                                className="flex-shrink-0 rounded border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+                                disabled={inlineEditorOpen}
+                                className="flex-shrink-0 rounded border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950/40 dark:disabled:hover:bg-transparent"
                               >
                                 削除
                               </button>
                             )}
                           </div>
+                          {inlineTarget?.mode === 'edit' &&
+                            inlineTarget.chapterIdx === ci &&
+                            inlineTarget.sectionIdx === null &&
+                            inlineTarget.childIdx === si && (
+                              <div className="ml-6">
+                                <InlinePageEditor
+                                  materialId={savedId}
+                                  materialGradingMode={gradingMode}
+                                  initialPage={child}
+                                  confirmLabel="変更を反映する"
+                                  onConfirm={confirmInlinePage}
+                                  onCancel={closeInlinePageEditor}
+                                />
+                              </div>
+                            )}
+                          </div>
                         ) : (
                           <div key={child.id ?? `new-${si}`} className="mb-1.5 ml-6">
-                            <div className="flex items-center gap-2 rounded-md border-l-2 border-slate-200 bg-slate-50 px-2.5 py-1.5">
+                            <div className="flex items-center gap-2 rounded-md border-l-2 border-slate-200 bg-slate-50 px-2.5 py-1.5 dark:border-neutral-700 dark:bg-neutral-900/60">
                               <TextInput
                                 value={child.title}
                                 onChange={(e) => renameSection(ci, si, e.target.value)}
                                 placeholder="小見出しのタイトルを入力"
                                 className="flex-1"
                               />
-                              <span className="flex-shrink-0 rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-600">
+                              <span className="flex-shrink-0 rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-300">
                                 小見出し
                               </span>
                               <button
                                 type="button"
                                 onClick={() => moveSection(ci, si, -1)}
-                                disabled={si === 0}
+                                disabled={si === 0 || inlineEditorOpen}
                                 title="上へ"
-                                className="rounded p-1 text-slate-400 hover:bg-slate-200 disabled:opacity-30"
+                                className="rounded p-1 text-slate-400 hover:bg-slate-200 disabled:opacity-30 dark:text-neutral-500 dark:hover:bg-neutral-700"
                               >
                                 ↑
                               </button>
                               <button
                                 type="button"
                                 onClick={() => moveSection(ci, si, 1)}
-                                disabled={si === chapter.children.length - 1}
+                                disabled={si === chapter.children.length - 1 || inlineEditorOpen}
                                 title="下へ"
-                                className="rounded p-1 text-slate-400 hover:bg-slate-200 disabled:opacity-30"
+                                className="rounded p-1 text-slate-400 hover:bg-slate-200 disabled:opacity-30 dark:text-neutral-500 dark:hover:bg-neutral-700"
                               >
                                 ↓
                               </button>
@@ -1047,14 +1561,15 @@ export default function MaterialEdit() {
                                   <button
                                     type="button"
                                     onClick={() => deleteSection(ci, si)}
-                                    className="rounded bg-red-600 px-2 py-1 font-semibold text-white hover:bg-red-700"
+                                    disabled={inlineEditorOpen}
+                                    className="rounded bg-red-600 px-2 py-1 font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
                                   >
                                     削除する
                                   </button>
                                   <button
                                     type="button"
                                     onClick={() => setPendingDelete(null)}
-                                    className="rounded border border-slate-300 px-2 py-1 text-slate-500 hover:bg-slate-100"
+                                    className="rounded border border-slate-300 px-2 py-1 text-slate-500 hover:bg-slate-100 dark:border-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-700"
                                   >
                                     キャンセル
                                   </button>
@@ -1063,7 +1578,8 @@ export default function MaterialEdit() {
                                 <button
                                   type="button"
                                   onClick={() => setPendingDelete(`section:${ci}:${si}`)}
-                                  className="flex-shrink-0 rounded border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+                                  disabled={inlineEditorOpen}
+                                  className="flex-shrink-0 rounded border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950/40 dark:disabled:hover:bg-transparent"
                                 >
                                   削除
                                 </button>
@@ -1071,9 +1587,9 @@ export default function MaterialEdit() {
                             </div>
                             <div className="ml-4 mt-1">
                               {child.children.map((page, pi) => (
+                                <div key={page.id ?? `new-${pi}`} className="mb-1.5">
                                 <div
-                                  key={page.id ?? `new-${pi}`}
-                                  className="mb-1.5 ml-6 flex items-center gap-2 rounded-md border-l-2 border-slate-200 bg-white px-2.5 py-1.5"
+                                  className="ml-6 flex items-center gap-2 rounded-md border-l-2 border-slate-200 bg-white px-2.5 py-1.5 dark:border-neutral-700 dark:bg-neutral-900"
                                 >
                                   <TextInput
                                     value={page.title}
@@ -1081,32 +1597,42 @@ export default function MaterialEdit() {
                                     placeholder="ページタイトルを入力"
                                     className="flex-1"
                                   />
-                                  <span className="flex-shrink-0 text-xs text-slate-400">{pageKindLabel(page)}</span>
+                                  <span className="flex-shrink-0 text-xs text-slate-400 dark:text-neutral-500">{pageKindLabel(page)}</span>
                                   <button
                                     type="button"
                                     onClick={() => movePageInSection(ci, si, pi, -1)}
-                                    disabled={pi === 0}
+                                    disabled={pi === 0 || inlineEditorOpen}
                                     title="上へ"
-                                    className="rounded p-1 text-slate-400 hover:bg-slate-200 disabled:opacity-30"
+                                    className="rounded p-1 text-slate-400 hover:bg-slate-200 disabled:opacity-30 dark:text-neutral-500 dark:hover:bg-neutral-700"
                                   >
                                     ↑
                                   </button>
                                   <button
                                     type="button"
                                     onClick={() => movePageInSection(ci, si, pi, 1)}
-                                    disabled={pi === child.children.length - 1}
+                                    disabled={pi === child.children.length - 1 || inlineEditorOpen}
                                     title="下へ"
-                                    className="rounded p-1 text-slate-400 hover:bg-slate-200 disabled:opacity-30"
+                                    className="rounded p-1 text-slate-400 hover:bg-slate-200 disabled:opacity-30 dark:text-neutral-500 dark:hover:bg-neutral-700"
                                   >
                                     ↓
                                   </button>
-                                  {page.id !== null && (
+                                  {page.id !== null ? (
                                     <button
                                       type="button"
                                       onClick={() => goToEditPage(page.id!)}
-                                      disabled={dirty}
-                                      title={dirty ? `保存していない変更があります。先に「${saveButtonLabel}」を押してください` : undefined}
-                                      className="flex-shrink-0 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white"
+                                      disabled={inlineEditorOpen}
+                                      title={inlineEditorOpen ? 'インライン編集中は他のページを開けません' : '未保存の変更は自動で保存してから移動します'}
+                                      className="flex-shrink-0 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 dark:hover:bg-neutral-700 dark:disabled:hover:bg-neutral-800"
+                                    >
+                                      編集する
+                                    </button>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => openExistingPageEditor(ci, si, pi)}
+                                      disabled={inlineEditorOpen && !(inlineTarget?.mode === 'edit' && inlineTarget.chapterIdx === ci && inlineTarget.sectionIdx === si && inlineTarget.childIdx === pi)}
+                                      title="この場で編集できます"
+                                      className="flex-shrink-0 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 dark:hover:bg-neutral-700 dark:disabled:hover:bg-neutral-800"
                                     >
                                       編集する
                                     </button>
@@ -1117,14 +1643,15 @@ export default function MaterialEdit() {
                                       <button
                                         type="button"
                                         onClick={() => deletePageInSection(ci, si, pi)}
-                                        className="rounded bg-red-600 px-2 py-1 font-semibold text-white hover:bg-red-700"
+                                        disabled={inlineEditorOpen}
+                                        className="rounded bg-red-600 px-2 py-1 font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
                                       >
                                         削除する
                                       </button>
                                       <button
                                         type="button"
                                         onClick={() => setPendingDelete(null)}
-                                        className="rounded border border-slate-300 px-2 py-1 text-slate-500 hover:bg-slate-100"
+                                        className="rounded border border-slate-300 px-2 py-1 text-slate-500 hover:bg-slate-100 dark:border-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-700"
                                       >
                                         キャンセル
                                       </button>
@@ -1133,23 +1660,48 @@ export default function MaterialEdit() {
                                     <button
                                       type="button"
                                       onClick={() => setPendingDelete(`page-in-section:${ci}:${si}:${pi}`)}
-                                      className="flex-shrink-0 rounded border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+                                      disabled={inlineEditorOpen}
+                                      className="flex-shrink-0 rounded border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950/40 dark:disabled:hover:bg-transparent"
                                     >
                                       削除
                                     </button>
                                   )}
                                 </div>
+                                {inlineTarget?.mode === 'edit' &&
+                                  inlineTarget.chapterIdx === ci &&
+                                  inlineTarget.sectionIdx === si &&
+                                  inlineTarget.childIdx === pi && (
+                                    <div className="ml-6">
+                                      <InlinePageEditor
+                                        materialId={savedId}
+                                        materialGradingMode={gradingMode}
+                                        initialPage={page}
+                                        confirmLabel="変更を反映する"
+                                        onConfirm={confirmInlinePage}
+                                        onCancel={closeInlinePageEditor}
+                                      />
+                                    </div>
+                                  )}
+                                </div>
                               ))}
-                              {child.id !== null && (
-                                <button
-                                  type="button"
-                                  onClick={() => goToNewPage(child.id!)}
-                                  disabled={dirty}
-                                  title={dirty ? `保存していない変更があります。先に「${saveButtonLabel}」を押してください` : undefined}
-                                  className="ml-6 rounded-md border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white"
-                                >
-                                  + ページを追加
-                                </button>
+                              <button
+                                type="button"
+                                onClick={() => openNewPageEditor(ci, si)}
+                                disabled={inlineEditorOpen}
+                                title="この場でページの内容を入力できます"
+                                className="ml-6 rounded-md border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:disabled:hover:bg-transparent"
+                              >
+                                + ページを追加
+                              </button>
+                              {inlineTarget?.mode === 'new' && inlineTarget.chapterIdx === ci && inlineTarget.sectionIdx === si && (
+                                <div className="ml-6">
+                                  <InlinePageEditor
+                                    materialId={savedId}
+                                    materialGradingMode={gradingMode}
+                                    onConfirm={confirmInlinePage}
+                                    onCancel={closeInlinePageEditor}
+                                  />
+                                </div>
                               )}
                             </div>
                           </div>
@@ -1159,60 +1711,67 @@ export default function MaterialEdit() {
                         <button
                           type="button"
                           onClick={() => addSection(ci)}
-                          className="rounded-md border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                          disabled={inlineEditorOpen}
+                          className="rounded-md border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:disabled:hover:bg-transparent"
                         >
                           + 小見出しを追加
                         </button>
-                        {chapter.id !== null && (
-                          <button
-                            type="button"
-                            onClick={() => goToNewPage(chapter.id!)}
-                            disabled={dirty}
-                            title={dirty ? `保存していない変更があります。先に「${saveButtonLabel}」を押してください` : undefined}
-                            className="rounded-md border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white"
-                          >
-                            + ページを追加
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => openNewPageEditor(ci, null)}
+                          disabled={inlineEditorOpen}
+                          title="この場でページの内容を入力できます"
+                          className="rounded-md border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:disabled:hover:bg-transparent"
+                        >
+                          + ページを追加
+                        </button>
                       </div>
+                      {inlineTarget?.mode === 'new' && inlineTarget.chapterIdx === ci && inlineTarget.sectionIdx === null && (
+                        <InlinePageEditor
+                          materialId={savedId}
+                          materialGradingMode={gradingMode}
+                          onConfirm={confirmInlinePage}
+                          onCancel={closeInlinePageEditor}
+                        />
+                      )}
                     </div>
+                    )}
                   </div>
-                ))}
+                )
+              })}
 
-                <button
-                  type="button"
-                  onClick={addChapter}
-                  className="mt-1 rounded-md border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-600 hover:bg-slate-100"
-                >
-                  + 見出しを追加（第{chapters.length + 1}章）
-                </button>
-              </>
-            )}
+            <button
+              type="button"
+              onClick={addChapter}
+              className="mt-1 rounded-md border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
+            >
+              + 見出しを追加（第{chapters.length + 1}章）
+            </button>
           </div>
         </section>
         </>
         )}
 
         {activeTab === 'questions' && (
-          <section className="rounded-md border border-slate-200">
-            <div className="border-b border-slate-200 px-4 py-2.5">
-              <span className="text-sm font-semibold text-slate-700">問題一覧</span>
+          <section className="rounded-md border border-slate-200 dark:border-neutral-800">
+            <div className="border-b border-slate-200 px-4 py-2.5 dark:border-neutral-800">
+              <span className="text-sm font-semibold text-slate-700 dark:text-neutral-100">問題一覧</span>
             </div>
             <div className="p-4">
-              <p className="mb-3 text-xs text-slate-400">
+              <p className="mb-3 text-xs text-slate-400 dark:text-neutral-500">
                 この教材に含まれる全ページの設問を一覧表示します。手動採点で採点待ちが多い設問、正答率が低い設問ほど上に並びます。「詳細を見る」で回答の傾向を確認できます。
               </p>
-              {questionsSummaryLoading && <p className="text-sm text-slate-400">読み込み中...</p>}
+              {questionsSummaryLoading && <p className="text-sm text-slate-400 dark:text-neutral-500">読み込み中...</p>}
               {!questionsSummaryLoading && questionSummaryItems.length === 0 && (
-                <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400">
+                <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-500">
                   まだ設問がありません。
                 </p>
               )}
               {!questionsSummaryLoading && questionSummaryItems.length > 0 && (
-                <div className="overflow-x-auto rounded-md border border-slate-200">
-                  <table className="w-full text-sm">
+                <div className="overflow-x-auto rounded-md border border-slate-200 dark:border-neutral-800">
+                  <table className="w-full text-sm max-sm:whitespace-nowrap">
                     <thead>
-                      <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs text-slate-500">
+                      <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs text-slate-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300">
                         <th className="px-3 py-2 font-semibold">ページ</th>
                         <th className="w-24 px-3 py-2 font-semibold">種別</th>
                         <th className="w-28 px-3 py-2 font-semibold">採点方式</th>
@@ -1223,37 +1782,35 @@ export default function MaterialEdit() {
                     </thead>
                     <tbody>
                       {questionSummaryItems.map((item) => (
-                        <tr key={item.question_id} className="border-b border-slate-100 align-top last:border-0">
-                          <td className="px-3 py-2 text-slate-600">{item.node_path}</td>
-                          <td className="px-3 py-2 text-slate-500">{questionTypeLabel(item.type)}</td>
-                          <td className="px-3 py-2 text-slate-500">
+                        <tr key={item.question_id} className="border-b border-slate-100 align-top last:border-0 dark:border-neutral-800">
+                          <td className="px-3 py-2 text-slate-600 dark:text-neutral-300">{item.node_path}</td>
+                          <td className="px-3 py-2 text-slate-500 dark:text-neutral-300">{questionTypeLabel(item.type)}</td>
+                          <td className="px-3 py-2 text-slate-500 dark:text-neutral-300">
                             {item.grading_mode === 'manual' ? '手動採点' : item.grading_mode === 'ai' ? 'AI自動採点' : '—'}
                           </td>
                           <td className="px-3 py-2">
                             {item.total_answers === 0 ? (
-                              <span className="text-xs text-slate-400">回答なし</span>
+                              <span className="text-xs text-slate-400 dark:text-neutral-500">回答なし</span>
                             ) : item.grading_mode === 'manual' && item.pending_count > 0 ? (
-                              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
                                 採点待ち{item.pending_count}件
                               </span>
                             ) : item.accuracy_pct !== null ? (
-                              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800">
+                              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200">
                                 正答率{item.accuracy_pct}%
                               </span>
                             ) : (
-                              <span className="text-xs text-slate-400">—</span>
+                              <span className="text-xs text-slate-400 dark:text-neutral-500">—</span>
                             )}
                           </td>
-                          <td className="px-3 py-2 text-slate-700">{item.prompt}</td>
+                          <td className="px-3 py-2 text-slate-700 dark:text-neutral-200">{item.prompt}</td>
                           <td className="px-3 py-2">
-                            <button
-                              type="button"
-                              disabled
-                              title="準備中（S-19実装後に有効化）"
-                              className="rounded-md border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-400 disabled:cursor-not-allowed"
+                            <Link
+                              to={`/materials/${savedId}/questions/${item.question_id}/answers`}
+                              className="rounded-md border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
                             >
                               詳細を見る
-                            </button>
+                            </Link>
                           </td>
                         </tr>
                       ))}
@@ -1266,36 +1823,74 @@ export default function MaterialEdit() {
         )}
 
         {activeTab === 'attach' && (
-          <section className="rounded-md border border-slate-200">
-            <div className="border-b border-slate-200 px-4 py-2.5">
-              <span className="text-sm font-semibold text-slate-700">添付ファイル・リンク（教材全体）</span>
-            </div>
-            <div className="p-4">
-              <p className="mb-3 text-xs text-slate-400">
-                このページに追加した各ページの添付を含む、教材に含まれるファイル・リンクの一覧です。追加はページ編集（S-17）から行います。
-              </p>
-              {savedId === null && <TabGateMessage />}
-              {savedId !== null && <AttachmentList attachments={attachments} isLoading={attachmentsLoading} />}
-            </div>
-          </section>
+          <div className="flex flex-col gap-5">
+            <section className="rounded-md border border-slate-200 dark:border-neutral-800">
+              <div className="border-b border-slate-200 px-4 py-2.5 dark:border-neutral-800">
+                <span className="text-sm font-semibold text-slate-700 dark:text-neutral-100">教材全体の添付ファイル・リンク</span>
+              </div>
+              <div className="p-4">
+                {savedId === null && <TabGateMessage />}
+                {savedId !== null && (
+                  <>
+                    <AttachmentList
+                      materialId={savedId}
+                      attachments={attachments.filter((a) => a.node_id === null)}
+                      isLoading={attachmentsLoading}
+                      onDelete={(attachmentId) =>
+                        void deleteAttachment(savedId, attachmentId).then(() => mutateAttachments())
+                      }
+                    />
+                    <div className="mt-3">
+                      <AttachmentUploadForm
+                        materialId={savedId}
+                        nodeId={null}
+                        onUploaded={async () => {
+                          await mutateAttachments()
+                        }}
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+            </section>
+
+            <section className="rounded-md border border-slate-200 dark:border-neutral-800">
+              <div className="border-b border-slate-200 px-4 py-2.5 dark:border-neutral-800">
+                <span className="text-sm font-semibold text-slate-700 dark:text-neutral-100">各ページの添付ファイル・リンク（参照専用）</span>
+              </div>
+              <div className="p-4">
+                <p className="mb-3 text-xs text-slate-400 dark:text-neutral-500">
+                  ページごとの添付です。追加・削除はページ編集（S-17）から行います。
+                </p>
+                {savedId === null && <TabGateMessage />}
+                {savedId !== null && (
+                  <AttachmentList
+                    materialId={savedId}
+                    attachments={attachments.filter((a) => a.node_id !== null)}
+                    isLoading={attachmentsLoading}
+                  />
+                )}
+              </div>
+            </section>
+          </div>
         )}
 
         {activeTab === 'members' && (
-          <section className="rounded-md border border-slate-200">
-            <div className="border-b border-slate-200 px-4 py-2.5">
-              <span className="text-sm font-semibold text-slate-700">プロジェクトメンバー</span>
+          <section className="rounded-md border border-slate-200 dark:border-neutral-800">
+            <div className="border-b border-slate-200 px-4 py-2.5 dark:border-neutral-800">
+              <span className="text-sm font-semibold text-slate-700 dark:text-neutral-100">プロジェクトメンバー</span>
             </div>
             <div className="p-4">
-              <p className="mb-3 text-xs text-slate-400">
+              <p className="mb-3 text-xs text-slate-400 dark:text-neutral-500">
                 このタブは参照専用です。メンバーの追加・削除・ロール変更はプロジェクト管理画面（S-12）で行います。
               </p>
               {savedId === null && <TabGateMessage />}
-              {savedId !== null && membershipsLoading && <p className="text-sm text-slate-400">読み込み中...</p>}
+              {savedId !== null && membershipsLoading && <p className="text-sm text-slate-400 dark:text-neutral-500">読み込み中...</p>}
               {savedId !== null && !membershipsLoading && (
-                <div className="overflow-x-auto rounded-md border border-slate-200">
-                  <table className="w-full text-sm">
+                <div className="overflow-x-auto rounded-md border border-slate-200 dark:border-neutral-800">
+                  <table className="w-full text-sm max-sm:whitespace-nowrap">
                     <thead>
-                      <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs text-slate-500">
+                      <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs text-slate-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300">
                         <th className="px-3 py-2 font-semibold">氏名</th>
                         <th className="w-28 px-3 py-2 font-semibold">全社ロール</th>
                         <th className="w-32 px-3 py-2 font-semibold">プロジェクトロール</th>
@@ -1304,11 +1899,11 @@ export default function MaterialEdit() {
                     </thead>
                     <tbody>
                       {memberships.map((m) => (
-                        <tr key={m.id} className="border-b border-slate-100 last:border-0">
+                        <tr key={m.id} className="border-b border-slate-100 last:border-0 dark:border-neutral-800">
                           <td className="px-3 py-2">{m.user_name}</td>
-                          <td className="px-3 py-2 text-slate-500">{m.global_role}</td>
-                          <td className="px-3 py-2 text-slate-500">{m.role}</td>
-                          <td className="px-3 py-2 text-slate-500">{m.joined_at ? formatDateJst(m.joined_at) : '—'}</td>
+                          <td className="px-3 py-2 text-slate-500 dark:text-neutral-300">{m.global_role}</td>
+                          <td className="px-3 py-2 text-slate-500 dark:text-neutral-300">{m.role}</td>
+                          <td className="px-3 py-2 text-slate-500 dark:text-neutral-300">{m.joined_at ? formatDateJst(m.joined_at) : '—'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -1320,9 +1915,9 @@ export default function MaterialEdit() {
         )}
 
         {activeTab === 'review' && (
-          <section className="rounded-md border border-slate-200">
-            <div className="border-b border-slate-200 px-4 py-2.5">
-              <span className="text-sm font-semibold text-slate-700">AIレビュー結果</span>
+          <section className="rounded-md border border-slate-200 dark:border-neutral-800">
+            <div className="border-b border-slate-200 px-4 py-2.5 dark:border-neutral-800">
+              <span className="text-sm font-semibold text-slate-700 dark:text-neutral-100">AIレビュー結果</span>
             </div>
             <div className="p-4">
               {savedId === null ? (
@@ -1334,44 +1929,82 @@ export default function MaterialEdit() {
                       {runningAiReview ? '実行中…' : 'AIレビューを実行'}
                     </Button>
                     {aiReview && !runningAiReview && (
-                      <span className="text-xs text-slate-500">
+                      <span className="text-xs text-slate-500 dark:text-neutral-400">
                         最終実行: {formatDateTimeJst(aiReview.created_at)}（{aiReview.requested_by_name}）
                       </span>
                     )}
+                    {aiReview && !runningAiReview && (
+                      <button
+                        type="button"
+                        onClick={() => setAiReviewHistoryOpen((v) => !v)}
+                        className="text-xs font-semibold text-slate-500 hover:underline dark:text-neutral-400"
+                      >
+                        {aiReviewHistoryOpen ? '過去の実行結果を閉じる' : '過去の実行結果を見る'}
+                      </button>
+                    )}
                   </div>
+                  {aiReviewHistoryOpen && (
+                    <div className="mt-3 border-t border-slate-100 pt-3 dark:border-neutral-800">
+                      {aiReviewHistoryLoading ? (
+                        <p className="text-xs text-slate-400 dark:text-neutral-500">読み込み中...</p>
+                      ) : aiReviewHistory.length <= 1 ? (
+                        <p className="text-xs text-slate-400 dark:text-neutral-500">過去の実行はまだありません。</p>
+                      ) : (
+                        <ul className="flex flex-col gap-2">
+                          {aiReviewHistory.slice(1).map((h) => (
+                            <li key={h.id} className="rounded-md border border-slate-100 p-2.5 text-xs dark:border-neutral-800">
+                              <div className="mb-1 text-slate-400 dark:text-neutral-500">
+                                {formatDateTimeJst(h.created_at)}（{h.requested_by_name}）／ 指摘{h.findings.length}件
+                              </div>
+                              {h.findings.length > 0 && (
+                                <ul className="list-inside list-disc text-slate-600 dark:text-neutral-300">
+                                  {h.findings.map((f, i) => (
+                                    <li key={i}>
+                                      {f.location ? `【${f.location}】` : ''}
+                                      {f.issue}
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  )}
                   {aiReviewRunError && (
-                    <p className="mt-3 text-sm text-red-600">{aiReviewRunError}</p>
+                    <p className="mt-3 text-sm text-red-600 dark:text-red-400">{aiReviewRunError}</p>
                   )}
                   {aiReviewLoading && !aiReview && (
-                    <p className="mt-3 text-sm text-slate-400">読み込み中…</p>
+                    <p className="mt-3 text-sm text-slate-400 dark:text-neutral-500">読み込み中…</p>
                   )}
                   {!aiReviewLoading && !runningAiReview && !aiReview && !aiReviewRunError && (
-                    <p className="mt-3 rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400">
+                    <p className="mt-3 rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-500">
                       まだAIレビューを実行していません。
                     </p>
                   )}
                   {aiReview && (
                     <div className="mt-3 space-y-2">
                       {aiReview.findings.length === 0 && (
-                        <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400">
+                        <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-500">
                           指摘事項はありませんでした。
                         </p>
                       )}
                       {aiReview.findings.map((f, i) => (
-                        <div key={i} className="flex items-start gap-3 rounded-md border border-slate-200 p-3">
+                        <div key={i} className="flex items-start gap-3 rounded-md border border-slate-200 p-3 dark:border-neutral-800">
                           <Badge variant={f.severity === 'warning' ? 'ai-warning' : 'ai-info'} />
                           <div>
-                            <div className="text-[12.5px] font-semibold text-slate-700">
+                            <div className="text-[12.5px] font-semibold text-slate-700 dark:text-neutral-200">
                               {f.location ? `【${f.location}】` : ''}
                               {f.issue}
                             </div>
                             {f.suggestion && (
-                              <div className="mt-0.5 text-xs text-slate-500">{f.suggestion}</div>
+                              <div className="mt-0.5 text-xs text-slate-500 dark:text-neutral-400">{f.suggestion}</div>
                             )}
                           </div>
                         </div>
                       ))}
-                      <p className="text-xs text-slate-400">
+                      <p className="text-xs text-slate-400 dark:text-neutral-500">
                         ※ AIレビューの指摘に従うかどうかは、教材が紐づくプロジェクトの編集者・管理者の判断に委ねられます。この結果は教材の品質を保証するものではありません。
                       </p>
                     </div>
@@ -1383,22 +2016,22 @@ export default function MaterialEdit() {
         )}
 
         {activeTab === 'history' && (
-          <section className="rounded-md border border-slate-200">
-            <div className="border-b border-slate-200 px-4 py-2.5">
-              <span className="text-sm font-semibold text-slate-700">改訂履歴</span>
+          <section className="rounded-md border border-slate-200 dark:border-neutral-800">
+            <div className="border-b border-slate-200 px-4 py-2.5 dark:border-neutral-800">
+              <span className="text-sm font-semibold text-slate-700 dark:text-neutral-100">改訂履歴</span>
             </div>
             <div className="p-4">
               {savedId === null && <TabGateMessage />}
-              {savedId !== null && revisionsLoading && <p className="text-sm text-slate-400">読み込み中...</p>}
+              {savedId !== null && revisionsLoading && <p className="text-sm text-slate-400 dark:text-neutral-500">読み込み中...</p>}
               {savedId !== null && !revisionsLoading && revisions.length === 0 && (
-                <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400">
+                <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-500">
                   まだ改訂履歴がありません。
                 </p>
               )}
               {savedId !== null && revisions.length > 0 && (
                 <>
                   <div className="mb-3 flex flex-col gap-1">
-                    <label className="text-xs font-semibold text-slate-500">対象年月</label>
+                    <label className="text-xs font-semibold text-slate-500 dark:text-neutral-300">対象年月</label>
                     <div className="flex gap-2">
                       <Select
                         value={historyYear}
@@ -1423,14 +2056,14 @@ export default function MaterialEdit() {
                   </div>
 
                   {filteredRevisions.length === 0 ? (
-                    <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400">
+                    <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-500">
                       対象年月に一致する改訂履歴がありません。
                     </p>
                   ) : (
-                    <div className="overflow-x-auto rounded-md border border-slate-200">
-                      <table className="w-full text-sm">
+                    <div className="overflow-x-auto rounded-md border border-slate-200 dark:border-neutral-800">
+                      <table className="w-full text-sm max-sm:whitespace-nowrap">
                         <thead>
-                          <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs text-slate-500">
+                          <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs text-slate-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300">
                             <th className="w-40 px-3 py-2 font-semibold">日時</th>
                             <th className="w-28 px-3 py-2 font-semibold">変更者</th>
                             <th className="px-3 py-2 font-semibold">変更内容</th>
@@ -1439,12 +2072,12 @@ export default function MaterialEdit() {
                         </thead>
                         <tbody>
                           {filteredRevisions.map((r) => (
-                            <tr key={r.id} className="border-b border-slate-100 last:border-0">
-                              <td className="px-3 py-2 text-slate-500">{formatDateTimeJst(r.created_at)}</td>
+                            <tr key={r.id} className="border-b border-slate-100 last:border-0 dark:border-neutral-800">
+                              <td className="px-3 py-2 text-slate-500 dark:text-neutral-300">{formatDateTimeJst(r.created_at)}</td>
                               <td className="px-3 py-2">{r.changed_by_name}</td>
                               <td className="px-3 py-2">{r.change_summary}</td>
-                              <td className="px-3 py-2 text-slate-500">
-                                {r.changed_via === 'web' ? '画面' : 'Claude Code'}
+                              <td className="px-3 py-2 text-slate-500 dark:text-neutral-300">
+                                {r.changed_via === 'web' ? '画面' : r.changed_via === 'mcp' ? 'MCP' : 'Claude Code'}
                               </td>
                             </tr>
                           ))}
@@ -1469,13 +2102,61 @@ export default function MaterialEdit() {
           onSaved={() => mutateSurveys()}
         />
       )}
+
+      {unsavedBlocker.state === 'blocked' && (
+        <UnsavedChangesModal
+          onStay={() => unsavedBlocker.reset()}
+          onDiscard={() => unsavedBlocker.proceed()}
+          saving={saving}
+          onSaveAndLeave={async () => {
+            const ok = await saveDraft({ skipRedirectAfterCreate: true })
+            if (ok) {
+              unsavedBlocker.proceed()
+            } else {
+              // 保存に失敗した場合はモーダルだけ閉じて留まる。saveDraft側で設定されたエラーは
+              // 通常の保存失敗表示（ヘッダー付近のエラー文言）でそのまま見える。
+              unsavedBlocker.reset()
+            }
+          }}
+        />
+      )}
+
+      {publishModalOpen && assignmentTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-lg rounded-md bg-white p-5 shadow-lg dark:bg-neutral-800">
+            <div className="mb-3 flex items-center justify-between">
+              <span className="text-base font-semibold text-slate-800 dark:text-neutral-100">公開前に配信設定を確認してください</span>
+              <button
+                type="button"
+                onClick={() => setPublishModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 dark:text-neutral-500 dark:hover:text-neutral-300"
+              >
+                ×
+              </button>
+            </div>
+            <p className="mb-3 text-sm leading-relaxed text-slate-600 dark:text-neutral-300">
+              「{title}」を公開する前に、配信設定（必修にするかどうか）を確認してください。
+            </p>
+            <AssignmentEditPanel
+              material={assignmentTarget}
+              defaultChecked={!assignmentTarget.is_company_wide}
+              saveLabel="保存・公開"
+              onClose={() => setPublishModalOpen(false)}
+              onSaved={() => {
+                setPublishModalOpen(false)
+                doPublish()
+              }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
 function TabGateMessage() {
   return (
-    <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400">
+    <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-500">
       先に「下書き保存」してください。教材を保存すると利用できます。
     </p>
   )

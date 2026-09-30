@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S-05改善案: ページ追加のインライン編集比較（検討中） | Manabi 検討資料</title>
+<link rel="stylesheet" href="../../docs/03_画面モックアップ/mock.css">
+<style>
+  body { background: var(--bg-muted); }
+  .doc-wrap { max-width: 980px; margin: 0 auto; padding: 24px 20px 60px; }
+  .doc-head { margin-bottom: 18px; }
+  .doc-head h1 { font-size: 19px; margin: 0 0 6px; }
+  .status-pill {
+    display: inline-block; font-size: 11px; font-weight: 700; color: #92400e;
+    background: #fef3c7; border: 1px solid #fde68a; border-radius: 999px; padding: 3px 10px;
+    margin-bottom: 8px;
+  }
+  .doc-desc { font-size: 12.5px; line-height: 1.8; color: var(--text-muted); background: #fff;
+    border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; margin-bottom: 18px; }
+  .compare-tabs { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+  .compare-tab {
+    border: 1px solid var(--border-strong); background: #fff; border-radius: 8px;
+    padding: 8px 14px; font-size: 12.5px; font-weight: 700; cursor: pointer; color: var(--text-muted);
+  }
+  .compare-tab.active { border-color: var(--accent-600); background: var(--accent-50); color: var(--accent-600); }
+  .compare-panel { display: none; }
+  .compare-panel.active { display: block; }
+  .frame { background: #fff; border: 1px solid var(--border-strong); border-radius: 10px; overflow: hidden; box-shadow: var(--shadow-md); }
+  .frame-head { background: var(--bg-subtle); border-bottom: 1px solid var(--border); padding: 8px 14px; font-size: 11.5px; color: var(--text-subtle); }
+  .frame-body { padding: 16px 18px; }
+  .note-box { font-size: 12px; line-height: 1.8; color: var(--text-muted); background: var(--bg-subtle);
+    border: 1px dashed var(--border-strong); border-radius: 8px; padding: 10px 12px; margin-top: 12px; }
+  .pro-con { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+  .pro-con > div { border-radius: 8px; padding: 10px 12px; font-size: 12px; line-height: 1.8; }
+  .pro-box { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; }
+  .con-box { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+  .pro-con strong { display: block; font-size: 11.5px; margin-bottom: 4px; }
+
+  /* 目次ツリー（S-05から流用） */
+  .toc-edit-chapter { border:1px solid var(--border-strong); border-radius:8px; margin-bottom:10px; background:#fff; }
+  .toc-edit-chapter-head {
+    display:flex; align-items:center; gap:8px; padding:10px 12px;
+    background: var(--bg-subtle); border-radius:8px 8px 0 0; border-bottom:1px solid var(--border);
+  }
+  .toc-edit-chapter-head .chapter-no { font-size:12px; font-weight:700; color:var(--accent-600); flex-shrink:0; }
+  .toc-edit-chapter-head input { flex:1; border:none; background:transparent; font-size:13.5px; font-weight:700; padding:4px 6px; }
+  .toc-edit-body { padding:10px 12px; }
+  .toc-edit-page-row {
+    display:flex; align-items:center; gap:8px; padding:6px 8px; margin:4px 0;
+    border-radius:6px; background: var(--bg-subtle);
+  }
+  .toc-edit-page-row input[type=text] { flex:1; border:none; background:transparent; font-size:12.5px; padding:3px 6px; }
+  .toc-edit-page-kind { font-size:10.5px; color:var(--text-subtle); flex-shrink:0; min-width:76px; }
+  .toc-add-row { display:flex; gap:8px; margin:6px 0; }
+
+  /* 案A: インライン展開パネル */
+  .inline-editor {
+    margin: 6px 0 10px; border: 2px solid var(--accent-600); border-radius: 8px; background: #eff6ff;
+    padding: 12px 14px;
+  }
+  .inline-editor-title { font-size: 12px; font-weight: 700; color: var(--accent-600); margin-bottom: 10px; display:flex; align-items:center; gap:6px; }
+  .inline-editor .field { margin-bottom: 10px; }
+  .inline-editor label { display:block; font-size:11px; font-weight:700; color:var(--text-muted); margin-bottom:3px; }
+  .inline-editor input[type=text], .inline-editor textarea {
+    width:100%; border:1px solid var(--border-strong); border-radius:6px; padding:7px 9px; font-size:12.5px; background:#fff;
+    box-sizing: border-box;
+  }
+  .inline-editor textarea { resize: vertical; font-family: inherit; }
+  .inline-editor .checkbox-row { display:flex; gap:16px; margin-bottom:10px; font-size:12px; }
+  .inline-editor .checkbox-row label { display:flex; align-items:center; gap:5px; font-weight:600; margin:0; }
+  .inline-q { border:1px solid var(--border); border-radius:6px; background:#fff; padding:8px 10px; margin-bottom:6px; font-size:12px; }
+  .inline-actions { display:flex; gap:8px; margin-top:10px; }
+  .attach-limit-note { font-size:11px; color:#92400e; background:#fffbeb; border:1px solid #fde68a; border-radius:6px; padding:6px 9px; margin-top:8px; }
+
+  /* 案B: モーダル */
+  .compare-panel .modal-overlay-static {
+    position: relative; background: rgba(15,23,42,0.45); border-radius: 8px; padding: 30px 20px;
+    display:flex; align-items:center; justify-content:center; min-height: 420px;
+  }
+  .compare-panel .modal-static {
+    width: 820px; max-width: 100%; background:#fff; border-radius:10px; box-shadow: var(--shadow-md);
+  }
+  .compare-panel .modal-static .modal-header { display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid var(--border); }
+  .compare-panel .modal-static .modal-title { font-size:14px; font-weight:700; }
+  .compare-panel .modal-static .modal-body { padding: 16px; max-height: 68vh; overflow-y: auto; }
+  .compare-panel .modal-static .modal-footer { display:flex; justify-content:flex-end; gap:8px; padding:12px 16px; border-top:1px solid var(--border); }
+  .bg-dim { opacity: 0.5; pointer-events: none; }
+
+  /* 本文＋プレビューの左右分割（実際のMarkdownHtmlEditorコンポーネントと同じ構成） */
+  .body-preview-split { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .body-preview-split .col-label { font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 3px; display:block; }
+  .body-preview-split textarea {
+    width: 100%; box-sizing: border-box; border:1px solid var(--border-strong); border-radius:6px;
+    padding:8px 9px; font-size:12px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; line-height:1.6;
+  }
+  .preview-pane {
+    min-height: 168px; border:1px solid var(--border); border-radius:6px; background:#fff;
+    padding:9px 11px; font-size:12.5px; line-height:1.7;
+  }
+  .preview-pane h2 { font-size: 13.5px; margin: 0 0 8px; }
+  .preview-pane ol { margin: 0; padding-left: 20px; }
+  .preview-pane code { background:#f1f5f9; padding:1px 5px; border-radius:4px; font-size:11.5px; font-family: ui-monospace, monospace; }
+  .format-toggle { display:flex; gap:6px; margin-bottom:8px; }
+  .format-toggle button {
+    border:1px solid var(--border-strong); background:#fff; border-radius:6px; padding:4px 11px;
+    font-size:11.5px; font-weight:700; color:var(--text-muted); cursor:pointer;
+  }
+  .format-toggle button.active { border-color: var(--accent-600); background: var(--accent-900, #1e3a8a); color:#fff; }
+</style>
+</head>
+<body>
+
+<div class="doc-wrap">
+  <div class="doc-head">
+    <span class="status-pill">検討中</span>
+    <h1>S-05改善案: ページ追加をインライン編集にする（案A・案B比較）</h1>
+  </div>
+
+  <div class="doc-desc">
+    現状、新規教材の「タイトル→章追加→ページ追加」は、章の「＋ページを追加」を押すたびに
+    ページ編集（S-17）へ画面遷移し、それぞれ別に保存する必要がある。これは、S-17のURLが
+    教材・親章の実際のDB採番IDを必要とするため。ユーザー要望は「タイトル→章作成→ページ作成→
+    保存」を1回の保存で完結させたいというもの。<br><br>
+    ここでは、ページの本文・問題入力を画面遷移せずその場で行う2案（インライン展開／モーダル）を
+    比較する。どちらも「サーバーへの保存は最後に1回」を実現できる点は共通。添付ファイル・リンクは
+    実際のページIDが無いと登録できない技術的制約があるため、この画面では扱わず「保存後に追加」と
+    案内する方針も両案共通。<br><br>
+    下のタブで「現状」「案A」「案B」を切り替えて比較できます。
+  </div>
+
+  <div class="compare-tabs">
+    <button class="compare-tab active" onclick="switchCompare('current')">現状（画面遷移）</button>
+    <button class="compare-tab" onclick="switchCompare('a')">案A: インライン展開</button>
+    <button class="compare-tab" onclick="switchCompare('b')">案B: モーダル編集</button>
+  </div>
+
+  <!-- 現状 -->
+  <div class="compare-panel active" id="panel-current">
+    <div class="frame">
+      <div class="frame-head">S-05 目次編集タブ（現状） ／ 「編集する」「＋ページを追加」はいずれもS-17への画面遷移</div>
+      <div class="frame-body">
+        <div class="toc-edit-chapter">
+          <div class="toc-edit-chapter-head">
+            <span class="chapter-no">第1章</span>
+            <input type="text" value="Gitの基本概念とセットアップ" readonly>
+          </div>
+          <div class="toc-edit-body">
+            <div class="toc-edit-page-row">
+              <input type="text" value="Gitとは何か" readonly>
+              <span class="toc-edit-page-kind">説明</span>
+              <button class="btn btn-secondary btn-sm" type="button">編集する →S-17</button>
+            </div>
+            <div class="toc-add-row">
+              <button class="add-row-btn" type="button">+ ページを追加 →S-17（要：章の実ID）</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="note-box">
+      「＋ページを追加」を押すと、教材・章が未保存の場合はまず保存が必要（今回のセッションで
+      「未保存なら自動保存してから移動」に改善済みだが、結局サーバー通信は発生する）。ページ側の
+      内容入力もS-17という別画面・別の保存アクションになる。
+    </div>
+  </div>
+
+  <!-- 案A: インライン展開 -->
+  <div class="compare-panel" id="panel-a">
+    <div class="frame">
+      <div class="frame-head">S-05 目次編集タブ（案A） ／ 「＋ページを追加」を押すと、その場で展開して入力する（画面遷移なし）</div>
+      <div class="frame-body">
+        <div class="toc-edit-chapter">
+          <div class="toc-edit-chapter-head">
+            <span class="chapter-no">第1章</span>
+            <input type="text" value="Gitの基本概念とセットアップ" readonly>
+          </div>
+          <div class="toc-edit-body">
+            <div class="toc-edit-page-row">
+              <input type="text" value="Gitとは何か" readonly>
+              <span class="toc-edit-page-kind">説明</span>
+              <button class="btn btn-secondary btn-sm" type="button">編集する</button>
+            </div>
+
+            <div class="inline-editor">
+              <div class="inline-editor-title">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                新しいページを作成（この章の中）
+              </div>
+              <div class="field">
+                <label>ページタイトル</label>
+                <input type="text" placeholder="例: インストールと初期設定" value="インストールと初期設定">
+              </div>
+              <div class="checkbox-row">
+                <label><input type="checkbox" checked> 説明文を含める</label>
+                <label><input type="checkbox" checked> 問題を含める</label>
+              </div>
+              <div class="field">
+                <label style="margin-bottom:6px">説明文</label>
+                <div class="format-toggle">
+                  <button type="button" class="active">Markdown</button>
+                  <button type="button">HTML</button>
+                </div>
+                <div class="body-preview-split">
+                  <div>
+                    <span class="col-label">本文（Markdown）</span>
+                    <textarea rows="7">## セットアップ手順
+1. Gitをインストールする
+2. `git config` でユーザー名・メールアドレスを設定する</textarea>
+                  </div>
+                  <div>
+                    <span class="col-label">プレビュー</span>
+                    <div class="preview-pane">
+                      <h2>セットアップ手順</h2>
+                      <ol>
+                        <li>Gitをインストールする</li>
+                        <li><code>git config</code> でユーザー名・メールアドレスを設定する</li>
+                      </ol>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="field" style="margin-bottom:6px">
+                <label>問題（1問）</label>
+                <div class="inline-q">
+                  単一選択: 「git config --global user.name を実行する目的は？」（選択肢4件・正解設定済み）
+                  <div style="margin-top:4px"><button class="btn btn-secondary btn-sm" type="button">+ 問題を追加</button></div>
+                </div>
+              </div>
+              <div class="attach-limit-note">※ 添付ファイル・リンクはこの画面では追加できません。保存後、「編集する」から追加してください。</div>
+              <div class="inline-actions">
+                <button class="btn btn-secondary btn-sm" type="button">キャンセル</button>
+                <button class="btn btn-primary btn-sm" type="button">このページを追加する</button>
+              </div>
+            </div>
+
+            <div class="toc-add-row">
+              <button class="add-row-btn" type="button">+ ページを追加</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="toc-edit-chapter">
+          <div class="toc-edit-chapter-head">
+            <span class="chapter-no">第2章</span>
+            <input type="text" value="ブランチとプルリクエストの基本" readonly>
+          </div>
+          <div class="toc-edit-body">
+            <div class="toc-add-row">
+              <button class="add-row-btn" type="button">+ ページを追加</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="pro-con">
+      <div class="pro-box">
+        <strong>利点</strong>
+        章とページの位置関係が常に画面内で見えたまま入力できる。「今どの章の下に追加しているか」を見失いにくい。
+      </div>
+      <div class="con-box">
+        <strong>懸念点</strong>
+        本文・問題入力欄は縦に長くなりがちで、ツリー全体が縦に伸びて見づらくなる可能性がある。章・小見出しが多い教材ほど影響が大きい。
+      </div>
+    </div>
+  </div>
+
+  <!-- 案B: モーダル -->
+  <div class="compare-panel" id="panel-b">
+    <div class="frame">
+      <div class="frame-head">S-05 目次編集タブ（案B） ／ 「＋ページを追加」を押すと、モーダルで入力する（画面遷移なし）</div>
+      <div class="frame-body">
+        <div class="bg-dim">
+          <div class="toc-edit-chapter">
+            <div class="toc-edit-chapter-head">
+              <span class="chapter-no">第1章</span>
+              <input type="text" value="Gitの基本概念とセットアップ" readonly>
+            </div>
+            <div class="toc-edit-body">
+              <div class="toc-edit-page-row">
+                <input type="text" value="Gitとは何か" readonly>
+                <span class="toc-edit-page-kind">説明</span>
+                <button class="btn btn-secondary btn-sm" type="button">編集する</button>
+              </div>
+              <div class="toc-add-row">
+                <button class="add-row-btn" type="button">+ ページを追加</button>
+              </div>
+            </div>
+          </div>
+          <div class="toc-edit-chapter">
+            <div class="toc-edit-chapter-head">
+              <span class="chapter-no">第2章</span>
+              <input type="text" value="ブランチとプルリクエストの基本" readonly>
+            </div>
+            <div class="toc-edit-body">
+              <div class="toc-add-row"><button class="add-row-btn" type="button">+ ページを追加</button></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-overlay-static">
+          <div class="modal-static">
+            <div class="modal-header">
+              <span class="modal-title">第1章に新しいページを作成</span>
+              <button class="modal-close" type="button" style="border:none;background:transparent;font-size:16px;cursor:pointer;color:var(--text-subtle)">×</button>
+            </div>
+            <div class="modal-body">
+              <div class="field">
+                <label>ページタイトル</label>
+                <input type="text" value="インストールと初期設定">
+              </div>
+              <div class="checkbox-row">
+                <label><input type="checkbox" checked> 説明文を含める</label>
+                <label><input type="checkbox" checked> 問題を含める</label>
+              </div>
+              <div class="field">
+                <label style="margin-bottom:6px">説明文</label>
+                <div class="format-toggle">
+                  <button type="button" class="active">Markdown</button>
+                  <button type="button">HTML</button>
+                </div>
+                <div class="body-preview-split">
+                  <div>
+                    <span class="col-label">本文（Markdown）</span>
+                    <textarea rows="7">## セットアップ手順
+1. Gitをインストールする
+2. `git config` でユーザー名・メールアドレスを設定する</textarea>
+                  </div>
+                  <div>
+                    <span class="col-label">プレビュー</span>
+                    <div class="preview-pane">
+                      <h2>セットアップ手順</h2>
+                      <ol>
+                        <li>Gitをインストールする</li>
+                        <li><code>git config</code> でユーザー名・メールアドレスを設定する</li>
+                      </ol>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="field" style="margin-bottom:6px">
+                <label>問題（1問）</label>
+                <div class="inline-q">
+                  単一選択: 「git config --global user.name を実行する目的は？」（選択肢4件・正解設定済み）
+                  <div style="margin-top:4px"><button class="btn btn-secondary btn-sm" type="button">+ 問題を追加</button></div>
+                </div>
+              </div>
+              <div class="attach-limit-note">※ 添付ファイル・リンクはこのモーダルでは追加できません。保存後、「編集する」から追加してください。</div>
+            </div>
+            <div class="modal-footer">
+              <button class="btn btn-secondary" type="button">キャンセル</button>
+              <button class="btn btn-primary" type="button">このページを追加する</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="pro-con">
+      <div class="pro-box">
+        <strong>利点</strong>
+        ツリー自体の見た目は変わらない（今の目次画面のレイアウトを崩さない）。フォームに専有スペースがあり、本文・問題が多くても窮屈になりにくい。
+      </div>
+      <div class="con-box">
+        <strong>懸念点</strong>
+        「今どの章に追加しているか」はモーダルのタイトル文言だけが頼り。背後のツリーが見えにくくなる（暗転）ため、他の章の状況を見ながら入力したい場合はやや不便。
+      </div>
+    </div>
+  </div>
+
+  <div class="note-box" style="margin-top:20px">
+    共通の制約: 出題プールのグループ化（複数問題から抽出出題する設定）は、保存済み（実ID）の問題同士でしか組めないため、
+    このページ内で新規追加した問題同士はプールに含められない（保存して「編集する」を開き直した後に設定可能）。
+    「タイトルだけ決めて保存」のような早期・部分保存はどちらの案でも従来どおり可能（章を1つも追加せずに保存してよい）。
+  </div>
+</div>
+
+<div class="mock-note">検討資料 / S-05改善案（案A・案B比較） / 研修サンプル</div>
+
+<script>
+function switchCompare(name) {
+  var names = ['current', 'a', 'b'];
+  names.forEach(function (n) {
+    document.getElementById('panel-' + n).classList.toggle('active', n === name);
+  });
+  var tabs = document.querySelectorAll('.compare-tab');
+  var idx = names.indexOf(name);
+  tabs.forEach(function (t, i) { t.classList.toggle('active', i === idx); });
+}
+</script>
+
+</body>
+</html>

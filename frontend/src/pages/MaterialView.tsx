@@ -1,31 +1,155 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import PageHeader from '../components/layout/PageHeader'
 import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
 import MyLearningToggle from '../components/ui/MyLearningToggle'
 import SurveyModal from '../components/material/SurveyModal'
+import AttachmentEntryList from '../components/material/AttachmentEntryList'
+import TocPageRow from '../components/material/TocPageRow'
 import { useMaterial } from '../hooks/useMaterial'
 import { useMaterialAttachments } from '../hooks/useMaterialAttachments'
 import { useAttemptSummary } from '../hooks/useAttemptSummary'
+import { useAttemptDetail } from '../hooks/useAttemptDetail'
 import { usePracticeAttempts } from '../hooks/usePracticeAttempts'
 import { useSurveys } from '../hooks/useSurveys'
+import { chapterAccentClass } from '../lib/chapterAccent'
 import { formatDateJst, formatDateTimeJst, formatDurationMinutes } from '../lib/datetime'
-import { openAttachmentDownload } from '../lib/attachmentActions'
 import { pageKindLabel, toEditableChapters } from '../lib/materialTree'
-import { flattenPages, type FlatPage } from '../lib/pageNav'
+import { flattenPages, resolveScopeNodeId, type FlatPage } from '../lib/pageNav'
 import { startAttempt, startWrongQuestionsAttempt } from '../lib/attemptActions'
+import { ackGradingResults } from '../lib/gradingActions'
 import { andFromQuery, backTarget, fromQuery } from '../lib/backLink'
 import { ApiError } from '../lib/api'
 import type { EditableNode } from '../lib/materialSource'
-import type { QuizAttempt, Survey } from '../types'
+import type { PracticeAttemptSummary, QuizAttempt, Survey } from '../types'
 
 const TABS = [
   { key: 'toc', label: '目次' },
-  { key: 'practice', label: '反復演習' },
-  { key: 'wrong_only', label: '誤答のみ抽出' },
+  { key: 'practice', label: '練習' },
+  { key: 'wrong_only', label: '誤答＆難問抽出' },
 ] as const
 type TabKey = (typeof TABS)[number]['key']
+
+// 採点結果パネルの「開く」操作で表示する、自分が実際に提出した回答内容の整形。
+// 単一選択・記述式・コード記述式はそのまま文字列、複数選択は「、」区切り、並び替えは提出順を
+// 「→」でつないで表示する。
+function formatResponse(response: unknown, type: string): string {
+  if (response === null || response === undefined) return '（未回答）'
+  if (Array.isArray(response)) return response.map(String).join(type === 'reorder' ? ' → ' : '、')
+  return String(response)
+}
+
+// 練習・誤答＆難問抽出の実施履歴「詳細」向け正誤バッジ（2026-09-17新設）。
+// has_correct_answerはget_attempt側で型ごとに意味を揃えてある（単一選択・複数選択は正解未設定か、
+// 記述式・コード記述式は採点基準未設定か、score_logは常にfalse）ため、ここでは型を問わず一律で
+// 「正誤の概念が無い＝回答記録済み」として扱ってよい。
+function answerStatusBadge(a: { type: string; has_correct_answer: boolean; is_correct: boolean | null }) {
+  if (!a.has_correct_answer)
+    return { text: '回答記録済み', className: 'bg-slate-100 text-slate-500 dark:bg-neutral-800 dark:text-neutral-400' }
+  if (a.is_correct === true)
+    return { text: '正解', className: 'bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-200' }
+  if (a.is_correct === false)
+    return { text: '不正解', className: 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-200' }
+  return { text: '採点中', className: 'bg-slate-100 text-slate-500 dark:bg-neutral-800 dark:text-neutral-400' }
+}
+
+// 実施履歴の「詳細」を開いたときだけ受験記録を取得して表示する（2026-09-17新設。
+// 目次へ戻るボタンのある提出直後のページはAI採点の完了を待たず「採点中」のまま遷移するため、
+// 後から正誤・AI講評を確認する導線として実施履歴に追加した）。
+function PracticeAttemptDetailPanel({ attemptId }: { attemptId: number }) {
+  const { attempt, isLoading } = useAttemptDetail(attemptId)
+  if (isLoading || !attempt) {
+    return <p className="text-xs text-slate-400 dark:text-neutral-500">読み込み中...</p>
+  }
+  return (
+    <div className="flex flex-col gap-2">
+      {attempt.answers.map((a) => {
+        const badge = answerStatusBadge(a)
+        return (
+          <div key={a.question_id} className="rounded-md border border-slate-200 bg-white p-2.5 dark:border-neutral-700 dark:bg-neutral-800">
+            <div className="flex items-start gap-2">
+              <span className={`flex-shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${badge.className}`}>
+                {badge.text}
+              </span>
+              <div className="min-w-0 flex-1 text-[12.5px] font-semibold text-slate-700 dark:text-neutral-200">{a.prompt}</div>
+            </div>
+            <div className="mt-1.5 text-xs text-slate-600 dark:text-neutral-300">
+              <span className="font-semibold text-slate-400 dark:text-neutral-500">回答: </span>
+              {formatResponse(a.response, a.type)}
+            </div>
+            {a.ai_feedback && <div className="mt-1 text-xs text-slate-500 dark:text-neutral-400">{a.ai_feedback}</div>}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// 練習・誤答＆難問抽出タブ共通の実施履歴テーブル（2026-09-17、誤答＆難問抽出タブに実施履歴が
+// 無かったため練習タブと共通化して新設。行ごとに「詳細」で採点結果を後から確認できる）。
+function PracticeHistoryTable({
+  items,
+  emptyText,
+  expandedAttemptId,
+  onToggle,
+}: {
+  items: PracticeAttemptSummary[]
+  emptyText: string
+  expandedAttemptId: number | null
+  onToggle: (attemptId: number) => void
+}) {
+  if (items.length === 0) {
+    return <p className="p-4 text-center text-sm text-slate-400 dark:text-neutral-500">{emptyText}</p>
+  }
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm max-sm:whitespace-nowrap">
+        <thead>
+          <tr className="border-b border-slate-100 text-xs text-slate-400 dark:border-neutral-800 dark:text-neutral-500">
+            <th className="px-4 py-2 text-left font-normal">実施日時</th>
+            <th className="px-4 py-2 text-right font-normal">正答数</th>
+            <th className="px-4 py-2 text-right font-normal">所要時間</th>
+            <th className="px-4 py-2 text-right font-normal">詳細</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.flatMap((p) => {
+            const expanded = expandedAttemptId === p.id
+            const rows = [
+              <tr key={p.id} className="border-b border-slate-50 text-slate-700 dark:border-neutral-800 dark:text-neutral-200">
+                <td className="px-4 py-2">{formatDateTimeJst(p.submitted_at)}</td>
+                <td className="px-4 py-2 text-right">
+                  {p.correct_count} / {p.total_count}
+                </td>
+                <td className="px-4 py-2 text-right">{formatDurationMinutes(p.duration_seconds)}</td>
+                <td className="px-4 py-2 text-right">
+                  <button
+                    type="button"
+                    className="text-xs font-semibold text-blue-700 hover:underline dark:text-blue-300"
+                    onClick={() => onToggle(p.id)}
+                  >
+                    {expanded ? '閉じる' : '詳細'}
+                  </button>
+                </td>
+              </tr>,
+            ]
+            if (expanded) {
+              rows.push(
+                <tr key={`${p.id}-detail`} className="border-b border-slate-50 bg-slate-50 dark:border-neutral-800 dark:bg-neutral-900/40">
+                  <td colSpan={4} className="px-4 py-3">
+                    <PracticeAttemptDetailPanel attemptId={p.id} />
+                  </td>
+                </tr>,
+              )
+            }
+            return rows
+          })}
+        </tbody>
+      </table>
+    </div>
+  )
+}
 
 // S-04 教材受講：目次（詳細設計書10.4節）。
 export default function MaterialView() {
@@ -38,22 +162,77 @@ export default function MaterialView() {
   const returnQuery = fromQuery(from)
   const { material, error, isLoading, mutate: mutateMaterial } = useMaterial(id)
   const { attachments } = useMaterialAttachments(id)
-  const [activeTab, setActiveTab] = useState<TabKey>('toc')
-  const [downloadError, setDownloadError] = useState<string | null>(null)
-
+  // ?tab=practiceで「練習」タブを開いた状態で表示できる（タブの直接指定に汎用的に対応する
+  // ためのクエリで、現状アプリ内からこの値でリンクする箇所は無い。以前はマイ学習の完了済み
+  // 任意教材のリンクがこれを使っていたが、目次タブの「再度受講」（合格済みスコープを閲覧専用で
+  // 開く。毎回アンケート等の判定もここで走る）に一切たどり着けなくなるため、2026-09-09に
+  // マイ学習側を「目次」タブへ統一した。練習をしたい場合は目次を開いてからタブを切り替える）。
+  const initialTab = searchParams.get('tab')
+  const [activeTab, setActiveTab] = useState<TabKey>(
+    TABS.some((t) => t.key === initialTab) ? (initialTab as TabKey) : 'toc',
+  )
   const { items: attemptSummary } = useAttemptSummary(activeTab === 'toc' ? id : null)
-  const { items: practiceAttempts } = usePracticeAttempts(activeTab === 'practice' ? id : null)
+  const gradingResultRef = useRef<HTMLDivElement | null>(null)
+  const { items: practiceAttempts } = usePracticeAttempts(activeTab === 'practice' ? id : null, 'repeat')
+  const { items: wrongOnlyAttempts } = usePracticeAttempts(activeTab === 'wrong_only' ? id : null, 'wrong_only')
+  // 実施履歴「詳細」: タブをまたいで開くものは無いため状態は1つで共有する
+  const [expandedPracticeAttemptId, setExpandedPracticeAttemptId] = useState<number | null>(null)
+  const toggleExpandedPracticeAttempt = (attemptId: number) =>
+    setExpandedPracticeAttemptId((prev) => (prev === attemptId ? null : attemptId))
   const { surveys } = useSurveys(activeTab === 'toc' ? id : null)
   const [dismissedSurveyIds, setDismissedSurveyIds] = useState<Set<number>>(new Set())
+  // 採点結果パネル: クリックで設問を開き、自分が実際に提出した回答内容を確認できるようにする
+  // （2026-09-11、ユーザー要望）。
+  const [expandedGradedAnswerIds, setExpandedGradedAnswerIds] = useState<Set<number>>(new Set())
+  const toggleGradedAnswer = (questionId: number) => {
+    setExpandedGradedAnswerIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(questionId)) next.delete(questionId)
+      else next.add(questionId)
+      return next
+    })
+  }
   const [surveyModalSurvey, setSurveyModalSurvey] = useState<Survey | null>(null)
 
   const [wrongScope, setWrongScope] = useState<'material' | 'all'>('material')
-  const [startingPractice, setStartingPractice] = useState(false)
+  // 「練習を開始」「問題のみ練習」のどちらが起動中かを区別する（両方を同一のbooleanにすると、
+  // 片方を押した間もう片方まで「開始中…」表示になってしまうため。2026-09-29、ユーザー要望で
+  // 問題のみモードを新設した際に追加）。
+  const [startingPractice, setStartingPractice] = useState<'full' | 'questions' | null>(null)
   const [startingWrongOnly, setStartingWrongOnly] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
 
+  // 採点結果パネル: attemptSummaryの各スコープの回答（スコア記録型を除く）を横断集約する
+  // （2026-09-11、選択式が除外されていた不具合を修正し、手動採点結果も表示するようパネル名を改称）
+  const gradedAnswers = attemptSummary.flatMap((entry) =>
+    entry.answers.map((a) => ({ ...a, scope_label: entry.scope_label })),
+  )
+
+  // A-98: 採点結果パネルが実際に画面に見えたタイミングで確認済みにする（マイ学習「採点結果未確認」
+  // タブから外すため）。以前は目次タブを開いた瞬間に無条件で確認済みにしていたため、このパネルを
+  // 一度も見ないまま（他タブへすぐ切り替える等）確認済みになってしまう不具合があった
+  // （2026-09-11、ユーザー報告により発見・修正）。IntersectionObserverでパネル自体が
+  // ビューポートに入ったことを検知してから1回だけ呼ぶ。early return（読み込み中・エラー時）より前で
+  // 呼ぶ必要がある（Hooksのルール上、条件付きでuseEffectを呼び出せないため）。
+  useEffect(() => {
+    if (activeTab !== 'toc' || Number.isNaN(id) || gradedAnswers.length === 0) return
+    const el = gradingResultRef.current
+    if (!el) return
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          ackGradingResults(id).catch(() => {})
+          observer.disconnect()
+        }
+      },
+      { threshold: 0.5 },
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [activeTab, id, gradedAnswers.length])
+
   if (isLoading) {
-    return <div className="p-8 text-sm text-slate-400">読み込み中...</div>
+    return <div className="p-8 text-sm text-slate-400 dark:text-neutral-500">読み込み中...</div>
   }
 
   if (error || !material) {
@@ -65,10 +244,10 @@ export default function MaterialView() {
       <div className="flex flex-1 flex-col">
         <PageHeader title="教材受講" />
         <div className="px-8 py-6">
-          <Link to={back.to} className="text-blue-800 hover:underline">
+          <Link to={back.to} className="text-blue-800 hover:underline dark:text-blue-300">
             {back.label}
           </Link>
-          <p className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{message}</p>
+          <p className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200">{message}</p>
         </div>
       </div>
     )
@@ -99,30 +278,28 @@ export default function MaterialView() {
   // 合格済みスコープの閲覧専用化により以後更新されないため、常に先頭ページから読み直す
   // 「再度受講」に切り替える（2026-09-03、ユーザー要望）。
   const isCompleted = material.progress?.status === 'completed'
+  // attempt_scope='page'/'chapter'/'section'の教材では、あるスコープに不合格のまま先へ進み、
+  // 後続の別スコープに合格していることがあり得る。その場合current_node_id（最後に到達した
+  // スコープ）は既に合格済みの後続スコープを指すため、「続きから受講」がその不合格スコープを
+  // 素通りしてしまい、目次から手動でそのページを探さない限り再受験する導線が無くなっていた
+  // （2026-09-16、ユーザー報告により発見）。文書順で最初に見つかった不合格スコープのページが
+  // あれば、current_node_idより優先してそこへ誘導する。
+  const failedScopeIds = new Set(
+    attemptSummary.filter((e) => e.attempt.passed === false).map((e) => e.scope_node_id),
+  )
+  const firstFailedPage = flatPages.find((p) =>
+    failedScopeIds.has(resolveScopeNodeId(flatPages, material.attempt_scope, p.node.id)),
+  )
   const resumeTargetNodeId = isCompleted
     ? (flatPages[0]?.node.id ?? null)
-    : (currentNodeId ?? flatPages[0]?.node.id ?? null)
+    : (firstFailedPage?.node.id ?? currentNodeId ?? flatPages[0]?.node.id ?? null)
   const resumeLabel = !material.progress || material.progress.status === 'not_started'
     ? '受講を開始'
     : isCompleted
       ? '再度受講'
       : '続きから受講'
 
-  const download = async (attachmentId: number) => {
-    setDownloadError(null)
-    try {
-      await openAttachmentDownload(id, attachmentId)
-    } catch (e) {
-      setDownloadError(e instanceof ApiError ? e.message : 'ダウンロードに失敗しました')
-    }
-  }
-
-  // AI採点結果パネル: attemptSummaryの各スコープの記述式・コード記述式の回答を横断集約する
-  const aiGradedAnswers = attemptSummary.flatMap((entry) =>
-    entry.answers.map((a) => ({ ...a, scope_label: entry.scope_label })),
-  )
-
-  // 受験後アンケートcallout: 合格済みスコープに設置された、まだ答えていない（または毎回表示の）
+  // 受講後アンケートcallout: 合格済みスコープに設置された、まだ答えていない（または毎回表示の）
   // アンケートを1件だけ表示する（スキップはローカル状態のみ、次回訪問時にはまた表示される）
   const passedScopeIds = new Set(
     attemptSummary.filter((e) => e.attempt.passed === true).map((e) => e.scope_node_id),
@@ -135,17 +312,28 @@ export default function MaterialView() {
       (s.repeat_mode === 'every_time' || !s.answered_by_me),
   )
 
-  const handleStartPractice = async () => {
-    setStartingPractice(true)
+  // onlyQuestions: 「問題のみ練習」。ページ本文（説明文）・添付資料を表示せず設問だけを出す
+  // （2026-09-29、ユーザー要望により新設。対象ページ自体は従来の「練習を開始」と同じ
+  // （設問があるページのみ、MaterialPageView.tsx側のsequencePagesで絞り込み済み）で、
+  // このモードは表示内容だけを変える）。
+  const handleStartPractice = async (onlyQuestions: boolean) => {
+    setStartingPractice(onlyQuestions ? 'questions' : 'full')
     setActionError(null)
     try {
       await startAttempt(id, { mode: 'practice' })
-      const first = flatPages[0]
-      if (first) navigate(`/materials/${id}/pages/${first.node.id}?mode=practice${andFromQuery(from)}`)
+      // 説明のみ（設問が無い）ページで練習が始まると解く問題が無く不自然なため、最初に設問がある
+      // ページまで進める（2026-09-29、ユーザー報告により修正。全ページが説明のみの教材は
+      // そもそも練習する意味が無いため、その場合のみ従来通り先頭ページにフォールバックする）。
+      const first = flatPages.find((p) => p.node.questions.length > 0) ?? flatPages[0]
+      if (first) {
+        navigate(
+          `/materials/${id}/pages/${first.node.id}?mode=practice${onlyQuestions ? '&only=questions' : ''}${andFromQuery(from)}`,
+        )
+      }
     } catch (e) {
       setActionError(e instanceof ApiError ? e.message : '開始に失敗しました')
     } finally {
-      setStartingPractice(false)
+      setStartingPractice(null)
     }
   }
 
@@ -203,7 +391,7 @@ export default function MaterialView() {
             )}
             <Link
               to={back.to}
-              className="rounded-md border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              className="rounded-md border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 dark:hover:bg-neutral-700"
             >
               {back.label}
             </Link>
@@ -211,7 +399,7 @@ export default function MaterialView() {
         }
       />
       <div className="px-8 py-6">
-        <div className="mb-4 flex flex-wrap items-center gap-2 text-[12px] text-slate-500">
+        <div className="mb-4 flex flex-wrap items-center gap-2 text-[12px] text-slate-500 dark:text-neutral-400">
           <Badge variant={material.required ? 'required' : 'optional'} />
           <span>
             全{chapters.length}章・{totalPages}ページ
@@ -219,18 +407,21 @@ export default function MaterialView() {
           {material.due_at && <span>／ 期限: {formatDateJst(material.due_at)}</span>}
         </div>
 
-        <div className="mb-5 flex gap-1 border-b border-slate-200" role="tablist">
+        <div className="mb-5 flex gap-1 overflow-x-auto border-b border-slate-200 dark:border-neutral-800" role="tablist">
           {TABS.map((tab) => (
             <button
               key={tab.key}
               type="button"
               role="tab"
               aria-selected={activeTab === tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`-mb-px border-b-2 px-3 py-2 text-sm font-semibold ${
+              onClick={() => {
+                setActiveTab(tab.key)
+                setActionError(null)
+              }}
+              className={`-mb-px flex-shrink-0 whitespace-nowrap border-b-2 px-3 py-2 text-sm font-semibold ${
                 activeTab === tab.key
-                  ? 'border-blue-800 text-blue-900'
-                  : 'border-transparent text-slate-500 hover:text-slate-800'
+                  ? 'border-blue-800 text-blue-900 dark:border-blue-500 dark:text-blue-300'
+                  : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-neutral-400 dark:hover:text-neutral-100'
               }`}
             >
               {tab.label}
@@ -242,30 +433,27 @@ export default function MaterialView() {
           <>
             {totalPages > 0 && (
               <div className="mb-5 flex items-center gap-3">
-                <span className="text-xs text-slate-500">
+                <span className="text-xs text-slate-500 dark:text-neutral-400">
                   ページ {reachedCount}/{totalPages}
                 </span>
-                <div className="h-2 w-full max-w-xs overflow-hidden rounded-full bg-slate-100">
-                  <div className="h-full bg-blue-700" style={{ width: `${progressPct}%` }} />
+                <div className="h-2 w-full max-w-xs overflow-hidden rounded-full bg-slate-100 dark:bg-neutral-800">
+                  <div className="h-full bg-blue-700 dark:bg-blue-500" style={{ width: `${progressPct}%` }} />
                 </div>
-                <span className="text-xs text-slate-500">{progressPct}%</span>
+                <span className="text-xs text-slate-500 dark:text-neutral-400">{progressPct}%</span>
               </div>
             )}
 
-            {downloadError && (
-              <p className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                {downloadError}
-              </p>
-            )}
-
             {pendingSurvey && (
-              <div className="mb-5 rounded-md border border-blue-200 bg-blue-50 p-4">
-                <p className="text-sm font-semibold text-blue-900">{pendingSurvey.title}にご協力ください（任意・30秒程度）</p>
+              <div className="mb-5 rounded-md border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950/40">
+                <p className="text-sm font-semibold text-blue-900 dark:text-blue-100">{pendingSurvey.title}にご協力ください（任意・30秒程度）</p>
+                {pendingSurvey.answered_by_me && (
+                  <p className="mt-1 text-xs text-blue-700 dark:text-blue-300">前回も回答済みです。今回分として改めて回答できます。</p>
+                )}
                 <div className="mt-2 flex items-center gap-3">
                   <Button onClick={() => setSurveyModalSurvey(pendingSurvey)}>回答する</Button>
                   <button
                     type="button"
-                    className="text-xs text-slate-500 hover:underline"
+                    className="text-xs text-slate-500 hover:underline dark:text-neutral-400"
                     onClick={() => setDismissedSurveyIds((prev) => new Set(prev).add(pendingSurvey.id))}
                   >
                     今回はスキップ
@@ -277,29 +465,45 @@ export default function MaterialView() {
             {attemptSummary.map((entry) => (
               <section
                 key={entry.scope_node_id ?? 'material'}
-                className={`mb-4 rounded-md border overflow-hidden ${entry.attempt.passed === false ? 'border-red-200' : 'border-slate-200'}`}
+                className={`mb-4 rounded-md border overflow-hidden ${
+                  entry.attempt.passed === false
+                    ? 'border-red-200 dark:border-red-900'
+                    : entry.attempt.passed === true
+                      ? 'border-green-200 dark:border-green-900'
+                      : 'border-slate-200 dark:border-neutral-800'
+                }`}
               >
                 <div
-                  className={`flex items-center justify-between px-4 py-2.5 ${entry.attempt.passed === false ? 'bg-red-50' : 'bg-slate-50'}`}
+                  className={`flex items-center justify-between px-4 py-2.5 ${
+                    entry.attempt.passed === false
+                      ? 'bg-red-50 dark:bg-red-950/40'
+                      : entry.attempt.passed === true
+                        ? 'bg-green-50 dark:bg-green-950/40'
+                        : 'bg-slate-50 dark:bg-neutral-800/60'
+                  }`}
                 >
-                  <span className="text-sm font-semibold text-slate-700">{entry.scope_label}</span>
+                  <span className="text-sm font-semibold text-slate-700 dark:text-neutral-100">{entry.scope_label}</span>
                   <span
                     className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
                       entry.attempt.passed === true
-                        ? 'bg-green-100 text-green-700'
+                        ? 'bg-green-100 text-green-700 dark:bg-green-950/60 dark:text-green-200'
                         : entry.attempt.passed === false
-                          ? 'bg-red-100 text-red-700'
-                          : 'bg-slate-100 text-slate-500'
+                          ? 'bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-200'
+                          : 'bg-slate-100 text-slate-500 dark:bg-neutral-800 dark:text-neutral-400'
                     }`}
                   >
-                    {entry.attempt.passed === true ? '合格' : entry.attempt.passed === false ? '不合格' : '提出済み'}
+                    {entry.attempt.passed === true ? '合格' : entry.attempt.passed === false ? '不合格' : '合否対象外（参考）'}
                   </span>
                 </div>
-                <div className="px-4 py-3 text-xs text-slate-500">
+                <div className="px-4 py-3 text-xs text-slate-500 dark:text-neutral-400">
                   {formatDateTimeJst(entry.attempt.submitted_at)} 実施 ／ 正答率
                   {entry.attempt.score_pct !== null ? Math.round(entry.attempt.score_pct) : '—'}%
+                  <p className="mt-1">
+                    受験回数: {entry.attempt_count}回
+                    {entry.retake_limit !== null ? `／上限${entry.retake_limit}回` : '（上限なし）'}
+                  </p>
                   {entry.attempt.passed === false && (
-                    <p className="mt-1 text-red-700">
+                    <p className="mt-1 text-red-700 dark:text-red-300">
                       {entry.attempt.fail_reason
                         ? `⚠ ドボン設問「${entry.attempt.fail_reason}」に正解しなかったため不合格と判定されました。`
                         : '合格基準に届きませんでした。'}
@@ -313,79 +517,115 @@ export default function MaterialView() {
               </section>
             ))}
 
-            {aiGradedAnswers.length > 0 && (
-              <section className="mb-5 rounded-md border border-slate-200">
-                <div className="border-b border-slate-200 px-4 py-2.5">
-                  <span className="text-sm font-semibold text-slate-700">記述式回答のAI採点結果</span>
+            {gradedAnswers.length > 0 && (
+              <section ref={gradingResultRef} className="mb-5 rounded-md border border-slate-200 dark:border-neutral-800">
+                <div className="border-b border-slate-200 px-4 py-2.5 dark:border-neutral-800">
+                  <span className="text-sm font-semibold text-slate-700 dark:text-neutral-100">採点結果</span>
                 </div>
-                <div className="divide-y divide-slate-100">
-                  {aiGradedAnswers.map((a) => (
-                    <div key={a.question_id} className="flex items-start gap-3 p-4">
-                      <span
-                        className={`flex-shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${
-                          a.ai_score_pct !== null ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'
-                        }`}
-                      >
-                        {a.ai_score_pct !== null ? `${Math.round(a.ai_score_pct)}点` : '採点中'}
-                      </span>
-                      <div>
-                        <div className="text-[12.5px] font-semibold text-slate-700">
-                          {a.scope_label} {a.prompt}
-                        </div>
-                        {a.ai_feedback && <div className="mt-0.5 text-xs text-slate-500">{a.ai_feedback}</div>}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {wholeMaterialAttachments.length > 0 && (
-              <section className="mb-5 rounded-md border border-slate-200">
-                <div className="border-b border-slate-200 px-4 py-2.5">
-                  <span className="text-sm font-semibold text-slate-700">教材全体の資料</span>
-                </div>
-                <div className="flex flex-wrap gap-4 p-4 text-sm">
-                  {wholeMaterialAttachments.map((a) =>
-                    a.kind === 'link' ? (
-                      <a
-                        key={a.id}
-                        href={a.external_url ?? '#'}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-700 hover:underline"
-                      >
-                        {a.filename}
-                      </a>
-                    ) : (
+                <div className="divide-y divide-slate-100 dark:divide-neutral-800">
+                  {gradedAnswers.map((a) => {
+                    // 記述式・コード記述式・単一選択・複数選択・並び替えいずれもis_correctの正誤で
+                    // 「正解」「不正解」「採点中」（未確定）を表示する（2026-09-16、AI採点・手動採点とも
+                    // 統一。以前はAI採点済み〔ai_score_pctあり〕の場合だけ点数（例:「0点」）を表示して
+                    // いたが、AI採点は部分点を付けない設計（ai_client.pyのプロンプトで明示、correct=trueなら
+                    // 常に100・falseなら常に0）のため点数表示に情報量が無いうえ、バッジの色をこの点数の
+                    // 有無だけで緑固定にしていたため0点〔不正解〕のAI採点結果も正解と同じ緑色で表示されて
+                    // しまうバグがあった〔ユーザー報告により発見〕。is_correctのみで判定する形に統一して
+                    // 両方解消した）。ただし単一選択・複数選択の「記録」「任意」は正解未設定を
+                    // 許容するため、is_correctがnullでも「採点中」ではなく「回答記録済み」と表示する
+                    // （正解が無いので採点自体がいつまで経っても行われない。2026-09-16）。
+                    const ungraded =
+                      (a.type === 'single' || a.type === 'multi') && !a.has_correct_answer
+                    const badgeText = ungraded
+                      ? '回答記録済み'
+                      : a.is_correct !== null
+                        ? a.is_correct
+                          ? '正解'
+                          : '不正解'
+                        : '採点中'
+                    const badgeClass = ungraded
+                      ? 'bg-slate-100 text-slate-500 dark:bg-neutral-800 dark:text-neutral-400'
+                      : a.is_correct !== null
+                        ? a.is_correct
+                          ? 'bg-green-100 text-green-700 dark:bg-green-950/60 dark:text-green-200'
+                          : 'bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-200'
+                        : 'bg-slate-100 text-slate-500 dark:bg-neutral-800 dark:text-neutral-400'
+                    const expanded = expandedGradedAnswerIds.has(a.question_id)
+                    // 合否（score_pct）に反映されるのはrequired && countedの設問のみ（learning.pyの
+                    // gradable判定と同じ条件）。この画面からは見えなかったため、正誤バッジと並べて表示する
+                    // （2026-09-17、ユーザー指摘により追加）。
+                    const countsTowardPassFail = a.required && a.counted
+                    return (
                       <button
-                        key={a.id}
+                        key={a.question_id}
                         type="button"
-                        onClick={() => download(a.id)}
-                        className="text-blue-700 hover:underline"
+                        onClick={() => toggleGradedAnswer(a.question_id)}
+                        className="flex w-full items-start gap-3 p-4 text-left hover:bg-slate-50 max-sm:flex-wrap dark:hover:bg-neutral-800/60"
                       >
-                        {a.filename}
+                        <span className={`flex-shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${badgeClass}`}>
+                          {badgeText}
+                        </span>
+                        <span
+                          className={`flex-shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                            countsTowardPassFail
+                              ? 'bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-300'
+                              : 'bg-slate-100 text-slate-400 dark:bg-neutral-800 dark:text-neutral-500'
+                          }`}
+                        >
+                          {countsTowardPassFail ? '合否対象' : '合否対象外'}
+                        </span>
+                        {/* 自由記述・コード記述式のみ表示（単一選択・複数選択・並び替えは常に自動採点
+                            のためgrading_modeがnullで非表示）。手動採点は結果確定までに管理者の対応待ちが
+                            発生し得ることが一目で分かるよう、AI採点と別の色にする（2026-09-18、ユーザー
+                            指摘によりAI/手動の別が分からないという課題を解消するため追加）。 */}
+                        {a.grading_mode && (
+                          <span
+                            className={`flex-shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                              a.grading_mode === 'manual'
+                                ? 'bg-purple-50 text-purple-600 dark:bg-purple-950/40 dark:text-purple-300'
+                                : 'bg-cyan-50 text-cyan-600 dark:bg-cyan-950/40 dark:text-cyan-300'
+                            }`}
+                          >
+                            {a.grading_mode === 'manual' ? '手動採点' : 'AI採点'}
+                          </span>
+                        )}
+                        <div className="min-w-0 flex-1 max-sm:basis-full">
+                          <div className="text-[12.5px] font-semibold text-slate-700 dark:text-neutral-200">
+                            {a.scope_label} {a.prompt}
+                          </div>
+                          {a.ai_feedback && <div className="mt-0.5 text-xs text-slate-500 dark:text-neutral-400">{a.ai_feedback}</div>}
+                          {expanded && (
+                            <div className="mt-2 rounded-md border border-slate-200 bg-slate-50 p-2.5 text-xs text-slate-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
+                              <div className="mb-1 font-semibold text-slate-500 dark:text-neutral-400">自分の回答</div>
+                              <div className="whitespace-pre-wrap">{formatResponse(a.response, a.type)}</div>
+                            </div>
+                          )}
+                        </div>
+                        <span className="flex-shrink-0 text-xs text-slate-400 dark:text-neutral-500">{expanded ? '閉じる' : '開く'}</span>
                       </button>
-                    ),
-                  )}
+                    )
+                  })}
                 </div>
               </section>
             )}
 
             {chapters.length === 0 && (
-              <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400">
+              <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-500">
                 目次がまだ登録されていません。
               </p>
             )}
 
             {chapters.map((chapter, chapterIndex) => (
-              <div key={chapter.id} className="mb-4 rounded-md border border-slate-200">
-                <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-2.5">
-                  <span className="text-sm font-semibold text-slate-700">
-                    <span className="text-xs font-bold text-blue-800">第{chapterIndex + 1}章</span>{' '}
+              <div
+                key={chapter.id}
+                className={`mb-4 rounded-md border border-l-[3px] border-slate-200 dark:border-neutral-800 ${chapterAccentClass(chapterIndex)}`}
+              >
+                <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-2.5 dark:border-neutral-800 dark:bg-neutral-800/60">
+                  <span className="text-sm font-semibold text-slate-700 dark:text-neutral-100">
+                    <span className="text-xs font-bold text-blue-800 dark:text-blue-300">第{chapterIndex + 1}章</span>{' '}
                     {chapter.title}
                   </span>
-                  <span className="text-xs text-slate-400">
+                  <span className="text-xs text-slate-400 dark:text-neutral-500">
                     {countCompletedPages(chapter.children, completedIds)}/{countPages(chapter.children)} 完了
                   </span>
                 </div>
@@ -394,12 +634,12 @@ export default function MaterialView() {
                     child.kind === 'section' ? (
                       <div key={child.id} className="ml-2 mb-1.5">
                         <div className="flex items-center gap-2 px-2 py-1">
-                          <span className="text-xs font-semibold text-slate-700">{child.title}</span>
-                          <span className="flex-shrink-0 rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-600">
+                          <span className="text-xs font-semibold text-slate-700 dark:text-neutral-200">{child.title}</span>
+                          <span className="flex-shrink-0 rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-300">
                             小見出し
                           </span>
                         </div>
-                        <div className="ml-4 border-l-2 border-slate-200 pl-2">
+                        <div className="ml-4 border-l-2 border-slate-200 pl-2 dark:border-neutral-800">
                           {child.children.map((page) => (
                             <TocPageRow
                               key={page.id}
@@ -441,23 +681,34 @@ export default function MaterialView() {
               </div>
             ))}
 
+            {wholeMaterialAttachments.length > 0 && (
+              <section className="mb-5 rounded-md border border-slate-200 dark:border-neutral-800">
+                <div className="border-b border-slate-200 px-4 py-2.5 dark:border-neutral-800">
+                  <span className="text-sm font-semibold text-slate-700 dark:text-neutral-100">教材全体の資料</span>
+                </div>
+                <div className="p-4 text-sm">
+                  <AttachmentEntryList materialId={id} attachments={wholeMaterialAttachments} />
+                </div>
+              </section>
+            )}
+
             {chapters.length > 0 && (
-              <div className="mt-6 flex items-center gap-3 border-t border-slate-200 pt-5">
+              <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-slate-200 pt-5 dark:border-neutral-800">
                 <Link
                   to={back.to}
-                  className="rounded-md border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                  className="flex-shrink-0 whitespace-nowrap rounded-md border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 dark:hover:bg-neutral-700"
                 >
                   {isCompleted ? '学習を終了' : '一時中断する'}
                 </Link>
                 {resumeTargetNodeId !== null && (
                   <Link
                     to={`/materials/${id}/pages/${resumeTargetNodeId}${returnQuery}`}
-                    className="rounded-md bg-blue-900 px-3.5 py-2 text-sm font-semibold text-white hover:bg-blue-800"
+                    className="flex-shrink-0 whitespace-nowrap rounded-md bg-blue-900 px-3.5 py-2 text-sm font-semibold text-white hover:bg-blue-800 dark:bg-blue-700 dark:hover:bg-blue-600"
                   >
                     {resumeLabel}
                   </Link>
                 )}
-                <span className="text-xs text-slate-400">
+                <span className="text-xs text-slate-400 dark:text-neutral-500">
                   {isCompleted
                     ? '学習記録は保存されています。読み返す場合は「再度受講」を押してください。'
                     : '中断しても回答内容は保存され、次回この続きから再開できます'}
@@ -469,75 +720,76 @@ export default function MaterialView() {
 
         {activeTab === 'practice' && (
           <>
-            <p className="mb-4 text-xs text-slate-500">
+            <p className="mb-4 text-xs text-slate-500 dark:text-neutral-400">
               合否判定を伴う受験とは別に、この教材の全ページの問題を回数制限なく繰り返し解けます。結果は合否には影響せず、習熟のための記録としてのみ残ります。
             </p>
-            <section className="mb-5 rounded-md border border-slate-200">
-              <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2.5">
-                <span className="text-sm font-semibold text-slate-700">これまでの実施履歴</span>
-                <span className="text-xs text-slate-400">{practiceAttempts.length}回実施</span>
+            <section className="mb-5 rounded-md border border-slate-200 dark:border-neutral-800">
+              <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2.5 dark:border-neutral-800">
+                <span className="text-sm font-semibold text-slate-700 dark:text-neutral-100">これまでの実施履歴</span>
+                <span className="text-xs text-slate-400 dark:text-neutral-500">{practiceAttempts.length}回実施</span>
               </div>
-              {practiceAttempts.length === 0 ? (
-                <p className="p-4 text-center text-sm text-slate-400">まだ実施していません。</p>
-              ) : (
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-100 text-xs text-slate-400">
-                      <th className="px-4 py-2 text-left font-normal">実施日時</th>
-                      <th className="px-4 py-2 text-right font-normal">正答数</th>
-                      <th className="px-4 py-2 text-right font-normal">所要時間</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {practiceAttempts.map((p) => (
-                      <tr key={p.id} className="border-b border-slate-50">
-                        <td className="px-4 py-2">{formatDateTimeJst(p.submitted_at)}</td>
-                        <td className="px-4 py-2 text-right">
-                          {p.correct_count} / {p.total_count}
-                        </td>
-                        <td className="px-4 py-2 text-right">{formatDurationMinutes(p.duration_seconds)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
+              <PracticeHistoryTable
+                items={practiceAttempts}
+                emptyText="まだ実施していません。"
+                expandedAttemptId={expandedPracticeAttemptId}
+                onToggle={toggleExpandedPracticeAttempt}
+              />
             </section>
-            {actionError && <p className="mb-3 text-sm text-red-600">{actionError}</p>}
-            <Button onClick={handleStartPractice} disabled={startingPractice}>
-              {startingPractice ? '開始中…' : '反復演習を開始'}
-            </Button>
+            {actionError && <p className="mb-3 text-sm text-red-600 dark:text-red-400">{actionError}</p>}
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => handleStartPractice(false)} disabled={startingPractice !== null}>
+                {startingPractice === 'full' ? '開始中…' : '練習を開始'}
+              </Button>
+              <Button variant="secondary" onClick={() => handleStartPractice(true)} disabled={startingPractice !== null}>
+                {startingPractice === 'questions' ? '開始中…' : '問題のみ練習'}
+              </Button>
+            </div>
           </>
         )}
 
         {activeTab === 'wrong_only' && (
           <>
-            <p className="mb-4 text-xs text-slate-500">
-              過去に間違えた問題、または正答率の低い問題だけを抽出して出題します。結果は反復演習と同様に合否へは影響しません。
+            <p className="mb-4 text-xs text-slate-500 dark:text-neutral-400">
+              過去に間違えた問題、または正答率の低い問題だけを抽出して出題します。結果は練習と同様に合否へは影響しません。
             </p>
             <div className="mb-4 flex flex-col gap-2">
-              <label className="flex items-center gap-2 text-sm text-slate-700">
+              <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-neutral-200">
                 <input
                   type="radio"
                   name="wrong-scope"
                   checked={wrongScope === 'material'}
                   onChange={() => setWrongScope('material')}
                 />
-                この教材内の誤答のみ
+                この教材内の誤答・難問から出題
               </label>
-              <label className="flex items-center gap-2 text-sm text-slate-700">
+              <label className="flex items-center gap-2 text-sm text-slate-700 dark:text-neutral-200">
                 <input
                   type="radio"
                   name="wrong-scope"
                   checked={wrongScope === 'all'}
                   onChange={() => setWrongScope('all')}
                 />
-                全教材の誤答から出題
+                これまで解いた全教材の誤答・難問から出題
               </label>
-              <p className="text-xs text-slate-400">正答率が低い設問（正答率50%未満）も合わせて抽出対象になります。</p>
+              <p className="text-xs text-slate-400 dark:text-neutral-500">
+                正答率が低い設問（正答率50%未満）も、自分が一度は解いたことのあるものに限り合わせて抽出対象になります。
+              </p>
             </div>
-            {actionError && <p className="mb-3 text-sm text-red-600">{actionError}</p>}
+            <section className="mb-5 rounded-md border border-slate-200 dark:border-neutral-800">
+              <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2.5 dark:border-neutral-800">
+                <span className="text-sm font-semibold text-slate-700 dark:text-neutral-100">これまでの実施履歴</span>
+                <span className="text-xs text-slate-400 dark:text-neutral-500">{wrongOnlyAttempts.length}回実施</span>
+              </div>
+              <PracticeHistoryTable
+                items={wrongOnlyAttempts}
+                emptyText="まだ実施していません。"
+                expandedAttemptId={expandedPracticeAttemptId}
+                onToggle={toggleExpandedPracticeAttempt}
+              />
+            </section>
+            {actionError && <p className="mb-3 text-sm text-red-600 dark:text-red-400">{actionError}</p>}
             <Button onClick={handleStartWrongOnly} disabled={startingWrongOnly}>
-              {startingWrongOnly ? '開始中…' : '誤答問題を解く'}
+              {startingWrongOnly ? '開始中…' : '誤答・難問を解く'}
             </Button>
           </>
         )}
@@ -573,52 +825,4 @@ function countCompletedPages(nodes: EditableNode[], completedIds: Set<number>): 
     total += countCompletedPages(n.children, completedIds)
   }
   return total
-}
-
-function TocPageRow({
-  materialId,
-  nodeId,
-  title,
-  kindLabel,
-  done,
-  isCurrent = false,
-  query = '',
-}: {
-  materialId: number
-  nodeId: number | null
-  title: string
-  kindLabel: string
-  done: boolean
-  isCurrent?: boolean
-  query?: string
-}) {
-  if (nodeId === null) {
-    return (
-      <div className="ml-2 flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm text-slate-400">
-        <span className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full border border-slate-300 text-transparent">·</span>
-        <span className="flex-1">{title}</span>
-        <span className="flex-shrink-0 text-[10.5px] text-slate-400">{kindLabel}</span>
-      </div>
-    )
-  }
-  const circleClass = done
-    ? 'bg-green-600 text-white'
-    : isCurrent
-      ? 'bg-blue-800 text-white'
-      : 'border border-slate-300 text-transparent'
-  return (
-    <Link
-      to={`/materials/${materialId}/pages/${nodeId}${query}`}
-      className="ml-2 flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm text-slate-500 hover:bg-blue-50"
-    >
-      <span
-        className={`flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full text-[10px] ${circleClass}`}
-        title={isCurrent ? '続きはここから' : undefined}
-      >
-        {done ? '✓' : isCurrent ? '●' : '·'}
-      </span>
-      <span className="flex-1 text-slate-700">{title}</span>
-      <span className="flex-shrink-0 text-[10.5px] text-slate-400">{kindLabel}</span>
-    </Link>
-  )
 }

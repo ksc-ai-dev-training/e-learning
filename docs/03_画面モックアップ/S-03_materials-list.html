@@ -16,6 +16,36 @@
     border:1px solid var(--border-strong); border-radius:999px; padding:4px 10px; cursor:pointer;
   }
   .tag-filter-chip:hover { border-color: var(--accent-600); color: var(--accent-600); }
+
+  /* サムネイル付きカードグリッド（2026-09-29、一覧テーブルから刷新） */
+  .material-grid { display:grid; grid-template-columns: repeat(2, 1fr); gap:14px; }
+  @media (min-width:820px)  { .material-grid { grid-template-columns: repeat(3, 1fr); } }
+  @media (min-width:1080px) { .material-grid { grid-template-columns: repeat(4, 1fr); } }
+  @media (min-width:1360px) { .material-grid { grid-template-columns: repeat(5, 1fr); } }
+  .grid-card {
+    display:flex; flex-direction:column; overflow:hidden;
+    border:1px solid var(--border); border-radius: var(--radius-lg);
+    background: var(--bg); box-shadow: var(--shadow-sm);
+  }
+  .grid-thumb {
+    position:relative; aspect-ratio:16/9; display:flex; align-items:center; justify-content:center;
+    color:rgba(255,255,255,0.92); font-size:26px; font-weight:700;
+  }
+  .grid-thumb .thumb-badge { position:absolute; top:6px; left:6px; background:rgba(255,255,255,0.95); border-radius:var(--radius-sm); padding:1px 2px; }
+  .grid-thumb .thumb-check {
+    position:absolute; bottom:6px; right:6px; width:22px; height:22px; border-radius:999px;
+    background:rgba(255,255,255,0.92); color:#16a34a; display:flex; align-items:center; justify-content:center;
+  }
+  .grid-body { display:flex; flex-direction:column; gap:6px; padding:10px; flex:1; }
+  .grid-title { font-size:13px; font-weight:600; color:var(--text); line-height:1.35; }
+  .grid-desc {
+    font-size:11px; color:var(--text-subtle); display:-webkit-box; -webkit-line-clamp:2;
+    -webkit-box-orient:vertical; overflow:hidden;
+  }
+  .grid-chips { display:flex; flex-wrap:wrap; gap:4px; }
+  .grid-meta { font-size:11px; color:var(--text-subtle); }
+  .grid-actions { margin-top:auto; display:flex; flex-direction:column; gap:6px; padding-top:6px; }
+  .grid-actions .btn { width:100%; justify-content:center; }
 </style>
 </head>
 <body>
@@ -34,36 +64,38 @@
     <nav class="sidebar-nav">
       <div class="nav-label">メニュー</div>
       <a class="nav-item" href="S-02_my-learning.html">
-        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h3.5v-6h5v6H18a1 1 0 0 0 1-1V9.5"/></svg></span>
+        <span class="nav-icon nav-icon-blue"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h3.5v-6h5v6H18a1 1 0 0 0 1-1V9.5"/></svg></span>
         マイ学習
       </a>
       <a class="nav-item active" href="S-03_materials-list.html">
-        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></span>
+        <span class="nav-icon nav-icon-blue"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></span>
         教材一覧・検索
       </a>
-      <a class="nav-item" href="S-13_material-edit-project-select.html">
-        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></span>
-        教材編集
-      </a>
-      <a class="nav-item" href="S-20_grading-queue.html">
-        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></span>
-        採点
-      </a>
       <a class="nav-item" href="S-09_my-report.html">
-        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
+        <span class="nav-icon nav-icon-blue"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
         個人学習レポート
       </a>
+      <div class="nav-divider"></div>
+      <a class="nav-item" href="S-13_material-edit-project-select.html">
+        <span class="nav-icon nav-icon-violet"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></span>
+        教材作成・編集
+      </a>
+      <a class="nav-item" href="S-20_grading-queue.html">
+        <span class="nav-icon nav-icon-violet"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></span>
+        採点
+      </a>
+      <a class="nav-item" href="S-06_assignment-settings.html">
+        <span class="nav-icon nav-icon-violet"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></span>
+        配信設定
+      </a>
+      <div class="nav-divider"></div>
       <a class="nav-item" href="S-11_project-create.html">
-        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></span>
+        <span class="nav-icon nav-icon-emerald"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></span>
         プロジェクト作成
       </a>
       <a class="nav-item" href="S-12_project-management.html">
-        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg></span>
+        <span class="nav-icon nav-icon-emerald"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg></span>
         プロジェクト管理
-      </a>
-      <a class="nav-item" href="S-06_assignment-settings.html">
-        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></span>
-        配信設定
       </a>
     </nav>
     <div class="sidebar-user">
@@ -87,9 +119,6 @@
 
   <!-- メインエリア -->
   <div class="main">
-    <div id="context-banner" style="display:none;background:#eff6ff;border-bottom:1px solid #bfdbfe;color:#1e3a8a;font-size:12.5px;padding:8px 20px;">
-      <a href="S-09_my-report.html" style="color:inherit;font-weight:600">← 個人学習レポート</a> から表示しています。「未受講のみ表示」「区分: 必修のみ」で絞り込み、未受講の必修教材のみを表示しています。
-    </div>
     <header class="page-header">
       <div class="page-title-group">
         <h1>教材一覧・検索</h1>
@@ -123,7 +152,7 @@
           <div class="search-grid">
             <div class="field">
               <label for="q">キーワード</label>
-              <input type="search" id="q" placeholder="教材名、見出し名、#タグ">
+              <input type="search" id="q" placeholder="教材名、見出し名">
             </div>
             <div class="field">
               <label>区分</label>
@@ -151,6 +180,7 @@
             <label class="checkbox-line"><input type="checkbox"> 自分が受講対象の教材のみ表示</label>
           </div>
 
+
           <div class="search-actions">
             <button class="btn btn-primary" type="button">
               <span class="btn-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
@@ -162,134 +192,153 @@
       </details>
 
       <div class="table-notes">
-        ※ 一覧には公開済みの教材のみ表示されます。「プロジェクト」は教材の所属・編集権限の単位、「タグ」は教材に自由に付けられる分類（複数付与可）で、独立した軸です。
+        ※ 一覧には公開済みの教材のみ表示されます。「プロジェクト」は教材の所属・編集権限の単位、「タグ」は教材に自由に付けられる分類（複数付与可）で、独立した軸です。未受講の必修教材は更新日順より優先して先頭に並びます。
       </div>
 
-      <!-- 教材テーブル -->
-      <div class="table-wrap">
-        <table class="table">
-          <thead>
-            <tr>
-              <th>教材</th>
-              <th>プロジェクト</th>
-              <th>タグ</th>
-              <th style="width:80px">区分</th>
-              <th style="width:100px">所要時間</th>
-              <th style="width:110px">更新日</th>
-              <th style="width:110px">操作</th>
-            </tr>
-          </thead>
-          <tbody id="materials-tbody">
-            <tr data-required="true" data-status="not_started">
-              <td>
-                <div class="cell-main">AI開発研修 基礎編 — Claude Codeの使い方</div>
-                <div class="cell-sub">全5章・14ページ ／ 単一選択・記述式 全8問</div>
-              </td>
-              <td><span class="chip">新人研修2026運営</span></td>
-              <td><span class="tag-pill">#新人研修2026</span></td>
-              <td><span class="badge badge-required">必修</span></td>
-              <td class="num">約90分</td>
-              <td>2026-08-10</td>
-              <td><a class="btn btn-secondary btn-sm" href="S-04_material-view.html">受講する</a></td>
-            </tr>
-            <tr data-required="true" data-status="not_started">
-              <td>
-                <div class="cell-main">ビジネスマナー研修</div>
-                <div class="cell-sub">全3章・8ページ ／ 単一選択 全6問</div>
-              </td>
-              <td><span class="chip">新人研修2026運営</span></td>
-              <td><span class="tag-pill">#新人研修2026</span></td>
-              <td><span class="badge badge-required">必修</span></td>
-              <td class="num">約40分</td>
-              <td>2026-07-20</td>
-              <td><a class="btn btn-secondary btn-sm" href="S-04_material-view.html">受講する</a></td>
-            </tr>
-            <tr data-required="true" data-status="not_started">
-              <td>
-                <div class="cell-main">情報セキュリティ研修 2026</div>
-                <div class="cell-sub">全4章・11ページ ／ 単一選択・複数選択 全10問</div>
-              </td>
-              <td><span class="chip">情報セキュリティ委員会</span></td>
-              <td><span class="tag-pill">#セキュリティ</span></td>
-              <td><span class="badge badge-required">必修</span></td>
-              <td class="num">約60分</td>
-              <td>2026-08-01</td>
-              <td><a class="btn btn-secondary btn-sm" href="S-04_material-view.html">受講する</a></td>
-            </tr>
-            <tr data-required="true" data-status="completed">
-              <td>
-                <div class="cell-main">ハラスメント防止研修</div>
-                <div class="cell-sub">全2章・5ページ ／ 単一選択 全4問</div>
-              </td>
-              <td><span class="chip">情報セキュリティ委員会</span></td>
-              <td><span class="tag-pill">#セキュリティ</span></td>
-              <td><span class="badge badge-required">必修</span></td>
-              <td class="num">約30分</td>
-              <td>2026-06-15</td>
-              <td><a class="btn btn-ghost btn-sm" href="S-04_material-view.html">復習する</a></td>
-            </tr>
-            <tr data-required="false" data-status="completed">
-              <td>
-                <div class="cell-main">新人向けGit入門</div>
-                <div class="cell-sub">全4章・9ページ ／ 記述式 全5問 ／ 作成: 鈴木 美咲</div>
-              </td>
-              <td><span class="chip">LCC CRM刷新</span></td>
-              <td><span class="tag-pill">#エンジニア基礎</span> <span class="tag-pill">#Git</span></td>
-              <td><span class="badge badge-optional">任意</span></td>
-              <td class="num">約45分</td>
-              <td>2026-08-14</td>
-              <td><a class="btn btn-ghost btn-sm" href="S-04_material-view.html">反復演習</a></td>
-            </tr>
-            <tr data-required="false" data-status="not_started">
-              <td>
-                <div class="cell-main">データベース設計入門</div>
-                <div class="cell-sub">全5章・13ページ ／ 単一選択・記述式 全9問 ／ 作成: 鈴木 美咲</div>
-              </td>
-              <td><span class="chip">LCC CRM刷新</span></td>
-              <td><span class="tag-pill">#エンジニア基礎</span></td>
-              <td><span class="badge badge-optional">任意</span></td>
-              <td class="num">約70分</td>
-              <td>2026-08-12</td>
-              <td><a class="btn btn-secondary btn-sm" href="S-04_material-view.html">受講する</a></td>
-            </tr>
-            <tr data-required="false" data-status="in_progress">
-              <td>
-                <div class="cell-main">TypeScript入門</div>
-                <div class="cell-sub">全6章・17ページ ／ 単一選択・記述式 全12問</div>
-              </td>
-              <td><span class="chip">Manabi新規構築</span></td>
-              <td><span class="tag-pill">#フロントエンド基礎</span></td>
-              <td><span class="badge badge-optional">任意</span></td>
-              <td class="num">約100分</td>
-              <td>2026-08-05</td>
-              <td><a class="btn btn-secondary btn-sm" href="S-04_material-view.html">続きから受講</a></td>
-            </tr>
-            <tr data-required="false" data-status="not_started">
-              <td>
-                <div class="cell-main">React入門</div>
-                <div class="cell-sub">全5章・12ページ ／ 単一選択 全8問</div>
-              </td>
-              <td><span class="chip">Manabi新規構築</span></td>
-              <td><span class="tag-pill">#フロントエンド基礎</span></td>
-              <td><span class="badge badge-optional">任意</span></td>
-              <td class="num">約80分</td>
-              <td>2026-08-05</td>
-              <td><a class="btn btn-secondary btn-sm" href="S-04_material-view.html">受講する</a></td>
-            </tr>
-            <tr data-required="false" data-status="not_started">
-              <td>
-                <div class="cell-main">Python基礎ハンズオン資料</div>
-                <div class="cell-sub">全2章・6ページ ／ 記述式・コード記述式 全5問 ／ 作成: 高橋 大輔</div>
-              </td>
-              <td><span class="chip chip-proj">📌 全社Wiki</span></td>
-              <td><span class="tag-pill">#Python</span></td>
-              <td><span class="badge badge-optional">任意</span></td>
-              <td class="num">約30分</td>
-              <td>2026-08-17</td>
-              <td><a class="btn btn-secondary btn-sm" href="S-04_material-view.html">受講する</a></td>
-            </tr>
-          </tbody>
-        </table>
+      <!-- サムネイル付きカードグリッド（2026-09-29、一覧テーブルから刷新。未設定教材は教材IDから機械生成した色分けプレースホルダーを表示） -->
+      <div class="material-grid" id="materials-grid">
+        <div class="grid-card" data-required="true" data-status="not_started">
+          <div class="grid-thumb" style="background:linear-gradient(135deg,#4338ca,#1e40af)">A
+            <span class="thumb-badge"><span class="badge badge-required">必修</span></span>
+          </div>
+          <div class="grid-body">
+            <div class="grid-title">AI開発研修 基礎編 — Claude Codeの使い方</div>
+            <div class="grid-desc">Claude Codeの基本操作とAI駆動開発の進め方を学びます。</div>
+            <div class="grid-chips"><span class="chip">新人研修2026運営</span> <span class="tag-pill">#新人研修2026</span></div>
+            <div class="grid-meta">全5章・14ページ ／ 単一選択・記述式 全8問</div>
+            <div class="grid-actions">
+              <span class="badge">未受講</span>
+              <a class="btn btn-secondary btn-sm" href="S-04_material-view.html">受講する</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-card" data-required="true" data-status="not_started">
+          <div class="grid-thumb" style="background:linear-gradient(135deg,#0f766e,#0e7490)">ビ
+            <span class="thumb-badge"><span class="badge badge-required">必修</span></span>
+          </div>
+          <div class="grid-body">
+            <div class="grid-title">ビジネスマナー研修</div>
+            <div class="grid-chips"><span class="chip">新人研修2026運営</span> <span class="tag-pill">#新人研修2026</span></div>
+            <div class="grid-meta">全3章・8ページ ／ 単一選択 全6問</div>
+            <div class="grid-actions">
+              <span class="badge">未受講</span>
+              <a class="btn btn-secondary btn-sm" href="S-04_material-view.html">受講する</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-card" data-required="true" data-status="not_started">
+          <div class="grid-thumb" style="background:linear-gradient(135deg,#b91c1c,#9d174d)">情
+            <span class="thumb-badge"><span class="badge badge-required">必修</span></span>
+          </div>
+          <div class="grid-body">
+            <div class="grid-title">情報セキュリティ研修 2026</div>
+            <div class="grid-desc">パスワード管理・標的型メール対策など最新の脅威動向を扱います。</div>
+            <div class="grid-chips"><span class="chip">情報セキュリティ委員会</span> <span class="tag-pill">#セキュリティ</span></div>
+            <div class="grid-meta">全4章・11ページ ／ 単一選択・複数選択 全10問</div>
+            <div class="grid-actions">
+              <span class="badge">未受講</span>
+              <a class="btn btn-secondary btn-sm" href="S-04_material-view.html">受講する</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-card" data-required="true" data-status="completed">
+          <div class="grid-thumb" style="background:linear-gradient(135deg,#c2410c,#a16207)">ハ
+            <span class="thumb-badge"><span class="badge badge-required">必修</span></span>
+            <span class="thumb-check"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+          </div>
+          <div class="grid-body">
+            <div class="grid-title">ハラスメント防止研修</div>
+            <div class="grid-chips"><span class="chip">情報セキュリティ委員会</span> <span class="tag-pill">#セキュリティ</span></div>
+            <div class="grid-meta">全2章・5ページ ／ 単一選択 全4問</div>
+            <div class="grid-actions">
+              <span class="badge badge-complete">受講済み</span>
+              <a class="btn btn-secondary btn-sm" href="S-04_material-view.html">復習する</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-card" data-required="false" data-status="completed">
+          <div class="grid-thumb" style="background:linear-gradient(135deg,#0369a1,#0e7490)">新
+            <span class="thumb-badge"><span class="badge badge-optional">任意</span></span>
+            <span class="thumb-check"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+          </div>
+          <div class="grid-body">
+            <div class="grid-title">新人向けGit入門</div>
+            <div class="grid-chips"><span class="chip">LCC CRM刷新</span> <span class="tag-pill">#エンジニア基礎</span> <span class="tag-pill">#Git</span></div>
+            <div class="grid-meta">全4章・9ページ ／ 記述式 全5問</div>
+            <div class="grid-actions">
+              <span class="badge badge-complete">受講済み</span>
+              <a class="btn btn-secondary btn-sm" href="S-04_material-view.html">復習する</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-card" data-required="false" data-status="not_started">
+          <div class="grid-thumb" style="background:linear-gradient(135deg,#1d4ed8,#3730a3)">デ
+            <span class="thumb-badge"><span class="badge badge-optional">任意</span></span>
+          </div>
+          <div class="grid-body">
+            <div class="grid-title">データベース設計入門</div>
+            <div class="grid-chips"><span class="chip">LCC CRM刷新</span> <span class="tag-pill">#エンジニア基礎</span></div>
+            <div class="grid-meta">全5章・13ページ ／ 単一選択・記述式 全9問</div>
+            <div class="grid-actions">
+              <span class="badge">未受講</span>
+              <a class="btn btn-secondary btn-sm" href="S-04_material-view.html">受講する</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-card" data-required="false" data-status="in_progress">
+          <div class="grid-thumb" style="background:linear-gradient(135deg,#4d7c0f,#3f6212)">T
+            <span class="thumb-badge"><span class="badge badge-optional">任意</span></span>
+          </div>
+          <div class="grid-body">
+            <div class="grid-title">TypeScript入門</div>
+            <div class="grid-chips"><span class="chip">Manabi新規構築</span> <span class="tag-pill">#フロントエンド基礎</span></div>
+            <div class="grid-meta">全6章・17ページ ／ 単一選択・記述式 全12問</div>
+            <div class="grid-actions">
+              <span class="badge">受講中</span>
+              <a class="btn btn-primary btn-sm" href="S-04_material-view.html">続きから受講</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-card" data-required="false" data-status="not_started">
+          <div class="grid-thumb" style="background:linear-gradient(135deg,#7e22ce,#5b21b6)">R
+            <span class="thumb-badge"><span class="badge badge-optional">任意</span></span>
+          </div>
+          <div class="grid-body">
+            <div class="grid-title">React入門</div>
+            <div class="grid-chips"><span class="chip">Manabi新規構築</span> <span class="tag-pill">#フロントエンド基礎</span></div>
+            <div class="grid-meta">全5章・12ページ ／ 単一選択 全8問</div>
+            <div class="grid-actions">
+              <span class="badge">未受講</span>
+              <a class="btn btn-secondary btn-sm" href="S-04_material-view.html">受講する</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-card" data-required="false" data-status="not_started">
+          <div class="grid-thumb" style="background:linear-gradient(135deg,#4338ca,#1e40af)">P
+            <span class="thumb-badge"><span class="badge badge-optional">任意</span></span>
+          </div>
+          <div class="grid-body">
+            <div class="grid-title">Python基礎ハンズオン資料</div>
+            <div class="grid-chips"><span class="chip chip-proj">📌 全社Wiki</span> <span class="tag-pill">#Python</span></div>
+            <div class="grid-meta">全2章・6ページ ／ 記述式・コード記述式 全5問</div>
+            <div class="grid-actions">
+              <button type="button" style="display:inline-flex;align-items:center;justify-content:center;gap:5px;border:1px solid var(--border-strong);border-radius:var(--radius);background:var(--bg);color:var(--text-muted);padding:0 8px;height:26px;font-family:var(--font);font-size:12px;cursor:pointer">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+                マイ学習に追加
+              </button>
+              <span class="badge">未受講</span>
+              <a class="btn btn-secondary btn-sm" href="S-04_material-view.html">受講する</a>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="list-footer">
@@ -312,35 +361,6 @@
 </div>
 
 <div class="mock-note">画面モックアップ（S-03）/ 研修サンプル</div>
-
-<script>
-// 個人学習レポート（S-09）の統計カードから遷移してきた場合、
-// 「未受講のみ表示」「区分: 必修のみ」を適用した状態を静的モックで再現する
-// （実際にはA-14へのクエリパラメータで絞り込む。7章参照）
-function applyIncompleteRequiredFilter() {
-  var active = window.location.hash === '#incomplete-required';
-
-  document.getElementById('context-banner').style.display = active ? 'block' : 'none';
-  document.getElementById('filter-incomplete-only').checked = active;
-  document.getElementById('filter-required').value = active ? '必修のみ' : 'すべて';
-
-  var rows = document.querySelectorAll('#materials-tbody tr');
-  var visibleCount = 0;
-  rows.forEach(function (row) {
-    var matches = !active ||
-      (row.getAttribute('data-required') === 'true' && row.getAttribute('data-status') === 'not_started');
-    row.style.display = matches ? '' : 'none';
-    if (matches) visibleCount++;
-  });
-
-  var totalText = document.getElementById('total-count-text');
-  totalText.innerHTML = active
-    ? '<strong>1 - ' + visibleCount + '</strong> / ' + visibleCount + '件（未受講の必修教材のみ）'
-    : '<strong>1 - ' + rows.length + '</strong> / ' + rows.length + '件';
-}
-applyIncompleteRequiredFilter();
-window.addEventListener('hashchange', applyIncompleteRequiredFilter);
-</script>
 
 <script src="mock-sidebar.js"></script>
 </body>

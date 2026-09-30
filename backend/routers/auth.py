@@ -1,14 +1,16 @@
-# A-01〜A-04, A-62〜A-63 認証系API。
+# A-01〜A-04, A-62〜A-63, A-75〜A-77 認証系API。
 import hmac
 import logging
 import os
 import secrets
+import uuid
 from urllib.parse import urlencode
 
 import google_auth
+import storage
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import RedirectResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 
 from auth_helpers import (
     CLI_TOKEN_EXPIRES_SECONDS,
@@ -111,7 +113,7 @@ async def auth_callback(request: Request, code: str | None = None, state: str | 
     pool = get_pool()
     row = await pool.fetchrow("SELECT id, role, is_active FROM users WHERE lower(email) = lower($1)", email)
     if row is None:
-        # 初回登録: role='member'・is_active=trueで作成し、全社Wikiにeditorとして自動参加させる
+        # 初回登録: role='member'・is_active=trueで作成し、全社ライブラリにeditorとして自動参加させる
         async with pool.acquire() as conn:
             async with conn.transaction():
                 row = await conn.fetchrow(
@@ -165,6 +167,66 @@ async def auth_cli_revoke(user: CurrentUser = Depends(require_auth)):
     return {"detail": "トークンを失効しました"}
 
 
+@router.post("/cli/token")
+async def auth_cli_self_issue(request: Request, user: CurrentUser = Depends(require_auth)):
+    """新規: ログイン中のWebセッションから自分用のCLIトークンを自己発行する（Claude Code連携・
+    MCPサーバ共通の認証に使う）。CLIトークンでさらにCLIトークンを発行させない点はA-63と同じガード。
+    発行と同時に案内画面（初回ログイン時のセルフ発行の案内）を「対応済み」にする。
+    manabi_urlはFRONTEND_URL環境変数ではなく実際にこのAPIへアクセスしたオリジン（request.base_url）
+    から求める。本番は単一オリジン構成（main.py）のため両者は一致するが、ローカル開発では
+    フロントエンド（Vite）とバックエンドのポートが異なり、MCPサーバは常にバックエンド側にある
+    ため、FRONTEND_URLを使うと接続先の案内が誤ったポートになってしまう（2026-09-14、実機確認で発見）。"""
+    if user.token_type == "cli":
+        raise HTTPException(400, detail="通常ログイン中のセッションでのみ実行できます")
+    jti = uuid.uuid4().hex
+    token = issue_jwt(user.id, user.role, token_type="cli", jti=jti, expires_seconds=CLI_TOKEN_EXPIRES_SECONDS)
+    async with get_pool().acquire() as conn:
+        async with conn.transaction():
+            await conn.execute("INSERT INTO cli_tokens (user_id, jti) VALUES ($1, $2)", user.id, jti)
+            await conn.execute("UPDATE users SET cli_key_prompt_seen_at = now() WHERE id = $1", user.id)
+    return {"token": token, "manabi_url": str(request.base_url).rstrip("/")}
+
+
+@router.post("/cli/prompt-dismiss")
+async def auth_cli_prompt_dismiss(user: CurrentUser = Depends(require_auth)):
+    """新規: 初回ログイン時のセルフ発行案内画面で「後で設定する」を選んだ場合に呼ぶ。
+    鍵は発行せず、案内済みの記録だけを残す。"""
+    await get_pool().execute(
+        "UPDATE users SET cli_key_prompt_seen_at = now() WHERE id = $1", user.id,
+    )
+    return {"detail": "後で設定するに変更しました"}
+
+
+@router.get("/cli/tokens")
+async def list_cli_tokens(user: CurrentUser = Depends(require_auth)):
+    """新規: 自分が発行したCLIトークンの一覧（プロフィール画面の鍵管理用）。失効しているかどうかは
+    cli_token_revocations（jtiで突き合わせ）を正として判定し、cli_tokens側に独自の状態は持たない。"""
+    rows = await get_pool().fetch(
+        """SELECT ct.id, ct.created_at, (r.jti IS NOT NULL) AS revoked
+           FROM cli_tokens ct
+           LEFT JOIN cli_token_revocations r ON r.jti = ct.jti
+           WHERE ct.user_id = $1
+           ORDER BY ct.created_at DESC""",
+        user.id,
+    )
+    return {"items": [dict(r) for r in rows]}
+
+
+@router.delete("/cli/tokens/{id}")
+async def revoke_cli_token_by_id(id: int, user: CurrentUser = Depends(require_auth)):
+    """新規: 発行済みの鍵一覧から、対象の鍵そのものを提示せずに個別に失効させる。既存のA-63
+    （/cli/revoke、自分が今使っているトークン自身をBearerとして提示して失効）とは異なり、
+    通常のログインセッションから、過去に発行した任意の鍵を指定して失効できる。"""
+    row = await get_pool().fetchrow("SELECT jti FROM cli_tokens WHERE id = $1 AND user_id = $2", id, user.id)
+    if row is None:
+        raise HTTPException(404, detail="鍵が見つかりません")
+    await get_pool().execute(
+        "INSERT INTO cli_token_revocations (jti, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+        row["jti"], user.id,
+    )
+    return {"detail": "失効しました"}
+
+
 class DevLoginRequest(BaseModel):
     email: str
 
@@ -206,10 +268,110 @@ async def logout(response: Response, user: CurrentUser = Depends(require_auth)):
     return {"detail": "ログアウトしました"}
 
 
+async def _resolve_picture_url(user_id: int, fallback_picture_url: str | None) -> str | None:
+    """S-15プロフィール編集で独自アップロードしたアイコン（users.custom_picture_key）があれば
+    署名付きURLを解決して返す。無ければGoogleプロフィール画像（users.picture_url）のまま返す。
+    毎リクエストではなく/me（A-04）呼び出し時のみ解決する（require_authで毎回呼ぶとSupabase
+    Storageへの署名リクエストが全APIコールに乗ってしまうため、2026-09-08）。"""
+    key = await get_pool().fetchval("SELECT custom_picture_key FROM users WHERE id = $1", user_id)
+    if not key:
+        return fallback_picture_url
+    download_url, _ = await storage.create_download_url(key)
+    return download_url
+
+
 @router.get("/me")
 async def me(user: CurrentUser = Depends(require_auth)):
     # A-04: ログイン中ユーザー情報
+    picture_url = await _resolve_picture_url(user.id, user.picture_url)
     return {
         "id": user.id, "email": user.email, "name": user.name,
-        "role": user.role, "picture_url": user.picture_url,
+        "role": user.role, "picture_url": picture_url,
+        "needs_cli_key_prompt": user.cli_key_prompt_seen_at is None,
     }
+
+
+class ProfileUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+    custom_picture_key: str | None = Field(default=None, min_length=1)
+
+    @field_validator("name")
+    @classmethod
+    def _strip_and_validate_name(cls, v: str | None) -> str | None:
+        # min_length=1はSQLの空白のみの文字列（例:"   "）を弾けないため、trim後に再検証する
+        # （フロントエンドはtrim済みの値を送るが、API直叩き対策として2026-09-08追加）。
+        if v is None:
+            return v
+        stripped = v.strip()
+        if not stripped:
+            raise ValueError("表示名は空白のみにはできません")
+        return stripped
+
+
+@router.put("/me")
+async def update_me(body: ProfileUpdate, user: CurrentUser = Depends(require_auth)):
+    """A-75: 表示名の変更、およびA-76でアップロード済みのアイコンの確定（S-15）。
+    custom_picture_keyを新しい値に差し替える場合、古いアップロード実体をストレージから削除する
+    （A-27〜A-29と同型のアップロード方式で、確定APIが実体の後始末まで行う設計は本APIが初出のため
+    ここで方針を決めた。孤立ファイルの蓄積を防ぐ）。"""
+    if body.name is None and body.custom_picture_key is None:
+        picture_url = await _resolve_picture_url(user.id, user.picture_url)
+        return {"id": user.id, "email": user.email, "name": user.name, "role": user.role, "picture_url": picture_url}
+
+    pool = get_pool()
+    old_key = None
+    if body.custom_picture_key is not None:
+        old_key = await pool.fetchval("SELECT custom_picture_key FROM users WHERE id = $1", user.id)
+
+    row = await pool.fetchrow(
+        """UPDATE users SET name = COALESCE($1, name), custom_picture_key = COALESCE($2, custom_picture_key),
+               updated_at = now()
+           WHERE id = $3
+           RETURNING id, email, name, role, picture_url""",
+        body.name, body.custom_picture_key, user.id,
+    )
+    if old_key and old_key != body.custom_picture_key:
+        await storage.delete_object(old_key)
+
+    picture_url = await _resolve_picture_url(user.id, row["picture_url"])
+    return {
+        "id": row["id"], "email": row["email"], "name": row["name"],
+        "role": row["role"], "picture_url": picture_url,
+    }
+
+
+class IconUploadRequest(BaseModel):
+    filename: str = Field(min_length=1)
+    mime_type: str
+    size_bytes: int
+
+
+@router.post("/me/icon/upload-url")
+async def request_icon_upload_url(body: IconUploadRequest, user: CurrentUser = Depends(require_auth)):
+    """A-76: アイコン画像アップロード用の署名付きURLを発行する（A-27と同じ方式）。
+    PNG/JPEGのみ、MAX_ICON_SIZE_MB（既定2MB）まで（詳細設計書4.14a節）。"""
+    if body.mime_type not in ("image/png", "image/jpeg"):
+        raise HTTPException(422, detail="PNG またはJPEG画像のみアップロードできます")
+    max_mb = int(os.environ.get("MAX_ICON_SIZE_MB", "2"))
+    if body.size_bytes > max_mb * 1024 * 1024:
+        raise HTTPException(413, detail=f"アイコン画像は{max_mb}MB以内にしてください")
+    storage_key, upload_url = await storage.create_upload_target(
+        prefix=f"users/{user.id}/icon", filename=body.filename, mime_type=body.mime_type,
+    )
+    return {"upload_url": upload_url, "storage_key": storage_key}
+
+
+@router.delete("/me/icon")
+async def reset_icon(user: CurrentUser = Depends(require_auth)):
+    """A-77: 独自アイコンを削除しGoogleプロフィール画像に戻す（custom_picture_keyをNULLに更新）。"""
+    pool = get_pool()
+    old_key = await pool.fetchval("SELECT custom_picture_key FROM users WHERE id = $1", user.id)
+    row = await pool.fetchrow(
+        """UPDATE users SET custom_picture_key = NULL, updated_at = now()
+           WHERE id = $1
+           RETURNING id, email, name, role, picture_url""",
+        user.id,
+    )
+    if old_key:
+        await storage.delete_object(old_key)
+    return dict(row)

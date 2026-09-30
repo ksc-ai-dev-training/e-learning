@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link, useNavigate } from 'react-router'
 import PageHeader from '../components/layout/PageHeader'
 import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
@@ -10,29 +11,13 @@ import { useSettings } from '../hooks/useSettings'
 import { useUsers } from '../hooks/useUsers'
 import { formatDateJst } from '../lib/datetime'
 import { ApiError } from '../lib/api'
-import { resetSettings, sendSlackTest, updateSettings } from '../lib/settingsActions'
+import { resetSettings, updateSettings } from '../lib/settingsActions'
 import { updateUser } from '../lib/userActions'
-import type { AiModel, AiUsageByFeature, Role } from '../types'
-
-const AI_MODEL_OPTIONS: { value: AiModel; label: string }[] = [
-  { value: 'claude-sonnet-5', label: 'Claude Sonnet 5（既定）' },
-  { value: 'claude-opus-5', label: 'Claude Opus 5（高精度・低速）' },
-  { value: 'claude-haiku-4-5', label: 'Claude Haiku 4.5（高速・低コスト）' },
-]
-
-function isValidHttpUrl(value: string): boolean {
-  try {
-    const url = new URL(value)
-    return url.protocol === 'http:' || url.protocol === 'https:'
-  } catch {
-    return false
-  }
-}
+import type { AiUsageByFeature, Role } from '../types'
 
 const AI_FEATURE_LABELS: Record<AiUsageByFeature['feature'], string> = {
   material_review: '教材AIレビュー（F-08）',
   grading: 'AI記述式採点（F-20）',
-  insight_analysis: 'AIつまずき分析（F-21）',
   personal_feedback: 'AI個人フィードバック（F-22）',
   org_report: 'AI組織レポート（F-23）',
 }
@@ -49,14 +34,15 @@ const TABS = [
 type TabKey = (typeof TABS)[number]['key']
 
 // S-10 管理（詳細設計書4.12節）。adminのみアクセス可能。
-// 「ユーザー管理」タブ（A-53/A-54）を実装済み。「システム設定」タブ（AI利用状況・Slack通知・
-// 猶予期間、A-55〜A-58）は次回以降に対応する準備中の案内のみとする。
+// 「ユーザー管理」タブ（A-53/A-54）・「システム設定」タブ（AI利用状況・Slack通知案内・
+// 猶予期間、A-55〜A-58）とも実装済み（2026-09-28、実装済みになって以降ずっと「準備中」の
+// ままだった古いコメントを訂正）。
 export default function AdminSettings() {
   const { me, isLoading: meLoading } = useMe()
   const [activeTab, setActiveTab] = useState<TabKey>('users')
 
   if (meLoading) {
-    return <div className="p-8 text-sm text-slate-400">読み込み中...</div>
+    return <div className="p-8 text-sm text-slate-400 dark:text-neutral-500">読み込み中...</div>
   }
 
   if (!me || me.role !== 'admin') {
@@ -64,7 +50,7 @@ export default function AdminSettings() {
       <div className="flex flex-1 flex-col">
         <PageHeader title="管理" />
         <div className="px-8 py-6">
-          <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200">
             この画面はシステム管理者のみ利用できます。
           </p>
         </div>
@@ -76,7 +62,7 @@ export default function AdminSettings() {
     <div className="flex flex-1 flex-col">
       <PageHeader title="管理" />
       <div className="px-8 py-6">
-        <div className="mb-5 flex gap-1 border-b border-slate-200" role="tablist">
+        <div className="mb-5 flex gap-1 overflow-x-auto border-b border-slate-200 dark:border-neutral-800" role="tablist">
           {TABS.map((tab) => (
             <button
               key={tab.key}
@@ -84,10 +70,10 @@ export default function AdminSettings() {
               role="tab"
               aria-selected={activeTab === tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`-mb-px border-b-2 px-3 py-2 text-sm font-semibold ${
+              className={`-mb-px flex-shrink-0 whitespace-nowrap border-b-2 px-3 py-2 text-sm font-semibold ${
                 activeTab === tab.key
-                  ? 'border-blue-800 text-blue-900'
-                  : 'border-transparent text-slate-500 hover:text-slate-800'
+                  ? 'border-blue-800 text-blue-900 dark:border-blue-500 dark:text-blue-300'
+                  : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-neutral-400 dark:hover:text-neutral-100'
               }`}
             >
               {tab.label}
@@ -103,17 +89,56 @@ export default function AdminSettings() {
 }
 
 function UsersTab({ myUserId }: { myUserId: number }) {
+  const navigate = useNavigate()
+  const { mutate: mutateMe } = useMe()
   const [query, setQuery] = useState('')
   const { users, isLoading, mutate } = useUsers(query)
   const [rowError, setRowError] = useState<string | null>(null)
+  // ロール変更は誤操作防止のため自動保存にせず、選択した値をここに保持しておき「保存」を
+  // 押すまで反映しない（2026-09-16、ユーザー要望）。保存中は行ごとにボタンを無効化する。
+  const [pendingRoles, setPendingRoles] = useState<Record<number, Role>>({})
+  const [savingIds, setSavingIds] = useState<Set<number>>(new Set())
 
-  const handleRoleChange = async (userId: number, role: Role) => {
+  const selectPendingRole = (userId: number, role: Role) => {
+    setPendingRoles((prev) => ({ ...prev, [userId]: role }))
+  }
+  const cancelPendingRole = (userId: number) => {
+    setPendingRoles((prev) => {
+      const next = { ...prev }
+      delete next[userId]
+      return next
+    })
+  }
+
+  const saveRole = async (userId: number) => {
+    const role = pendingRoles[userId]
+    if (role === undefined) return
     setRowError(null)
+    setSavingIds((prev) => new Set(prev).add(userId))
     try {
       await updateUser(userId, { role })
+      cancelPendingRole(userId)
+      // 自分自身をsystem管理者から降格した場合、この一覧自体がsystem管理者専用（GET /api/users
+      // はrole='admin'を要求）のため、通常どおりmutate()で再取得すると403になり、画面には
+      // 保存前の古い状態が残り続けてしまう（保存自体は成功しているのに反映されて見えない）。
+      // useMe()を更新してこの画面から退出させることで対処する（2026-09-16、自己降格を許可した
+      // ことで新たに発生する状態のため、実機確認で発見）。navigate()を先に呼び、この画面が
+      // アンマウントされた後にmutateMe()するようにする（逆順だと、useMe()の更新がこの画面の
+      // 「システム管理者のみ利用できます」ガードに一瞬引っかかってから遷移する可能性がある）。
+      if (userId === myUserId && role !== 'admin') {
+        navigate('/')
+        await mutateMe()
+        return
+      }
       await mutate()
     } catch (e) {
       setRowError(e instanceof ApiError ? e.message : 'ロールの変更に失敗しました')
+    } finally {
+      setSavingIds((prev) => {
+        const next = new Set(prev)
+        next.delete(userId)
+        return next
+      })
     }
   }
 
@@ -129,8 +154,8 @@ function UsersTab({ myUserId }: { myUserId: number }) {
 
   return (
     <div>
-      <p className="mb-4 text-xs text-slate-500">
-        全社員のロール（一般/システム管理者）と有効/無効を管理します。自分自身の降格・無効化はできません。システム管理者が最後の1人になる変更もできません。
+      <p className="mb-4 text-xs text-slate-500 dark:text-neutral-400">
+        全社員のロール（一般/システム管理者）と有効/無効を管理します。ロールは選択後「保存」を押すまで反映されません。自分自身の降格も、他に有効なシステム管理者が1人以上いれば行えます（自分自身の無効化はできません）。システム管理者が不在になる変更はできません。
       </p>
 
       <div className="mb-3 max-w-xs">
@@ -141,19 +166,20 @@ function UsersTab({ myUserId }: { myUserId: number }) {
         />
       </div>
 
-      {rowError && <p className="mb-3 text-sm text-red-600">{rowError}</p>}
+      {rowError && <p className="mb-3 text-sm text-red-600 dark:text-red-400">{rowError}</p>}
 
       {isLoading ? (
-        <p className="text-sm text-slate-400">読み込み中...</p>
+        <p className="text-sm text-slate-400 dark:text-neutral-500">読み込み中...</p>
       ) : (
-        <div className="overflow-x-auto rounded-md border border-slate-200">
-          <table className="w-full text-sm">
+        <div className="overflow-x-auto rounded-md border border-slate-200 dark:border-neutral-800">
+          <table className="w-full text-sm max-sm:whitespace-nowrap">
             <thead>
-              <tr className="border-b border-slate-100 bg-slate-50 text-left text-xs text-slate-500">
+              <tr className="border-b border-slate-100 bg-slate-50 text-left text-xs text-slate-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300">
                 <th className="px-3 py-2 font-normal">氏名</th>
                 <th className="px-3 py-2 font-normal">メールアドレス</th>
                 <th className="px-3 py-2 font-normal">ロール</th>
                 <th className="px-3 py-2 font-normal">状態</th>
+                <th className="px-3 py-2 font-normal">管理者になっているプロジェクト</th>
                 <th className="px-3 py-2 font-normal">登録日</th>
                 <th className="px-3 py-2 font-normal">操作</th>
               </tr>
@@ -161,7 +187,7 @@ function UsersTab({ myUserId }: { myUserId: number }) {
             <tbody>
               {users.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-3 py-4 text-center text-sm text-slate-400">
+                  <td colSpan={7} className="px-3 py-4 text-center text-sm text-slate-400 dark:text-neutral-500">
                     該当するユーザーがいません。
                   </td>
                 </tr>
@@ -169,36 +195,81 @@ function UsersTab({ myUserId }: { myUserId: number }) {
                 users.map((u) => {
                   const isSelf = u.id === myUserId
                   return (
-                    <tr key={u.id} className="border-b border-slate-50 last:border-0">
-                      <td className="px-3 py-2 text-slate-800">
+                    <tr key={u.id} className="border-b border-slate-50 last:border-0 dark:border-neutral-800">
+                      <td className="px-3 py-2 text-slate-800 dark:text-neutral-100">
                         {u.name}
-                        {isSelf && <span className="ml-1 text-xs text-slate-400">（あなた）</span>}
+                        {isSelf && <span className="ml-1 text-xs text-slate-400 dark:text-neutral-500">（あなた）</span>}
                       </td>
-                      <td className="px-3 py-2 text-slate-500">{u.email}</td>
+                      <td className="px-3 py-2 text-slate-500 dark:text-neutral-300">{u.email}</td>
                       <td className="px-3 py-2">
                         <Select
-                          value={u.role}
-                          disabled={isSelf}
-                          onChange={(v) => handleRoleChange(u.id, v as Role)}
+                          value={pendingRoles[u.id] ?? u.role}
+                          disabled={savingIds.has(u.id)}
+                          onChange={(v) => selectPendingRole(u.id, v as Role)}
                           options={[
                             { value: 'member', label: '一般' },
                             { value: 'admin', label: 'システム管理者' },
                           ]}
                         />
+                        {pendingRoles[u.id] !== undefined && pendingRoles[u.id] !== u.role && (
+                          <div className="mt-1 flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => saveRole(u.id)}
+                              disabled={savingIds.has(u.id)}
+                              className="text-xs font-semibold text-blue-700 hover:underline disabled:cursor-not-allowed disabled:text-slate-400 dark:text-blue-300 dark:disabled:text-neutral-500"
+                            >
+                              {savingIds.has(u.id) ? '保存中...' : '保存'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => cancelPendingRole(u.id)}
+                              disabled={savingIds.has(u.id)}
+                              className="text-xs text-slate-400 hover:underline dark:text-neutral-500"
+                            >
+                              取消
+                            </button>
+                          </div>
+                        )}
                       </td>
                       <td className="px-3 py-2">
                         <Badge variant={u.is_active ? 'user-active' : 'user-inactive'} />
                       </td>
-                      <td className="px-3 py-2 text-slate-500">{formatDateJst(u.created_at)}</td>
+                      <td className="px-3 py-2">
+                        {/* デプロイ直後など、この列が無い旧レスポンスがまだ残っている一瞬でも
+                            落ちないようnull合体で防御する（2026-09-09、ローカル動作確認中に
+                            バックエンド再起動前のキャッシュで実際に発生したクラッシュを踏まえて追加） */}
+                        {(u.admin_projects ?? []).length === 0 ? (
+                          <span className="text-xs text-slate-300 dark:text-neutral-600">—</span>
+                        ) : (
+                          <div className="flex flex-wrap items-center gap-1">
+                            {(u.admin_projects ?? []).slice(0, 3).map((p) => (
+                              <Link
+                                key={p.id}
+                                to={`/projects/${p.id}/manage`}
+                                className="rounded border border-indigo-200 bg-indigo-50 px-1.5 py-0.5 text-[11px] font-semibold text-indigo-700 hover:underline dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-300"
+                              >
+                                {p.name}
+                              </Link>
+                            ))}
+                            {(u.admin_projects ?? []).length > 3 && (
+                              <span className="text-[11px] text-slate-400 dark:text-neutral-500">
+                                他{(u.admin_projects ?? []).length - 3}件
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-slate-500 dark:text-neutral-300">{formatDateJst(u.created_at)}</td>
                       <td className="px-3 py-2">
                         {isSelf ? (
-                          <span className="text-xs text-slate-400">—</span>
+                          <span className="text-xs text-slate-400 dark:text-neutral-500">—</span>
                         ) : (
                           <button
                             type="button"
                             onClick={() => handleToggleActive(u.id, !u.is_active)}
                             className={`text-xs font-semibold hover:underline ${
-                              u.is_active ? 'text-red-700' : 'text-blue-700'
+                              u.is_active ? 'text-red-700 dark:text-red-300' : 'text-blue-700 dark:text-blue-300'
                             }`}
                           >
                             {u.is_active ? '無効化' : '有効化'}
@@ -220,46 +291,23 @@ function UsersTab({ myUserId }: { myUserId: number }) {
 function SystemSettingsTab() {
   const [month, setMonth] = useState(currentYearMonth())
   const { usage, isLoading, error } = useAiUsage(month)
-  const { settings, isLoading: settingsLoading, mutate: mutateSettings } = useSettings()
+  const { settings, mutate: mutateSettings } = useSettings()
 
-  const [form, setForm] = useState({ slack_webhook_url: '', slack_channel: '', project_leave_grace_period_days: 30 })
+  const [form, setForm] = useState({ project_leave_grace_period_days: 30 })
   useEffect(() => {
     if (settings) {
       setForm({
-        slack_webhook_url: settings.slack_webhook_url,
-        slack_channel: settings.slack_channel,
         project_leave_grace_period_days: settings.project_leave_grace_period_days,
       })
     }
   }, [settings])
 
-  const [modelSaving, setModelSaving] = useState(false)
-  const [modelError, setModelError] = useState<string | null>(null)
-  const handleModelChange = async (value: string) => {
-    setModelError(null)
-    setModelSaving(true)
-    try {
-      await updateSettings({ ai_model: value as AiModel })
-      await mutateSettings()
-    } catch (e) {
-      setModelError(e instanceof ApiError ? e.message : 'AIモデルの保存に失敗しました')
-    } finally {
-      setModelSaving(false)
-    }
-  }
-
-  const [urlError, setUrlError] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [saveMessage, setSaveMessage] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const handleSave = async () => {
     setSaveError(null)
     setSaveMessage(null)
-    setUrlError(null)
-    if (form.slack_webhook_url && !isValidHttpUrl(form.slack_webhook_url)) {
-      setUrlError('Webhook URLの形式が正しくありません')
-      return
-    }
     setSaving(true)
     try {
       await updateSettings(form)
@@ -269,23 +317,6 @@ function SystemSettingsTab() {
       setSaveError(e instanceof ApiError ? e.message : '設定の保存に失敗しました')
     } finally {
       setSaving(false)
-    }
-  }
-
-  const [testSending, setTestSending] = useState(false)
-  const [testMessage, setTestMessage] = useState<string | null>(null)
-  const [testError, setTestError] = useState<string | null>(null)
-  const handleSlackTest = async () => {
-    setTestMessage(null)
-    setTestError(null)
-    setTestSending(true)
-    try {
-      const res = await sendSlackTest()
-      setTestMessage(res.detail)
-    } catch (e) {
-      setTestError(e instanceof ApiError ? e.message : 'テスト送信に失敗しました')
-    } finally {
-      setTestSending(false)
     }
   }
 
@@ -308,25 +339,42 @@ function SystemSettingsTab() {
 
   return (
     <div>
-      <h3 className="mb-2 text-sm font-semibold text-slate-700">AI利用設定</h3>
-      <div className="mb-6 max-w-2xl rounded-md border border-slate-200 p-4">
-        <label className="mb-1 block text-xs font-semibold text-slate-600">利用するAIモデル（既定）</label>
-        <Select
-          value={settings?.ai_model ?? 'claude-sonnet-5'}
-          onChange={handleModelChange}
-          disabled={settingsLoading || modelSaving}
-          options={AI_MODEL_OPTIONS}
-          className="max-w-xs"
-        />
-        <p className="mt-2 text-xs text-slate-500">
-          F-08・F-20〜F-23の全AI機能で共通の設定です（機能ごとに個別のモデルを割り当てる機能はありません）。選択すると即座に保存されます。
+      <h3 className="mb-2 text-sm font-semibold text-slate-700 dark:text-neutral-200">AI利用設定</h3>
+      <div className="mb-6 max-w-2xl rounded-md border border-slate-200 p-4 dark:border-neutral-800">
+        <label className="mb-1 block text-xs font-semibold text-slate-600 dark:text-neutral-300">機能別の使用モデル</label>
+        {settings ? (
+          <div className="overflow-x-auto rounded-md border border-slate-200 dark:border-neutral-800">
+            <table className="w-full text-sm max-sm:whitespace-nowrap">
+              <thead>
+                <tr className="border-b border-slate-100 bg-slate-50 text-left text-xs text-slate-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300">
+                  <th className="px-3 py-2 font-normal">機能</th>
+                  <th className="px-3 py-2 font-normal">使用モデル</th>
+                  <th className="px-3 py-2 font-normal">reasoning effort</th>
+                </tr>
+              </thead>
+              <tbody>
+                {settings.ai_models.map((m) => (
+                  <tr key={m.feature} className="border-b border-slate-50 last:border-0 dark:border-neutral-800">
+                    <td className="px-3 py-2 text-slate-800 dark:text-neutral-100">{AI_FEATURE_LABELS[m.feature]}</td>
+                    <td className="px-3 py-2 text-slate-700 dark:text-neutral-200">{m.model}</td>
+                    <td className="px-3 py-2 text-slate-500 dark:text-neutral-300">{m.reasoning_effort ?? '（既定）'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="text-sm text-slate-400 dark:text-neutral-500">読み込み中...</p>
+        )}
+        <p className="mt-2 text-xs text-slate-500 dark:text-neutral-400">
+          機能ごとに固定しており、変更はできません。AI採点（F-20）は学習者の合否に直結するため正確性を優先してgpt-4o-miniを、それ以外の要約・所見系の機能はコスト最優先でgpt-5-nano（reasoning
+          effortを絞って安定化）を使用しています。
         </p>
-        {modelError && <p className="mt-2 text-sm text-red-600">{modelError}</p>}
       </div>
 
-      <h3 className="mb-2 text-sm font-semibold text-slate-700">今月のAI利用状況</h3>
-      <p className="mb-4 text-xs text-slate-500">
-        機能別（F-08教材AIレビュー・F-20 AI記述式採点・F-21〜F-23）の呼び出し件数・トークン数・概算コストの内訳です。教材の作成・修正（F-05、Claude Code CLI連携）は利用者本人の契約で課金されるため、この集計には含まれません。
+      <h3 className="mb-2 text-sm font-semibold text-slate-700 dark:text-neutral-200">今月のAI利用状況</h3>
+      <p className="mb-4 text-xs text-slate-500 dark:text-neutral-400">
+        機能別（F-08教材AIレビュー・F-20 AI記述式採点・F-22〜F-23）の呼び出し件数・トークン数・概算コストの内訳です。教材の作成・修正（F-05、Claude Code CLI連携）は利用者本人の契約で課金されるため、この集計には含まれません。
       </p>
 
       <div className="mb-4 max-w-[160px]">
@@ -334,37 +382,37 @@ function SystemSettingsTab() {
       </div>
 
       {isLoading ? (
-        <p className="text-sm text-slate-400">読み込み中...</p>
+        <p className="text-sm text-slate-400 dark:text-neutral-500">読み込み中...</p>
       ) : error ? (
-        <p className="text-sm text-red-600">取得に失敗しました。</p>
+        <p className="text-sm text-red-600 dark:text-red-400">取得に失敗しました。</p>
       ) : usage ? (
         <>
           <div className="mb-4 grid max-w-2xl grid-cols-4 gap-3">
-            <div className="rounded-md border border-slate-200 p-3">
-              <div className="text-xs text-slate-500">呼び出し件数</div>
-              <div className="text-lg font-semibold text-slate-800">{usage.total.count.toLocaleString()}</div>
+            <div className="rounded-md border border-slate-200 p-3 dark:border-neutral-800">
+              <div className="text-xs text-slate-500 dark:text-neutral-400">呼び出し件数</div>
+              <div className="text-lg font-semibold text-slate-800 dark:text-neutral-100">{usage.total.count.toLocaleString()}</div>
             </div>
-            <div className="rounded-md border border-slate-200 p-3">
-              <div className="text-xs text-slate-500">入力トークン</div>
-              <div className="text-lg font-semibold text-slate-800">{usage.total.input_tokens.toLocaleString()}</div>
+            <div className="rounded-md border border-slate-200 p-3 dark:border-neutral-800">
+              <div className="text-xs text-slate-500 dark:text-neutral-400">入力トークン</div>
+              <div className="text-lg font-semibold text-slate-800 dark:text-neutral-100">{usage.total.input_tokens.toLocaleString()}</div>
             </div>
-            <div className="rounded-md border border-slate-200 p-3">
-              <div className="text-xs text-slate-500">出力トークン</div>
-              <div className="text-lg font-semibold text-slate-800">{usage.total.output_tokens.toLocaleString()}</div>
+            <div className="rounded-md border border-slate-200 p-3 dark:border-neutral-800">
+              <div className="text-xs text-slate-500 dark:text-neutral-400">出力トークン</div>
+              <div className="text-lg font-semibold text-slate-800 dark:text-neutral-100">{usage.total.output_tokens.toLocaleString()}</div>
             </div>
-            <div className="rounded-md border border-slate-200 p-3">
-              <div className="text-xs text-slate-500">概算コスト</div>
-              <div className="text-lg font-semibold text-slate-800">¥{Math.round(usage.total.cost_jpy).toLocaleString()}</div>
+            <div className="rounded-md border border-slate-200 p-3 dark:border-neutral-800">
+              <div className="text-xs text-slate-500 dark:text-neutral-400">概算コスト</div>
+              <div className="text-lg font-semibold text-slate-800 dark:text-neutral-100">¥{Math.round(usage.total.cost_jpy).toLocaleString()}</div>
             </div>
           </div>
 
           {usage.by_feature.length === 0 ? (
-            <p className="text-sm text-slate-400">この月のAI利用実績はありません。</p>
+            <p className="text-sm text-slate-400 dark:text-neutral-500">この月のAI利用実績はありません。</p>
           ) : (
-            <div className="max-w-2xl overflow-x-auto rounded-md border border-slate-200">
-              <table className="w-full text-sm">
+            <div className="max-w-2xl overflow-x-auto rounded-md border border-slate-200 dark:border-neutral-800">
+              <table className="w-full text-sm max-sm:whitespace-nowrap">
                 <thead>
-                  <tr className="border-b border-slate-100 bg-slate-50 text-left text-xs text-slate-500">
+                  <tr className="border-b border-slate-100 bg-slate-50 text-left text-xs text-slate-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300">
                     <th className="px-3 py-2 font-normal">機能</th>
                     <th className="px-3 py-2 font-normal text-right">呼び出し件数</th>
                     <th className="px-3 py-2 font-normal text-right">入力トークン</th>
@@ -374,12 +422,12 @@ function SystemSettingsTab() {
                 </thead>
                 <tbody>
                   {usage.by_feature.map((f) => (
-                    <tr key={f.feature} className="border-b border-slate-50 last:border-0">
-                      <td className="px-3 py-2 text-slate-800">{AI_FEATURE_LABELS[f.feature] ?? f.feature}</td>
-                      <td className="px-3 py-2 text-right text-slate-600">{f.count.toLocaleString()}</td>
-                      <td className="px-3 py-2 text-right text-slate-600">{f.input_tokens.toLocaleString()}</td>
-                      <td className="px-3 py-2 text-right text-slate-600">{f.output_tokens.toLocaleString()}</td>
-                      <td className="px-3 py-2 text-right text-slate-600">¥{Math.round(f.cost_jpy).toLocaleString()}</td>
+                    <tr key={f.feature} className="border-b border-slate-50 last:border-0 dark:border-neutral-800">
+                      <td className="px-3 py-2 text-slate-800 dark:text-neutral-100">{AI_FEATURE_LABELS[f.feature] ?? f.feature}</td>
+                      <td className="px-3 py-2 text-right text-slate-600 dark:text-neutral-300">{f.count.toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right text-slate-600 dark:text-neutral-300">{f.input_tokens.toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right text-slate-600 dark:text-neutral-300">{f.output_tokens.toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right text-slate-600 dark:text-neutral-300">¥{Math.round(f.cost_jpy).toLocaleString()}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -389,46 +437,13 @@ function SystemSettingsTab() {
         </>
       ) : null}
 
-      <h3 className="mb-2 mt-6 text-sm font-semibold text-slate-700">Slack通知設定</h3>
-      <div className="mb-6 max-w-2xl rounded-md border border-slate-200 p-4">
-        <div className="mb-3">
-          <label className="mb-1 block text-xs font-semibold text-slate-600">Webhook URL</label>
-          <TextInput
-            type="url"
-            className="w-full max-w-md"
-            placeholder="https://hooks.slack.com/services/..."
-            value={form.slack_webhook_url}
-            onChange={(e) => setForm((f) => ({ ...f, slack_webhook_url: e.target.value }))}
-          />
-          {urlError && <p className="mt-1 text-sm text-red-600">{urlError}</p>}
-        </div>
-        <div>
-          <label className="mb-1 block text-xs font-semibold text-slate-600">通知先チャンネル</label>
-          <TextInput
-            type="text"
-            className="max-w-[220px]"
-            placeholder="#elearning-通知"
-            value={form.slack_channel}
-            onChange={(e) => setForm((f) => ({ ...f, slack_channel: e.target.value }))}
-          />
-          <div className="mt-3">
-            <Button
-              type="button"
-              variant="secondary"
-              disabled={testSending || !form.slack_webhook_url}
-              onClick={handleSlackTest}
-            >
-              {testSending ? '送信中...' : 'テスト送信'}
-            </Button>
-            {testMessage && <span className="ml-3 text-sm text-green-700">{testMessage}</span>}
-            {testError && <span className="ml-3 text-sm text-red-600">{testError}</span>}
-          </div>
-        </div>
-      </div>
+      <p className="mb-6 max-w-2xl rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400">
+        Slack通知（F-12）は、プロジェクト単位のIncoming Webhook方式（プロジェクト管理者がS-12「プロジェクト管理」から設定）に変更されました。システム設定としてのWebhook URL設定はありません。
+      </p>
 
-      <h3 className="mb-2 text-sm font-semibold text-slate-700">プロジェクト所属の猶予期間</h3>
-      <div className="mb-6 max-w-2xl rounded-md border border-slate-200 p-4">
-        <label className="mb-1 block text-xs font-semibold text-slate-600">離任後の閲覧アクセス継続日数</label>
+      <h3 className="mb-2 text-sm font-semibold text-slate-700 dark:text-neutral-200">プロジェクト所属の猶予期間</h3>
+      <div className="mb-6 max-w-2xl rounded-md border border-slate-200 p-4 dark:border-neutral-800">
+        <label className="mb-1 block text-xs font-semibold text-slate-600 dark:text-neutral-300">離任後の閲覧アクセス継続日数</label>
         <div className="flex items-center gap-2">
           <TextInput
             type="number"
@@ -441,9 +456,9 @@ function SystemSettingsTab() {
               setForm((f) => ({ ...f, project_leave_grace_period_days: Number(e.target.value) }))
             }
           />
-          <span className="text-xs text-slate-500">日</span>
+          <span className="text-xs text-slate-500 dark:text-neutral-400">日</span>
         </div>
-        <p className="mt-2 text-xs text-slate-500">
+        <p className="mt-2 text-xs text-slate-500 dark:text-neutral-400">
           プロジェクト管理者がメンバーを削除した場合も、この日数の間は旧プロジェクトの教材を閲覧できます。
         </p>
       </div>
@@ -455,8 +470,8 @@ function SystemSettingsTab() {
         <Button type="button" variant="secondary" disabled={resetting} onClick={handleReset}>
           {resetting ? '初期化中...' : '初期状態に戻す'}
         </Button>
-        {saveMessage && <span className="text-sm text-green-700">{saveMessage}</span>}
-        {saveError && <span className="text-sm text-red-600">{saveError}</span>}
+        {saveMessage && <span className="text-sm text-green-700 dark:text-green-400">{saveMessage}</span>}
+        {saveError && <span className="text-sm text-red-600 dark:text-red-400">{saveError}</span>}
       </div>
     </div>
   )

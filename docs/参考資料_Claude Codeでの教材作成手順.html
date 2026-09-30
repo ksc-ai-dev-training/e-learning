@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>参考資料: Claude Codeでの教材作成手順 | 社内学習管理システム（Manabi）</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<script src="_sidenav.js"></script>
+<div class="doc">
+
+  <div class="cover">
+    <span class="doc-type">参考資料</span>
+    <h1>Claude Codeでの教材作成手順</h1>
+    <p class="subtitle">社内学習管理システム（Manabi）— Claude Code CLI連携（F-05）を使った教材の新規作成・編集手順</p>
+    <div class="meta">
+      <span>作成日: 2026-09-11</span>
+      <span>版数: 1.1</span>
+      <span>作成: コガソフトウェア株式会社</span>
+    </div>
+    <p class="note">
+      本ドキュメントは新人社員向けAI開発研修のサンプル成果物です。
+      Manabi画面を一切開かずに、Claude Codeへの指示だけで教材（章・ページ・設問）を作成・編集する方法をまとめる。
+      2026-09-14からはMCP（Model Context Protocol）連携が使えるようになり、SKILL.mdファイルの配布や
+      CLIトークンの手動発行（<code>manabi_login.py</code>実行）が不要になったため、本書はMCP連携のみを
+      手順として説明する（各自の端末にファイルを保存・配布してもらう方式は、この移行に伴い廃止した）。
+    </p>
+  </div>
+
+  <h2 id="history">改訂履歴</h2>
+  <table>
+    <thead><tr><th>版数</th><th>日付</th><th>改訂内容</th></tr></thead>
+    <tbody>
+      <tr><td>1.0</td><td>2026-09-11</td><td>初版。</td></tr>
+      <tr><td>1.1</td><td>2026-09-14</td><td>MCPサーバー（<code>backend/mcp_server.py</code>）を新設したことに伴い、
+        2章（事前準備）をMCP連携によるセルフサービスの鍵発行・登録手順に全面的に書き換えた。
+        SKILL.md配布・<code>manabi_login.py</code>実行による従来方式（各自の端末へのファイル配布が
+        前提の方式）は今後使わない方針とし、本書から手順を削除した。7章（実践例）をMCP経由の
+        依頼例に書き換え、8章（画像の埋め込み）をWeb画面での操作に、9章（よくあるエラー）を
+        MCP関連の内容に更新した。</td></tr>
+    </tbody>
+  </table>
+
+  <nav class="toc">
+    <strong>目次</strong>
+    <ol>
+      <li><a href="#purpose">このドキュメントの目的</a></li>
+      <li><a href="#prep">事前準備（初回のみ）</a></li>
+      <li><a href="#flow">教材作成の全体の流れ</a></li>
+      <li><a href="#frontmatter">フロントマター（教材メタデータ）の書式</a></li>
+      <li><a href="#toc">目次構造（章・小見出し・ページ）の書き方</a></li>
+      <li><a href="#question">設問（問題）ブロックの書き方</a></li>
+      <li><a href="#example">実践例：簡単な教材を1つ作ってみる</a></li>
+      <li><a href="#image">画像の埋め込み</a></li>
+      <li><a href="#troubleshoot">よくあるエラーと対処</a></li>
+    </ol>
+  </nav>
+
+  <h2 id="purpose">1. このドキュメントの目的</h2>
+  <p>
+    Manabiには、教材の章・ページ・設問をプレーンテキスト（YAMLフロントマター＋Markdown見出し階層）として
+    読み書きできるAPI（A-16・A-19・A-20）と、それをClaude Code等のAIから直接呼べるMCPサーバーが用意されている。
+    Claude Codeにこの手順を頼めば、ブラウザでManabiの画面を開かずに、チャットでの指示だけで
+    教材を新規作成・編集できる。
+  </p>
+  <div class="callout">
+    <strong>依頼の例:</strong> 「Manabi教材を作って。タイトルは『Git入門』、プロジェクトは新人研修プロジェクトで、
+    第1章にコミットの基本を説明するページと、確認問題を1問（単一選択）入れて」のように、自然文で依頼すればよい。
+    2章の準備が済んでいれば、Claude CodeはMCPサーバーが提供する道具
+    （<code>create_material</code>・<code>get_material_source</code>・<code>put_material_source</code>等）を
+    自動的に使い分けて、本書と同じ手順でAPI呼び出しを組み立てる。
+  </div>
+
+  <h2 id="prep">2. 事前準備（初回のみ）</h2>
+  <h3>2.1 APIキーを発行する</h3>
+  <p>
+    Manabiにブラウザでログインし、次のいずれかからAPIキー（CLIトークン）を発行する。
+  </p>
+  <ul>
+    <li>初回ログイン直後に表示される案内画面の「発行する」ボタン</li>
+    <li>いつでも: プロフィール画面（<code>/profile</code>）の「APIキー（Claude Code連携）」パネルの「発行する」ボタン</li>
+  </ul>
+  <p>
+    発行された鍵とMCPサーバーの接続先URL（<code>{ManabiのURL}/mcp</code>）がその場で表示される
+    （鍵はこのとき限りしか表示されないため、その場でコピーする）。
+  </p>
+  <div class="callout warn">
+    <strong>鍵は他人に見せない・会話やチャットに貼り付けない。</strong>
+    発行した鍵は、次の2.2節のコマンドの引数として、自分の端末のターミナルで直接使う。
+    Claude Codeとの会話（チャットのメッセージ）には絶対に貼り付けないこと——会話ログとして
+    記録が残るため、読める人がいれば誰でもその鍵を使えてしまう。
+  </div>
+  <h3>2.2 Claude CodeにMCPサーバーを登録する</h3>
+  <p>自分の端末のターミナルで、発行された鍵を使って1回だけ登録する（1人・1台につき初回のみでよい）。</p>
+  <pre><code>claude mcp add --transport http manabi {ManabiのURL}/mcp --header "Authorization: Bearer {発行された鍵}"</code></pre>
+  <p>
+    ローカル環境なら<code>{ManabiのURL}</code>は<code>http://localhost:5177</code>、本番環境なら
+    <code>https://manabi-elearning.fly.dev</code>になる（発行画面に表示された接続先をそのまま使えばよい）。
+    登録は一度行えば、以後Claude Codeを開き直しても覚えている。新しいセッションを開けば、
+    登録したMCPサーバーの道具（ツール）が自動的に使えるようになる（セッション内で<code>/mcp</code>と
+    打つと接続状況を確認できる）。
+  </p>
+  <div class="callout warn">
+    <strong>鍵は使い回さず、必要になったら都度発行する。</strong>
+    「発行する」を押すたびに新しい鍵が発行される（古い鍵は自動では失効しない）。PCを変える・
+    鍵が漏れた等の理由で無効化したい場合は、プロフィール画面の「発行済みの鍵」一覧から
+    対象の鍵の「失効する」を押せばよい（鍵そのものを提示する必要はない）。
+  </div>
+  <h2 id="flow">3. 教材作成の全体の流れ</h2>
+  <p>
+    白紙の新規教材を作る場合、Manabi画面は一切使わずに完結する。2章の準備が済んでいれば、
+    以下の3ステップはClaude Codeが対応する道具（ツール）を自動的に呼び出す形で進み、
+    利用者が個々のAPIを意識する必要はない。
+  </p>
+  <table>
+    <thead><tr><th>手順</th><th>MCPの道具</th><th>API</th><th>内容</th></tr></thead>
+    <tbody>
+      <tr><td>① 新規作成</td><td><code>create_material</code></td><td>A-16 <code>POST /api/materials</code></td><td>タイトル・所属プロジェクトを指定して空の教材を1つ発行する。</td></tr>
+      <tr><td>② 取得</td><td><code>get_material_source</code></td><td>A-19 <code>GET /api/materials/{id}/source</code></td><td>フロントマターのみの空の教材ソースを取得する。</td></tr>
+      <tr><td>③ 編集・保存</td><td><code>put_material_source</code></td><td>A-20 <code>PUT /api/materials/{id}/source</code></td><td>取得したテキストに章・ページ・設問を書き足し、全体をそのまま保存する（部分更新ではなく全置換）。</td></tr>
+    </tbody>
+  </table>
+  <p>
+    既存教材を編集したい場合は①を省略し、②→③だけを行う（対象教材のIDが分からない場合は
+    <code>search_materials</code>／<code>GET /api/materials</code>で一覧から探す）。
+  </p>
+  <div class="callout warn">
+    <strong>③は目次構造全体の全置換。</strong>
+    取得したソースの一部だけを書き換えて送り返すこと。必要な変更以外の章・ページを勝手に削除しない
+    （送らなかった部分は「削除された」とみなされる）。
+  </div>
+  <div class="callout">
+    <strong>MCPで対応していない操作。</strong>
+    教材の公開/非公開切り替え・アーカイブ・削除・配信設定の変更・画像の添付（8章参照）は
+    MCPの道具に含まれていない。これらを頼むと、Claude Codeは<code>get_material_edit_url</code>を
+    使ってWeb画面の編集URLを案内するので、そのURLをブラウザで開いて操作する。
+  </div>
+
+  <h2 id="frontmatter">4. フロントマター（教材メタデータ）の書式</h2>
+  <p>教材ソースの先頭は<code>---</code>で囲んだYAMLのフロントマター。</p>
+  <pre><code>---
+title: 教材タイトル
+description: 説明文（省略可）
+tags: ["タグ1", "タグ2"]
+status: draft  # draft（下書き）| published（公開）
+attempt_scope: material  # material | chapter | section | page（受験の単位）
+retake_scope: all  # all（全問）| wrong_only（誤答のみ）
+pass_score_pct: 70  # 合格基準スコア（%）。省略・nullなら「合格基準なし＝常に合格」
+retake_allowed: true  # 再受験を許可するか
+retake_limit: null  # 再受験回数の上限。nullなら無制限
+default_feedback_style: show_answer  # show_answer | review_only | hint_only
+grading_mode: ai  # 記述式/コード記述式のAI採点を使うかどうかの既定値（ai | manual）
+---</code></pre>
+  <table>
+    <thead><tr><th>項目</th><th>必須</th><th>内容</th></tr></thead>
+    <tbody>
+      <tr><td><code>title</code></td><td>必須</td><td>教材タイトル。</td></tr>
+      <tr><td><code>project_id</code></td><td>新規作成時のみ</td><td>省略すると全社Wikiになる。既存教材の場合は元のプロジェクトと一致している必要がある（変更したい場合はManabi画面のA-17を使う）。</td></tr>
+      <tr><td><code>status</code></td><td>任意（既定<code>draft</code>）</td><td><code>published</code>にすると受講対象者に公開される。</td></tr>
+      <tr><td><code>attempt_scope</code></td><td>任意（既定<code>material</code>）</td><td>合否判定・提出の単位。章ごとに区切って合否を出したい場合は<code>chapter</code>にする。</td></tr>
+      <tr><td><code>retake_scope</code></td><td>任意（既定<code>all</code>）</td><td><code>wrong_only</code>にすると、再受験時は前回不正解だった設問だけが出題され、正解済みの設問はそのまま正解として繰り越される。</td></tr>
+      <tr><td><code>pass_score_pct</code></td><td>任意</td><td>この％以上で合格。省略時（<code>null</code>）は合格基準なし＝提出すれば常に合格扱いになり、再受験設定に従って何度でも解き直せる。</td></tr>
+      <tr><td><code>retake_allowed</code> / <code>retake_limit</code></td><td>任意（既定<code>true</code> / 無制限）</td><td>再受験の可否と回数上限。上限に達すると再受験できなくなる（合格済みスコープは、合格基準を設定している場合に限りそもそも再受験対象外になる）。</td></tr>
+      <tr><td><code>default_feedback_style</code></td><td>任意</td><td>記述式・コード記述式のAI講評の見せ方の既定値。設問ごとに<code>feedback_style</code>で上書きできる。</td></tr>
+      <tr><td><code>grading_mode</code></td><td>任意（既定<code>ai</code>）</td><td>記述式・コード記述式の採点方式の既定値。設問ごとに上書きできる（6章参照）。</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="toc">5. 目次構造（章・小見出し・ページ）の書き方</h2>
+  <p>フロントマターに続けて、Markdownの見出し記号で目次階層を表現する。</p>
+  <table>
+    <thead><tr><th>見出し</th><th>意味</th></tr></thead>
+    <tbody>
+      <tr><td><code>#</code></td><td>章（chapter）</td></tr>
+      <tr><td><code>##</code></td><td>小見出し（section、省略可。章の直下にページを置いてもよい）</td></tr>
+      <tr><td><code>###</code></td><td>ページ（page）</td></tr>
+    </tbody>
+  </table>
+  <div class="callout warn">
+    <strong>章タイトルに「第1章」等の番号を含めない。</strong>
+    画面側が章の並び順から自動的に「第N章 」を付けて表示するため、タイトル自体にも書くと
+    「第1章 第1章 はじめに」のように二重表示になる。章タイトルは番号を除いた文言のみ
+    （例: <code># はじめに</code>）にする。
+  </div>
+  <p>
+    既存ページ・章を更新する場合は、見出し行の直後に<code>&lt;!-- node:123 --&gt;</code>を付ける
+    （無ければ新規ノードとして作成される）。ページには任意で<code>&lt;!-- format:markdown --&gt;</code>／
+    <code>&lt;!-- format:html --&gt;</code>（省略時はフロントマターの既定値）、出題プールを使う場合は
+    <code>&lt;!-- quiz_mode:pool --&gt;</code>と<code>&lt;!-- pool_draw_count:N --&gt;</code>を付けられる。
+  </p>
+  <p>
+    ページの本文は説明文（Markdown/HTML）と、それに続く<code>```question```</code>フェンスブロック
+    （0個以上）を自由に組み合わせられる。
+  </p>
+  <div class="callout warn">
+    <strong>本文中に見出し記号（<code>#</code>〜<code>###</code>）を書く場合は<code>\</code>でエスケープする。</strong>
+    コードブロック内のシェルコメント<code>\# ...</code>なども含む。エスケープせずそのまま書くと、
+    その行が実際の章・小見出し・ページの区切りと誤認識され、意図しない場所でページが分割されてしまう。
+    既存教材をA-19で取得した本文には書き出し時に自動でエスケープ済みのため気にしなくてよいが、
+    新規に本文を書き起こす場合は自分でエスケープが必要。
+  </div>
+
+  <h2 id="question">6. 設問（問題）ブロックの書き方</h2>
+  <p><code>```question```</code>フェンス内はYAMLで、種別（<code>type</code>）ごとに必須項目が異なる。</p>
+  <table>
+    <thead><tr><th><code>type</code></th><th>用途</th><th>必須項目</th></tr></thead>
+    <tbody>
+      <tr><td><code>single</code></td><td>単一選択</td><td><code>options</code>（配列）, <code>correct_answer</code>（optionsの中の1つの文字列）</td></tr>
+      <tr><td><code>multi</code></td><td>複数選択</td><td><code>options</code>（配列）, <code>correct_answer</code>（配列）</td></tr>
+      <tr><td><code>reorder</code></td><td>並び替え</td><td><code>correct_answer</code>（2件以上の配列、正しい順序）</td></tr>
+      <tr><td><code>free_text</code></td><td>記述式</td><td><code>scoring_criteria</code>（AI採点の基準文）</td></tr>
+      <tr><td><code>code</code></td><td>コード記述式</td><td><code>scoring_criteria</code>, <code>code_language</code>（例: <code>python</code>）</td></tr>
+      <tr><td><code>score_log</code></td><td>記録型（自己申告の数値記録、正誤判定なし）</td><td>無し。<code>score_unit</code>（例: "点", "秒"）は任意項目（省略可、問題文側で単位を指定してもよい）。<code>is_critical</code>は設定不可。</td></tr>
+    </tbody>
+  </table>
+  <p>共通の任意項目:</p>
+  <table>
+    <thead><tr><th>項目</th><th>内容</th></tr></thead>
+    <tbody>
+      <tr><td><code>id</code></td><td>既存問題を更新する場合の問題ID。新規なら省略。</td></tr>
+      <tr><td><code>prompt</code></td><td>問題文。必須。</td></tr>
+      <tr><td><code>required</code> / <code>counted</code></td><td>回答必須・合否算入の組み合わせで実質3状態になる（下表参照）。</td></tr>
+      <tr><td><code>is_critical</code></td><td>既定<code>false</code>。<code>true</code>にすると正誤に関わらず不正解だと以降のページに進めない「ドボン問題」になる。<code>counted</code>が<code>false</code>の設問（記録・任意）では判定自体が発生しないため同時指定は無意味。</td></tr>
+      <tr><td><code>feedback_style</code></td><td>省略時はページ・教材の既定値を継承。</td></tr>
+      <tr><td><code>pool_group</code></td><td><code>quiz_mode:pool</code>のページでの出題グループ番号。</td></tr>
+      <tr><td><code>grading_mode</code></td><td><code>free_text</code>/<code>code</code>のみ。<code>ai</code>または<code>manual</code>。省略時は教材の既定値（フロントマターの<code>grading_mode</code>）を継承。</td></tr>
+    </tbody>
+  </table>
+  <h3>required / counted の3状態</h3>
+  <table>
+    <thead><tr><th>状態</th><th>設定</th><th>意味</th></tr></thead>
+    <tbody>
+      <tr><td>必須（既定）</td><td><code>required: true, counted: true</code></td><td>回答必須、スコア・合否判定に算入する。</td></tr>
+      <tr><td>記録</td><td><code>required: true, counted: false</code></td><td>回答は必須だが、AIによる採点・フィードバック自体は行われても合否には反映しない。「回答は必須で書かせたいが合否には関係ない設問」を作りたい場合に使う。</td></tr>
+      <tr><td>任意</td><td><code>required: false, counted: false</code></td><td>回答をスキップでき、合否にも反映されない。</td></tr>
+    </tbody>
+  </table>
+  <div class="callout warn">
+    <code>required: false, counted: true</code>という組み合わせは意味を成さないため使わない。
+    設問文に「採点対象外」等と書くだけでは何も変わらない（実際の判定はこの2項目でのみ決まる）ので注意。
+  </div>
+
+  <h2 id="example">7. 実践例：簡単な教材を1つ作ってみる</h2>
+  <p>
+    「新人研修プロジェクトに、Python変数の教材を1つ作って、確認問題を1問入れて」と依頼する。
+    このひとことをそのままチャットに送るだけでよい。
+  </p>
+  <div class="callout">
+    <strong>内部の流れ:</strong> Claude Codeは<code>create_material</code>（新規作成）→
+    <code>get_material_source</code>（空の教材の取得）→4〜6章のルールに沿って章・ページ・設問を
+    考えて書き足す→<code>put_material_source</code>（保存）の順に道具を呼び出し、完了したら
+    結果を報告する。利用者はAPI・トークンの類を一切意識しない。
+  </div>
+  <p>
+    上記の依頼に対し、Claude Codeが<code>put_material_source</code>に渡すテキスト（＝実際に
+    保存される教材ソース）はおおむね次のようになる（4〜6章の書式の実例として参考にする）。
+  </p>
+  <pre><code>---
+title: Python入門：変数
+status: published
+attempt_scope: material
+retake_scope: all
+default_feedback_style: show_answer
+grading_mode: ai
+---
+
+# Python入門
+
+## 変数と型
+
+### 変数の宣言
+
+Pythonの変数には型宣言が不要です。`x = 1`と書くだけで変数`x`が作られます。
+
+```question
+type: single
+prompt: 次のうち、Pythonの変数名として正しいものはどれか
+options:
+  - "1abc = 1"
+  - "abc_1 = 1"
+  - "abc-1 = 1"
+correct_answer: "abc_1 = 1"
+```</code></pre>
+  <p>
+    保存が成功すると、実際に採番されたノードID（<code>&lt;!-- node:xxx --&gt;</code>）付きの
+    ソースが返る。以後この教材をさらに編集する場合、Claude Codeは<code>get_material_source</code>で
+    このノードID付きのソースを取得してから変更する。
+  </p>
+
+  <h2 id="image">8. 画像の埋め込み</h2>
+  <p>
+    画像のアップロードはMCPの道具に含まれていない（3章のMCPで対応していない操作を参照）。
+    次の手順でWeb画面から行う。
+  </p>
+  <ol>
+    <li>対象ページの編集画面（S-17教材編集：ページ編集）を開く（Claude Codeに「編集画面のURLを教えて」と
+      頼めば<code>get_material_edit_url</code>で案内してもらえる）。</li>
+    <li>「このページの添付ファイル・リンク」から画像ファイルを選択してアップロードする。</li>
+    <li>一覧に追加された添付の<code>id</code>を確認する。</li>
+  </ol>
+  <p>
+    本文中で画像を表示したい位置に<code>![説明](attachment:123)</code>という記法を使う（123は
+    上記でアップロードした添付ファイルのID）。表示のたびにその時点で有効なURLへ自動的に解決されるため、
+    Base64化して直接貼り付ける必要はない。この本文をClaude Codeに伝えれば、<code>put_material_source</code>
+    で保存してもらえる。
+  </p>
+  <p>外部サイトへのリンクを貼りたいだけの場合（画像でなく参照用リンク）はこの手順は不要で、通常のMarkdownリンク<code>[表示文言](https://...)</code>をそのまま本文に書けばよい。</p>
+
+  <h2 id="troubleshoot">9. よくあるエラーと対処</h2>
+  <table>
+    <thead><tr><th>状況</th><th>原因・対処</th></tr></thead>
+    <tbody>
+      <tr><td>Claude Codeが「manabiの道具が見つからない」「MCPサーバーに接続できない」と言う</td><td>2.2節の<code>claude mcp add</code>が済んでいないか、登録前のセッションのままになっている。セッション内で<code>/mcp</code>と打って接続状況を確認し、繋がっていなければ新しいセッションを開き直す（新しいセッションの開き方はClaude Codeのコマンドパレットから「Claude Code: Open in New Tab」等）。</td></tr>
+      <tr><td>本番のはずがローカルに（またはその逆）繋がっている</td><td>登録したMCPサーバーの接続先（2.2節のURL）を確認する。ローカル・本番それぞれ別名で登録している場合は、依頼時に「manabi-prodを使って」のようにサーバー名を明示する。</td></tr>
+      <tr><td>MCP経由の道具呼び出しがエラーになる</td><td>権限不足（対象教材の編集者以上でない）・存在しない教材IDの指定など、原因は<code>put_material_source</code>と同様。Claude Codeにエラー内容を確認してもらい、対象や依頼内容を見直す。</td></tr>
+      <tr><td><code>put_material_source</code>がエラーを返す</td><td>フロントマター不備・見出し順序違反・問題ブロックの必須項目不足など、パースエラーの内容がエラーメッセージに含まれる。内容を確認して修正し再送する。</td></tr>
+      <tr><td>401エラー</td><td>APIキーが失効している。プロフィール画面から再発行し、2.2節の手順で登録し直す。</td></tr>
+      <tr><td>403エラー</td><td>指定した<code>project_id</code>の編集者以上（またはシステムadmin）の権限が無い。所属プロジェクトが分からない場合は「参加しているプロジェクトを教えて」のようにClaude Codeに確認してもらう。</td></tr>
+      <tr><td>「第1章 第1章 …」のように章番号が二重表示される</td><td>章タイトルに自分で番号を書いてしまっている。5章の注意を参照し、タイトルから番号を除く。</td></tr>
+      <tr><td>本文中の見出し記号でページが意図せず分割される</td><td>本文中の<code>#</code>〜<code>###</code>で始まる行（コードコメント含む）が<code>\</code>でエスケープされていない。5章の注意を参照。</td></tr>
+    </tbody>
+  </table>
+
+  <footer class="doc-footer">
+    <span>社内学習管理システム（Manabi）</span>
+    <span>Ver 1.1 / 2026-09-14</span>
+  </footer>
+
+</div>
+</body>
+</html>

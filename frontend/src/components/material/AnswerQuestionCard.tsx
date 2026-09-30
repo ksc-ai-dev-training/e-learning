@@ -7,22 +7,40 @@ import Button from '../ui/Button'
 import TextArea from '../ui/TextArea'
 import TextInput from '../ui/TextInput'
 import AnswerReorderList from './AnswerReorderList'
+import CodeAnswerEditor from './CodeAnswerEditor'
 
-function StatusBadge({ answer }: { answer: Answer }) {
+function StatusBadge({
+  answer,
+  questionType,
+  hasCorrectAnswer,
+}: {
+  answer: Answer
+  questionType: Question['type']
+  hasCorrectAnswer: boolean
+}) {
+  // スコア記録（score_log）は正誤・採点の概念を持たず、is_correct・ai_score_pctは常にnullのまま
+  // 更新されることがない（合否判定からも常に除外される）。「採点中」「採点済み」のような
+  // 採点を示唆する文言を出すと、いつまでも採点されない状態を誤解させるため、単に「回答済み」とだけ
+  // 表示する（2026-09-11、ユーザー指摘）。単一選択・複数選択の「記録」「任意」も、正解が
+  // 設定されていなければ同様に自動採点自体が行われず、is_correctは常にnullのままになる
+  // （2026-09-16、アンケート的運用への対応）。
+  if (questionType === 'score_log' || ((questionType === 'single' || questionType === 'multi') && !hasCorrectAnswer)) {
+    return <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-500 dark:bg-neutral-800 dark:text-neutral-400">回答済み</span>
+  }
   if (answer.is_correct === true) {
-    return <span className="rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-bold text-green-700">回答済み・正解</span>
+    return <span className="rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-bold text-green-700 dark:bg-green-950/60 dark:text-green-200">回答済み・正解</span>
   }
   if (answer.is_correct === false) {
-    return <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-bold text-red-700">回答済み・不正解</span>
+    return <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-bold text-red-700 dark:bg-red-950/60 dark:text-red-200">回答済み・不正解</span>
   }
   if (answer.ai_score_pct !== null) {
     return (
-      <span className="rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-bold text-green-700">
+      <span className="rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-bold text-green-700 dark:bg-green-950/60 dark:text-green-200">
         採点済み（{answer.ai_score_pct}点）
       </span>
     )
   }
-  return <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-500">回答済み・採点中</span>
+  return <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-500 dark:bg-neutral-800 dark:text-neutral-400">回答済み・採点中</span>
 }
 
 // S-16の設問カード。設問種別ごとに入力UIを出し分け、ロック状態（前の必須設問が未回答の間は
@@ -35,6 +53,7 @@ export default function AnswerQuestionCard({
   answer,
   locked,
   skipped,
+  revealResult,
   onSave,
   onSkip,
 }: {
@@ -43,11 +62,19 @@ export default function AnswerQuestionCard({
   answer: Answer | undefined
   locked: boolean
   skipped: boolean
+  // true: このスコープは提出済みで読み返し中（正誤・AI採点結果を表示し、入力は常に不可）。
+  // false: まだ提出前で回答中（スコープを提出するまでは、一度回答した設問も答えを変更できる。
+  // ただし採点のズルを防ぐため、正誤はここでは見せない「回答済み」表示にとどめる。2026-09-09）。
+  revealResult: boolean
   onSave: (response: unknown) => Promise<void>
   onSkip: () => void
 }) {
   const answered = answer !== undefined
-  const disabled = locked || answered || skipped
+  // revealResultは「正誤を見せてよいか」のフラグであり、それ単体では入力を無効化しない。
+  // 無効化すべきなのは、正誤を見せる場面で既に回答済みの設問（提出済みスコープの読み返し、
+  // および練習/誤答＆難問抽出モードでの回答直後ロック）だけ。graded中の回答中（revealResult=false）は
+  // 何度でも回答し直せる（2026-09-10、練習/誤答＆難問抽出モードで全問回答不可になっていた不具合の修正）。
+  const disabled = locked || skipped || (revealResult && answered)
   const [singleValue, setSingleValue] = useState<string>((answer?.response as string) ?? '')
   const [multiValue, setMultiValue] = useState<string[]>((answer?.response as string[]) ?? [])
   const [textValue, setTextValue] = useState<string>((answer?.response as string) ?? '')
@@ -87,42 +114,52 @@ export default function AnswerQuestionCard({
     <div
       className={`mb-4 rounded-md border p-4 ${
         locked
-          ? 'border-slate-200 opacity-50'
+          ? 'border-slate-200 opacity-50 dark:border-neutral-800'
           : answered || skipped
-            ? 'border-slate-200'
-            : 'border-blue-400 ring-2 ring-blue-100'
+            ? 'border-slate-200 dark:border-neutral-800'
+            : 'border-blue-400 ring-2 ring-blue-100 dark:border-blue-600 dark:ring-blue-950/50'
       }`}
     >
       <div className="mb-2 flex items-center justify-between">
-        <span className="text-sm font-semibold text-slate-700">
+        <span className="text-sm font-semibold text-slate-700 dark:text-neutral-100">
           設問{index + 1} ／ {questionTypeLabel(question.type)}
           {question.is_critical && (
-            <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-800">
+            <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-800 dark:bg-red-950/60 dark:text-red-200">
               ⚠ ドボン
             </span>
           )}
-          {!question.required && <span className="ml-2 text-[11px] font-normal text-slate-400">（任意）</span>}
+          {!question.required && <span className="ml-2 text-[11px] font-normal text-slate-400 dark:text-neutral-500">（任意）</span>}
+          {question.required && !question.counted && (
+            <span className="ml-2 text-[11px] font-normal text-slate-400 dark:text-neutral-500">（記録・合否には反映されません）</span>
+          )}
         </span>
         {locked && (
-          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-400">
+          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-400 dark:bg-neutral-800 dark:text-neutral-500">
             設問{index}に回答すると解放されます
           </span>
         )}
-        {!locked && answered && <StatusBadge answer={answer} />}
+        {!locked && answered && revealResult && (
+          <StatusBadge answer={answer} questionType={question.type} hasCorrectAnswer={question.has_correct_answer} />
+        )}
+        {!locked && answered && !revealResult && (
+          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-500 dark:bg-neutral-800 dark:text-neutral-400">
+            回答済み
+          </span>
+        )}
         {!locked && !answered && skipped && (
-          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-400">スキップ済み</span>
+          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-400 dark:bg-neutral-800 dark:text-neutral-500">スキップ済み</span>
         )}
         {!locked && !answered && !skipped && (
-          <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-bold text-blue-700">回答中</span>
+          <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-bold text-blue-700 dark:bg-blue-950/60 dark:text-blue-200">回答中</span>
         )}
       </div>
 
-      <div className="mb-3 text-sm text-slate-800">{question.prompt}</div>
+      <div className="mb-3 text-sm text-slate-800 dark:text-neutral-100">{question.prompt}</div>
 
       {question.type === 'single' && (
         <div className="flex flex-col gap-1.5">
           {(question.options ?? []).map((opt) => (
-            <label key={opt} className={`flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm ${disabled ? 'border-slate-200 text-slate-400' : 'border-slate-200 hover:bg-slate-50'}`}>
+            <label key={opt} className={`flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm ${disabled ? 'border-slate-200 text-slate-400 dark:border-neutral-800 dark:text-neutral-500' : 'border-slate-200 hover:bg-slate-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800/60'}`}>
               <input
                 type="radio"
                 name={`q-${question.id}`}
@@ -142,7 +179,7 @@ export default function AnswerQuestionCard({
       {question.type === 'multi' && (
         <div className="flex flex-col gap-1.5">
           {(question.options ?? []).map((opt) => (
-            <label key={opt} className={`flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm ${disabled ? 'border-slate-200 text-slate-400' : 'border-slate-200 hover:bg-slate-50'}`}>
+            <label key={opt} className={`flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm ${disabled ? 'border-slate-200 text-slate-400 dark:border-neutral-800 dark:text-neutral-500' : 'border-slate-200 hover:bg-slate-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800/60'}`}>
               <input
                 type="checkbox"
                 checked={multiValue.includes(opt)}
@@ -163,14 +200,28 @@ export default function AnswerQuestionCard({
       )}
 
       {question.type === 'reorder' && !disabled && (
-        <AnswerReorderList options={question.options ?? []} disabled={submitting} onSubmit={submit} />
+        <AnswerReorderList
+          options={question.options ?? []}
+          disabled={submitting}
+          onSubmit={submit}
+          initialOrder={answer?.response as string[] | undefined}
+        />
       )}
-      {question.type === 'reorder' && disabled && (question.options ?? []).length > 0 && (
-        <ul className="list-inside list-decimal text-sm text-slate-400">
-          {(question.options ?? []).map((opt) => (
-            <li key={opt}>{opt}</li>
-          ))}
-        </ul>
+      {question.type === 'reorder' && disabled && (
+        (() => {
+          // 提出済みの読み返し画面では、表示用にシャッフルされたquestion.optionsではなく、
+          // 実際に受講者が提出した順序（answer.response）を表示する（2026-09-11、提出前の
+          // シャッフル順のままになっていた不具合を修正）。未回答（スキップ済み任意設問）の
+          // 場合のみ、参考としてoptionsをそのまま表示する。
+          const items = (answer?.response as string[] | undefined) ?? question.options ?? []
+          return items.length > 0 ? (
+            <ul className="list-inside list-decimal text-sm text-slate-400 dark:text-neutral-500">
+              {items.map((opt, i) => (
+                <li key={`${opt}-${i}`}>{opt}</li>
+              ))}
+            </ul>
+          ) : null
+        })()
       )}
 
       {(question.type === 'free_text' || question.type === 'code') && (
@@ -180,20 +231,30 @@ export default function AnswerQuestionCard({
               {question.code_language}
             </span>
           )}
-          <TextArea
-            value={textValue}
-            onChange={(e) => setTextValue(e.target.value)}
-            disabled={disabled || submitting}
-            rows={question.type === 'code' ? 6 : 3}
-            className={question.type === 'code' ? 'font-mono text-[13px] leading-relaxed' : ''}
-            placeholder={disabled ? undefined : '回答を入力してください'}
-          />
+          {question.type === 'code' ? (
+            <CodeAnswerEditor
+              value={textValue}
+              onChange={setTextValue}
+              disabled={disabled || submitting}
+              language={question.code_language}
+              rows={6}
+              placeholder={disabled ? undefined : '回答を入力してください'}
+            />
+          ) : (
+            <TextArea
+              value={textValue}
+              onChange={(e) => setTextValue(e.target.value)}
+              disabled={disabled || submitting}
+              rows={3}
+              placeholder={disabled ? undefined : '回答を入力してください'}
+            />
+          )}
           {!disabled && (
             <Button variant="secondary" onClick={() => submit(textValue)} disabled={submitting || !textValue.trim()} className="self-start">
               {submitting ? '送信中…' : '回答する'}
             </Button>
           )}
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-slate-400 dark:text-neutral-500">
             ※ {question.type === 'code' ? 'コード記述式' : '記述式'}はAIまたはプロジェクト担当者が採点します（教材の設定による）。結果を待たずに次の設問へ進められます。
           </p>
         </div>
@@ -210,7 +271,7 @@ export default function AnswerQuestionCard({
               className="w-32"
               placeholder="数値"
             />
-            <span className="text-xs text-slate-500">{question.score_unit}</span>
+            <span className="text-xs text-slate-500 dark:text-neutral-400">{question.score_unit}</span>
             {!disabled && (
               <Button
                 variant="secondary"
@@ -222,7 +283,7 @@ export default function AnswerQuestionCard({
             )}
           </div>
           {scoreHistory.length > 0 && (
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-400 dark:text-neutral-500">
               これまでの記録:{' '}
               {scoreHistory
                 .map((h) => `${h.score}（${formatDateTimeJst(h.recorded_at)}）`)
@@ -233,9 +294,9 @@ export default function AnswerQuestionCard({
       )}
 
       {!locked && !answered && !question.required && !skipped && (
-        <p className="mt-2 text-xs text-slate-500">
+        <p className="mt-2 text-xs text-slate-500 dark:text-neutral-400">
           この設問は回答任意です。
-          <button type="button" onClick={onSkip} className="ml-1 text-blue-700 hover:underline">
+          <button type="button" onClick={onSkip} className="ml-1 text-blue-700 hover:underline dark:text-blue-300">
             スキップして次へ
           </button>
         </p>

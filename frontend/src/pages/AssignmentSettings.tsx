@@ -1,40 +1,68 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
+import { Link } from 'react-router'
 import PageHeader from '../components/layout/PageHeader'
 import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
 import Select from '../components/ui/Select'
 import TextInput from '../components/ui/TextInput'
+import AssignmentEditPanel from '../components/material/AssignmentEditPanel'
 import { useAssignments } from '../hooks/useAssignments'
-import { useMaterialAssignments } from '../hooks/useMaterialAssignments'
-import { useProjectMemberships } from '../hooks/useProjectMemberships'
-import { ApiError } from '../lib/api'
-import { updateMaterialAssignments } from '../lib/assignmentActions'
 import { formatDateJst } from '../lib/datetime'
+import { ApiError } from '../lib/api'
+import { archiveMaterial, restoreMaterial } from '../lib/materialActions'
+import { projectColorClasses } from '../lib/projectColors'
 import type { AssignmentListItem } from '../types'
 
 type SortKey = 'required' | 'updated' | 'title'
 
+const STATUS_OPTIONS = [
+  { value: '', label: 'すべて（アーカイブ済みを除く）' },
+  { value: 'published', label: '公開中' },
+  { value: 'draft', label: '下書き' },
+  { value: 'archived', label: 'アーカイブ済み' },
+]
+
 // S-06 配信設定（詳細設計書10.6節相当）。誰でもアクセスでき、admin（全教材）またはプロジェクト
-// 管理者（自プロジェクトに属する教材、下書き含む）が管理対象を持つ。配信対象は「プロジェクト」
-// （教材自身の所属プロジェクトに固定）と「個人」（そのプロジェクトの現役メンバーのみ）の2種類で、
-// 全社Wikiの教材は常に任意固定（必修不可）。pass_score_pct等の合否判定設定はこの画面では扱わない
+// 管理者（自プロジェクトに属する教材、下書き含む）が管理対象を持つ。基本的なアクセス権（見られる・
+// 受講できるか）はプロジェクトメンバーであることだけで決まりassignments行の有無とは無関係なため、
+// この画面が実際に扱っているのは「誰を必修対象にするか」のみ（2026-09-25、列名を「配信対象」から
+// 「必修対象」に変更）。必修対象は「プロジェクト」（教材自身の所属プロジェクトに固定）と「個人」
+// （そのプロジェクトの現役メンバーのみ）の2種類で、全社ライブラリの教材はプロジェクトadmin以外は
+// 任意固定（必修不可、2026-09-17より前はadminであっても常に不可だった）。pass_score_pct等の
+// 合否判定設定はこの画面では扱わない
 // （画面モックアップに該当UIが無く、A-38は対象・必修/任意・期限のみを更新する）。
 export default function AssignmentSettings() {
   const [q, setQ] = useState('')
   const [status, setStatus] = useState('')
   const [projectFilter, setProjectFilter] = useState('')
   const [sort, setSort] = useState<SortKey>('required')
-  const { items, isLoading, mutate } = useAssignments(q, status)
+  // 'archived'はフロントエンド側だけのフィルタ値のため、実際のAPI呼び出しでは status='' のまま
+  // include_archived=trueを送り、is_archivedで絞り込む（useAssignments.tsのコメント参照）
+  const { items, isLoading, mutate } = useAssignments(q, status === 'archived' ? '' : status, status === 'archived')
   const [selectedId, setSelectedId] = useState<number | null>(null)
+  const [archivingId, setArchivingId] = useState<number | null>(null)
+  const [archiveError, setArchiveError] = useState<string | null>(null)
+  const [archiveTarget, setArchiveTarget] = useState<AssignmentListItem | null>(null)
+
+  // status==='archived'のときはAPI側のstatus絞り込みを送らず（useAssignmentsの呼び出し箇所参照）
+  // is_archivedだけをここで絞り込むため、itemsにはアーカイブ済み以外の教材も含まれる。
+  // プロジェクト絞り込みの選択肢はこの「状態」絞り込み後の集合から作る（projectFilter自体には
+  // 依存させない。依存させるとプロジェクトを選ぶたびに選択肢自体が変わってしまうため）。
+  // これをしないと、「アーカイブ済み」表示中に実際にはアーカイブ済み教材が1件も無いプロジェクトまで
+  // 選択肢に出てしまい、選ぶと必ず0件になる不整合になる（2026-09-18、レビューで発見）。
+  const statusFiltered = useMemo(
+    () => (status === 'archived' ? items.filter((i) => i.is_archived) : items),
+    [items, status],
+  )
 
   const projectOptions = useMemo(() => {
     const seen = new Map<number, string>()
-    for (const item of items) seen.set(item.project_id, item.project_name)
+    for (const item of statusFiltered) seen.set(item.project_id, item.project_name)
     return Array.from(seen.entries()).map(([id, name]) => ({ value: String(id), label: name }))
-  }, [items])
+  }, [statusFiltered])
 
   const filtered = useMemo(() => {
-    let list = items
+    let list = statusFiltered
     if (projectFilter) list = list.filter((i) => String(i.project_id) === projectFilter)
     const sorted = [...list]
     if (sort === 'required') {
@@ -45,9 +73,37 @@ export default function AssignmentSettings() {
       sorted.sort((a, b) => a.title.localeCompare(b.title, 'ja'))
     }
     return sorted
-  }, [items, projectFilter, sort])
+  }, [statusFiltered, projectFilter, sort])
 
   const selected = filtered.find((i) => i.id === selectedId) ?? null
+
+  const doArchive = async () => {
+    if (!archiveTarget) return
+    setArchiveError(null)
+    setArchivingId(archiveTarget.id)
+    try {
+      await archiveMaterial(archiveTarget.id)
+      await mutate()
+      setArchiveTarget(null)
+    } catch (e) {
+      setArchiveError(e instanceof ApiError ? e.message : 'アーカイブに失敗しました')
+    } finally {
+      setArchivingId(null)
+    }
+  }
+
+  const doRestore = async (materialId: number) => {
+    setArchiveError(null)
+    setArchivingId(materialId)
+    try {
+      await restoreMaterial(materialId)
+      await mutate()
+    } catch (e) {
+      setArchiveError(e instanceof ApiError ? e.message : '復元に失敗しました')
+    } finally {
+      setArchivingId(null)
+    }
+  }
 
   return (
     <div className="flex flex-1 flex-col">
@@ -55,7 +111,7 @@ export default function AssignmentSettings() {
       <div className="px-8 py-6">
         {!isLoading && items.length === 0 ? (
           <div className="py-10 text-center text-sm text-slate-400">
-            <p className="mb-1 font-semibold text-slate-500">配信設定できる教材がありません</p>
+            <p className="mb-1 font-semibold text-slate-500 dark:text-neutral-300">配信設定できる教材がありません</p>
             <p className="text-xs">
               あなたが管理者を務めるプロジェクトに教材が無いか、まだどのプロジェクトの管理者にもなっていません。
               <br />
@@ -71,15 +127,7 @@ export default function AssignmentSettings() {
                 onChange={(e) => setQ(e.target.value)}
                 className="w-56"
               />
-              <Select
-                value={status}
-                onChange={setStatus}
-                options={[
-                  { value: '', label: 'すべての状態' },
-                  { value: 'published', label: '公開中' },
-                  { value: 'draft', label: '下書き' },
-                ]}
-              />
+              <Select value={status} onChange={setStatus} options={STATUS_OPTIONS} />
               <Select
                 value={projectFilter}
                 onChange={setProjectFilter}
@@ -97,63 +145,115 @@ export default function AssignmentSettings() {
               <span className="text-xs text-slate-400">{filtered.length}件表示中</span>
             </div>
 
+            {status === 'archived' && (
+              <p className="mb-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs leading-relaxed text-slate-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300">
+                アーカイブ済みの教材はここから復元できます。復元すると下書き状態に戻ります（即座には再公開されません。再公開するには教材編集画面で改めて「公開する」を押す必要があります）。
+              </p>
+            )}
+            {archiveError && <p className="mb-3 text-sm text-red-600 dark:text-red-400">{archiveError}</p>}
+
             {isLoading ? (
               <p className="py-8 text-center text-sm text-slate-400">読み込み中...</p>
             ) : (
-              <div className="overflow-x-auto rounded-md border border-slate-200">
-                <table className="w-full text-sm">
+              <div className="overflow-x-auto rounded-md border border-slate-200 dark:border-neutral-800">
+                <table className="w-full text-sm max-sm:whitespace-nowrap [&_td]:align-top">
                   <thead>
-                    <tr className="border-b border-slate-100 bg-slate-50 text-left text-xs text-slate-500">
-                      <th className="px-3 py-2 font-normal">教材</th>
-                      <th className="px-3 py-2 font-normal">プロジェクト</th>
-                      <th className="px-3 py-2 font-normal">配信対象</th>
-                      <th className="px-3 py-2 font-normal">区分</th>
-                      <th className="px-3 py-2 font-normal">期限</th>
-                      <th className="px-3 py-2 font-normal">状態</th>
-                      <th className="px-3 py-2 font-normal">操作</th>
+                    <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs text-slate-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300">
+                      <th className="px-3 py-2 font-semibold">教材</th>
+                      <th className="px-3 py-2 font-semibold">プロジェクト</th>
+                      <th className="px-3 py-2 font-semibold">作成者</th>
+                      <th className="px-3 py-2 font-semibold">必修対象</th>
+                      <th className="px-3 py-2 font-semibold">区分</th>
+                      <th className="px-3 py-2 font-semibold">期限</th>
+                      <th className="px-3 py-2 font-semibold">状態</th>
+                      <th className="px-3 py-2 font-semibold">操作</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filtered.map((item) => {
+                    {filtered.map((item, i) => {
                       const editing = item.id === selectedId
                       return (
                       <tr
                         key={item.id}
-                        className={`border-b border-slate-50 last:border-0 ${
-                          editing ? 'border-l-4 border-l-blue-600 bg-blue-50' : 'border-l-4 border-l-transparent'
+                        className={`border-b border-slate-200 last:border-0 dark:border-neutral-700 ${
+                          editing
+                            ? 'border-l-4 border-l-blue-600 bg-blue-50 dark:bg-blue-900/30'
+                            : `border-l-4 border-l-transparent hover:bg-slate-100 dark:hover:bg-neutral-800/60 ${
+                                i % 2 === 1 ? 'bg-slate-50 dark:bg-neutral-900/40' : ''
+                              }`
                         }`}
                       >
-                        <td className={`px-3 py-2 ${editing ? 'font-semibold text-blue-900' : 'text-slate-800'}`}>
-                          {item.title}
+                        <td className={`px-3 py-3 ${editing ? 'font-semibold text-blue-900 dark:text-blue-100' : ''}`}>
+                          <Link
+                            to={`/projects/${item.project_id}/materials/${item.id}/edit`}
+                            className={
+                              editing
+                                ? 'text-blue-900 hover:underline dark:text-blue-100'
+                                : item.is_archived
+                                  ? 'text-slate-400 hover:text-blue-800 hover:underline dark:text-neutral-500 dark:hover:text-blue-300'
+                                  : 'text-slate-800 hover:text-blue-800 hover:underline dark:text-neutral-100 dark:hover:text-blue-300'
+                            }
+                          >
+                            {item.title}
+                          </Link>
                         </td>
-                        <td className="px-3 py-2">
-                          <span className="rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-xs text-slate-600">
+                        <td className="px-3 py-3">
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[13px] font-medium whitespace-nowrap ${projectColorClasses(item.project_id)}`}
+                          >
                             {item.is_company_wide ? '📌 ' : ''}
                             {item.project_name}
                           </span>
                         </td>
-                        <td className="px-3 py-2 text-slate-600">{scopeSummary(item)}</td>
-                        <td className="px-3 py-2">
+                        <td className="px-3 py-3 text-slate-500 dark:text-neutral-300">{item.created_by_name}</td>
+                        <td className="px-3 py-3 text-slate-600 dark:text-neutral-300">{scopeSummary(item)}</td>
+                        <td className="px-3 py-3">
                           <Badge variant={hasRequired(item) ? 'required' : 'optional'} />
                         </td>
-                        <td className="px-3 py-2 text-slate-500">{earliestDueAt(item)}</td>
-                        <td className="px-3 py-2">
-                          <Badge variant={item.status === 'published' ? 'published' : 'draft'} />
+                        <td className="px-3 py-3 text-slate-500 dark:text-neutral-300">{earliestDueAt(item)}</td>
+                        <td className="px-3 py-3">
+                          <Badge variant={item.is_archived ? 'archived' : item.status === 'published' ? 'published' : 'draft'} />
                         </td>
-                        <td className="px-3 py-2">
-                          {editing ? (
-                            <span className="inline-flex items-center gap-1 rounded bg-blue-700 px-2 py-1 text-xs font-semibold text-white">
-                              編集中
-                            </span>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => setSelectedId(item.id)}
-                              className="text-xs font-semibold text-blue-700 hover:underline"
-                            >
-                              編集
-                            </button>
-                          )}
+                        <td className="px-3 py-3">
+                          <div className="flex items-center gap-2.5">
+                            {editing ? (
+                              <span className="inline-flex items-center gap-1 rounded bg-blue-700 px-2 py-1 text-xs font-semibold text-white dark:bg-blue-600">
+                                編集中
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => setSelectedId(item.id)}
+                                className="text-xs font-semibold text-blue-700 hover:underline dark:text-blue-300"
+                              >
+                                編集
+                              </button>
+                            )}
+                            {item.can_archive && item.is_archived && (
+                              <button
+                                type="button"
+                                onClick={() => doRestore(item.id)}
+                                disabled={archivingId === item.id}
+                                title="復元すると下書き状態に戻ります（再公開には改めて「公開する」操作が必要です）"
+                                className="text-xs font-semibold text-slate-600 hover:underline disabled:opacity-50 dark:text-neutral-300"
+                              >
+                                {archivingId === item.id ? '復元中...' : '復元'}
+                              </button>
+                            )}
+                            {item.can_archive &&
+                              !item.is_archived &&
+                              (item.status === 'published' || item.has_learning_history) && (
+                              <button
+                                type="button"
+                                onClick={() => setArchiveTarget(item)}
+                                disabled={archivingId === item.id}
+                                title="教材一覧・検索から非表示にします（データは削除されず、いつでも復元できます）"
+                                className="text-xs font-semibold text-red-700 hover:underline disabled:opacity-50 dark:text-red-400"
+                              >
+                                アーカイブ
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                       )
@@ -167,6 +267,7 @@ export default function AssignmentSettings() {
               <AssignmentEditPanel
                 key={selected.id}
                 material={selected}
+                className="mt-5"
                 onClose={() => setSelectedId(null)}
                 onSaved={() => mutate()}
               />
@@ -174,6 +275,37 @@ export default function AssignmentSettings() {
           </>
         )}
       </div>
+
+      {archiveTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-md bg-white p-5 shadow-lg dark:bg-neutral-800">
+            <div className="mb-3 flex items-center justify-between">
+              <span className="text-base font-semibold text-slate-800 dark:text-neutral-100">教材をアーカイブしますか？</span>
+              <button
+                type="button"
+                onClick={() => setArchiveTarget(null)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-neutral-200"
+              >
+                ×
+              </button>
+            </div>
+            <p className="mb-3 text-sm leading-relaxed text-slate-600 dark:text-neutral-300">
+              「{archiveTarget.title}」を教材一覧・検索から非表示にします。目次・ページ・設問・添付ファイルは削除されず、受験記録やアンケート回答がある場合もそのまま保持されます。この画面の「状態」絞り込みで「アーカイブ済み」を選ぶといつでも一覧に戻して復元できます。
+            </p>
+            <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs leading-relaxed text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
+              公開中の教材をアーカイブすると、受講者からもこの教材が見えなくなります。
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="secondary" onClick={() => setArchiveTarget(null)}>
+                キャンセル
+              </Button>
+              <Button variant="danger-ghost" onClick={doArchive} disabled={archivingId === archiveTarget.id}>
+                {archivingId === archiveTarget.id ? 'アーカイブ中...' : 'アーカイブする'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -197,270 +329,4 @@ function scopeSummary(item: AssignmentListItem): string {
   if (individuals.length === 1) parts.push(`個人: ${individuals[0].scope_label}`)
   else if (individuals.length > 1) parts.push(`個人: ${individuals[0].scope_label} ほか${individuals.length - 1}名`)
   return parts.join(' / ')
-}
-
-function AssignmentEditPanel({
-  material,
-  onClose,
-  onSaved,
-}: {
-  material: AssignmentListItem
-  onClose: () => void
-  onSaved: () => void
-}) {
-  const { assignments, isLoading } = useMaterialAssignments(material.id)
-  const { memberships } = useProjectMemberships(material.project_id)
-  const activeMembers = memberships.filter((m) => m.status === 'active' && m.left_at === null)
-
-  const [projectEnabled, setProjectEnabled] = useState(false)
-  const [projectAssignmentId, setProjectAssignmentId] = useState<number | null>(null)
-  const [projectRequired, setProjectRequired] = useState(false)
-  const [projectDueAt, setProjectDueAt] = useState('')
-  const [individuals, setIndividuals] = useState<
-    { id: number | null; userId: number; name: string; required: boolean; dueAt: string }[]
-  >([])
-  const [addingUserId, setAddingUserId] = useState('')
-  const [saveError, setSaveError] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
-
-  useEffect(() => {
-    const project = assignments.find((a) => a.scope_type === 'project')
-    // 公開済みの教材はプロジェクトメンバーであれば元々閲覧・受講できる（F-25の既定アクセス）ため、
-    // 配信設定が未設定でも実質的にはプロジェクト全体へ任意公開されているのと同じ状態にある。
-    // 初めて編集パネルを開いたとき（＝まだ配信行が無いとき）は、この実態に合わせて既定でチェック
-    // 済み・任意にしておく（下書きはそもそも一般メンバーに見えないため対象外。ユーザーフィードバック
-    // により2026-09-01追加）。既存の配信行がある場合は常にその実データを優先する。
-    setProjectEnabled(project ? true : material.status === 'published')
-    setProjectAssignmentId(project?.id ?? null)
-    setProjectRequired(project?.required ?? false)
-    setProjectDueAt(project?.due_at ? formatDateJst(project.due_at) : '')
-    setIndividuals(
-      assignments
-        .filter((a) => a.scope_type === 'individual')
-        .map((a) => ({
-          id: a.id,
-          userId: a.scope_id,
-          name: a.scope_label,
-          required: a.required,
-          dueAt: a.due_at ? formatDateJst(a.due_at) : '',
-        })),
-    )
-  }, [assignments])
-
-  const candidateOptions = activeMembers.filter(
-    (m) => !individuals.some((i) => i.userId === m.user_id),
-  )
-
-  const isCompanyWide = material.is_company_wide
-
-  const addIndividual = () => {
-    const userId = Number(addingUserId)
-    const member = activeMembers.find((m) => m.user_id === userId)
-    if (!member) return
-    setIndividuals((prev) => [
-      ...prev,
-      { id: null, userId, name: member.user_name, required: false, dueAt: '' },
-    ])
-    setAddingUserId('')
-  }
-
-  const removeIndividual = (userId: number) => {
-    setIndividuals((prev) => prev.filter((i) => i.userId !== userId))
-  }
-
-  const targetCount = projectEnabled ? activeMembers.length : individuals.length
-
-  const handleSave = async () => {
-    setSaveError(null)
-    setSaving(true)
-    try {
-      const payload = [
-        ...(projectEnabled
-          ? [
-              {
-                id: projectAssignmentId,
-                scope_type: 'project' as const,
-                scope_id: material.project_id,
-                required: !isCompanyWide && projectRequired,
-                due_at: !isCompanyWide && projectRequired && projectDueAt ? projectDueAt : null,
-              },
-            ]
-          : []),
-        ...individuals.map((i) => ({
-          id: i.id,
-          scope_type: 'individual' as const,
-          scope_id: i.userId,
-          required: !isCompanyWide && i.required,
-          due_at: !isCompanyWide && i.required && i.dueAt ? i.dueAt : null,
-        })),
-      ]
-      await updateMaterialAssignments(material.id, payload)
-      onSaved()
-      onClose()
-    } catch (e) {
-      setSaveError(e instanceof ApiError ? e.message : '保存に失敗しました')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  return (
-    <section className="mt-5 rounded-md border border-blue-200 border-l-4 border-l-blue-600 shadow-sm">
-      <div className="flex items-center justify-between border-b border-blue-100 bg-blue-50 px-4 py-2.5">
-        <span className="text-sm font-semibold text-blue-900">配信設定を編集 — {material.title}</span>
-      </div>
-      <div className="flex flex-col gap-4 p-4">
-        {isLoading ? (
-          <p className="text-sm text-slate-400">読み込み中...</p>
-        ) : (
-          <>
-            <div className="flex flex-col gap-1.5">
-              <label className="flex items-center gap-1.5 text-sm text-slate-700">
-                <input
-                  type="checkbox"
-                  checked={projectEnabled}
-                  onChange={(e) => setProjectEnabled(e.target.checked)}
-                />
-                プロジェクト全体に配信する
-              </label>
-              <div className="flex items-center gap-2 pl-5">
-                <span className="rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-600">
-                  {material.project_name}
-                </span>
-                <span className="text-xs text-slate-400">この教材が属するプロジェクトです（変更不可）</span>
-              </div>
-            </div>
-
-            {projectEnabled && (
-              <div className="flex flex-col gap-2 pl-5">
-                <div className="flex items-center gap-4 text-sm">
-                  <label
-                    className="flex items-center gap-1.5"
-                    title={isCompanyWide ? '全社Wikiの教材は必修にできません' : undefined}
-                  >
-                    <input
-                      type="radio"
-                      checked={projectRequired}
-                      disabled={isCompanyWide}
-                      onChange={() => setProjectRequired(true)}
-                    />
-                    必修
-                  </label>
-                  <label className="flex items-center gap-1.5">
-                    <input type="radio" checked={!projectRequired} onChange={() => setProjectRequired(false)} />
-                    任意
-                  </label>
-                  {isCompanyWide && (
-                    <span className="text-xs text-slate-400">
-                      全社Wikiの教材は必修にできません（常に任意）
-                    </span>
-                  )}
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs font-semibold text-slate-500">受講期限（必修の場合のみ）</label>
-                  <TextInput
-                    type="date"
-                    value={projectDueAt}
-                    disabled={!projectRequired}
-                    onChange={(e) => setProjectDueAt(e.target.value)}
-                    className="w-40"
-                  />
-                </div>
-              </div>
-            )}
-
-            <div className="flex flex-col gap-2 border-t border-slate-100 pt-3">
-              <label className="text-xs font-semibold text-slate-500">個人を追加指定（任意）</label>
-              <p className="text-xs text-slate-400">
-                プロジェクト全体の設定とは別に、このプロジェクトの特定メンバーだけ個別の必修・期限を上書きしたい場合に使います。選択肢はこのプロジェクトの現役メンバーに限られます。
-              </p>
-              {individuals.length > 0 && (
-                <div className="flex flex-col gap-2">
-                  {individuals.map((i) => (
-                    <div key={i.userId} className="flex flex-wrap items-center gap-3 rounded-md border border-slate-200 px-3 py-2">
-                      <span className="min-w-[6rem] text-sm text-slate-800">{i.name}</span>
-                      <label className="flex items-center gap-1 text-xs">
-                        <input
-                          type="radio"
-                          checked={i.required}
-                          disabled={isCompanyWide}
-                          onChange={() =>
-                            setIndividuals((prev) =>
-                              prev.map((x) => (x.userId === i.userId ? { ...x, required: true } : x)),
-                            )
-                          }
-                        />
-                        必修
-                      </label>
-                      <label className="flex items-center gap-1 text-xs">
-                        <input
-                          type="radio"
-                          checked={!i.required}
-                          onChange={() =>
-                            setIndividuals((prev) =>
-                              prev.map((x) => (x.userId === i.userId ? { ...x, required: false } : x)),
-                            )
-                          }
-                        />
-                        任意
-                      </label>
-                      <TextInput
-                        type="date"
-                        value={i.dueAt}
-                        disabled={!i.required}
-                        onChange={(e) =>
-                          setIndividuals((prev) =>
-                            prev.map((x) => (x.userId === i.userId ? { ...x, dueAt: e.target.value } : x)),
-                          )
-                        }
-                        className="w-36"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removeIndividual(i.userId)}
-                        className="ml-auto text-xs font-semibold text-red-700 hover:underline"
-                      >
-                        削除
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <div className="flex items-center gap-2">
-                <Select
-                  value={addingUserId}
-                  onChange={setAddingUserId}
-                  options={[
-                    { value: '', label: 'プロジェクトメンバーから選択…' },
-                    ...candidateOptions.map((m) => ({ value: String(m.user_id), label: m.user_name })),
-                  ]}
-                  className="max-w-[280px]"
-                />
-                <Button variant="secondary" disabled={!addingUserId} onClick={addIndividual}>
-                  追加
-                </Button>
-              </div>
-            </div>
-
-            {saveError && <p className="text-sm text-red-600">{saveError}</p>}
-
-            <div className="flex items-center gap-2 border-t border-slate-100 pt-3">
-              <Button onClick={handleSave} disabled={saving}>
-                {saving ? '保存中…' : '保存'}
-              </Button>
-              <Button variant="secondary" onClick={onClose} disabled={saving}>
-                キャンセル
-              </Button>
-              <span className="ml-auto text-xs text-slate-500">
-                対象者プレビュー:{' '}
-                <strong className="text-slate-700">
-                  {projectEnabled ? `${material.project_name} 所属 ${targetCount}名` : `${targetCount}名（個人指定のみ）`}
-                </strong>
-              </span>
-            </div>
-          </>
-        )}
-      </div>
-    </section>
-  )
 }

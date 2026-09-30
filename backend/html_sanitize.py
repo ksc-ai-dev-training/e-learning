@@ -16,7 +16,7 @@ ALLOWED_ATTRIBUTES = {
     "td": {"colspan", "rowspan"},
     "th": {"colspan", "rowspan"},
 }
-ALLOWED_URL_SCHEMES = {"http", "https"}
+ALLOWED_URL_SCHEMES = {"http", "https", "data"}
 
 _RESERVED_HEADING_RE = re.compile(r"</?h[123]\b[^>]*>", re.IGNORECASE)
 
@@ -27,11 +27,21 @@ def strip_reserved_headings(html: str) -> str:
     return _RESERVED_HEADING_RE.sub("", html)
 
 
+def _restrict_data_scheme_to_img_src(tag: str, attr: str, value: str) -> str | None:
+    """data:スキームは教材本文に画像を直接埋め込む用途（永続的なURLを発行できない環境向け）
+    のみ許可し、img[src]以外（特にa[href]、data:text/htmlによるフィッシング等）では
+    許可しない（2026-09-07）。"""
+    if value.startswith("data:") and not (tag == "img" and attr == "src"):
+        return None
+    return value
+
+
 def sanitize_html(raw_html: str) -> str:
     return nh3.clean(
         raw_html,
         tags=ALLOWED_TAGS,
         attributes=ALLOWED_ATTRIBUTES,
         url_schemes=ALLOWED_URL_SCHEMES,
+        attribute_filter=_restrict_data_scheme_to_img_src,
         link_rel="noopener noreferrer",
     )

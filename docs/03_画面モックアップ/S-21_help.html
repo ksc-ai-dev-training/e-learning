@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S-21 ヘルプ | Manabi 画面モックアップ</title>
+<link rel="stylesheet" href="mock.css">
+<style>
+  /* このページ専用（案A: 画面別カタログの目次＋アコーディオン。検討資料
+     20260925_操作方法ページ_構成案比較.html で比較した3案のうち、画面別カタログを土台に
+     タスク指向の「よくある操作」リンクを添える折衷案として採用した実装〔frontend/src/pages/HelpGuide.tsx〕
+     に合わせている） */
+  .help-body { max-width: 720px; }
+  .help-quick {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px; border: 1px solid var(--border-strong);
+    border-radius: var(--radius); background: var(--bg-subtle); padding: 10px 14px; margin-bottom: 22px;
+    font-size: 12.5px;
+  }
+  .help-quick .quick-label { font-weight: 700; color: var(--text-muted); margin-right: 2px; }
+  .help-quick a {
+    border: 1px solid var(--border-strong); border-radius: 999px; padding: 4px 12px; background: #fff;
+    color: var(--text-muted); font-weight: 500;
+  }
+  .help-quick a:hover { border-color: var(--accent-600); color: var(--accent-600); text-decoration: none; }
+
+  .help-group-title {
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--text-subtle); padding: 4px 4px 6px; margin-top: 18px;
+  }
+  .help-group-title:first-of-type { margin-top: 0; }
+
+  details.help-card {
+    border: 1px solid var(--border-strong); border-radius: var(--radius-lg); background: #fff;
+    margin-bottom: 8px; overflow: hidden;
+  }
+  details.help-card summary {
+    cursor: pointer; padding: 11px 16px; display: flex; align-items: center; gap: 9px; list-style: none;
+  }
+  details.help-card summary::-webkit-details-marker { display: none; }
+  details.help-card summary .h-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  details.help-card summary .h-title { font-size: 13.5px; font-weight: 600; }
+  details.help-card summary .h-sub { font-size: 11.5px; color: var(--text-subtle); }
+  .help-card-body { padding: 0 16px 14px; border-top: 1px solid var(--border); }
+  .help-card-body p.purpose { font-size: 12.5px; color: var(--text-muted); margin: 12px 0; line-height: 1.7; }
+  .help-card-body ol { margin: 0 0 8px 20px; font-size: 12.5px; line-height: 1.85; }
+  .help-card-body .who {
+    display: inline-block; margin-top: 6px; font-size: 11px; color: var(--text-subtle);
+    border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 2px 8px;
+  }
+  .dot-blue { background: #3b82f6; } .dot-violet { background: #8b5cf6; }
+  .dot-emerald { background: #10b981; } .dot-amber { background: #f59e0b; }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- サイドバー（システムadmin: 千田 太郎。ヘルプはシステムadmin以外にはシステム管理ごと
+       非表示になる分だけ繰り上がり、ダッシュボードの直後・同色・区切り線ありで表示される） -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-mark">M</div>
+      <div><div class="brand-name">Manabi</div><div class="brand-sub">社内学習管理システム</div></div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-label">メニュー</div>
+      <a class="nav-item" href="S-02_my-learning.html">
+        <span class="nav-icon nav-icon-blue"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h3.5v-6h5v6H18a1 1 0 0 0 1-1V9.5"/></svg></span>
+        マイ学習
+      </a>
+      <a class="nav-item" href="S-03_materials-list.html">
+        <span class="nav-icon nav-icon-blue"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></span>
+        教材一覧・検索
+      </a>
+      <a class="nav-item" href="S-09_my-report.html">
+        <span class="nav-icon nav-icon-blue"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
+        個人学習レポート
+      </a>
+      <div class="nav-divider"></div>
+      <a class="nav-item" href="S-14_material-edit-list.html">
+        <span class="nav-icon nav-icon-violet"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></span>
+        教材作成・編集
+      </a>
+      <a class="nav-item" href="S-20_grading-queue.html">
+        <span class="nav-icon nav-icon-violet"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></span>
+        採点
+      </a>
+      <a class="nav-item" href="S-06_assignment-settings.html">
+        <span class="nav-icon nav-icon-violet"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></span>
+        配信設定
+      </a>
+      <div class="nav-divider"></div>
+      <a class="nav-item" href="S-11_project-create.html">
+        <span class="nav-icon nav-icon-emerald"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></span>
+        プロジェクト作成
+      </a>
+      <a class="nav-item" href="S-12_project-management.html">
+        <span class="nav-icon nav-icon-emerald"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg></span>
+        プロジェクト管理
+      </a>
+      <a class="nav-item" href="S-08_dashboard.html">
+        <span class="nav-icon nav-icon-emerald"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg></span>
+        必修教材受講ダッシュボード
+      </a>
+      <div class="nav-divider"></div>
+      <a class="nav-item" href="S-10_admin.html">
+        <span class="nav-icon nav-icon-amber"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
+        システム管理
+      </a>
+      <a class="nav-item active" href="S-21_help.html">
+        <span class="nav-icon nav-icon-amber"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>
+        ヘルプ
+      </a>
+      <div class="nav-note">※ 「ヘルプ」はシステムadminに限らず全社員に表示される。システム管理の直後・同じamber系統の色・区切り線ありで配置しているだけなので、システム管理が表示されない一般社員には区切り線ごと1つ上の「必修教材受講ダッシュボード」の下に自然に繰り上がる（2026-09-25新設）。</div>
+    </nav>
+    <div class="sidebar-user">
+      <div class="sidebar-user-row">
+        <span class="avatar">千</span>
+        <div>
+          <div class="user-name">千田 太郎 <span class="badge badge-role role-admin">admin</span></div>
+          <div class="user-mail">t.chida@kogasoftware.com</div>
+        </div>
+      </div>
+      <a class="sidebar-logout" href="S-15_profile-edit.html">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        プロフィール編集
+      </a>
+      <a class="sidebar-logout" href="S-01_login.html">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        ログアウト
+      </a>
+    </div>
+  </aside>
+
+  <!-- メインエリア -->
+  <div class="main">
+    <header class="page-header">
+      <div class="page-title-group">
+        <h1>ヘルプ</h1>
+        <span class="screen-id">S-21</span>
+      </div>
+    </header>
+
+    <div class="page-body">
+      <div class="help-body">
+
+        <div class="help-quick">
+          <span class="quick-label">よくある操作:</span>
+          <a href="#h-material-edit">教材を作りたい</a>
+          <a href="#h-assignments">必修教材を配信したい</a>
+          <a href="#h-dashboard">受講者の進捗を確認したい</a>
+          <a href="#h-grading">手動採点をしたい</a>
+          <a href="#h-project-management">Slackで受講リマインドを送りたい</a>
+          <a href="#h-admin">ユーザーのロール・有効無効を管理したい</a>
+          <a href="#h-profile">Claude Codeで教材を作りたい</a>
+          <a href="#h-my-report">学習履歴を整理したい</a>
+        </div>
+
+        <div class="help-group-title">受講する</div>
+
+        <details class="help-card" id="h-my-learning" open>
+          <summary><span class="h-dot dot-blue"></span><span class="h-title">マイ学習</span><span class="h-sub">— ログイン後の最初の画面</span></summary>
+          <div class="help-card-body">
+            <p class="purpose">自分の必修・任意教材の進捗、期限が近い必修教材、採点結果の更新、学習履歴をまとめて確認する画面です。</p>
+            <ol>
+              <li>「必修・任意」タブで、期限が近い必修教材（赤枠で強調）を優先して受講する。</li>
+              <li>任意教材は興味のあるものを選んで「受講を開始」。</li>
+              <li>教材名・タグでその場検索して絞り込める。</li>
+              <li>新しい教材を探して登録したい場合は右上の「新しい教材を探す」から教材一覧・検索へ。</li>
+            </ol>
+            <span class="who">対象: 全員</span>
+          </div>
+        </details>
+
+        <details class="help-card" id="h-materials-search">
+          <summary><span class="h-dot dot-blue"></span><span class="h-title">教材一覧・検索</span></summary>
+          <div class="help-card-body">
+            <p class="purpose">自分が参加しているプロジェクトの公開済み教材をキーワード・タグ・区分で横断検索します。</p>
+            <ol>
+              <li>キーワード・タグ・必修/任意の区分で絞り込み、「検索」を押す。</li>
+              <li>任意教材は「マイ学習に追加」でマイ学習にも表示されるようになる。</li>
+              <li>教材を開くと目次（章・ページ）が表示され、そのまま受講できる。</li>
+            </ol>
+            <span class="who">対象: 全員</span>
+          </div>
+        </details>
+
+        <details class="help-card" id="h-my-report">
+          <summary><span class="h-dot dot-blue"></span><span class="h-title">個人学習レポート</span></summary>
+          <div class="help-card-body">
+            <p class="purpose">自分（または管理しているプロジェクトのメンバー）の受講済み教材・スコア・合否をまとめて振り返る画面です。</p>
+            <ol>
+              <li>「AIフィードバックを生成する」で、理解不足の分野・おすすめ教材のコメントを作成できる。</li>
+              <li>学習履歴の各行から「進捗リセット」（未受講に戻す。受験記録は残る）と「履歴から削除」（採点結果・AI集計から見えなくする）ができる。どちらも再受験回数の上限には影響しない。</li>
+            </ol>
+            <span class="who">対象: 全員（他人の分はプロジェクト管理者・システムadminのみ閲覧可）</span>
+          </div>
+        </details>
+
+        <details class="help-card" id="h-profile">
+          <summary><span class="h-dot dot-blue"></span><span class="h-title">プロフィール編集・Claude Code連携</span><span class="h-sub">— サイドバー下部の「プロフィール編集」から</span></summary>
+          <div class="help-card-body">
+            <p class="purpose">表示名・アイコンの変更に加え、Claude Codeから教材を作成・編集するためのAPIキーを発行できます。</p>
+            <ol>
+              <li>「APIキー（Claude Code連携）」パネルから鍵を発行する（このとき限りしか表示されないのでコピーする）。</li>
+              <li>自分の端末のターミナルで、発行された鍵を使って <code>claude mcp add</code> コマンドを1回だけ実行する。</li>
+              <li>以後は「Manabiに新しい教材を作って」「教材ID◯◯を直して」のように自然な言葉で依頼できる。</li>
+            </ol>
+            <span class="who">対象: 全員</span>
+          </div>
+        </details>
+
+        <div class="help-group-title">教材を作る</div>
+
+        <details class="help-card" id="h-material-edit">
+          <summary><span class="h-dot dot-violet"></span><span class="h-title">教材作成・編集</span><span class="h-sub">— プロジェクト選択 → 教材一覧 → 目次編集 → ページ編集</span></summary>
+          <div class="help-card-body">
+            <p class="purpose">教材の章・ページ構成の組み立て、本文・設問の入力、合否条件やAI採点の既定値を設定します。</p>
+            <ol>
+              <li>プロジェクトを選び、「＋新規教材を作成」（既存教材を直す場合は一覧から「編集する」）。</li>
+              <li>「目次編集」タブで章・小見出し・ページを追加し、各ページの「編集する」で本文・設問を入力する。</li>
+              <li>合格基準・再受験可否・再受験回数の上限を設定する。</li>
+              <li>下書き保存で確認し、問題なければ「公開する」（配信設定の確認モーダルを経由）。</li>
+              <li>教材が育ってきたら「問題一覧」タブで正答率の低い設問を見つけ、S-19の詳細画面で回答傾向を確認できる。</li>
+            </ol>
+            <span class="who">対象: プロジェクトの編集者・管理者</span>
+          </div>
+        </details>
+
+        <details class="help-card" id="h-grading">
+          <summary><span class="h-dot dot-violet"></span><span class="h-title">採点</span></summary>
+          <div class="help-card-body">
+            <p class="purpose">記述式・コード記述式のうち「手動採点」設定の回答をまとめて採点するための、自分の担当教材を横断した一覧です。</p>
+            <ol>
+              <li>受験記録カード（受講者×提出日）をクリックすると、その回のすべての未採点設問がまとめて開く。</li>
+              <li>設問ごとに正誤・フィードバックを入力すると自動保存される。</li>
+              <li>すべて判定し終えたら「採点結果を送信」で受講者に公開する。</li>
+            </ol>
+            <span class="who">対象: 教材の作成者、全社ライブラリ必修教材はプロジェクト管理者も可</span>
+          </div>
+        </details>
+
+        <details class="help-card" id="h-assignments">
+          <summary><span class="h-dot dot-violet"></span><span class="h-title">配信設定</span></summary>
+          <div class="help-card-body">
+            <p class="purpose">教材ごとに必修対象・受講期限を設定する画面です（プロジェクトメンバーであれば任意教材は既に受講できるため、ここで設定するのは「誰を必修にするか」のみです）。</p>
+            <ol>
+              <li>対象教材の行を選び、「プロジェクト全体に必修として配信する」または個人を追加指定する。</li>
+              <li>必修にすると受講期限を設定でき、マイ学習に期限付きで表示されるようになる。</li>
+              <li>アーカイブ済み教材の状態確認・復元もこの画面から行える。</li>
+            </ol>
+            <span class="who">対象: 教材が属するプロジェクトの編集者・管理者、システムadmin</span>
+          </div>
+        </details>
+
+        <div class="help-group-title">プロジェクトを運営する</div>
+
+        <details class="help-card" id="h-project-create">
+          <summary><span class="h-dot dot-emerald"></span><span class="h-title">プロジェクト作成</span></summary>
+          <div class="help-card-body">
+            <p class="purpose">新しいプロジェクトを作成します。作成した人が自動的にそのプロジェクトの管理者になります。</p>
+            <ol>
+              <li>プロジェクト名・説明を入力し、内容を確認してから作成する。</li>
+            </ol>
+            <span class="who">対象: 全員</span>
+          </div>
+        </details>
+
+        <details class="help-card" id="h-project-management">
+          <summary><span class="h-dot dot-emerald"></span><span class="h-title">プロジェクト管理</span></summary>
+          <div class="help-card-body">
+            <p class="purpose">プロジェクト情報の編集、メンバーの招待・ロール変更、他プロジェクトとの教材共有を行う画面です。</p>
+            <ol>
+              <li>「メンバー管理」タブで社員を検索して追加し、管理者/編集者/受講者のロールを設定する。</li>
+              <li>「教材の共有」タブで、公開済み教材を他プロジェクトへ共有申請できる（下書きは共有不可）。</li>
+              <li>Slack通知を使うには、「プロジェクト情報」タブでIncoming Webhook URLを登録し、「必修教材のリマインドをSlackに送信」を押す（個人名は含まれない）。</li>
+              <li>条件を満たす（教材が0件または下書きのみ・自分以外のメンバーがいない）場合のみ「プロジェクトを削除」が有効になる。</li>
+            </ol>
+            <span class="who">対象: 対象プロジェクトの管理者、システムadmin（一般メンバーは閲覧のみ）</span>
+          </div>
+        </details>
+
+        <details class="help-card" id="h-dashboard">
+          <summary><span class="h-dot dot-emerald"></span><span class="h-title">必修教材受講ダッシュボード</span></summary>
+          <div class="help-card-body">
+            <p class="purpose">プロジェクト単位で必修教材の受講率・合格率・未受講者を確認し、AIによる組織向け所見を生成できます。</p>
+            <ol>
+              <li>担当範囲（管理者であるプロジェクト）を選択する。</li>
+              <li>「必修教材のリマインドをSlackに送信」で、そのプロジェクトのSlackチャンネルへ未受講件数をまとめて通知する。</li>
+              <li>「AI組織レポートを生成」で受講状況の所見コメントを作成できる。</li>
+            </ol>
+            <span class="who">対象: 対象プロジェクトの管理者、システムadmin</span>
+          </div>
+        </details>
+
+        <div class="help-group-title">システム管理</div>
+
+        <details class="help-card" id="h-admin">
+          <summary><span class="h-dot dot-amber"></span><span class="h-title">システム管理</span></summary>
+          <div class="help-card-body">
+            <p class="purpose">全社員のロール・有効/無効の管理と、AI利用状況・Slack通知などのシステム設定を行います。</p>
+            <ol>
+              <li>「ユーザー管理」タブでロール変更・アカウントの無効化を行う（システムadminが0人になる変更はブロックされる）。</li>
+              <li>「管理者になっているプロジェクト」列から、そのままプロジェクト管理画面へ遷移できる。</li>
+              <li>「システム設定」タブで、今月のAI利用状況（機能別の呼び出し件数・概算コスト）やSlack通知先を確認する。</li>
+            </ol>
+            <span class="who">対象: システムadminのみ</span>
+          </div>
+        </details>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="mock-note">画面モックアップ（S-21）/ 研修サンプル</div>
+
+<script src="mock-sidebar.js"></script>
+</body>
+</html>

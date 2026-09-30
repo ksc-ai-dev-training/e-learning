@@ -8,6 +8,7 @@ export function useMyLearning() {
   return {
     required: data?.required ?? [],
     optional: data?.optional ?? [],
+    pendingReview: data?.pending_review ?? [],
     stats: data?.stats,
     error,
     isLoading,

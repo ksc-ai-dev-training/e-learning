@@ -1,12 +1,12 @@
-# F-20 AI採点・F-22 AI個人フィードバックの滞留ジョブ再実行（詳細設計書08_AI機能実装詳細.html）。
-# asyncio.create_taskで起動したジョブがサーバー再起動等で失われた場合の保険として、起動時と
-# 5分おきに再走査する。
+# F-20 AI採点・F-22 AI個人フィードバック・F-23 AI組織レポートの滞留ジョブ
+# 再実行（詳細設計書08_AI機能実装詳細.html）。asyncio.create_taskで起動したジョブがサーバー
+# 再起動等で失われた場合の保険として、起動時と5分おきに再走査する。
 import asyncio
 import logging
 
 from database import get_pool
 from routers.learning import _grade_and_store_answer
-from routers.reports import run_ai_personal_feedback_job
+from routers.reports import run_ai_org_report_job, run_ai_personal_feedback_job
 
 logger = logging.getLogger("manabi.job_sweep")
 
@@ -16,7 +16,12 @@ STUCK_AFTER_MINUTES = 10
 
 async def sweep_once() -> None:
     """submitted_at済みのquiz_attemptsに属し、10分以上is_correct/ai_score_pctがNULLのまま
-    放置されている記述式・コード記述式の回答を再採点する（grading_mode='ai'のもののみ）。
+    放置されている記述式・コード記述式の回答を再採点する（grading_mode='ai'のもの、および
+    練習・誤答＆難問抽出〔mode='practice'〕の簡易AI採点分。2026-09-17、後者を追加。
+    人手の採点キューへ回さない方針にした以上、そちらのAI採点が失敗して滞留した場合も
+    このジョブで拾って再実行する必要があるため）。採点基準（scoring_criteria）が未設定の設問は
+    「記録」型としてそもそも採点しない方針のため対象から除外する（含めると_grade_and_store_answerが
+    毎回即returnするだけの行を、解消されないまま5分おきに永久に拾い続けてしまうため）。
     あわせて、10分以上contentがNULLのまま放置されているAI個人フィードバックジョブ（T-17）も
     再実行する（8.3節）。"""
     pool = get_pool()
@@ -30,7 +35,8 @@ async def sweep_once() -> None:
               AND a.ai_score_pct IS NULL AND a.is_correct IS NULL
               AND qa.submitted_at IS NOT NULL
               AND qa.submitted_at < now() - interval '{STUCK_AFTER_MINUTES} minutes'
-              AND COALESCE(q.grading_mode, m.grading_mode) = 'ai'"""
+              AND q.scoring_criteria IS NOT NULL
+              AND (COALESCE(q.grading_mode, m.grading_mode) = 'ai' OR qa.mode = 'practice')"""
     )
     if rows:
         logger.info("滞留していたAI採点ジョブを再実行します（%d件）", len(rows))
@@ -46,6 +52,19 @@ async def sweep_once() -> None:
         logger.info("滞留していたAI個人フィードバックジョブを再実行します（%d件）", len(feedback_rows))
         for r in feedback_rows:
             asyncio.create_task(run_ai_personal_feedback_job(r["id"], r["user_id"]))
+
+    org_report_rows = await pool.fetch(
+        f"""SELECT id, scope_type, scope_id, requested_by FROM ai_org_reports
+            WHERE content IS NULL
+              AND requested_at < now() - interval '{STUCK_AFTER_MINUTES} minutes'"""
+    )
+    if org_report_rows:
+        logger.info("滞留していたAI組織レポートジョブを再実行します（%d件）", len(org_report_rows))
+        for r in org_report_rows:
+            scope_label = "全社" if r["scope_type"] == "company" else f"project:{r['scope_id']}"
+            asyncio.create_task(
+                run_ai_org_report_job(r["id"], r["scope_id"], scope_label, r["requested_by"])
+            )
 
 
 async def run_periodic_sweep() -> None:

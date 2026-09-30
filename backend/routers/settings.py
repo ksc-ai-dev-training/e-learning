@@ -1,42 +1,38 @@
-# システム設定API（A-55〜A-58, A-80。S-10「管理」システム設定タブ）。
+# システム設定API（A-55〜A-56, A-80。S-10「管理」システム設定タブ）。Slack関連（旧A-57）は
+# 個人単位のOAuth連携（本人宛てDM）を試みたが社内ワークスペースのアプリ数上限で断念し、
+# プロジェクト単位のIncoming Webhook方式（F-12、S-12プロジェクト管理から設定）に一本化された
+# ため、全社共通のシステム設定からは撤去した（2026-09-03。2026-09-28、経緯説明を実態に合わせて
+# 訂正。routers/slack.pyという専用ファイルは存在せず、Webhook送信はrouters/learning.pyの
+# send_project_slack_reminder・slack_client.pyが担う）。
 from datetime import datetime, timezone
 
-import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-import slack_client
+import ai_client
 from auth_helpers import CurrentUser, require_roles
 from database import get_pool
-from settings_store import (
-    DEFAULT_GRACE_PERIOD_DAYS,
-    SETTING_KEYS,
-    get_ai_model,
-    get_setting,
-    get_setting_int,
-    get_slack_webhook_url,
-)
+from settings_store import DEFAULT_GRACE_PERIOD_DAYS, SETTING_KEYS, get_setting_int
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
-AI_MODEL_CHOICES = {"claude-sonnet-5", "claude-opus-5", "claude-haiku-4-5"}
-
 
 class SettingsUpdate(BaseModel):
-    """A-56: 送られてきたキーのみ更新する（部分更新）。"""
-    ai_model: str | None = None
-    slack_webhook_url: str | None = None
-    slack_channel: str | None = None
+    """A-56: 送られてきたキーのみ更新する（部分更新）。ai_modelsは機能ごとに固定し、変更操作自体を
+    受け付けない（ユーザー指示、2026-09-08。ai_client.FEATURE_MODEL_CONFIG参照）。"""
     project_leave_grace_period_days: int | None = Field(default=None, ge=0, le=365)
 
 
 @router.get("")
 async def get_settings(user: CurrentUser = Depends(require_roles("admin"))):
-    """A-55: システム設定の現在値を取得する（T-21に行が無いキーは環境変数・既定値へフォールバック）。"""
+    """A-55: システム設定の現在値を取得する（T-21に行が無いキーは環境変数・既定値へフォールバック）。
+    ai_modelsは機能ごとの現在の使用モデル・reasoning effortを常に固定値で返す（設定不可、
+    ai_client.FEATURE_MODEL_CONFIG参照。S-10システム設定タブ「AI利用設定」表示用、2026-09-08）。"""
     return {
-        "ai_model": await get_ai_model() or "claude-sonnet-5",
-        "slack_webhook_url": await get_slack_webhook_url() or "",
-        "slack_channel": await get_setting("slack_channel") or "",
+        "ai_models": [
+            {"feature": feature, "model": cfg["model"], "reasoning_effort": cfg["reasoning_effort"]}
+            for feature, cfg in ai_client.FEATURE_MODEL_CONFIG.items()
+        ],
         "project_leave_grace_period_days": await get_setting_int(
             "project_leave_grace_period_days", DEFAULT_GRACE_PERIOD_DAYS
         ),
@@ -47,8 +43,6 @@ async def get_settings(user: CurrentUser = Depends(require_roles("admin"))):
 async def update_settings(body: SettingsUpdate, user: CurrentUser = Depends(require_roles("admin"))):
     """A-56: 送られてきたキーのみT-21へupsertする。"""
     updates = body.model_dump(exclude_unset=True)
-    if "ai_model" in updates and updates["ai_model"] not in AI_MODEL_CHOICES:
-        raise HTTPException(422, detail="ai_modelの値が不正です")
 
     pool = get_pool()
     for key in SETTING_KEYS:
@@ -62,19 +56,6 @@ async def update_settings(body: SettingsUpdate, user: CurrentUser = Depends(requ
             key, None if value is None else str(value), user.id,
         )
     return await get_settings(user=user)
-
-
-@router.post("/slack-test")
-async def send_slack_test(user: CurrentUser = Depends(require_roles("admin"))):
-    """A-57: 現在設定されているWebhook URLへテスト送信する。"""
-    webhook_url = await get_slack_webhook_url()
-    if not webhook_url:
-        raise HTTPException(502, detail="Slack Webhook URLが設定されていません")
-    try:
-        await slack_client.send_test_message(webhook_url)
-    except httpx.HTTPError:
-        raise HTTPException(502, detail="Slackへのテスト送信に失敗しました")
-    return {"detail": "テスト送信しました"}
 
 
 @router.delete("", status_code=204)

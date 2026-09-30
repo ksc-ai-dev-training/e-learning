@@ -52,6 +52,7 @@
         { href: '03_画面モックアップ/S-17_material-page-edit.html', title: 'S-17 教材編集：ページ編集' },
         { href: '03_画面モックアップ/S-18_ai-draft-session.html', title: 'S-18 Claude Code下書き作成（廃止）' },
         { href: '03_画面モックアップ/S-19_question-answers.html', title: 'S-19 設問別の回答・結果一覧' },
+        { href: '03_画面モックアップ/S-20_grading-queue.html', title: 'S-20 採点' },
       ],
     },
     {
@@ -90,6 +91,8 @@
       group: '参考資料',
       docs: [
         { href: '参考資料_環境構築手順.html', title: '開発環境構築手順' },
+        { href: '参考資料_本番環境運用手順.html', title: '本番環境運用手順' },
+        { href: '参考資料_Claude Codeでの教材作成手順.html', title: 'Claude Codeでの教材作成手順' },
       ],
     },
   ];

@@ -22,4 +22,4 @@ COPY --from=frontend-build /app/frontend/dist ./static
 
 ENV APP_ENV=production
 EXPOSE 8080
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--proxy-headers", "--forwarded-allow-ips=*"]

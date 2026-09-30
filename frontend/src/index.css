@@ -1,7 +1,26 @@
 @import "tailwindcss";
 
+/* ダークモードをOS設定(prefers-color-scheme)ではなく、明示的なボタン切り替えで
+   制御するためのカスタムバリアント。html要素の.darkクラスの有無で切り替わる
+   （2026-09-17。まずはサイドバー等の共通枠のみ対応し、各画面は順次対応していく）。 */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* アプリ全体でtext-xsが多用されており、全体的に文字が小さいというフィードバックを受けて
+   サイズそのものを底上げする（2026-09-17）。個別ファイルをすべて回るのではなく、
+   text-xsユーティリティの定義自体を1段階大きくすることで、ダーク・ライト問わず
+   アプリ全体に一括で反映させる。 */
+@theme {
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: 1.25rem;
+}
+
+/* ダーク背景は当初slate-950（ほぼ黒）だと沈みすぎて文字が見づらいというフィードバックを受け、
+   slate-900に変更したが（2026-09-17）、slate系は青みを帯びるため「黒モードのはずが青っぽい」
+   という指摘を受けた。明るさはslate-900とほぼ同じまま、色相を持たない中立グレー
+   （neutral系）に置き換えて青みだけを除いた（2026-09-28）。他の画面のdark:slate-*も
+   同時にneutral-*へ統一した。 */
 body {
-  @apply bg-slate-100 text-slate-800;
+  @apply bg-slate-100 text-slate-800 dark:bg-neutral-900 dark:text-neutral-100;
 }
 
 /* クリックできる要素は一律で指カーソルにする（個別に cursor-pointer を付け忘れないため）。
@@ -20,4 +39,92 @@ a[href],
 button:disabled,
 [aria-disabled='true'] {
   cursor: default;
+}
+
+/* 教材本文（PageBody＝S-04/S-16受講画面、MarkdownHtmlEditorのプレビュー）共通のサニタイズ済み
+   HTML表示用クラス。html_sanitize.pyがstyle/class属性を許可しないため教材側では見た目を
+   調整できず、表に罫線が無い・小見出しが本文と区別できない等の問題があった
+   （20260919_Manabi改善提案.html #1）。従来は両コンポーネントにTailwindの任意バリアントで
+   pre/p/ul/olのみ個別に重複定義していたが、table・h4〜h6・blockquote・imgを追加した上で
+   1つのクラスに統合する。 */
+.material-body p {
+  @apply mb-2.5;
+}
+.material-body ul,
+.material-body ol {
+  @apply mb-3 ml-5;
+}
+.material-body ul {
+  @apply list-disc;
+}
+.material-body ol {
+  @apply list-decimal;
+}
+.material-body h4 {
+  @apply mt-5 mb-2 border-l-[3px] border-blue-900 pl-2 text-[15px] font-bold dark:border-blue-500;
+}
+.material-body h5,
+.material-body h6 {
+  @apply mt-4 mb-1.5 font-bold;
+}
+.material-body table {
+  @apply my-3 block w-full overflow-x-auto border-collapse;
+}
+.material-body th,
+.material-body td {
+  @apply border border-slate-300 px-3 py-1.5 text-left align-top dark:border-neutral-700;
+}
+.material-body th {
+  @apply bg-slate-100 font-semibold whitespace-nowrap dark:bg-neutral-800;
+}
+.material-body tbody tr:nth-child(even) {
+  @apply bg-slate-50 dark:bg-neutral-900/40;
+}
+.material-body blockquote {
+  @apply my-3 border-l-4 border-slate-300 bg-slate-50 px-3.5 py-2 text-slate-600 dark:border-neutral-600 dark:bg-neutral-800/60 dark:text-neutral-300;
+}
+.material-body img {
+  @apply my-2 h-auto max-w-full;
+}
+.material-body pre {
+  @apply overflow-x-auto rounded bg-slate-800 px-3 py-2 text-slate-100;
+}
+
+/* コード記述式の回答欄（CodeAnswerEditor）用のPrism.jsトークン配色。
+   Prismの公式テーマCSSは使わず、アプリのカラーパレットに合わせて自前で定義する。 */
+.token.keyword {
+  color: #a626a4;
+}
+.token.string {
+  color: #50a14f;
+}
+.token.comment {
+  color: #9aa1ad;
+  font-style: italic;
+}
+.token.function {
+  color: #4078f2;
+}
+.token.number,
+.token.boolean {
+  color: #986801;
+}
+.token.operator,
+.token.punctuation {
+  color: #383a42;
+}
+.token.class-name,
+.token.builtin {
+  color: #a626a4;
+}
+
+/* 上記の配色は白背景（CodeAnswerEditorのbg-white）を前提にした値のため、operator・punctuation
+   の#383a42（ほぼ黒）はダークモードのコード欄（bg-neutral-950）では文字が見えなくなる
+   （2026-09-28、ダークモード対応の全画面適用に合わせて追加）。 */
+:where(.dark, .dark *) .token.operator,
+:where(.dark, .dark *) .token.punctuation {
+  color: #abb2bf;
+}
+:where(.dark, .dark *) .token.comment {
+  color: #7f848e;
 }

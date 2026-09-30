@@ -47,23 +47,23 @@ export default function Login() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-100">
-      <div className="w-full max-w-sm rounded-lg border border-slate-200 bg-white px-9 py-10 text-center shadow-md">
+    <div className="flex min-h-screen items-center justify-center bg-slate-100 dark:bg-neutral-900">
+      <div className="w-full max-w-sm rounded-lg border border-slate-200 bg-white px-9 py-10 text-center shadow-md dark:border-neutral-800 dark:bg-neutral-800">
         <div className="mx-auto mb-3.5 flex h-11 w-11 items-center justify-center rounded-lg bg-blue-900 text-lg font-bold text-white">
           M
         </div>
-        <h1 className="text-xl font-bold tracking-wide text-slate-900">Manabi</h1>
-        <p className="mb-7 mt-1 text-xs text-slate-500">社内学習管理システム</p>
+        <h1 className="text-xl font-bold tracking-wide text-slate-900 dark:text-neutral-100">Manabi</h1>
+        <p className="mb-7 mt-1 text-xs text-slate-500 dark:text-neutral-400">社内学習管理システム</p>
 
         {authErrorMessage && (
-          <p className="mb-4 rounded border border-red-200 bg-red-50 px-3 py-2 text-center text-sm text-red-700">
+          <p className="mb-4 rounded border border-red-200 bg-red-50 px-3 py-2 text-center text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200">
             {authErrorMessage}
           </p>
         )}
 
         <a
           href="/api/auth/login"
-          className="flex h-[42px] w-full items-center justify-center gap-2.5 rounded border border-slate-300 text-sm font-semibold text-slate-800 hover:bg-slate-50"
+          className="flex h-[42px] w-full items-center justify-center gap-2.5 rounded border border-slate-300 text-sm font-semibold text-slate-800 hover:bg-slate-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700"
         >
           <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
             <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
@@ -73,11 +73,11 @@ export default function Login() {
           </svg>
           Googleでログイン
         </a>
-        <p className="mt-4 text-[11.5px] text-slate-400">@kogasoftware.com アカウントのみ利用できます</p>
+        <p className="mt-4 text-[11.5px] text-slate-400 dark:text-neutral-500">@kogasoftware.com アカウントのみ利用できます</p>
 
         {data && (
-          <div className="mt-8 border-t border-slate-200 pt-4">
-            <p className="mb-2 text-left text-xs font-semibold text-amber-600">
+          <div className="mt-8 border-t border-slate-200 pt-4 dark:border-neutral-700">
+            <p className="mb-2 text-left text-xs font-semibold text-amber-600 dark:text-amber-400">
               開発用ログイン（Google認証の代替）
             </p>
             <ul className="space-y-1">
@@ -85,13 +85,13 @@ export default function Login() {
                 <li key={u.email}>
                   <button
                     onClick={() => devLogin(u.email)}
-                    className="flex w-full items-center justify-between rounded border border-slate-200 px-3 py-2 text-left text-sm hover:bg-slate-50"
+                    className="flex w-full items-center justify-between rounded border border-slate-200 px-3 py-2 text-left text-sm hover:bg-slate-50 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700"
                   >
                     <span>
                       {u.name}
-                      <span className="ml-2 text-xs text-slate-400">{u.email}</span>
+                      <span className="ml-2 text-xs text-slate-400 dark:text-neutral-500">{u.email}</span>
                     </span>
-                    <span className="rounded bg-slate-200 px-2 py-0.5 text-xs">
+                    <span className="rounded bg-slate-200 px-2 py-0.5 text-xs dark:bg-neutral-700 dark:text-neutral-200">
                       {ROLE_LABELS[u.role]}
                     </span>
                   </button>
@@ -101,9 +101,9 @@ export default function Login() {
           </div>
         )}
 
-        {error && <p className="mt-4 text-center text-sm text-red-600">{error}</p>}
+        {error && <p className="mt-4 text-center text-sm text-red-600 dark:text-red-400">{error}</p>}
 
-        <div className="mt-7 border-t border-slate-200 pt-4 text-[11px] text-slate-400">
+        <div className="mt-7 border-t border-slate-200 pt-4 text-[11px] text-slate-400 dark:border-neutral-700 dark:text-neutral-500">
           コガソフトウェア株式会社 社内システム
         </div>
       </div>

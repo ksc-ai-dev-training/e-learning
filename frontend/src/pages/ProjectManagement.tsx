@@ -4,31 +4,44 @@ import PageHeader from '../components/layout/PageHeader'
 import MyProjectsPanel from '../components/project/MyProjectsPanel'
 import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
+import SlackIcon from '../components/ui/SlackIcon'
 import Select from '../components/ui/Select'
 import TextArea from '../components/ui/TextArea'
 import TextInput from '../components/ui/TextInput'
 import { useIncomingShares } from '../hooks/useIncomingShares'
 import { useMaterials } from '../hooks/useMaterials'
 import { useMaterialShares } from '../hooks/useMaterialShares'
+import { useShareableMaterials } from '../hooks/useShareableMaterials'
 import { useMe } from '../hooks/useMe'
+import { useMemberAttemptStatus } from '../hooks/useMemberAttemptStatus'
 import { useMemberCandidates } from '../hooks/useMemberCandidates'
+import { useMemberOverdueRequired } from '../hooks/useMemberOverdueRequired'
 import { useMyMemberships } from '../hooks/useMyMemberships'
 import { useProjectDetail } from '../hooks/useProjectDetail'
 import { useProjectMemberships } from '../hooks/useProjectMemberships'
 import { useProjects } from '../hooks/useProjects'
 import { ApiError } from '../lib/api'
 import { formatDateJst } from '../lib/datetime'
-import { changeMemberRole, deleteProject, inviteMember, removeMember, updateProject } from '../lib/projectActions'
+import {
+  changeMemberRole,
+  deleteProject,
+  inviteMember,
+  removeMember,
+  resetAttemptLimit,
+  sendProjectSlackReminder,
+  updateProject,
+} from '../lib/projectActions'
 import { createMaterialShare, deleteMaterialShare, respondMaterialShare } from '../lib/shareActions'
 import type { MaterialSource, ProjectRole } from '../types'
 
-// 全社Wikiの管理者はシステム管理者のみとし、招待・ロール変更（A-12/A-13）では新たに
-// 付与できない（基本設計書5.26節）。バックエンドが400で拒否するため、選択肢自体を出さない。
-function roleOptions(isCompanyWide: boolean) {
+// 全社ライブラリのadmin付与も他プロジェクトと同じ通常ルール（プロジェクトadminのみが付与可）に
+// 従うようになった（2026-09-17、以前は招待・ロール変更〔A-12/A-13〕で全社ライブラリのadminへの
+// 昇格を一律拒否していたが撤回。roleOptionsからも会社規模かどうかの分岐を削除した）。
+function roleOptions() {
   return [
     { value: 'learner', label: '受講者' },
     { value: 'editor', label: '編集者' },
-    ...(isCompanyWide ? [] : [{ value: 'admin', label: '管理者' }]),
+    { value: 'admin', label: '管理者' },
   ]
 }
 
@@ -42,7 +55,7 @@ type TabKey = (typeof TABS)[number]['key']
 // S-12 プロジェクト管理（詳細設計書10.12節相当）。プロジェクト情報・メンバー管理・教材の共有
 // （F-26、複製モデル）の3タブを実装済み。
 //
-// 「複数プロジェクトを管理していると常に全社Wikiがデフォルトで開いてしまう」「停止したプロジェクトが
+// 「複数プロジェクトを管理していると常に全社ライブラリがデフォルトで開いてしまう」「停止したプロジェクトが
 // 管理画面に出てこず復活させられない」「管理画面にもプロジェクト一覧・状態変更がほしい」という
 // ユーザーフィードバックを受け（2026-09-01）、:projectIdが無いとき最初の管理対象へ自動遷移していた
 // 従来の挙動をやめた。管理者であるプロジェクトが1件しかない場合も含め、常に「自分の全プロジェクト
@@ -81,6 +94,7 @@ export default function ProjectManagement() {
             <MyProjectsPanel
               memberships={memberships}
               isLoading={false}
+              isSystemAdmin={me?.role === 'admin'}
               onOpenManage={(id) => navigate(`/projects/${id}/manage`)}
               onStatusChanged={mutateMemberships}
             />
@@ -114,27 +128,75 @@ function ProjectManagementBody({
   myUserId: number | null
   onDeleted: () => void | Promise<unknown>
 }) {
-  const { project, isLoading: projectLoading, mutate: mutateProject } = useProjectDetail(projectId)
+  const { project, error: projectError, isLoading: projectLoading, mutate: mutateProject } = useProjectDetail(projectId)
   const {
     memberships,
     isLoading: membershipsLoading,
     mutate: mutateMemberships,
   } = useProjectMemberships(projectId)
+  const { me } = useMe()
+
+  // 2026-09-09: S-12をプロジェクトの編集者・受講者にも「閲覧のみ」で開放した（従来はこの画面自体
+  // 管理者以外は403だった）。isProjectAdminがfalseの間は、保存・削除・メンバー招待/削除/ロール変更・
+  // Slackリマインド送信・教材の共有申請/取り下げ/承認/却下など、あらゆる操作系ボタン・入力欄を
+  // disabled化またはUIごと非表示にする（バックエンド側も同じ基準でadmin限定のままなので二重に防御
+  // される）。教材の共有タブは、下書き教材一覧（A-21）を見られるロールがそもそもeditor以上限定の
+  // ため、learnerには開放せずeditor以上にのみ見せる。
+  const isSystemAdmin = me?.role === 'admin'
+  // 退任済み（left_at設定済み）のメンバーは、猶予期間中でもadmin/editor相当の閲覧・操作は一切
+  // 許可されない（バックエンドhas_active_project_roleと同じ基準。5.5節「役職の降格自体は対象外で、
+  // admin/editorへのアクセスは退任と同時に即座に失われる」）。A-11はleft_atで行を除外しないため、
+  // ここでフィルタしないと、猶予期間中の退任者（元admin）に対してもisProjectAdminがtrueのままになり、
+  // 保存・削除等のフル操作UIが表示された上で、実際に押すとバックエンドに403で拒否される
+  // （閲覧のみのはずが操作可能に見えてしまう）不整合が起きる（2026-09-09）。
+  const myMembership = memberships.find(
+    (m) => m.user_id === myUserId && m.status === 'active' && m.left_at === null,
+  )
+  const isProjectAdmin = isSystemAdmin || myMembership?.role === 'admin'
+  const canViewSharing = isProjectAdmin || myMembership?.role === 'editor'
 
   const navigate = useNavigate()
-  const [form, setForm] = useState({ name: '', description: '', status: 'active' as 'active' | 'completed' })
+  const [form, setForm] = useState({
+    name: '',
+    description: '',
+    status: 'active' as 'active' | 'completed',
+    slackWebhookUrl: '',
+  })
   const [saveError, setSaveError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [reminding, setReminding] = useState(false)
+  const [remindResult, setRemindResult] = useState<string | null>(null)
+  const [remindError, setRemindError] = useState<string | null>(null)
 
   useEffect(() => {
     if (project) {
-      setForm({ name: project.name, description: project.description ?? '', status: project.status })
+      setForm({
+        name: project.name,
+        description: project.description ?? '',
+        status: project.status,
+        slackWebhookUrl: project.slack_webhook_url ?? '',
+      })
       setSaved(false)
     }
   }, [project])
+
+  // 権限のないタブ（教材の共有、editor未満には非表示）が選ばれたままにならないようにする
+  // （プロジェクトを切り替えてロールが変わった場合など。2026-09-09）
+  useEffect(() => {
+    if (activeTab === 'sharing' && !canViewSharing) setActiveTab('info')
+  }, [activeTab, canViewSharing, setActiveTab])
+
+  // 保存完了メッセージは一定時間で消す（MaterialEdit.tsx・MaterialPageEdit.tsxと同じパターン。
+  // 2026-09-28、本画面だけクリーンアップの無い生のsetTimeoutになっており、保存を連打した場合に
+  // 古いタイマーが新しい保存の完了表示を巻き込んで消してしまう不整合があったため揃えた）。
+  useEffect(() => {
+    if (!saved) return
+    const timer = setTimeout(() => setSaved(false), 3000)
+    return () => clearTimeout(timer)
+  }, [saved])
 
   const handleSave = async () => {
     if (!project) return
@@ -144,12 +206,27 @@ function ProjectManagementBody({
         name: form.name,
         description: form.description || null,
         status: form.status,
+        slack_webhook_url: form.slackWebhookUrl || null,
       })
       await mutateProject()
       setSaved(true)
-      setTimeout(() => setSaved(false), 3000)
     } catch (e) {
       setSaveError(e instanceof ApiError ? e.message : '保存に失敗しました')
+    }
+  }
+
+  const handleRemind = async () => {
+    if (!project) return
+    setRemindError(null)
+    setRemindResult(null)
+    setReminding(true)
+    try {
+      await sendProjectSlackReminder(project.id)
+      setRemindResult('Slackに送信しました。')
+    } catch (e) {
+      setRemindError(e instanceof ApiError ? e.message : '送信に失敗しました')
+    } finally {
+      setReminding(false)
     }
   }
 
@@ -168,9 +245,37 @@ function ProjectManagementBody({
     }
   }
 
-  if (projectLoading || !project) {
+  // memberships（自分のこのプロジェクトでのロール判定に使う）の読み込み中もここで待つ。
+  // 待たずにisProjectAdmin等を計算すると、memberships取得が完了するまでの一瞬、実際は管理者の
+  // ユーザーにも「閲覧のみ」表示（フィールドdisabled・保存ボタン非表示等）がちらついてしまう
+  // （project detail・membershipsは別々のSWR呼び出しで、どちらが先に解決するか保証がないため。
+  // 2026-09-09、S-12の閲覧のみ対応で新たに発生した回帰）。
+  if (projectLoading || membershipsLoading) {
     return <div className="p-8 text-sm text-slate-400">読み込み中...</div>
   }
+
+  if (projectError || !project) {
+    // URL直打ちで権限外のプロジェクトIDにアクセスした場合、以前はerrorを見ておらず
+    // 「読み込み中...」のまま止まっていた（データは漏れないがUXとして分かりにくかった）。
+    // MaterialEdit.tsx/MaterialView.tsxと同じ、403を明示するパターンに揃えた（2026-09-08）。
+    const message =
+      projectError instanceof ApiError && projectError.status === 403
+        ? 'このプロジェクトを閲覧する権限がありません。'
+        : 'プロジェクトを取得できませんでした。'
+    return (
+      <div className="flex flex-1 flex-col">
+        <PageHeader title="プロジェクト管理" />
+        <div className="px-8 py-6">
+          <Link to="/projects/manage" className="text-blue-800 hover:underline">
+            ← プロジェクト一覧に戻る
+          </Link>
+          <p className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{message}</p>
+        </div>
+      </div>
+    )
+  }
+
+  const visibleTabs = TABS.filter((tab) => tab.key !== 'sharing' || canViewSharing)
 
   return (
     <div className="flex flex-1 flex-col">
@@ -178,7 +283,12 @@ function ProjectManagementBody({
         title={
           <span className="flex flex-wrap items-center gap-2">
             プロジェクト管理 — {project.name}
-            <Badge variant="admin" />
+            <Badge variant={isSystemAdmin ? 'admin' : (myMembership?.role ?? 'learner')} />
+            {!isProjectAdmin && (
+              <span className="rounded border border-slate-300 bg-slate-50 px-1.5 py-0.5 text-[11px] font-semibold text-slate-500">
+                閲覧のみ
+              </span>
+            )}
           </span>
         }
         actions={
@@ -188,13 +298,18 @@ function ProjectManagementBody({
         }
       />
       <div className="px-8 py-6">
-        <div className="mb-5 flex gap-1 border-b border-slate-200" role="tablist">
-          {TABS.map((tab) => (
+        {!isProjectAdmin && (
+          <p className="mb-4 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500">
+            このプロジェクトの管理者ではないため、閲覧のみできます。変更が必要な場合はプロジェクトの管理者に依頼してください。
+          </p>
+        )}
+        <div className="mb-5 flex gap-1 overflow-x-auto border-b border-slate-200" role="tablist">
+          {visibleTabs.map((tab) => (
             <button
               key={tab.key}
               type="button"
               onClick={() => setActiveTab(tab.key)}
-              className={`border-b-2 px-3 py-2 text-sm font-semibold ${
+              className={`flex-shrink-0 whitespace-nowrap border-b-2 px-3 py-2 text-sm font-semibold ${
                 activeTab === tab.key ? 'border-blue-700 text-blue-800' : 'border-transparent text-slate-500'
               }`}
             >
@@ -211,6 +326,8 @@ function ProjectManagementBody({
                 <TextInput
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  disabled={!isProjectAdmin}
+                  maxLength={100}
                 />
               </div>
               <div className="flex flex-col gap-1">
@@ -219,6 +336,7 @@ function ProjectManagementBody({
                   rows={4}
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  disabled={!isProjectAdmin}
                 />
               </div>
               <div className="flex gap-4">
@@ -227,6 +345,7 @@ function ProjectManagementBody({
                   <Select
                     value={form.status}
                     onChange={(v) => setForm({ ...form, status: v as 'active' | 'completed' })}
+                    disabled={!isProjectAdmin}
                     options={[
                       { value: 'active', label: '進行中' },
                       { value: 'completed', label: '停止' },
@@ -247,26 +366,72 @@ function ProjectManagementBody({
                   <span className="ml-2 text-xs text-slate-400">（作成者は自動的に管理者になります）</span>
                 </div>
               </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-semibold text-slate-500">Slack Webhook URL</label>
+                {isProjectAdmin ? (
+                  <>
+                    <TextInput
+                      value={form.slackWebhookUrl}
+                      onChange={(e) => setForm({ ...form, slackWebhookUrl: e.target.value })}
+                      placeholder="https://hooks.slack.com/services/..."
+                    />
+                    <p className="text-[11px] text-slate-400">
+                      必修教材の未受講リマインドを送るSlackチャンネルのIncoming Webhook URL（任意）。
+                      個人ごとの催促は行わず、教材単位の未受講人数のみを通知します。
+                    </p>
+                  </>
+                ) : (
+                  // URLの値自体はSlackへ直接投稿できてしまう秘密情報相当のため、管理者以外には
+                  // バックエンドがnullで返す（値を見せない）。空欄に見えて「未設定」と誤解されない
+                  // よう、専用の注記だけを表示する（2026-09-09）。
+                  <p className="text-xs text-slate-400">（管理者のみ閲覧・編集できます）</p>
+                )}
+              </div>
             </div>
-            <div className="mt-3 flex items-center gap-3">
-              <Button onClick={handleSave}>保存する</Button>
-              {saved && <span className="text-sm text-green-700">保存しました</span>}
-              {saveError && <span className="text-sm text-red-600">{saveError}</span>}
-            </div>
+            {isProjectAdmin && (
+              <div className="mt-3 flex items-center gap-3">
+                <Button onClick={handleSave}>保存する</Button>
+                {saved && <span className="text-sm text-green-700">保存しました</span>}
+                {saveError && <span className="text-sm text-red-600">{saveError}</span>}
+              </div>
+            )}
 
-            <div className="mt-6 border-t border-slate-200 pt-4">
-              <Button
-                variant="danger-ghost"
-                onClick={() => setDeleteModalOpen(true)}
-                disabled={!project.can_delete}
-                title={project.can_delete ? undefined : project.cannot_delete_reason ?? undefined}
-              >
-                プロジェクトを削除
-              </Button>
-              {!project.can_delete && (
-                <p className="mt-1.5 text-xs text-slate-400">{project.cannot_delete_reason}</p>
-              )}
-            </div>
+            {isProjectAdmin && (
+              <div className="mt-4 flex flex-col gap-2 rounded-md border border-slate-200 p-4">
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={handleRemind}
+                    disabled={reminding || !project.slack_webhook_url}
+                    className="flex h-9 items-center gap-2 whitespace-nowrap rounded-md border border-slate-300 bg-white px-3.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 dark:hover:bg-neutral-700"
+                  >
+                    <SlackIcon />
+                    {reminding ? '送信中...' : '必修教材のリマインドをSlackに送信'}
+                  </button>
+                  {!project.slack_webhook_url && (
+                    <span className="text-xs text-slate-400">Webhook URLを保存すると送信できます</span>
+                  )}
+                </div>
+                {remindResult && <span className="text-sm text-green-700">{remindResult}</span>}
+                {remindError && <span className="text-sm text-red-600">{remindError}</span>}
+              </div>
+            )}
+
+            {isProjectAdmin && (
+              <div className="mt-6 border-t border-slate-200 pt-4">
+                <Button
+                  variant="danger-ghost"
+                  onClick={() => setDeleteModalOpen(true)}
+                  disabled={!project.can_delete}
+                  title={project.can_delete ? undefined : project.cannot_delete_reason ?? undefined}
+                >
+                  プロジェクトを削除
+                </Button>
+                {!project.can_delete && (
+                  <p className="mt-1.5 text-xs text-slate-400">{project.cannot_delete_reason}</p>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -307,10 +472,11 @@ function ProjectManagementBody({
             membershipsLoading={membershipsLoading}
             mutateMemberships={mutateMemberships}
             myUserId={myUserId}
+            canManage={isProjectAdmin}
           />
         )}
 
-        {activeTab === 'sharing' && <SharingTab projectId={projectId} />}
+        {activeTab === 'sharing' && <SharingTab projectId={projectId} canManage={isProjectAdmin} />}
       </div>
     </div>
   )
@@ -323,6 +489,7 @@ function MembersTab({
   membershipsLoading,
   mutateMemberships,
   myUserId,
+  canManage,
 }: {
   projectId: number
   isCompanyWide: boolean
@@ -330,31 +497,78 @@ function MembersTab({
   membershipsLoading: boolean
   mutateMemberships: () => void | Promise<unknown>
   myUserId: number | null
+  // このプロジェクトの管理者（またはシステムadmin）かどうか。falseの間は招待・削除・ロール変更・
+  // 受験状況/未受講必修教材の閲覧を一切できず、メンバー一覧の閲覧のみに制限する（2026-09-09、
+  // S-12を編集者・受講者にも「閲覧のみ」で開放する要望への対応。呼び出し元の
+  // ProjectManagementBodyで算出済みのisProjectAdminをそのまま受け取る）。
+  // 自分自身の行のロール変更もcanManageだけで許可する（2026-09-16、ユーザー要望。以前はシステム
+  // adminだけ自分の行を編集可能にしていたが、A-13は元々「対象が最後の1人の管理者でなければ許可」
+  // という、自分自身かどうかを区別しない設計だったため、実プロジェクトの管理者自身にも同じ扱いに
+  // 揃えた。ロール変更が保存ボタン方式〔自動保存ではない〕になったことで誤操作のリスクも下がっている）。
+  canManage: boolean
 }) {
   const [pendingRemove, setPendingRemove] = useState<number | null>(null)
   const [rowError, setRowError] = useState<string | null>(null)
   const [inviteQuery, setInviteQuery] = useState('')
   const [inviteRole, setInviteRole] = useState<ProjectRole>('learner')
   const [selectedCandidateId, setSelectedCandidateId] = useState<number | null>(null)
-  const { candidates } = useMemberCandidates(projectId, inviteQuery)
+  // canManageがfalseの間は招待UI自体を表示しないため、権限の無い候補検索API（A-90、管理者限定）
+  // を呼ばないようprojectIdをnullにしてフェッチをスキップする（2026-09-09）。
+  const { candidates } = useMemberCandidates(canManage ? projectId : null, inviteQuery)
+  const [attemptPanelUser, setAttemptPanelUser] = useState<{ userId: number; name: string } | null>(null)
+  const [remindPanelUser, setRemindPanelUser] = useState<{ userId: number; name: string } | null>(null)
 
-  const handleRoleChange = async (userId: number, role: ProjectRole) => {
+  // 受験状況・回数リセットは、このプロジェクトのadmin、またはシステムadminにのみ見せる
+  // （個人学習レポートの管理者判定と同じ基準。全社ライブラリは以前adminロールを誰も持てなかったため
+  // 全社員が擬似的にeditorになる場合でもこのボタン自体が見えなかったが、2026-09-17にシステムadminを
+  // 全社ライブラリの実際のadminとして登録する方針に変えたため、現在はその人たちに見える。2026-09-03）。
+  const canManageAttempts = canManage
+
+  // ロール変更は誤操作防止のため自動保存にせず、選択した値をここに保持しておき「保存」を
+  // 押すまで反映しない（2026-09-16、ユーザー要望）。
+  const [pendingRoles, setPendingRoles] = useState<Record<number, ProjectRole>>({})
+  const [savingIds, setSavingIds] = useState<Set<number>>(new Set())
+
+  const selectPendingRole = (userId: number, role: ProjectRole) => {
+    setPendingRoles((prev) => ({ ...prev, [userId]: role }))
+  }
+  const cancelPendingRole = (userId: number) => {
+    setPendingRoles((prev) => {
+      const next = { ...prev }
+      delete next[userId]
+      return next
+    })
+  }
+
+  const saveRole = async (userId: number) => {
+    const role = pendingRoles[userId]
+    if (role === undefined) return
     setRowError(null)
+    setSavingIds((prev) => new Set(prev).add(userId))
     try {
       await changeMemberRole(projectId, userId, role)
+      cancelPendingRole(userId)
       await mutateMemberships()
     } catch (e) {
       setRowError(e instanceof ApiError ? e.message : 'ロールの変更に失敗しました')
+    } finally {
+      setSavingIds((prev) => {
+        const next = new Set(prev)
+        next.delete(userId)
+        return next
+      })
     }
   }
 
   const handleRemove = async (userId: number) => {
     setRowError(null)
+    const isLeavingSelf = userId === myUserId
     try {
       await removeMember(projectId, userId)
       await mutateMemberships()
     } catch (e) {
-      setRowError(e instanceof ApiError ? e.message : '削除に失敗しました')
+      const fallback = isLeavingSelf ? '退出に失敗しました' : '削除に失敗しました'
+      setRowError(e instanceof ApiError ? e.message : fallback)
     } finally {
       setPendingRemove(null)
     }
@@ -378,6 +592,7 @@ function MembersTab({
       <p className="mb-4 text-xs text-slate-500">
         メンバーの招待・削除、ロール（管理者/編集者/受講者）の設定は、このプロジェクトの管理者が行います。
         追加は招待制です。招待した時点ではまだ権限は発生せず、招待された本人が承諾して初めてメンバーとして有効になります。
+        ロールは選択後「保存」を押すまで反映されません。自分自身の降格も、他に有効な管理者が1人以上いれば行えます。
       </p>
 
       {rowError && <p className="mb-3 text-sm text-red-600">{rowError}</p>}
@@ -386,7 +601,7 @@ function MembersTab({
         <p className="text-sm text-slate-400">読み込み中...</p>
       ) : (
         <div className="overflow-x-auto rounded-md border border-slate-200">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm max-sm:whitespace-nowrap">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50 text-left text-xs text-slate-500">
                 <th className="px-3 py-2 font-normal">氏名</th>
@@ -413,11 +628,31 @@ function MembersTab({
                       </td>
                       <td className="px-3 py-2">
                         <Select
-                          value={m.role}
-                          disabled={isSelf || m.status !== 'active'}
-                          onChange={(v) => handleRoleChange(m.user_id, v as ProjectRole)}
-                          options={roleOptions(isCompanyWide && m.role !== 'admin')}
+                          value={pendingRoles[m.user_id] ?? m.role}
+                          disabled={m.status !== 'active' || !canManage || savingIds.has(m.user_id)}
+                          onChange={(v) => selectPendingRole(m.user_id, v as ProjectRole)}
+                          options={roleOptions()}
                         />
+                        {pendingRoles[m.user_id] !== undefined && pendingRoles[m.user_id] !== m.role && (
+                          <div className="mt-1 flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => saveRole(m.user_id)}
+                              disabled={savingIds.has(m.user_id)}
+                              className="text-xs font-semibold text-blue-700 hover:underline disabled:cursor-not-allowed disabled:text-slate-400"
+                            >
+                              {savingIds.has(m.user_id) ? '保存中...' : '保存'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => cancelPendingRole(m.user_id)}
+                              disabled={savingIds.has(m.user_id)}
+                              className="text-xs text-slate-400 hover:underline"
+                            >
+                              取消
+                            </button>
+                          </div>
+                        )}
                       </td>
                       <td className="px-3 py-2">
                         <Badge variant={m.status === 'active' ? 'member-active' : m.status === 'invited' ? 'member-invited' : 'member-declined'} />
@@ -426,7 +661,64 @@ function MembersTab({
                         {m.joined_at ? formatDateJst(m.joined_at) : '—'}
                       </td>
                       <td className="px-3 py-2">
+                        <div className="flex items-center gap-2">
+                        {canManageAttempts && m.status === 'active' && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => setAttemptPanelUser({ userId: m.user_id, name: m.user_name })}
+                              className="rounded border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                            >
+                              受験状況
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setRemindPanelUser({ userId: m.user_id, name: m.user_name })}
+                              className="rounded border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                            >
+                              未受講の必修教材
+                            </button>
+                          </>
+                        )}
                         {isSelf ? (
+                          isCompanyWide ? (
+                            // 全社ライブラリは自己退出できない方針のため（2026-09-17、ユーザー要望。
+                            // バックエンドのupdate_memberも自己退出のみ拒否する）、管理者による
+                            // 削除を依頼する案内のみ表示する。
+                            <span className="text-xs text-slate-400" title="全社ライブラリは自主退出できません。管理者に削除を依頼してください">—</span>
+                          ) : m.status !== 'active' ? (
+                            <span className="text-xs text-slate-400">—</span>
+                          ) : pendingRemove === m.user_id ? (
+                            <span className="flex items-center gap-1 text-xs">
+                              本当に退出しますか？
+                              <button
+                                type="button"
+                                onClick={() => handleRemove(m.user_id)}
+                                className="rounded bg-red-600 px-2 py-1 font-semibold text-white hover:bg-red-700"
+                              >
+                                退出する
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setPendingRemove(null)}
+                                className="rounded border border-slate-300 px-2 py-1 text-slate-500 hover:bg-slate-100"
+                              >
+                                キャンセル
+                              </button>
+                            </span>
+                          ) : (
+                            // 2026-09-16新設: 自分自身の行はプロジェクト管理者でなくても退出だけは行える
+                            // （S-12を閲覧専用開放した一般メンバーが実際に操作できる唯一の項目。管理者が
+                            // 不在になる唯一の管理者は、handleRemoveが呼ぶA-13側で400になる）
+                            <button
+                              type="button"
+                              onClick={() => setPendingRemove(m.user_id)}
+                              className="text-xs font-semibold text-red-700 hover:underline"
+                            >
+                              退出する
+                            </button>
+                          )
+                        ) : !canManage ? (
                           <span className="text-xs text-slate-400">—</span>
                         ) : pendingRemove === m.user_id ? (
                           <span className="flex items-center gap-1 text-xs">
@@ -455,6 +747,7 @@ function MembersTab({
                             {m.status === 'invited' ? '招待を取消' : '削除'}
                           </button>
                         )}
+                        </div>
                       </td>
                     </tr>
                   )
@@ -464,41 +757,244 @@ function MembersTab({
         </div>
       )}
 
-      <div className="mt-4 flex flex-wrap items-end gap-2">
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-semibold text-slate-500">社員を選択して招待</label>
-          <TextInput
-            placeholder="氏名・メールアドレスで検索"
-            value={inviteQuery}
-            onChange={(e) => {
-              setInviteQuery(e.target.value)
-              setSelectedCandidateId(null)
-            }}
-            className="w-64"
-          />
-        </div>
-        {inviteQuery && candidates.length > 0 && (
-          <Select
-            value={selectedCandidateId !== null ? String(selectedCandidateId) : ''}
-            onChange={(v) => setSelectedCandidateId(Number(v))}
-            options={[
-              { value: '', label: '候補から選択...' },
-              ...candidates.map((c) => ({ value: String(c.id), label: `${c.name}（${c.email}）` })),
-            ]}
-          />
-        )}
-        <Select
-          value={inviteRole}
-          onChange={(v) => setInviteRole(v as ProjectRole)}
-          options={roleOptions(isCompanyWide)}
+      {canManage && (
+        <>
+          <div className="mt-4 flex flex-wrap items-end gap-2">
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-semibold text-slate-500">社員を選択して招待</label>
+              <TextInput
+                placeholder="氏名・メールアドレスで検索"
+                value={inviteQuery}
+                onChange={(e) => {
+                  setInviteQuery(e.target.value)
+                  setSelectedCandidateId(null)
+                }}
+                className="w-64"
+              />
+            </div>
+            {inviteQuery && candidates.length > 0 && (
+              <Select
+                value={selectedCandidateId !== null ? String(selectedCandidateId) : ''}
+                onChange={(v) => setSelectedCandidateId(Number(v))}
+                options={[
+                  { value: '', label: '候補から選択...' },
+                  ...candidates.map((c) => ({ value: String(c.id), label: `${c.name}（${c.email}）` })),
+                ]}
+              />
+            )}
+            <Select
+              value={inviteRole}
+              onChange={(v) => setInviteRole(v as ProjectRole)}
+              options={roleOptions()}
+            />
+            <Button variant="secondary" disabled={selectedCandidateId === null} onClick={handleInvite}>
+              招待する
+            </Button>
+          </div>
+          <p className="mt-2 text-[11px] text-slate-400">
+            招待した時点ではまだ権限は発生しません。招待された本人が承諾して初めて、実際にメンバーとして教材の受講・編集ができるようになります。
+          </p>
+        </>
+      )}
+
+      {attemptPanelUser && (
+        <AttemptStatusPanel
+          projectId={projectId}
+          userId={attemptPanelUser.userId}
+          userName={attemptPanelUser.name}
+          onClose={() => setAttemptPanelUser(null)}
         />
-        <Button variant="secondary" disabled={selectedCandidateId === null} onClick={handleInvite}>
-          招待する
-        </Button>
+      )}
+
+      {remindPanelUser && (
+        <OverdueRequiredPanel
+          projectId={projectId}
+          userId={remindPanelUser.userId}
+          userName={remindPanelUser.name}
+          onClose={() => setRemindPanelUser(null)}
+        />
+      )}
+    </div>
+  )
+}
+
+// 新設（F-11、REQ-F-08）: S-12「メンバー管理」の未受講の必修教材パネル。表示可能なのはこの
+// プロジェクトのadmin、またはシステムadminのみ（呼び出し元のcanManageAttemptsで既にガード済み
+// だが、APIエンドポイント側でも同じ権限判定を必須にしている）。個人ごとのSlack催促は行わず、
+// ここで対象者の未受講状況を確認した管理者が運用で直接連絡する方針（2026-09-04。プロジェクト
+// 全体への教材単位のSlackリマインドは「プロジェクト情報」タブから送信できる）。
+function OverdueRequiredPanel({
+  projectId,
+  userId,
+  userName,
+  onClose,
+}: {
+  projectId: number
+  userId: number
+  userName: string
+  onClose: () => void
+}) {
+  const { items, isLoading } = useMemberOverdueRequired(projectId, userId)
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center bg-slate-900/35 p-6 pt-16"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose()
+      }}
+    >
+      <div className="max-h-[calc(100vh-8rem)] w-full max-w-lg overflow-y-auto rounded-lg bg-white shadow-xl">
+        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3.5">
+          <h3 className="text-sm font-semibold text-slate-800">{userName} さんの未受講の必修教材（このプロジェクト）</h3>
+          <button type="button" onClick={onClose} className="text-lg leading-none text-slate-400 hover:text-slate-600">
+            ×
+          </button>
+        </div>
+        <div className="p-5">
+          {isLoading ? (
+            <p className="text-sm text-slate-400">読み込み中...</p>
+          ) : items.length === 0 ? (
+            <p className="py-6 text-center text-sm text-slate-400">期限が近い・超過している未受講の必修教材はありません。</p>
+          ) : (
+            <div className="mb-4 flex flex-col">
+              {items.map((it) => (
+                <div key={it.material_id} className="flex items-center justify-between border-b border-slate-100 py-2.5 last:border-0">
+                  <span className="min-w-0 flex-1 truncate text-sm text-slate-800">{it.material_title}</span>
+                  <span className="ml-2 flex-shrink-0 text-xs text-slate-500">
+                    期限: {it.due_at ? formatDateJst(it.due_at) : '—'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
-      <p className="mt-2 text-[11px] text-slate-400">
-        招待した時点ではまだ権限は発生しません。招待された本人が承諾して初めて、実際にメンバーとして教材の受講・編集ができるようになります。
-      </p>
+    </div>
+  )
+}
+
+// 新設: S-12「メンバー管理」の受験状況パネル（REQ-F-09、検討資料/画面モック/
+// 20260903_S-12改善案_メンバー受験回数リセット.htmlで承認済みの方針）。表示・操作可能なのは
+// このプロジェクトのadmin、またはシステムadminのみ（呼び出し元のcanManageAttemptsで既に
+// ガード済みだが、APIエンドポイント側でも同じ権限判定を必須にしている）。
+function AttemptStatusPanel({
+  projectId,
+  userId,
+  userName,
+  onClose,
+}: {
+  projectId: number
+  userId: number
+  userName: string
+  onClose: () => void
+}) {
+  const { items, isLoading, mutate } = useMemberAttemptStatus(projectId, userId)
+  const [resettingKey, setResettingKey] = useState<string | null>(null)
+  const [confirmingKey, setConfirmingKey] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  const keyOf = (materialId: number, scopeNodeId: number | null) => `${materialId}:${scopeNodeId ?? 'material'}`
+
+  const handleReset = async (materialId: number, scopeNodeId: number | null) => {
+    const key = keyOf(materialId, scopeNodeId)
+    setError(null)
+    setResettingKey(key)
+    try {
+      await resetAttemptLimit(projectId, userId, materialId, scopeNodeId)
+      await mutate()
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'リセットに失敗しました')
+    } finally {
+      setResettingKey(null)
+      setConfirmingKey(null)
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center bg-slate-900/35 p-6 pt-16"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose()
+      }}
+    >
+      <div className="max-h-[calc(100vh-8rem)] w-full max-w-2xl overflow-y-auto rounded-lg bg-white shadow-xl">
+        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3.5">
+          <h3 className="text-sm font-semibold text-slate-800">{userName} さんの受験状況（このプロジェクトの教材）</h3>
+          <button type="button" onClick={onClose} className="text-lg leading-none text-slate-400 hover:text-slate-600">
+            ×
+          </button>
+        </div>
+        <div className="p-5">
+          <div className="mb-4 rounded-md border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs text-slate-600">
+            提出済みの受験記録（回答内容・スコア・合否）自体は削除されません。ここでリセットするのは「あと何回まで解き直せるか」の残り回数だけです。学習記録は引き続き学習履歴・個人学習レポートに残ります。
+          </div>
+
+          {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
+
+          {isLoading ? (
+            <p className="text-sm text-slate-400">読み込み中...</p>
+          ) : items.length === 0 ? (
+            <p className="py-6 text-center text-sm text-slate-400">このプロジェクトの教材で受験した記録はまだありません。</p>
+          ) : (
+            <div className="flex flex-col">
+              {items.map((it) => {
+                const key = keyOf(it.material_id, it.scope_node_id)
+                const overLimit = it.retake_limit !== null && it.submitted_count >= it.retake_limit
+                const canReset = it.retake_limit !== null && it.submitted_count > 0
+                return (
+                  <div key={key} className="flex items-center gap-3 border-b border-slate-100 py-3 last:border-0">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-semibold text-slate-800">{it.material_title}</div>
+                      <div className="mt-0.5 text-xs text-slate-500">
+                        受験単位: {it.scope_node_id === null ? '教材全体' : it.scope_label} ／ 状態:{' '}
+                        {it.passed === true ? `合格（スコア${Math.round(it.score_pct ?? 0)}%）`
+                          : it.passed === false ? `不合格（直近スコア${Math.round(it.score_pct ?? 0)}%）`
+                          : '未提出'}
+                      </div>
+                    </div>
+                    <div className={`w-28 flex-shrink-0 text-right text-xs ${overLimit ? 'font-bold text-red-700' : 'text-slate-500'}`}>
+                      {it.submitted_count} / {it.retake_limit === null ? '無制限' : `${it.retake_limit}回`}
+                    </div>
+                    {confirmingKey === key ? (
+                      <span className="flex flex-shrink-0 items-center gap-1.5 text-xs">
+                        本当に戻しますか？
+                        <button
+                          type="button"
+                          disabled={resettingKey === key}
+                          onClick={() => handleReset(it.material_id, it.scope_node_id)}
+                          className="rounded bg-blue-700 px-2.5 py-1.5 font-semibold text-white hover:bg-blue-800"
+                        >
+                          {resettingKey === key ? '処理中...' : 'リセットする'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmingKey(null)}
+                          className="rounded border border-slate-300 px-2.5 py-1.5 text-slate-500 hover:bg-slate-100"
+                        >
+                          キャンセル
+                        </button>
+                      </span>
+                    ) : (
+                      <Button
+                        variant={canReset ? 'primary' : 'secondary'}
+                        disabled={!canReset}
+                        onClick={() => setConfirmingKey(key)}
+                        className="flex-shrink-0"
+                      >
+                        回数をリセット
+                      </Button>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          <p className="mt-4 text-[11px] text-slate-400">
+            ※ 表示対象は、このプロジェクトに属する教材のうち本人が一度でも受験した記録があるものです。上限が無制限、または未提出のスコープはリセット不要のため操作できません。
+          </p>
+        </div>
+      </div>
     </div>
   )
 }
@@ -506,34 +1002,60 @@ function MembersTab({
 // S-12 教材の共有タブ（F-26、複製モデル。基本設計書5.27節）。「このプロジェクトから申請した共有」
 // （申請側、A-59/A-60/A-61）と「他プロジェクトからの共有リクエスト」（承認側、A-66/A-65）の
 // 2セクションで構成する（画面モックアップと同じ構成）。
-function SharingTab({ projectId }: { projectId: number }) {
+function SharingTab({ projectId, canManage }: { projectId: number; canManage: boolean }) {
   return (
     <div className="flex flex-col gap-8">
-      <OutgoingSharesSection projectId={projectId} />
-      <IncomingSharesSection projectId={projectId} />
+      {/* 2026-09-18新設: 全社ライブラリの必修教材・他人が作成した任意教材は通常の教材一覧
+          （下のOutgoingSharesSectionが使うA-21）には出てこなくなったため（require_material_role
+          と同じ基準に揃えたため）、プロジェクトadminが「必修・任意・作成者を問わず全教材を
+          共有できる」という共有機能本来の仕様（A-60）を実際に使うための別入口を用意する。
+          自分がプロジェクト管理者であるプロジェクト全体を横断して検索する。 */}
+      {canManage && <ShareSearchSection currentProjectId={projectId} />}
+      <OutgoingSharesSection projectId={projectId} canManage={canManage} />
+      <IncomingSharesSection projectId={projectId} canManage={canManage} />
     </div>
   )
 }
 
-function OutgoingSharesSection({ projectId }: { projectId: number }) {
-  // includeArchived=trueで取得する。バックエンド（A-60）はアーカイブ済み教材の共有申請を拒否しない
-  // にもかかわらず、既定のuseMaterials(projectId)はアーカイブ済みを除外するため、この一覧に
-  // 一切出てこず実質共有できないという不一致があった（2026-09-02、再監査で発見・修正）。
-  const { materials, isLoading } = useMaterials(projectId, true)
+function ShareSearchSection({ currentProjectId }: { currentProjectId: number }) {
+  const [query, setQuery] = useState('')
+  const [includeArchived, setIncludeArchived] = useState(false)
+  // 2026-09-18: 当初はプロジェクト横断で検索する実装だったが、意図は「プロジェクトに関係なく
+  // （＝どのプロジェクトを見ていても同じように）、そのプロジェクトに属する教材を検索できる」ことで
+  // あり、複数プロジェクトをまたいで検索する話ではなかったため修正した。作成者・必修/任意を
+  // 問わずこのプロジェクトの教材を対象にする点は変わらない（A-21〔教材一覧・検索、S-14〕は
+  // 全社ライブラリの任意教材を作成者本人のみに絞っているため、それとは別にこの検索を使う）。
+  const { items, isLoading } = useShareableMaterials(currentProjectId, query, includeArchived)
 
   return (
     <div>
-      <h3 className="mb-2 text-sm font-semibold text-slate-700">このプロジェクトから申請した共有</h3>
+      <h3 className="mb-2 text-sm font-semibold text-slate-700">教材を検索して共有</h3>
       <p className="mb-3 text-xs text-slate-500">
-        申請しただけでは何も起きません。共有先プロジェクトの管理者が承認すると、その時点の教材内容（目次・全ページ・問題・添付ファイル）で複製が共有先プロジェクトに新規作成されます。複製後は共有先プロジェクトの独立した教材として、内容編集・配信設定・公開状態はすべて共有先プロジェクトの管理者・編集者が管理します（元教材を更新しても複製には反映されません）。下書きの教材は共有申請できません。
+        このプロジェクトの教材を、作成者を問わず検索して共有申請できます（下書きは対象外）。
       </p>
+      <div className="mb-3 flex flex-wrap items-center gap-3">
+        <TextInput
+          placeholder="教材名で検索"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          className="w-64"
+        />
+        <label className="flex items-center gap-1.5 text-xs text-slate-600">
+          <input
+            type="checkbox"
+            checked={includeArchived}
+            onChange={(e) => setIncludeArchived(e.target.checked)}
+          />
+          アーカイブ済みの教材も含める
+        </label>
+      </div>
       {isLoading ? (
         <p className="text-sm text-slate-400">読み込み中...</p>
-      ) : materials.length === 0 ? (
-        <p className="text-sm text-slate-400">教材がありません。</p>
+      ) : items.length === 0 ? (
+        <p className="text-sm text-slate-400">{query ? '該当する教材がありません。' : '検索対象の教材がありません。'}</p>
       ) : (
         <div className="overflow-x-auto rounded-md border border-slate-200">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm max-sm:whitespace-nowrap">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50 text-left text-xs text-slate-500">
                 <th className="px-3 py-2 font-normal">教材名</th>
@@ -543,8 +1065,14 @@ function OutgoingSharesSection({ projectId }: { projectId: number }) {
               </tr>
             </thead>
             <tbody>
-              {materials.map((m) => (
-                <OutgoingShareRow key={m.id} projectId={projectId} material={m} />
+              {items.map((m) => (
+                <OutgoingShareRow
+                  key={m.id}
+                  sourceProjectId={m.project_id}
+                  material={{ id: m.id, title: m.title, status: 'published', is_archived: m.is_archived }}
+                  canManage
+                  extraInfo={`作成者: ${m.created_by_name} ／ ${m.is_required ? '必修' : '任意'}`}
+                />
               ))}
             </tbody>
           </table>
@@ -554,7 +1082,98 @@ function OutgoingSharesSection({ projectId }: { projectId: number }) {
   )
 }
 
-function OutgoingShareRow({ projectId, material }: { projectId: number; material: MaterialSource }) {
+function OutgoingSharesSection({ projectId, canManage }: { projectId: number; canManage: boolean }) {
+  // アーカイブ済み教材を含めるかどうかは検索セクション（ShareSearchSection）と同じくチェックボックスで
+  // 切り替える（既定false）。以前はuseMaterials(projectId, true)で常にアーカイブ済みも含めていたが
+  // （バックエンドA-60はアーカイブ済みでも共有申請を拒否しないのに、既定のuseMaterialsが除外するため
+  // 一覧に出てこず実質共有できないという不一致があったための対応、2026-09-02）、通常時は非表示にしたい
+  // というユーザー要望を受けてトグル化した（2026-09-18）。
+  const [includeArchived, setIncludeArchived] = useState(false)
+  // 2026-09-24: 実プロジェクト管理者（canManage）は検索セクション（ShareSearchSection）と同じ
+  // /api/materials/shareable（作成者・必修/任意を問わずこのプロジェクトの全教材が対象）を使い、
+  // このタブ内の2つの一覧の対象範囲を揃える（以前はここだけA-21〔useMaterials〕を使っており、
+  // 全社ライブラリで「自分が作成した教材＋必修教材」しか出ず、検索セクションより狭い範囲に
+  // なっていた不一致をユーザーが発見）。ただし/api/materials/shareableは実プロジェクト管理者
+  // のみ許可するAPIのため、このタブを閲覧できる編集者（canViewSharing、SharingTab呼び出し元
+  // 参照）向けには従来どおりA-21を使う（編集者は元々自分が作成した教材しか見えない設計のため、
+  // ここだけ範囲を広げると編集者の閲覧権限を超えてしまう）。projectIdにnullを渡す方は
+  // フックが取得自体を行わないため、片方だけが実際にAPIを呼ぶ。
+  const shareable = useShareableMaterials(canManage ? projectId : null, '', includeArchived)
+  const own = useMaterials(canManage ? null : projectId, includeArchived)
+  const isLoading = canManage ? shareable.isLoading : own.isLoading
+  const rows: { id: number; title: string; status: MaterialSource['status']; is_archived: boolean; extraInfo?: string }[] =
+    canManage
+      ? shareable.items.map((m) => ({
+          id: m.id,
+          title: m.title,
+          status: 'published',
+          is_archived: m.is_archived,
+          extraInfo: `作成者: ${m.created_by_name} ／ ${m.is_required ? '必修' : '任意'}`,
+        }))
+      : own.materials.map((m) => ({ id: m.id, title: m.title, status: m.status, is_archived: m.is_archived }))
+
+  return (
+    <div>
+      <h3 className="mb-2 text-sm font-semibold text-slate-700">このプロジェクトから申請した共有</h3>
+      <p className="mb-3 text-xs text-slate-500">
+        申請しただけでは何も起きません。共有先プロジェクトの管理者が承認すると、その時点の教材内容（目次・全ページ・問題・添付ファイル）で複製が共有先プロジェクトに新規作成されます。複製後は共有先プロジェクトの独立した教材として、内容編集・配信設定・公開状態はすべて共有先プロジェクトの管理者・編集者が管理します（元教材を更新しても複製には反映されません）。下書きの教材は共有申請できません。
+      </p>
+      <label className="mb-3 flex items-center gap-1.5 text-xs text-slate-600">
+        <input
+          type="checkbox"
+          checked={includeArchived}
+          onChange={(e) => setIncludeArchived(e.target.checked)}
+        />
+        アーカイブ済みの教材も含める
+      </label>
+      {isLoading ? (
+        <p className="text-sm text-slate-400">読み込み中...</p>
+      ) : rows.length === 0 ? (
+        <p className="text-sm text-slate-400">教材がありません。</p>
+      ) : (
+        <div className="overflow-x-auto rounded-md border border-slate-200">
+          <table className="w-full text-sm max-sm:whitespace-nowrap">
+            <thead>
+              <tr className="border-b border-slate-100 bg-slate-50 text-left text-xs text-slate-500">
+                <th className="px-3 py-2 font-normal">教材名</th>
+                <th className="px-3 py-2 font-normal">状態</th>
+                <th className="px-3 py-2 font-normal">共有先プロジェクト</th>
+                <th className="px-3 py-2 font-normal">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((m) => (
+                <OutgoingShareRow
+                  key={m.id}
+                  sourceProjectId={projectId}
+                  material={m}
+                  canManage={canManage}
+                  extraInfo={m.extraInfo}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function OutgoingShareRow({
+  sourceProjectId,
+  material,
+  canManage,
+  extraInfo,
+}: {
+  // ShareSearchSection（検索結果）・OutgoingSharesSection（このプロジェクトの教材一覧）の
+  // どちらからも使う共通行。両者ともsourceProjectId＝現在のプロジェクト自身なので、共有先
+  // プルダウンの候補からはこのプロジェクト自身を除外する。
+  sourceProjectId: number
+  material: Pick<MaterialSource, 'id' | 'title' | 'status' | 'is_archived'>
+  canManage: boolean
+  // 検索結果からの利用時のみ、誰が作った教材かを併記する
+  extraInfo?: string
+}) {
   const { shares, mutate } = useMaterialShares(material.id)
   const { projects } = useProjects('learner')
   const [adding, setAdding] = useState(false)
@@ -564,7 +1183,7 @@ function OutgoingShareRow({ projectId, material }: { projectId: number; material
   // 却下(rejected)は再申請可能なため候補から除外しない。承認待ち・承認済みの共有先のみ除外する
   const activeShares = shares.filter((s) => s.status !== 'rejected')
   const candidateProjects = projects.filter(
-    (p) => p.id !== projectId && !activeShares.some((s) => s.shared_to_project_id === p.id),
+    (p) => p.id !== sourceProjectId && !activeShares.some((s) => s.shared_to_project_id === p.id),
   )
 
   const handleAdd = async () => {
@@ -592,7 +1211,10 @@ function OutgoingShareRow({ projectId, material }: { projectId: number; material
 
   return (
     <tr className="border-b border-slate-50 align-top last:border-0">
-      <td className="px-3 py-2 text-slate-800">{material.title}</td>
+      <td className="px-3 py-2 text-slate-800">
+        {material.title}
+        {extraInfo && <div className="text-xs font-normal text-slate-400">{extraInfo}</div>}
+      </td>
       <td className="px-3 py-2">
         {/* is_archivedはstatusとは独立したフラグ（statusは'draft'/'published'の2値のみ）のため、
             アーカイブ済みかどうかはis_archivedで判定する（archivedを含める前はstatusのみで
@@ -609,7 +1231,7 @@ function OutgoingShareRow({ projectId, material }: { projectId: number; material
             >
               {s.shared_to_project_name}
               <Badge variant={s.status === 'pending' ? 'share-pending' : 'share-accepted'} />
-              {s.status === 'pending' && (
+              {canManage && s.status === 'pending' && (
                 <button
                   type="button"
                   onClick={() => handleWithdraw(s.id)}
@@ -624,7 +1246,9 @@ function OutgoingShareRow({ projectId, material }: { projectId: number; material
         </div>
       </td>
       <td className="px-3 py-2">
-        {material.status === 'draft' ? (
+        {!canManage ? (
+          <span className="text-xs text-slate-300">—</span>
+        ) : material.status === 'draft' ? (
           <span className="text-xs text-slate-300" title="下書きのため共有申請できません">
             共有を申請
           </span>
@@ -665,7 +1289,7 @@ function OutgoingShareRow({ projectId, material }: { projectId: number; material
   )
 }
 
-function IncomingSharesSection({ projectId }: { projectId: number }) {
+function IncomingSharesSection({ projectId, canManage }: { projectId: number; canManage: boolean }) {
   const { incomingShares, isLoading, mutate } = useIncomingShares(projectId)
   const [rowError, setRowError] = useState<string | null>(null)
   const [respondingId, setRespondingId] = useState<number | null>(null)
@@ -696,7 +1320,7 @@ function IncomingSharesSection({ projectId }: { projectId: number }) {
         <p className="text-sm text-slate-400">承認待ちの共有リクエストはありません。</p>
       ) : (
         <div className="overflow-x-auto rounded-md border border-slate-200">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm max-sm:whitespace-nowrap">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50 text-left text-xs text-slate-500">
                 <th className="px-3 py-2 font-normal">教材名</th>
@@ -712,24 +1336,28 @@ function IncomingSharesSection({ projectId }: { projectId: number }) {
                   <td className="px-3 py-2 text-slate-500">{s.shared_by_project_name}</td>
                   <td className="px-3 py-2 text-slate-500">{formatDateJst(s.shared_at)}</td>
                   <td className="px-3 py-2">
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        disabled={respondingId === s.id}
-                        onClick={() => handleRespond(s.material_id, s.id, 'accepted')}
-                        className="rounded bg-blue-700 px-2 py-1 text-xs font-semibold text-white hover:bg-blue-800 disabled:opacity-50"
-                      >
-                        承認
-                      </button>
-                      <button
-                        type="button"
-                        disabled={respondingId === s.id}
-                        onClick={() => handleRespond(s.material_id, s.id, 'rejected')}
-                        className="rounded border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100 disabled:opacity-50"
-                      >
-                        却下
-                      </button>
-                    </div>
+                    {canManage ? (
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          disabled={respondingId === s.id}
+                          onClick={() => handleRespond(s.material_id, s.id, 'accepted')}
+                          className="rounded bg-blue-700 px-2 py-1 text-xs font-semibold text-white hover:bg-blue-800 disabled:opacity-50"
+                        >
+                          承認
+                        </button>
+                        <button
+                          type="button"
+                          disabled={respondingId === s.id}
+                          onClick={() => handleRespond(s.material_id, s.id, 'rejected')}
+                          className="rounded border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100 disabled:opacity-50"
+                        >
+                          却下
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-slate-300">—</span>
+                    )}
                   </td>
                 </tr>
               ))}

@@ -1,0 +1,18 @@
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+# F（pyflakes）のみ有効にする: 未使用import・未使用変数・未定義名など「実際のバグ」だけを検出する。
+# デフォルトのE/W/I/SIM/B等はスタイル・慣習の指摘が中心で、既存コード（例: FastAPIのDepends()を
+# 引数デフォルトで呼ぶ慣用パターン）と噛み合わず、無関係な指摘でCIを赤くしてしまうため対象外とする
+# （フロントエンドのoxlintを実害のある警告のみに絞っているのと同じ方針、2026-09-28）。
+select = ["F"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+# poolフィクスチャ（session scope）を全テストで使い回すため、イベントループもsession単位で
+# 統一する（既定のfunction単位のままだとテストごとに別ループになり、session poolのコネクションが
+# 別ループに紐付いたままエラーになる）。
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+testpaths = ["tests"]

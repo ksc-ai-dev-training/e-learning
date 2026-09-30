@@ -7,19 +7,21 @@ export interface Me {
   name: string
   role: Role
   picture_url: string | null
+  needs_cli_key_prompt: boolean
 }
 
-// 新設: S-15プロフィール編集のSlack連携状態（F-12、GET /api/slack/status）
-export interface SlackStatus {
-  connected: boolean
-  connected_at: string | null
-  configured: boolean
+// GET /api/auth/cli/tokens のitems（プロフィール画面の鍵管理用）
+export interface CliTokenItem {
+  id: number
+  created_at: string
+  revoked: boolean
 }
 
 // A-50 GET /api/reports/personal/{user_id} のレスポンス（S-09 個人学習レポート）
 export interface PersonalReportHistoryItem {
   material_id: number
   material_title: string
+  is_archived: boolean
   status: EnrollmentStatus
   completed_at: string | null
   score_pct: number | null
@@ -48,7 +50,7 @@ export interface PersonalAiFeedback {
 
 // A-58 GET /api/settings/ai-usage のレスポンス（S-10 管理：システム設定タブ）
 export interface AiUsageByFeature {
-  feature: 'material_review' | 'grading' | 'insight_analysis' | 'personal_feedback' | 'org_report'
+  feature: 'material_review' | 'grading' | 'personal_feedback' | 'org_report'
   count: number
   input_tokens: number
   output_tokens: number
@@ -60,10 +62,15 @@ export interface AiUsageSummary {
   by_feature: AiUsageByFeature[]
 }
 
-// A-55 GET /api/settings のレスポンス（S-10 管理：システム設定タブ）
-export type AiModel = 'claude-sonnet-5' | 'claude-opus-5' | 'claude-haiku-4-5'
+// A-55 GET /api/settings のレスポンス（S-10 管理：システム設定タブ）。ai_modelsは機能ごとに
+// 固定（変更不可）で、どの機能がどのモデル・reasoning effortを使うかを一覧表示する（2026-09-08）
+export interface AiFeatureModel {
+  feature: AiUsageByFeature['feature']
+  model: string
+  reasoning_effort: string | null
+}
 export interface SystemSettings {
-  ai_model: AiModel
+  ai_models: AiFeatureModel[]
   project_leave_grace_period_days: number
 }
 
@@ -75,6 +82,9 @@ export interface AdminUser {
   role: Role
   is_active: boolean
   created_at: string
+  // このユーザーが管理者（role='admin'）になっている現役（招待中・退任済みを除く）プロジェクト。
+  // 誰がどのプロジェクトの管理者かをシステム管理者が横断的に把握できるように追加した（2026-09-09）
+  admin_projects: { id: number; name: string }[]
 }
 
 // GET /api/auth/dev-users のitems（開発用ログインのアカウント選択に使用）
@@ -94,8 +104,10 @@ export interface MaterialSource {
   is_archived: boolean
   updated_at: string
   tags: string[]
+  created_by_name: string
   chapter_count: number
   page_count: number
+  thumbnail_url: string | null
 }
 
 export type EnrollmentStatus = 'not_started' | 'in_progress' | 'completed'
@@ -109,15 +121,17 @@ export interface MaterialSearchItem {
   project_id: number
   project_name: string
   is_company_wide: boolean
+  created_by_name: string
   chapter_count: number
   page_count: number
   question_count: number
   question_types: QuestionType[]
   required: boolean
   progress_status: EnrollmentStatus
-  // マイ学習への登録有無（F-31）。全社Wiki所属の任意教材の行にのみ登録ボタンを出す判定に使う
+  // マイ学習への登録有無（F-31）。全社ライブラリ所属の任意教材の行にのみ登録ボタンを出す判定に使う
   registered: boolean
   updated_at: string
+  thumbnail_url: string | null
 }
 
 // A-14のレスポンス
@@ -148,12 +162,17 @@ export interface MyLearningItem {
   updated_at: string | null
   // 必修/任意一覧（history=false）のみ。学習履歴（history=true）では常にundefined
   registered?: boolean
+  // 教材一覧サムネイル表示用。未設定（null）の場合はフロントエンド側でプレースホルダーを表示する
+  thumbnail_url: string | null
 }
 
 // A-39のレスポンス（history=false）
 export interface MyLearningResponse {
   required: MyLearningItem[]
   optional: MyLearningItem[]
+  // 採点結果未確認（2026-09-11新設）。本人の回答が採点済み（手動採点・AI採点の訂正）だが
+  // まだS-04で確認していない教材。S-04を開く（A-98）と消える
+  pending_review: MyLearningItem[]
   stats: {
     required_completion_pct: number
     completed_required_count: number
@@ -174,9 +193,13 @@ export interface Question {
   prompt: string
   options: string[] | null
   correct_answer: string | string[] | null
+  // 単一選択・複数選択の「記録」「任意」は正解未設定を許容するため、correct_answerの中身が
+  // 見えない受講者側でも「正解が設定されているか」を判定できるよう常に送られるフラグ
+  has_correct_answer: boolean
   scoring_criteria: string | null
   code_language: string | null
   required: boolean
+  counted: boolean
   is_critical: boolean
   feedback_style: 'show_answer' | 'review_only' | 'hint_only' | null
   score_unit: string | null
@@ -242,7 +265,17 @@ export interface Answer {
   reviewed_at: string | null
 }
 
-// A-86 GET /materials/{id}/attempt-summary のitems（S-04 前回の受験結果パネル・AI採点結果パネル）
+// A-43 GET /attempts/{id} が返すanswers（練習・誤答＆難問抽出の実施履歴「詳細」表示向け。
+// 2026-09-17）。設問情報を結合済みで、正解の中身は返さずhas_correct_answerのみ返す
+// （get_attempt_summaryと同じ考え方）。
+export interface AttemptAnswerDetail extends Answer {
+  prompt: string
+  type: QuestionType
+  is_critical: boolean
+  has_correct_answer: boolean
+}
+
+// A-86 GET /materials/{id}/attempt-summary のitems（S-04 前回の受験結果パネル・採点結果パネル）
 export interface AttemptSummaryEntry {
   scope_node_id: number | null
   scope_label: string
@@ -260,14 +293,80 @@ export interface AttemptSummaryEntry {
   answers: {
     question_id: number
     prompt: string
-    type: 'free_text' | 'code'
+    // スコア記録型（score_log）は正誤の概念が無いため対象外（2026-09-11、選択式も含めるよう拡張）
+    type: Exclude<QuestionType, 'score_log'>
+    // required && counted のときのみ合否（score_pct）に反映される（backend/routers/learning.pyの
+    // gradable判定と同じ条件）。片方でもfalseなら正誤に関わらず合否には影響しない
+    // （2026-09-17、採点結果パネルでどれが合否対象か分かりにくいというユーザー指摘により追加）
+    required: boolean
+    counted: boolean
+    response: unknown
     is_correct: boolean | null
+    // 単一選択・複数選択の「記録」「任意」は正解未設定を許容するため、is_correctがnullでも
+    // 「採点中」なのか「そもそも採点しない設問」なのかを区別するために使う（2026-09-16）
+    has_correct_answer: boolean
     ai_score_pct: number | null
     ai_feedback: string | null
+    // 自由記述・コード記述式のみ'ai'/'manual'（設問側のgrading_mode上書き、無ければ教材既定に
+    // フォールバック）。単一選択・複数選択・並び替えは常に自動採点のためnull（2026-09-18追加）
+    grading_mode: 'ai' | 'manual' | null
   }[]
 }
 
-// A-87 GET /materials/{id}/practice-attempts のitems（S-04 反復演習タブの実施履歴）
+// A-83 GET /api/grading-queue のレスポンス（S-20 採点）。教材の中を「受験記録（教材×受講者×
+// 提出日）」単位のカードにまとめて返す（2026-09-15、まとめ採点対応）。
+export interface GradingQueueAttempt {
+  attempt_id: number
+  user_id: number
+  user_name: string
+  submitted_at: string
+  total_count: number
+  draft_count: number
+}
+
+export interface GradingQueueMaterial {
+  material_id: number
+  material_title: string
+  project_id: number
+  project_name: string
+  pending_count: number
+  attempts: GradingQueueAttempt[]
+}
+
+export interface GradingQueueResponse {
+  summary: {
+    total_pending: number
+    material_count: number
+    oldest_submitted_at: string | null
+  }
+  materials: GradingQueueMaterial[]
+}
+
+// GET /api/attempts/{attempt_id}/grading のレスポンス（S-20 まとめ採点カードの詳細）
+export interface AttemptGradingItem {
+  answer_id: number
+  question_id: number
+  node_path: string
+  prompt: string
+  scoring_criteria: string | null
+  required: boolean
+  response: unknown
+  draft_is_correct: boolean | null
+  draft_ai_feedback: string | null
+}
+
+export interface AttemptGradingResponse {
+  attempt_id: number
+  user_id: number
+  user_name: string
+  submitted_at: string
+  material_id: number
+  material_title: string
+  project_name: string
+  items: AttemptGradingItem[]
+}
+
+// A-87 GET /materials/{id}/practice-attempts のitems（S-04 練習タブの実施履歴）
 export interface PracticeAttemptSummary {
   id: number
   score_pct: number | null
@@ -288,6 +387,11 @@ export interface Material {
   sort_order: number
   attempt_scope: 'material' | 'chapter' | 'section' | 'page'
   retake_scope: 'all' | 'wrong_only'
+  // 合否判定・再受験設定（S-05）。いずれも必須項目ではない: pass_score_pct未設定は
+  // 「合格基準なし＝常に合格」、retake_limit未設定は「再受験回数無制限」を意味する（2026-09-11新設）。
+  pass_score_pct: number | null
+  retake_allowed: boolean
+  retake_limit: number | null
   default_feedback_style: 'show_answer' | 'review_only' | 'hint_only'
   ai_context: string | null
   grading_mode: 'ai' | 'manual'
@@ -304,6 +408,12 @@ export interface Material {
   // マイ学習登録（F-31）向け。A-15のみが返す（S-02実装時に追加）
   is_company_wide?: boolean
   registered?: boolean
+  // S-05のアーカイブ／削除ボタンの出し分け用。編集権限者向けアクセスのみtrue/falseが入り、
+  // 受講者向けアクセスでは常にfalse（2026-09-18追加）
+  has_learning_history?: boolean
+  // 教材一覧（S-02/S-03/S-12/S-14）サムネイル表示用。未設定（null）の場合、フロントエンド側で
+  // タグ・IDから機械的に生成したプレースホルダー画像を表示する（2026-09-28新設）。
+  thumbnail_url?: string | null
 }
 
 export type ProjectRole = 'admin' | 'editor' | 'learner'
@@ -314,6 +424,9 @@ export interface Project {
   name: string
   is_company_wide: boolean
   role: ProjectRole
+  // 実際にproject_membershipsの行があるか。システムadminが呼ぶと非所属プロジェクトも
+  // 返るため、S-03の「未所属」表示に使う（非adminは常にtrue。2026-09-29）
+  is_member: boolean
   material_published_count: number
   material_draft_count: number
   member_count: number
@@ -344,7 +457,6 @@ export interface OverdueRequiredItem {
 }
 export interface MemberOverdueRequired {
   items: OverdueRequiredItem[]
-  slack_connected: boolean
 }
 
 // 新設: S-12「メンバー管理」の受験状況パネル（REQ-F-09、GET /api/projects/{id}/members/{id}/attempts）
@@ -368,6 +480,8 @@ export interface ProjectDetail {
   description: string | null
   status: 'active' | 'completed'
   is_company_wide: boolean
+  // F-12: このプロジェクトの必修教材リマインドを送信するIncoming Webhook URL（未設定ならnull）
+  slack_webhook_url: string | null
   created_by: number
   created_by_name: string
   created_at: string
@@ -395,6 +509,19 @@ export interface MaterialShare {
   responded_at: string | null
 }
 
+// 新規 GET /api/materials/shareable のitems（2026-09-18、共有申請画面のプロジェクト横断検索）。
+// 自分がプロジェクトadminである全プロジェクトの、公開済み・未アーカイブの教材を対象にする
+// （全社ライブラリの必修教材・他人が作成した任意教材は通常の教材一覧〔A-21〕には出てこなく
+// なったため、共有申請だけは別経路で検索できるようにした）。
+export interface ShareableMaterial {
+  id: number
+  title: string
+  project_id: number
+  created_by_name: string
+  is_required: boolean
+  is_archived: boolean
+}
+
 // A-66 GET /api/projects/{id}/incoming-shares のitems（S-12教材の共有タブ、承認側一覧。F-26）
 export interface IncomingMaterialShare {
   id: number
@@ -410,7 +537,7 @@ export interface IncomingMaterialShare {
 export interface MaterialRevision {
   id: number
   changed_by_name: string
-  changed_via: 'web' | 'claude_code'
+  changed_via: 'web' | 'claude_code' | 'mcp'
   change_summary: string | null
   created_at: string
 }
@@ -442,6 +569,9 @@ export interface MaterialAttachment {
   size_bytes: number | null
   external_url: string | null
   created_at: string
+  // 本文中に![alt](attachment:ID)で埋め込まれた画像かどうか（2026-09-30新設）。trueの間は
+  // 受講画面の「資料」一覧（AttachmentEntryList）には表示しない
+  is_inline: boolean
 }
 
 // 新設GET /api/materials/{id}/questions-summary のitems（S-05「問題一覧」タブ）。
@@ -457,6 +587,33 @@ export interface QuestionSummaryItem {
   total_answers: number
   accuracy_pct: number | null
   pending_count: number
+}
+
+// A-73 GET /api/questions/{question_id}/answers のレスポンス（S-19 設問別の回答・結果一覧）
+export interface QuestionAnswersResponse {
+  question: {
+    id: number
+    type: QuestionType
+    prompt: string
+    options: string[] | null
+    correct_answer: string | string[] | null
+    grading_mode: 'ai' | 'manual' | null
+    score_unit: string | null
+    material_id: number
+    project_id: number
+    material_title: string
+    node_path: string
+  }
+  items: {
+    user_id: number
+    user_name: string
+    response: unknown
+    is_correct: boolean | null
+    ai_score_pct: number | null
+    ai_feedback: string | null
+    reviewed_at: string | null
+    submitted_at: string
+  }[]
 }
 
 // A-36〜A-38 配信設定（S-06）。1教材につきscope_type='project'の行1件（任意）＋
@@ -482,7 +639,14 @@ export interface AssignmentListItem {
   project_id: number
   project_name: string
   is_company_wide: boolean
+  created_by_name: string
   updated_at: string
+  is_archived: boolean
+  // 作成者本人、またはこの教材のプロジェクトの実際の管理者か（システムadminの無条件許可は含まない）。
+  // アーカイブ・復元ボタンの表示可否に使う（2026-09-18追加）
+  can_archive: boolean
+  // アーカイブ→復元でstatus='draft'に戻った教材の再アーカイブ可否判定に使う（2026-09-18追加）
+  has_learning_history: boolean
   assignments: Assignment[]
 }
 
@@ -496,7 +660,38 @@ export interface SurveyQuestion {
   options: string[] | null
 }
 
-// A-78/A-79 GET/PUT /api/materials/{id}/surveys のitems（S-05受験後アンケート設置）。
+// A-45 GET /api/dashboard のレスポンス（S-08受講状況ダッシュボード）
+export interface DashboardStats {
+  target_material_count: number
+  required_completion_rate: number
+  pass_rate: number
+  incomplete_count: number
+  by_material: {
+    material_id: number
+    material_title: string
+    member_count: number
+    completed_count: number
+    completion_rate: number
+  }[]
+}
+
+// A-46 GET /api/dashboard/incomplete-users のitems（S-08未受講者一覧）
+export interface IncompleteUser {
+  user_id: number
+  user_name: string
+  material_id: number
+  material_title: string
+  due_at: string | null
+}
+
+// A-49 GET /api/reports/org のレスポンス（S-08 AI組織レポート、F-23）
+export interface OrgReport {
+  summary: string
+  insight_tags: string[]
+  generated_at: string
+}
+
+// A-78/A-79 GET/PUT /api/materials/{id}/surveys のitems（S-05受講後アンケート設置）。
 // node_id=nullは教材全体、指定時は対象の章（kind='chapter'）
 export interface Survey {
   id: number
