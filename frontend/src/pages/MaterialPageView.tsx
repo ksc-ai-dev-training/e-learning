@@ -533,6 +533,17 @@ export default function MaterialPageView() {
             <div className="h-full bg-blue-700 dark:bg-blue-500" style={{ width: `${progressPct}%` }} />
           </div>
           <span className="text-xs text-slate-500 dark:text-neutral-400">{progressPct}%</span>
+          <MaterialTocSidebar
+            materialId={id}
+            chapters={chapters}
+            viewingNodeId={pageNodeId}
+            completedIds={completedIds}
+            visitedIds={visitedIds}
+            // practiceモード中に目次からページを移動しても練習の続き（?only=questions等）を
+            // 保てるよう、gradedと同じfromQueryではなくgoToPageと同じ組み立てにする
+            // （2026-09-29、目次パネルをpracticeにも表示するようにした際に対応）。
+            query={mode === 'practice' ? `?mode=practice${onlyQuestions ? '&only=questions' : ''}${andFromQuery(from)}` : fromQuery(from)}
+          />
         </div>
 
         {!onlyQuestions && node.body && <PageBody materialId={id} body={node.body} format={node.format ?? 'markdown'} />}
@@ -650,17 +661,6 @@ export default function MaterialPageView() {
           </>
         )}
       </div>
-      <MaterialTocSidebar
-        materialId={id}
-        chapters={chapters}
-        viewingNodeId={pageNodeId}
-        completedIds={completedIds}
-        visitedIds={visitedIds}
-        // practiceモード中に目次からページを移動しても練習の続き（?only=questions等）を
-        // 保てるよう、gradedと同じfromQueryではなくgoToPageと同じ組み立てにする
-        // （2026-09-29、目次パネルをpracticeにも表示するようにした際に対応）。
-        query={mode === 'practice' ? `?mode=practice${onlyQuestions ? '&only=questions' : ''}${andFromQuery(from)}` : fromQuery(from)}
-      />
 
       {surveyToShow && (
         // key={survey.id}: 教材全体アンケート→章単位アンケートと連続表示する場合に、前の
