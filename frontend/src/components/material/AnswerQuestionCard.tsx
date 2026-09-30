@@ -207,12 +207,15 @@ export default function AnswerQuestionCard({
           initialOrder={answer?.response as string[] | undefined}
         />
       )}
-      {question.type === 'reorder' && disabled && (
+      {question.type === 'reorder' && disabled && !locked && (
         (() => {
           // 提出済みの読み返し画面では、表示用にシャッフルされたquestion.optionsではなく、
           // 実際に受講者が提出した順序（answer.response）を表示する（2026-09-11、提出前の
           // シャッフル順のままになっていた不具合を修正）。未回答（スキップ済み任意設問）の
           // 場合のみ、参考としてoptionsをそのまま表示する。
+          // ロック中（まだ手前の必須設問に回答しておらず、これから解く状態）は常に未回答なので
+          // ここには来ない（!lockedで除外）。ロック中にシャッフル済みの並びをそのまま出すと、
+          // 見た目上「もう回答済み」に見えてしまうため（2026-10-01、ユーザー報告により修正）。
           const items = (answer?.response as string[] | undefined) ?? question.options ?? []
           return items.length > 0 ? (
             <ul className="list-inside list-decimal text-sm text-slate-400 dark:text-neutral-500">
