@@ -220,7 +220,7 @@ export default function MyLearning() {
         </div>
 
         <div
-          className="mb-5 flex gap-1 overflow-x-auto border-b border-slate-200 dark:border-neutral-800"
+          className="mb-5 flex gap-1 overflow-x-auto overflow-y-hidden border-b border-slate-200 dark:border-neutral-800"
           role="tablist"
         >
           {(

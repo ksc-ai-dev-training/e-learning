@@ -62,7 +62,7 @@ export default function AdminSettings() {
     <div className="flex flex-1 flex-col">
       <PageHeader title="管理" />
       <div className="px-8 py-6">
-        <div className="mb-5 flex gap-1 overflow-x-auto border-b border-slate-200 dark:border-neutral-800" role="tablist">
+        <div className="mb-5 flex gap-1 overflow-x-auto overflow-y-hidden border-b border-slate-200 dark:border-neutral-800" role="tablist">
           {TABS.map((tab) => (
             <button
               key={tab.key}
