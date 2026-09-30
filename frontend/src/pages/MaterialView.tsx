@@ -609,17 +609,6 @@ export default function MaterialView() {
               </section>
             )}
 
-            {wholeMaterialAttachments.length > 0 && (
-              <section className="mb-5 rounded-md border border-slate-200 dark:border-neutral-800">
-                <div className="border-b border-slate-200 px-4 py-2.5 dark:border-neutral-800">
-                  <span className="text-sm font-semibold text-slate-700 dark:text-neutral-100">教材全体の資料</span>
-                </div>
-                <div className="p-4 text-sm">
-                  <AttachmentEntryList materialId={id} attachments={wholeMaterialAttachments} />
-                </div>
-              </section>
-            )}
-
             {chapters.length === 0 && (
               <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-500">
                 目次がまだ登録されていません。
@@ -691,6 +680,17 @@ export default function MaterialView() {
                 </div>
               </div>
             ))}
+
+            {wholeMaterialAttachments.length > 0 && (
+              <section className="mb-5 rounded-md border border-slate-200 dark:border-neutral-800">
+                <div className="border-b border-slate-200 px-4 py-2.5 dark:border-neutral-800">
+                  <span className="text-sm font-semibold text-slate-700 dark:text-neutral-100">教材全体の資料</span>
+                </div>
+                <div className="p-4 text-sm">
+                  <AttachmentEntryList materialId={id} attachments={wholeMaterialAttachments} />
+                </div>
+              </section>
+            )}
 
             {chapters.length > 0 && (
               <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-slate-200 pt-5 dark:border-neutral-800">
