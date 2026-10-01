@@ -5,7 +5,9 @@ import type { MaterialSearchResponse } from '../types'
 export interface MaterialSearchParams {
   q: string
   tags: string[]
-  projectId: number | null
+  // 複数プロジェクトを同時に選べるトグル式（2026-10-01、ユーザー要望。以前は単一選択で、
+  // 別のプロジェクトボタンを押すと選択が切り替わってしまっていた）
+  projectIds: number[]
   required: 'all' | 'required' | 'optional'
   incompleteOnly: boolean
   page: number
@@ -15,7 +17,7 @@ export interface MaterialSearchParams {
 export const EMPTY_SEARCH_PARAMS: MaterialSearchParams = {
   q: '',
   tags: [],
-  projectId: null,
+  projectIds: [],
   required: 'all',
   incompleteOnly: false,
   page: 1,
@@ -26,7 +28,7 @@ function buildQuery(params: MaterialSearchParams): string {
   const sp = new URLSearchParams()
   if (params.q.trim()) sp.set('q', params.q.trim())
   if (params.tags.length > 0) sp.set('tags', params.tags.join(','))
-  if (params.projectId !== null) sp.set('project_id', String(params.projectId))
+  if (params.projectIds.length > 0) sp.set('project_ids', params.projectIds.join(','))
   if (params.required !== 'all') sp.set('required', params.required === 'required' ? 'true' : 'false')
   if (params.incompleteOnly) sp.set('incomplete_only', 'true')
   sp.set('page', String(params.page))

@@ -140,21 +140,21 @@ mcp = MCPServer(
     description=(
         "教材を検索する。キーワード・タグ・プロジェクトIDで絞り込める。利用者が「〜に関する教材を"
         "探して」のように依頼したときに使う。公開済み（下書きを除く）の教材のみが対象。"
+        "project_idsはカンマ区切りで複数指定できる（例: \"1,3\"）。"
     ),
 )
 async def search_materials_tool(
     q: str | None = None,
     tags: str | None = None,
-    project_id: int | None = None,
+    project_ids: str | None = None,
     required: bool | None = None,
     incomplete_only: bool = False,
-    my_assignments_only: bool = False,
     page: int = 1,
     per_page: int = 20,
 ) -> dict:
     result = await _call(search_materials(
-        q=q, tags=tags, project_id=project_id, required=required,
-        incomplete_only=incomplete_only, my_assignments_only=my_assignments_only,
+        q=q, tags=tags, project_ids=project_ids, required=required,
+        incomplete_only=incomplete_only,
         page=page, per_page=per_page, user=_current_user(),
     ))
     return jsonable_encoder(result)

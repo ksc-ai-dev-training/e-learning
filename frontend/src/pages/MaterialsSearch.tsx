@@ -82,7 +82,7 @@ function filterFromSearchParams(params: URLSearchParams): FilterForm {
 export default function MaterialsSearch() {
   const navigate = useNavigate()
   const { projects } = useProjects('learner')
-  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null)
+  const [selectedProjectIds, setSelectedProjectIds] = useState<number[]>([])
   const [urlSearchParams] = useSearchParams()
 
   // 検索条件は入力中の値（form）と適用済みの値（filter）を分け、キーワードのみ「検索」押下で
@@ -100,7 +100,7 @@ export default function MaterialsSearch() {
     ...EMPTY_SEARCH_PARAMS,
     q: filter.q,
     tags: filter.tags,
-    projectId: selectedProjectId,
+    projectIds: selectedProjectIds,
     required: filter.required,
     incompleteOnly: filter.incompleteOnly,
     page,
@@ -117,8 +117,12 @@ export default function MaterialsSearch() {
     setFilter(EMPTY_FILTER)
     setPage(1)
   }
-  const selectProject = (id: number | null) => {
-    setSelectedProjectId(id)
+  const clearProjects = () => {
+    setSelectedProjectIds([])
+    setPage(1)
+  }
+  const toggleProject = (id: number) => {
+    setSelectedProjectIds((prev) => (prev.includes(id) ? prev.filter((pid) => pid !== id) : [...prev, id]))
     setPage(1)
   }
   const applyImmediate = (patch: Partial<FilterForm>) => {
@@ -144,12 +148,15 @@ export default function MaterialsSearch() {
     <div className="flex flex-1 flex-col">
       <PageHeader title="教材一覧・検索" />
       <div className="px-8 py-6">
-        <div className="mb-4 flex flex-wrap gap-2" role="tablist">
+        {/* 複数プロジェクトを同時に選べるトグル式（role=tablistは単一選択を含意するARIA意味の
+            ため使わない。2026-10-01、以前は単一選択で別のボタンを押すと選択が切り替わっていた）。 */}
+        <div className="mb-4 flex flex-wrap gap-2">
           <button
             type="button"
-            onClick={() => selectProject(null)}
+            aria-pressed={selectedProjectIds.length === 0}
+            onClick={clearProjects}
             className={`rounded-md border px-3 py-1.5 text-sm font-semibold ${
-              selectedProjectId === null
+              selectedProjectIds.length === 0
                 ? 'border-blue-800 bg-blue-900 text-white dark:border-blue-700 dark:bg-blue-800'
                 : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800'
             }`}
@@ -160,11 +167,12 @@ export default function MaterialsSearch() {
             <button
               key={p.id}
               type="button"
-              onClick={() => selectProject(p.id)}
+              aria-pressed={selectedProjectIds.includes(p.id)}
+              onClick={() => toggleProject(p.id)}
               className={`rounded-md border px-3 py-1.5 text-sm font-semibold ${
-                !p.is_member && selectedProjectId !== p.id ? 'border-dashed' : ''
+                !p.is_member && !selectedProjectIds.includes(p.id) ? 'border-dashed' : ''
               } ${
-                selectedProjectId === p.id
+                selectedProjectIds.includes(p.id)
                   ? 'border-blue-800 bg-blue-900 text-white dark:border-blue-700 dark:bg-blue-800'
                   : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800'
               }`}
