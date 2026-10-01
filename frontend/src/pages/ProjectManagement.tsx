@@ -1101,17 +1101,27 @@ function AttemptStatusPanel({
 // S-12 教材の共有タブ（F-26、複製モデル。基本設計書5.27節）。「このプロジェクトから申請した共有」
 // （申請側、A-59/A-60/A-61）と「他プロジェクトからの共有リクエスト」（承認側、A-66/A-65）の
 // 2セクションで構成する（画面モックアップと同じ構成）。
+// 2026-10-01: 3セクションが見出しとgapだけで並んでおり境界が分かりづらいという指摘を受け、
+// 各セクションを枠線付きのカードで囲んだ（S-12の他タブで行ったカード化と統一）。
 function SharingTab({ projectId, canManage }: { projectId: number; canManage: boolean }) {
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-5">
       {/* 2026-09-18新設: 全社ライブラリの必修教材・他人が作成した任意教材は通常の教材一覧
           （下のOutgoingSharesSectionが使うA-21）には出てこなくなったため（require_material_role
           と同じ基準に揃えたため）、プロジェクトadminが「必修・任意・作成者を問わず全教材を
           共有できる」という共有機能本来の仕様（A-60）を実際に使うための別入口を用意する。
           自分がプロジェクト管理者であるプロジェクト全体を横断して検索する。 */}
-      {canManage && <ShareSearchSection currentProjectId={projectId} />}
-      <OutgoingSharesSection projectId={projectId} canManage={canManage} />
-      <IncomingSharesSection projectId={projectId} canManage={canManage} />
+      {canManage && (
+        <div className="rounded-lg border border-slate-200 p-5 dark:border-neutral-700">
+          <ShareSearchSection currentProjectId={projectId} />
+        </div>
+      )}
+      <div className="rounded-lg border border-slate-200 p-5 dark:border-neutral-700">
+        <OutgoingSharesSection projectId={projectId} canManage={canManage} />
+      </div>
+      <div className="rounded-lg border border-slate-200 p-5 dark:border-neutral-700">
+        <IncomingSharesSection projectId={projectId} canManage={canManage} />
+      </div>
     </div>
   )
 }
@@ -1236,8 +1246,12 @@ function OutgoingSharesSection({ projectId, canManage }: { projectId: number; ca
               <tr className="border-b border-slate-100 bg-slate-50 text-left text-xs text-slate-500">
                 <th className="px-3 py-2 font-normal">教材名</th>
                 <th className="px-3 py-2 font-normal">状態</th>
-                <th className="px-3 py-2 font-normal">共有先プロジェクト</th>
-                <th className="px-3 py-2 font-normal">操作</th>
+                <th className="px-3 py-2 font-normal">共有先</th>
+                {/* 管理者は上の「教材を検索して共有」から新規申請できるため、この一覧では
+                    新規申請ボタンを重複して出さない（2026-10-01、ユーザー指摘）。取り下げ操作は
+                    「共有先」列内に残す。管理者でない編集者には検索セクション自体が無いため、
+                    この一覧が唯一の申請経路となり、従来どおり操作列を出す。 */}
+                {!canManage && <th className="px-3 py-2 font-normal">操作</th>}
               </tr>
             </thead>
             <tbody>
@@ -1248,6 +1262,7 @@ function OutgoingSharesSection({ projectId, canManage }: { projectId: number; ca
                   material={m}
                   canManage={canManage}
                   extraInfo={m.extraInfo}
+                  showInitiateColumn={!canManage}
                 />
               ))}
             </tbody>
@@ -1263,6 +1278,7 @@ function OutgoingShareRow({
   material,
   canManage,
   extraInfo,
+  showInitiateColumn = true,
 }: {
   // ShareSearchSection（検索結果）・OutgoingSharesSection（このプロジェクトの教材一覧）の
   // どちらからも使う共通行。両者ともsourceProjectId＝現在のプロジェクト自身なので、共有先
@@ -1272,6 +1288,10 @@ function OutgoingShareRow({
   canManage: boolean
   // 検索結果からの利用時のみ、誰が作った教材かを併記する
   extraInfo?: string
+  // falseの場合、新規申請ボタンの列自体を描画しない（OutgoingSharesSectionの管理者表示で、
+  // 上のShareSearchSectionと重複する新規申請導線を省くために使う。取り下げ操作は「共有先」列に
+  // 残るため影響しない。既定true＝ShareSearchSection・編集者向け表示は従来どおり）
+  showInitiateColumn?: boolean
 }) {
   const { shares, mutate } = useMaterialShares(material.id)
   const { projects } = useProjects('learner')
@@ -1344,46 +1364,48 @@ function OutgoingShareRow({
           ))}
         </div>
       </td>
-      <td className="px-3 py-2">
-        {!canManage ? (
-          <span className="text-xs text-slate-300">—</span>
-        ) : material.status === 'draft' ? (
-          <span className="text-xs text-slate-300" title="下書きのため共有申請できません">
-            共有を申請
-          </span>
-        ) : adding ? (
-          <div className="flex flex-col gap-1.5">
-            <Select
-              value={targetProjectId !== null ? String(targetProjectId) : ''}
-              onChange={(v) => setTargetProjectId(v ? Number(v) : null)}
-              options={[
-                { value: '', label: '共有先プロジェクトを選択...' },
-                ...candidateProjects.map((p) => ({ value: String(p.id), label: p.name })),
-              ]}
-            />
-            <div className="flex gap-2">
-              <Button variant="secondary" onClick={handleAdd} disabled={targetProjectId === null}>
-                申請を送る
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  setAdding(false)
-                  setTargetProjectId(null)
-                  setError(null)
-                }}
-              >
-                キャンセル
-              </Button>
+      {showInitiateColumn && (
+        <td className="px-3 py-2">
+          {!canManage ? (
+            <span className="text-xs text-slate-300">—</span>
+          ) : material.status === 'draft' ? (
+            <span className="text-xs text-slate-300" title="下書きのため共有申請できません">
+              共有を申請
+            </span>
+          ) : adding ? (
+            <div className="flex flex-col gap-1.5">
+              <Select
+                value={targetProjectId !== null ? String(targetProjectId) : ''}
+                onChange={(v) => setTargetProjectId(v ? Number(v) : null)}
+                options={[
+                  { value: '', label: '共有先プロジェクトを選択...' },
+                  ...candidateProjects.map((p) => ({ value: String(p.id), label: p.name })),
+                ]}
+              />
+              <div className="flex gap-2">
+                <Button variant="secondary" onClick={handleAdd} disabled={targetProjectId === null}>
+                  申請を送る
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setAdding(false)
+                    setTargetProjectId(null)
+                    setError(null)
+                  }}
+                >
+                  キャンセル
+                </Button>
+              </div>
+              {error && <span className="text-xs text-red-600">{error}</span>}
             </div>
-            {error && <span className="text-xs text-red-600">{error}</span>}
-          </div>
-        ) : (
-          <button type="button" onClick={() => setAdding(true)} className="text-xs font-semibold text-blue-700 hover:underline">
-            共有を申請
-          </button>
-        )}
-      </td>
+          ) : (
+            <button type="button" onClick={() => setAdding(true)} className="text-xs font-semibold text-blue-700 hover:underline">
+              共有を申請
+            </button>
+          )}
+        </td>
+      )}
     </tr>
   )
 }
