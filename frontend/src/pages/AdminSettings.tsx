@@ -192,10 +192,15 @@ function UsersTab({ myUserId }: { myUserId: number }) {
                   </td>
                 </tr>
               ) : (
-                users.map((u) => {
+                users.map((u, i) => {
                   const isSelf = u.id === myUserId
                   return (
-                    <tr key={u.id} className="border-b border-slate-50 last:border-0 dark:border-neutral-800">
+                    <tr
+                      key={u.id}
+                      className={`border-b border-slate-200 last:border-0 hover:bg-slate-100 dark:border-neutral-700 dark:hover:bg-neutral-800/60 ${
+                        i % 2 === 1 ? 'bg-slate-50 dark:bg-neutral-900/40' : ''
+                      }`}
+                    >
                       <td className="px-3 py-2 text-slate-800 dark:text-neutral-100">
                         {u.name}
                         {isSelf && <span className="ml-1 text-xs text-slate-400 dark:text-neutral-500">（あなた）</span>}
@@ -337,130 +342,140 @@ function SystemSettingsTab() {
     }
   }
 
+  // 2026-10-01: 各設定グループが見出し＋内側の小さい枠だけで、グループ同士の境界が分かりづらい
+  // という指摘を受け、グループ（AI利用設定／今月のAI利用状況／プロジェクト所属の猶予期間）ごとに
+  // 外枠のカードで囲んだ（S-12の他タブで行ったカード化と統一）。Slack通知の案内は特定のグループに
+  // 属さない独立した注記のため、カードには含めずそのまま残す。
   return (
-    <div>
-      <h3 className="mb-2 text-sm font-semibold text-slate-700 dark:text-neutral-200">AI利用設定</h3>
-      <div className="mb-6 max-w-2xl rounded-md border border-slate-200 p-4 dark:border-neutral-800">
-        <label className="mb-1 block text-xs font-semibold text-slate-600 dark:text-neutral-300">機能別の使用モデル</label>
-        {settings ? (
-          <div className="overflow-x-auto rounded-md border border-slate-200 dark:border-neutral-800">
-            <table className="w-full text-sm max-sm:whitespace-nowrap">
-              <thead>
-                <tr className="border-b border-slate-100 bg-slate-50 text-left text-xs text-slate-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300">
-                  <th className="px-3 py-2 font-normal">機能</th>
-                  <th className="px-3 py-2 font-normal">使用モデル</th>
-                  <th className="px-3 py-2 font-normal">reasoning effort</th>
-                </tr>
-              </thead>
-              <tbody>
-                {settings.ai_models.map((m) => (
-                  <tr key={m.feature} className="border-b border-slate-50 last:border-0 dark:border-neutral-800">
-                    <td className="px-3 py-2 text-slate-800 dark:text-neutral-100">{AI_FEATURE_LABELS[m.feature]}</td>
-                    <td className="px-3 py-2 text-slate-700 dark:text-neutral-200">{m.model}</td>
-                    <td className="px-3 py-2 text-slate-500 dark:text-neutral-300">{m.reasoning_effort ?? '（既定）'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className="text-sm text-slate-400 dark:text-neutral-500">読み込み中...</p>
-        )}
-        <p className="mt-2 text-xs text-slate-500 dark:text-neutral-400">
-          機能ごとに固定しており、変更はできません。AI採点（F-20）は学習者の合否に直結するため正確性を優先してgpt-4o-miniを、それ以外の要約・所見系の機能はコスト最優先でgpt-5-nano（reasoning
-          effortを絞って安定化）を使用しています。
-        </p>
-      </div>
-
-      <h3 className="mb-2 text-sm font-semibold text-slate-700 dark:text-neutral-200">今月のAI利用状況</h3>
-      <p className="mb-4 text-xs text-slate-500 dark:text-neutral-400">
-        機能別（F-08教材AIレビュー・F-20 AI記述式採点・F-22〜F-23）の呼び出し件数・トークン数・概算コストの内訳です。教材の作成・修正（F-05、Claude Code CLI連携）は利用者本人の契約で課金されるため、この集計には含まれません。
-      </p>
-
-      <div className="mb-4 max-w-[160px]">
-        <TextInput type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
-      </div>
-
-      {isLoading ? (
-        <p className="text-sm text-slate-400 dark:text-neutral-500">読み込み中...</p>
-      ) : error ? (
-        <p className="text-sm text-red-600 dark:text-red-400">取得に失敗しました。</p>
-      ) : usage ? (
-        <>
-          <div className="mb-4 grid max-w-2xl grid-cols-4 gap-3">
-            <div className="rounded-md border border-slate-200 p-3 dark:border-neutral-800">
-              <div className="text-xs text-slate-500 dark:text-neutral-400">呼び出し件数</div>
-              <div className="text-lg font-semibold text-slate-800 dark:text-neutral-100">{usage.total.count.toLocaleString()}</div>
-            </div>
-            <div className="rounded-md border border-slate-200 p-3 dark:border-neutral-800">
-              <div className="text-xs text-slate-500 dark:text-neutral-400">入力トークン</div>
-              <div className="text-lg font-semibold text-slate-800 dark:text-neutral-100">{usage.total.input_tokens.toLocaleString()}</div>
-            </div>
-            <div className="rounded-md border border-slate-200 p-3 dark:border-neutral-800">
-              <div className="text-xs text-slate-500 dark:text-neutral-400">出力トークン</div>
-              <div className="text-lg font-semibold text-slate-800 dark:text-neutral-100">{usage.total.output_tokens.toLocaleString()}</div>
-            </div>
-            <div className="rounded-md border border-slate-200 p-3 dark:border-neutral-800">
-              <div className="text-xs text-slate-500 dark:text-neutral-400">概算コスト</div>
-              <div className="text-lg font-semibold text-slate-800 dark:text-neutral-100">¥{Math.round(usage.total.cost_jpy).toLocaleString()}</div>
-            </div>
-          </div>
-
-          {usage.by_feature.length === 0 ? (
-            <p className="text-sm text-slate-400 dark:text-neutral-500">この月のAI利用実績はありません。</p>
-          ) : (
-            <div className="max-w-2xl overflow-x-auto rounded-md border border-slate-200 dark:border-neutral-800">
+    <div className="flex flex-col gap-5">
+      <div className="max-w-2xl rounded-lg border border-slate-200 p-5 dark:border-neutral-700">
+        <h3 className="mb-2 text-sm font-semibold text-slate-700 dark:text-neutral-200">AI利用設定</h3>
+        <div className="rounded-md border border-slate-200 p-4 dark:border-neutral-800">
+          <label className="mb-1 block text-xs font-semibold text-slate-600 dark:text-neutral-300">機能別の使用モデル</label>
+          {settings ? (
+            <div className="overflow-x-auto rounded-md border border-slate-200 dark:border-neutral-800">
               <table className="w-full text-sm max-sm:whitespace-nowrap">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50 text-left text-xs text-slate-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300">
                     <th className="px-3 py-2 font-normal">機能</th>
-                    <th className="px-3 py-2 font-normal text-right">呼び出し件数</th>
-                    <th className="px-3 py-2 font-normal text-right">入力トークン</th>
-                    <th className="px-3 py-2 font-normal text-right">出力トークン</th>
-                    <th className="px-3 py-2 font-normal text-right">概算コスト</th>
+                    <th className="px-3 py-2 font-normal">使用モデル</th>
+                    <th className="px-3 py-2 font-normal">reasoning effort</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {usage.by_feature.map((f) => (
-                    <tr key={f.feature} className="border-b border-slate-50 last:border-0 dark:border-neutral-800">
-                      <td className="px-3 py-2 text-slate-800 dark:text-neutral-100">{AI_FEATURE_LABELS[f.feature] ?? f.feature}</td>
-                      <td className="px-3 py-2 text-right text-slate-600 dark:text-neutral-300">{f.count.toLocaleString()}</td>
-                      <td className="px-3 py-2 text-right text-slate-600 dark:text-neutral-300">{f.input_tokens.toLocaleString()}</td>
-                      <td className="px-3 py-2 text-right text-slate-600 dark:text-neutral-300">{f.output_tokens.toLocaleString()}</td>
-                      <td className="px-3 py-2 text-right text-slate-600 dark:text-neutral-300">¥{Math.round(f.cost_jpy).toLocaleString()}</td>
+                  {settings.ai_models.map((m) => (
+                    <tr key={m.feature} className="border-b border-slate-50 last:border-0 dark:border-neutral-800">
+                      <td className="px-3 py-2 text-slate-800 dark:text-neutral-100">{AI_FEATURE_LABELS[m.feature]}</td>
+                      <td className="px-3 py-2 text-slate-700 dark:text-neutral-200">{m.model}</td>
+                      <td className="px-3 py-2 text-slate-500 dark:text-neutral-300">{m.reasoning_effort ?? '（既定）'}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
+          ) : (
+            <p className="text-sm text-slate-400 dark:text-neutral-500">読み込み中...</p>
           )}
-        </>
-      ) : null}
+          <p className="mt-2 text-xs text-slate-500 dark:text-neutral-400">
+            機能ごとに固定しており、変更はできません。AI採点（F-20）は学習者の合否に直結するため正確性を優先してgpt-4o-miniを、それ以外の要約・所見系の機能はコスト最優先でgpt-5-nano（reasoning
+            effortを絞って安定化）を使用しています。
+          </p>
+        </div>
+      </div>
 
-      <p className="mb-6 max-w-2xl rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400">
+      <div className="max-w-2xl rounded-lg border border-slate-200 p-5 dark:border-neutral-700">
+        <h3 className="mb-2 text-sm font-semibold text-slate-700 dark:text-neutral-200">今月のAI利用状況</h3>
+        <p className="mb-4 text-xs text-slate-500 dark:text-neutral-400">
+          機能別（F-08教材AIレビュー・F-20 AI記述式採点・F-22〜F-23）の呼び出し件数・トークン数・概算コストの内訳です。教材の作成・修正（F-05、Claude Code CLI連携）は利用者本人の契約で課金されるため、この集計には含まれません。
+        </p>
+
+        <div className="mb-4 max-w-[160px]">
+          <TextInput type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
+        </div>
+
+        {isLoading ? (
+          <p className="text-sm text-slate-400 dark:text-neutral-500">読み込み中...</p>
+        ) : error ? (
+          <p className="text-sm text-red-600 dark:text-red-400">取得に失敗しました。</p>
+        ) : usage ? (
+          <>
+            <div className="mb-4 grid grid-cols-4 gap-3">
+              <div className="rounded-md border border-slate-200 p-3 dark:border-neutral-800">
+                <div className="text-xs text-slate-500 dark:text-neutral-400">呼び出し件数</div>
+                <div className="text-lg font-semibold text-slate-800 dark:text-neutral-100">{usage.total.count.toLocaleString()}</div>
+              </div>
+              <div className="rounded-md border border-slate-200 p-3 dark:border-neutral-800">
+                <div className="text-xs text-slate-500 dark:text-neutral-400">入力トークン</div>
+                <div className="text-lg font-semibold text-slate-800 dark:text-neutral-100">{usage.total.input_tokens.toLocaleString()}</div>
+              </div>
+              <div className="rounded-md border border-slate-200 p-3 dark:border-neutral-800">
+                <div className="text-xs text-slate-500 dark:text-neutral-400">出力トークン</div>
+                <div className="text-lg font-semibold text-slate-800 dark:text-neutral-100">{usage.total.output_tokens.toLocaleString()}</div>
+              </div>
+              <div className="rounded-md border border-slate-200 p-3 dark:border-neutral-800">
+                <div className="text-xs text-slate-500 dark:text-neutral-400">概算コスト</div>
+                <div className="text-lg font-semibold text-slate-800 dark:text-neutral-100">¥{Math.round(usage.total.cost_jpy).toLocaleString()}</div>
+              </div>
+            </div>
+
+            {usage.by_feature.length === 0 ? (
+              <p className="text-sm text-slate-400 dark:text-neutral-500">この月のAI利用実績はありません。</p>
+            ) : (
+              <div className="overflow-x-auto rounded-md border border-slate-200 dark:border-neutral-800">
+                <table className="w-full text-sm max-sm:whitespace-nowrap">
+                  <thead>
+                    <tr className="border-b border-slate-100 bg-slate-50 text-left text-xs text-slate-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300">
+                      <th className="px-3 py-2 font-normal">機能</th>
+                      <th className="px-3 py-2 font-normal text-right">呼び出し件数</th>
+                      <th className="px-3 py-2 font-normal text-right">入力トークン</th>
+                      <th className="px-3 py-2 font-normal text-right">出力トークン</th>
+                      <th className="px-3 py-2 font-normal text-right">概算コスト</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {usage.by_feature.map((f) => (
+                      <tr key={f.feature} className="border-b border-slate-50 last:border-0 dark:border-neutral-800">
+                        <td className="px-3 py-2 text-slate-800 dark:text-neutral-100">{AI_FEATURE_LABELS[f.feature] ?? f.feature}</td>
+                        <td className="px-3 py-2 text-right text-slate-600 dark:text-neutral-300">{f.count.toLocaleString()}</td>
+                        <td className="px-3 py-2 text-right text-slate-600 dark:text-neutral-300">{f.input_tokens.toLocaleString()}</td>
+                        <td className="px-3 py-2 text-right text-slate-600 dark:text-neutral-300">{f.output_tokens.toLocaleString()}</td>
+                        <td className="px-3 py-2 text-right text-slate-600 dark:text-neutral-300">¥{Math.round(f.cost_jpy).toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
+        ) : null}
+      </div>
+
+      <p className="max-w-2xl rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400">
         Slack通知（F-12）は、プロジェクト単位のIncoming Webhook方式（プロジェクト管理者がS-12「プロジェクト管理」から設定）に変更されました。システム設定としてのWebhook URL設定はありません。
       </p>
 
-      <h3 className="mb-2 text-sm font-semibold text-slate-700 dark:text-neutral-200">プロジェクト所属の猶予期間</h3>
-      <div className="mb-6 max-w-2xl rounded-md border border-slate-200 p-4 dark:border-neutral-800">
-        <label className="mb-1 block text-xs font-semibold text-slate-600 dark:text-neutral-300">離任後の閲覧アクセス継続日数</label>
-        <div className="flex items-center gap-2">
-          <TextInput
-            type="number"
-            min={0}
-            max={365}
-            step={1}
-            className="w-24"
-            value={form.project_leave_grace_period_days}
-            onChange={(e) =>
-              setForm((f) => ({ ...f, project_leave_grace_period_days: Number(e.target.value) }))
-            }
-          />
-          <span className="text-xs text-slate-500 dark:text-neutral-400">日</span>
+      <div className="max-w-2xl rounded-lg border border-slate-200 p-5 dark:border-neutral-700">
+        <h3 className="mb-2 text-sm font-semibold text-slate-700 dark:text-neutral-200">プロジェクト所属の猶予期間</h3>
+        <div className="rounded-md border border-slate-200 p-4 dark:border-neutral-800">
+          <label className="mb-1 block text-xs font-semibold text-slate-600 dark:text-neutral-300">離任後の閲覧アクセス継続日数</label>
+          <div className="flex items-center gap-2">
+            <TextInput
+              type="number"
+              min={0}
+              max={365}
+              step={1}
+              className="w-24"
+              value={form.project_leave_grace_period_days}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, project_leave_grace_period_days: Number(e.target.value) }))
+              }
+            />
+            <span className="text-xs text-slate-500 dark:text-neutral-400">日</span>
+          </div>
+          <p className="mt-2 text-xs text-slate-500 dark:text-neutral-400">
+            プロジェクト管理者がメンバーを削除した場合も、この日数の間は旧プロジェクトの教材を閲覧できます。
+          </p>
         </div>
-        <p className="mt-2 text-xs text-slate-500 dark:text-neutral-400">
-          プロジェクト管理者がメンバーを削除した場合も、この日数の間は旧プロジェクトの教材を閲覧できます。
-        </p>
       </div>
 
       <div className="flex items-center gap-3">
