@@ -122,9 +122,17 @@
 
       <!-- モード切替タブ -->
       <div class="tabs" role="tablist">
+        <button class="tab" id="tab-overview" type="button" onclick="switchTab('overview')">概要</button>
         <button class="tab active" id="tab-toc" type="button" onclick="switchTab('toc')">目次</button>
         <button class="tab" id="tab-repeat" type="button" onclick="switchTab('repeat')">練習</button>
         <button class="tab" id="tab-wrong" type="button" onclick="switchTab('wrong')">誤答＆難問抽出</button>
+      </div>
+
+      <!-- 概要（教材の概要文を全文表示。未登録の教材では「概要が未登録の教材です」と案内する） -->
+      <div class="tab-panel" id="panel-overview">
+        <section class="panel">
+          <div class="panel-body" style="font-size:13px;line-height:1.8;white-space:pre-wrap">AI開発研修の基礎編として、Claude Codeの基本的な使い方（インストール・認証・主要コマンド）から、日常的な開発フローへの組み込み方までを扱います。実際の操作画面を交えながら進めるため、Claude Codeに触れたことがない方でも迷わず使い始められることを目標にしています。</div>
+        </section>
       </div>
 
       <!-- 目次 -->
@@ -412,7 +420,7 @@
 <script>
 // タブ切替（静的モック確認用の最小限のJS）
 function switchTab(name) {
-  var tabs = ['toc', 'repeat', 'wrong'];
+  var tabs = ['overview', 'toc', 'repeat', 'wrong'];
   tabs.forEach(function (t) {
     document.getElementById('tab-' + t).classList.toggle('active', t === name);
     document.getElementById('panel-' + t).classList.toggle('active', t === name);

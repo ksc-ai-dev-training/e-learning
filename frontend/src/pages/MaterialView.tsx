@@ -25,6 +25,7 @@ import type { EditableNode } from '../lib/materialSource'
 import type { PracticeAttemptSummary, Survey } from '../types'
 
 const TABS = [
+  { key: 'overview', label: '概要' },
   { key: 'toc', label: '目次' },
   { key: 'practice', label: '練習' },
   { key: 'wrong_only', label: '誤答＆難問抽出' },
@@ -419,6 +420,20 @@ export default function MaterialView() {
             </button>
           ))}
         </div>
+
+        {activeTab === 'overview' && (
+          <>
+            {material.description ? (
+              <p className="whitespace-pre-wrap rounded-md border border-slate-200 bg-white px-4 py-4 text-sm leading-relaxed text-slate-700 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-200">
+                {material.description}
+              </p>
+            ) : (
+              <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-400 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-500">
+                概要が未登録の教材です。
+              </p>
+            )}
+          </>
+        )}
 
         {activeTab === 'toc' && (
           <>
