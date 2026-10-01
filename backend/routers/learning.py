@@ -1547,9 +1547,11 @@ async def get_attempt_summary(id: int, user: CurrentUser = Depends(require_auth)
 
 
 async def _require_project_admin(project_id: int, user: CurrentUser) -> None:
-    """このプロジェクトのadmin、またはシステムadminのみ許可する（個人学習レポートの管理者判定
-    〔is_manager_of_target_user〕と同じ基準）。全社ライブラリは構造上adminロールを誰にも付与できない
-    ため、editorには決して以下の受験状況・回数リセットを見せない（2026-09-03、ユーザー指摘）。"""
+    """このプロジェクトのadmin、またはシステムadminのみ許可する。全社ライブラリは構造上adminロールを
+    誰にも付与できないため、editorには決して以下の受験状況・回数リセットを見せない（2026-09-03、
+    ユーザー指摘）。個人学習レポート（reports.pyの_require_report_access）は2026-10-01に本人限定へ
+    改定されたため、この基準とはもう揃っていない（受験状況・回数リセットは引き続きプロジェクト
+    管理者に見せる方針のまま、個人学習レポートだけ本人以外に非公開にした）。"""
     if user.role == "admin":
         return
     if not await has_active_project_role(project_id, user.id, min_role="admin"):
