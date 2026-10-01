@@ -13,11 +13,15 @@ import { ApiError } from '../lib/api'
 import { restoreMaterial } from '../lib/materialActions'
 import type { MaterialStatus } from '../types'
 
+// 2026-10-01: 独立した絞り込み値だった「アーカイブ済み」（アーカイブ済みのみを表示）を廃止し、
+// 代わりに「すべて（アーカイブ済みを含む）」を追加した。既定は従来どおり「すべて（アーカイブ済みを
+// 除く）」で、公開中・下書きもアーカイブ済みは含めない。4択のセレクト1つで完結させ、チェック
+// ボックス等は使わない。
 const STATUS_OPTIONS = [
   { value: 'all', label: 'すべて（アーカイブ済みを除く）' },
+  { value: 'all_with_archived', label: 'すべて（アーカイブ済みを含む）' },
   { value: 'published', label: '公開中' },
   { value: 'draft', label: '下書き' },
-  { value: 'archived', label: 'アーカイブ済み' },
 ]
 
 type FilterForm = { keyword: string; status: string; month: string }
@@ -37,7 +41,7 @@ export default function MaterialsList() {
   // 反映されない」という分かりにくさの指摘を受けて変更した。2026-08-28）
   const [form, setForm] = useState<FilterForm>(EMPTY_FILTER)
   const [filter, setFilter] = useState<FilterForm>(EMPTY_FILTER)
-  const { materials, error, isLoading, mutate } = useMaterials(id, filter.status === 'archived')
+  const { materials, error, isLoading, mutate } = useMaterials(id, filter.status === 'all_with_archived')
   const project = projects.find((p) => p.id === id)
 
   const applyImmediate = (patch: Partial<FilterForm>) => {
@@ -83,16 +87,18 @@ export default function MaterialsList() {
           const tagMatch = m.tags.some((t) => t.toLowerCase().includes(kw))
           if (!titleMatch && !tagMatch) return false
         }
-        if (filter.status === 'archived') {
-          if (!m.is_archived) return false
-        } else if (filter.status !== 'all' && m.status !== (filter.status as MaterialStatus)) {
+        if (
+          filter.status !== 'all' &&
+          filter.status !== 'all_with_archived' &&
+          m.status !== (filter.status as MaterialStatus)
+        )
           return false
-        }
         if (filter.month !== 'all' && formatYearMonthJst(m.updated_at) !== filter.month) return false
         return true
       }),
     [materials, filter],
   )
+  const hasArchivedRow = filtered.some((m) => m.is_archived)
 
   const applyFilter = () => setFilter(form)
   const clearFilter = () => {
@@ -202,7 +208,7 @@ export default function MaterialsList() {
                   <th className="w-28 px-3 py-2 font-semibold">構成</th>
                   <th className="w-24 px-3 py-2 font-semibold">作成者</th>
                   <th className="w-28 px-3 py-2 font-semibold">更新日</th>
-                  {filter.status === 'archived' && <th className="w-24 px-3 py-2 font-semibold">操作</th>}
+                  {hasArchivedRow && <th className="w-24 px-3 py-2 font-semibold">操作</th>}
                 </tr>
               </thead>
               <tbody>
@@ -248,16 +254,18 @@ export default function MaterialsList() {
                     </td>
                     <td className="px-3 py-3 text-slate-500 dark:text-neutral-300">{m.created_by_name}</td>
                     <td className="px-3 py-3 text-slate-500 dark:text-neutral-300">{formatDateJst(m.updated_at)}</td>
-                    {filter.status === 'archived' && (
+                    {hasArchivedRow && (
                       <td className="px-3 py-3">
-                        <Button
-                          variant="secondary"
-                          onClick={() => restore(m.id)}
-                          disabled={restoringId === m.id}
-                          title="教材一覧・検索に戻します"
-                        >
-                          {restoringId === m.id ? '復元中...' : '復元'}
-                        </Button>
+                        {m.is_archived && (
+                          <Button
+                            variant="secondary"
+                            onClick={() => restore(m.id)}
+                            disabled={restoringId === m.id}
+                            title="教材一覧・検索に戻します"
+                          >
+                            {restoringId === m.id ? '復元中...' : '復元'}
+                          </Button>
+                        )}
                       </td>
                     )}
                   </tr>

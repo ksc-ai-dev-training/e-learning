@@ -453,68 +453,73 @@
       <!-- 教材の共有タブ（F-26、複製モデル）。共有先の追加は教材1件につき1プロジェクトずつ、
            「共有を申請」押下でその場にプロジェクト選択と送信ボタンが現れる方式。複数の共有先を
            まとめて編集する専用パネルはなく、承認済みの共有を解除する操作もない（不要になったら
-           複製先で直接アーカイブ・削除する）。 -->
+           複製先で直接アーカイブ・削除する）。
+           2026-10-01: 各セクションを枠線付きのカードで囲み、セクション同士の境界を明確にした
+           （一覧・プロジェクト情報タブで行ったカード化と統一）。あわせて「このプロジェクトから
+           申請した共有」の操作列（新規申請ボタン）を廃止し、共有先プロジェクトの列に統合した
+           （実装では、管理者には上に「教材を検索して共有」という新規申請専用のセクションが別途
+           あり〔2026-09-18新設、本モックアップは未反映〕、この一覧で新規申請ボタンを重複して
+           出す必要が無いため）。取り下げ（×）操作は引き続き共有先列に残す。 -->
       <div class="tab-panel" id="panel-sharing">
 
-        <h3 style="font-size:13px;margin:16px 0 8px">このプロジェクトから申請した共有</h3>
-        <p class="field-help" style="margin:0 0 10px">申請しただけでは何も起きません。共有先プロジェクトの管理者が承認すると、その時点の教材内容（目次・全ページ・問題・添付ファイル）で複製が共有先プロジェクトに新規作成されます。複製後は共有先プロジェクトの独立した教材として、内容編集・配信設定・公開状態はすべて共有先プロジェクトの管理者・編集者が管理します（元教材を更新しても複製には反映されません）。下書きの教材は共有申請できません。</p>
-        <div class="table-wrap">
-          <table class="table">
-            <thead>
-              <tr><th>教材名</th><th style="width:100px">状態</th><th>共有先プロジェクト</th><th style="width:170px">操作</th></tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td class="cell-main">新システム操作ガイド</td>
-                <td><span class="badge badge-status-on">公開中</span></td>
-                <td><span class="chip" style="border-style:dashed">Manabi新規構築 <span style="color:#b45309;font-size:10.5px">承認待ち</span> <span style="font-weight:700;margin-left:2px" title="申請を取り下げる">×</span></span></td>
-                <td><button class="btn btn-ghost btn-sm" type="button">共有を申請</button></td>
-              </tr>
-              <tr>
-                <td class="cell-main">セキュアコーディング入門</td>
-                <td><span class="badge badge-status-on">公開中</span></td>
-                <td><span class="chip">情報セキュリティ委員会 <span style="color:#15803d;font-size:10.5px">複製済み</span></span></td>
-                <td>
-                  <!-- 「共有を申請」押下後の状態の例。既に承認済みの共有先とは別に、もう1件追加申請できる
-                       （承認済みの共有を編集・解除する操作はなく、追加のみ可能） -->
-                  <div style="display:flex;flex-direction:column;gap:4px">
-                    <select style="min-width:190px"><option selected disabled>共有先プロジェクトを選択...</option><option>全社Wiki</option><option>新人研修2026運営</option><option>Manabi新規構築</option></select>
-                    <div style="display:flex;gap:6px"><button class="btn btn-secondary btn-sm" type="button">申請を送る</button><button class="btn btn-ghost btn-sm" type="button">キャンセル</button></div>
-                  </div>
-                </td>
-              </tr>
-              <tr>
-                <td class="cell-main" style="color:var(--text-subtle)">DB移行手順（下書き）</td>
-                <td><span class="badge badge-status-off">下書き</span></td>
-                <td><span style="color:var(--text-subtle);font-size:12px">—</span></td>
-                <td><span style="color:var(--text-subtle);font-size:12px" title="下書きのため共有申請できません">共有を申請</span></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        <!-- 2026-10-01追記: このセクションは実際に共有している（却下済みを除く）教材のみを表示する
+             よう修正した（新規バックエンドAPI GET /api/projects/{project_id}/materials/shared）。
+             以前は候補検索用のAPIをそのまま流用していたため、一度も申請していない・却下済みのみの
+             教材まで「共有先: —」として一覧に出てしまっていた（ユーザー指摘により発見）。そのため
+             本モックアップの例でも「共有先が空欄の行」は置かない。新規に共有を申請するには上の
+             「教材を検索して共有」を使う。 -->
+        <section class="panel" style="margin-bottom:18px">
+          <div class="panel-body">
+            <h3 style="font-size:13px;margin:0 0 8px">このプロジェクトから申請した共有</h3>
+            <p class="field-help" style="margin:0 0 10px">実際に共有申請している（却下済みを除く）教材の一覧です。新規に共有を申請するには上の「教材を検索して共有」を使ってください。承認されると、その時点の教材内容（目次・全ページ・問題・添付ファイル）で複製が共有先プロジェクトに新規作成されます。複製後は共有先プロジェクトの独立した教材として、内容編集・配信設定・公開状態はすべて共有先プロジェクトの管理者・編集者が管理します（元教材を更新しても複製には反映されません）。</p>
+            <div class="table-wrap">
+              <table class="table">
+                <thead>
+                  <tr><th>教材名</th><th style="width:100px">状態</th><th>共有先</th></tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="cell-main">新システム操作ガイド</td>
+                    <td><span class="badge badge-status-on">公開中</span></td>
+                    <td><span class="chip" style="border-style:dashed">Manabi新規構築 <span style="color:#b45309;font-size:10.5px">承認待ち</span> <span style="font-weight:700;margin-left:2px" title="申請を取り下げる">×</span></span></td>
+                  </tr>
+                  <tr>
+                    <td class="cell-main">セキュアコーディング入門</td>
+                    <td><span class="badge badge-status-on">公開中</span></td>
+                    <td><span class="chip">情報セキュリティ委員会 <span style="color:#15803d;font-size:10.5px">複製済み</span></span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
 
-        <h3 style="font-size:13px;margin:24px 0 8px">他プロジェクトからの共有リクエスト（このプロジェクト宛て）</h3>
-        <p class="field-help" style="margin:0 0 10px">承認すると、その時点の教材内容（目次・全ページ・問題・添付ファイル）でこのプロジェクトに複製が新規作成されます。却下すると何も作成されません。承認後は複製が独立した教材になるため専用の「共有解除」操作はなく、不要になった場合は複製先の教材を通常どおりアーカイブ・削除してください。</p>
-        <div class="table-wrap" id="incoming-shares-wrap">
-          <table class="table">
-            <thead>
-              <tr><th>教材名</th><th style="width:150px">共有元プロジェクト</th><th style="width:110px">申請日</th><th style="width:190px">操作</th></tr>
-            </thead>
-            <tbody id="incoming-shares-body">
-              <tr id="incoming-share-1">
-                <td class="cell-main">TypeScript入門</td>
-                <td><span class="chip">Manabi新規構築</span></td>
-                <td>2026-08-18</td>
-                <td>
-                  <button class="btn btn-primary btn-sm" type="button" onclick="respondIncomingShare('incoming-share-1', 'accepted')">承認</button>
-                  <button class="btn btn-ghost btn-sm" type="button" onclick="respondIncomingShare('incoming-share-1', 'rejected')">却下</button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <p id="incoming-shares-empty" style="display:none;font-size:12px;color:var(--text-subtle);margin-top:8px">現在、このプロジェクト宛ての共有リクエストはありません。</p>
-        <p style="margin-top:8px;font-size:11.5px;color:var(--text-subtle)">※ 「承認」すると、この教材の複製がこのプロジェクトに新規作成され、以後はこのプロジェクトの教材として独立に管理できます（内容編集・配信設定・公開/アーカイブ/削除はこのプロジェクトの管理者・編集者が行う。元の教材とは以後連動しません）。「却下」した場合は何も作成されません。承認後に複製自体が不要になった場合は、複製先の教材を通常どおりアーカイブ・削除してください（共有の解除という専用操作はありません）。</p>
+        <section class="panel">
+          <div class="panel-body">
+            <h3 style="font-size:13px;margin:0 0 8px">他プロジェクトからの共有リクエスト（このプロジェクト宛て）</h3>
+            <p class="field-help" style="margin:0 0 10px">承認すると、その時点の教材内容（目次・全ページ・問題・添付ファイル）でこのプロジェクトに複製が新規作成されます。却下すると何も作成されません。承認後は複製が独立した教材になるため専用の「共有解除」操作はなく、不要になった場合は複製先の教材を通常どおりアーカイブ・削除してください。</p>
+            <div class="table-wrap" id="incoming-shares-wrap">
+              <table class="table">
+                <thead>
+                  <tr><th>教材名</th><th style="width:150px">共有元プロジェクト</th><th style="width:110px">申請日</th><th style="width:190px">操作</th></tr>
+                </thead>
+                <tbody id="incoming-shares-body">
+                  <tr id="incoming-share-1">
+                    <td class="cell-main">TypeScript入門</td>
+                    <td><span class="chip">Manabi新規構築</span></td>
+                    <td>2026-08-18</td>
+                    <td>
+                      <button class="btn btn-primary btn-sm" type="button" onclick="respondIncomingShare('incoming-share-1', 'accepted')">承認</button>
+                      <button class="btn btn-ghost btn-sm" type="button" onclick="respondIncomingShare('incoming-share-1', 'rejected')">却下</button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p id="incoming-shares-empty" style="display:none;font-size:12px;color:var(--text-subtle);margin-top:8px">現在、このプロジェクト宛ての共有リクエストはありません。</p>
+            <p style="margin-top:8px;font-size:11.5px;color:var(--text-subtle)">※ 「承認」すると、この教材の複製がこのプロジェクトに新規作成され、以後はこのプロジェクトの教材として独立に管理できます（内容編集・配信設定・公開/アーカイブ/削除はこのプロジェクトの管理者・編集者が行う。元の教材とは以後連動しません）。「却下」した場合は何も作成されません。承認後に複製自体が不要になった場合は、複製先の教材を通常どおりアーカイブ・削除してください（共有の解除という専用操作はありません）。</p>
+          </div>
+        </section>
       </div>
 
     </div>

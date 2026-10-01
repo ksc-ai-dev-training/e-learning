@@ -512,6 +512,56 @@ async def list_materials_source(
     return {"items": items}
 
 
+@router.get("/shared")
+async def list_outgoing_shared_materials(
+    project_id: int,
+    include_archived: bool = False,
+    user: CurrentUser = Depends(require_project_role(min_role="editor")),
+):
+    """新規（2026-10-01）: S-12「教材の共有」タブ「このプロジェクトから申請した共有」専用。
+
+    従来は候補検索用の/materials/shareable（管理者）・A-21 list_materials_source（編集者）を
+    そのまま流用しており、実際の共有の有無に関わらずプロジェクトの対象教材が全件表示されていた
+    （却下済みのみ、または一度も申請していない教材まで「共有先: —」として一覧に出てしまう不具合。
+    「申請した共有」という見出しなのに共有先が空欄の行があるのはおかしいというユーザー指摘により
+    発見）。本APIはmaterial_project_sharesに却下（rejected）以外の行が1件以上ある教材のみを返す
+    （却下済みのみの教材は、ユーザー判断により一覧から除外する）。
+
+    対象範囲はA-21 list_materials_sourceと同じ基準に揃え、一覧には見えるが開くと403になる不整合を
+    避ける: 全社ライブラリのeditorは自分が作成した教材のみ、それ以外（プロジェクトadmin・通常
+    プロジェクトのeditor）は対象教材すべて。"""
+    pool = get_pool()
+    project = await pool.fetchrow("SELECT is_company_wide FROM projects WHERE id = $1", project_id)
+    if project is None:
+        raise HTTPException(404, detail="プロジェクトが見つかりません")
+    is_company_wide = bool(project["is_company_wide"])
+
+    where = [
+        "m.project_id = $1",
+        "m.status = 'published'",
+        "EXISTS (SELECT 1 FROM material_project_shares s WHERE s.material_id = m.id AND s.status != 'rejected')",
+    ]
+    params: list = [project_id]
+    if not include_archived:
+        where.append("m.is_archived = false")
+    if is_company_wide and not await has_active_project_role(project_id, user.id, "admin"):
+        params.append(user.id)
+        where.append(f"m.created_by = ${len(params)}")
+
+    rows = await pool.fetch(
+        f"""SELECT m.id, m.title, m.project_id, u.name AS created_by_name, m.is_archived,
+                   EXISTS (
+                       SELECT 1 FROM assignments a WHERE a.material_id = m.id AND a.required = true
+                   ) AS is_required
+            FROM materials m
+            JOIN users u ON u.id = m.created_by
+            WHERE {" AND ".join(where)}
+            ORDER BY m.updated_at DESC""",
+        *params,
+    )
+    return {"items": [dict(r) for r in rows]}
+
+
 class MaterialCreate(BaseModel):
     project_id: int | None = None
     title: str = Field(min_length=1, max_length=200)

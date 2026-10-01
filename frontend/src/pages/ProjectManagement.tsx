@@ -11,6 +11,7 @@ import TextInput from '../components/ui/TextInput'
 import { useIncomingShares } from '../hooks/useIncomingShares'
 import { useMaterials } from '../hooks/useMaterials'
 import { useMaterialShares } from '../hooks/useMaterialShares'
+import { useOutgoingSharedMaterials } from '../hooks/useOutgoingSharedMaterials'
 import { useShareableMaterials } from '../hooks/useShareableMaterials'
 import { useMe } from '../hooks/useMe'
 import { useMemberAttemptStatus } from '../hooks/useMemberAttemptStatus'
@@ -1101,17 +1102,27 @@ function AttemptStatusPanel({
 // S-12 教材の共有タブ（F-26、複製モデル。基本設計書5.27節）。「このプロジェクトから申請した共有」
 // （申請側、A-59/A-60/A-61）と「他プロジェクトからの共有リクエスト」（承認側、A-66/A-65）の
 // 2セクションで構成する（画面モックアップと同じ構成）。
+// 2026-10-01: 3セクションが見出しとgapだけで並んでおり境界が分かりづらいという指摘を受け、
+// 各セクションを枠線付きのカードで囲んだ（S-12の他タブで行ったカード化と統一）。
 function SharingTab({ projectId, canManage }: { projectId: number; canManage: boolean }) {
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-5">
       {/* 2026-09-18新設: 全社ライブラリの必修教材・他人が作成した任意教材は通常の教材一覧
           （下のOutgoingSharesSectionが使うA-21）には出てこなくなったため（require_material_role
           と同じ基準に揃えたため）、プロジェクトadminが「必修・任意・作成者を問わず全教材を
           共有できる」という共有機能本来の仕様（A-60）を実際に使うための別入口を用意する。
           自分がプロジェクト管理者であるプロジェクト全体を横断して検索する。 */}
-      {canManage && <ShareSearchSection currentProjectId={projectId} />}
-      <OutgoingSharesSection projectId={projectId} canManage={canManage} />
-      <IncomingSharesSection projectId={projectId} canManage={canManage} />
+      {canManage && (
+        <div className="rounded-lg border border-slate-200 p-5 dark:border-neutral-700">
+          <ShareSearchSection currentProjectId={projectId} />
+        </div>
+      )}
+      <div className="rounded-lg border border-slate-200 p-5 dark:border-neutral-700">
+        <OutgoingSharesSection projectId={projectId} canManage={canManage} />
+      </div>
+      <div className="rounded-lg border border-slate-200 p-5 dark:border-neutral-700">
+        <IncomingSharesSection projectId={projectId} canManage={canManage} />
+      </div>
     </div>
   )
 }
@@ -1188,21 +1199,20 @@ function OutgoingSharesSection({ projectId, canManage }: { projectId: number; ca
   // 一覧に出てこず実質共有できないという不一致があったための対応、2026-09-02）、通常時は非表示にしたい
   // というユーザー要望を受けてトグル化した（2026-09-18）。
   const [includeArchived, setIncludeArchived] = useState(false)
-  // 2026-09-24: 実プロジェクト管理者（canManage）は検索セクション（ShareSearchSection）と同じ
-  // /api/materials/shareable（作成者・必修/任意を問わずこのプロジェクトの全教材が対象）を使い、
-  // このタブ内の2つの一覧の対象範囲を揃える（以前はここだけA-21〔useMaterials〕を使っており、
-  // 全社ライブラリで「自分が作成した教材＋必修教材」しか出ず、検索セクションより狭い範囲に
-  // なっていた不一致をユーザーが発見）。ただし/api/materials/shareableは実プロジェクト管理者
-  // のみ許可するAPIのため、このタブを閲覧できる編集者（canViewSharing、SharingTab呼び出し元
-  // 参照）向けには従来どおりA-21を使う（編集者は元々自分が作成した教材しか見えない設計のため、
-  // ここだけ範囲を広げると編集者の閲覧権限を超えてしまう）。projectIdにnullを渡す方は
-  // フックが取得自体を行わないため、片方だけが実際にAPIを呼ぶ。
-  const shareable = useShareableMaterials(canManage ? projectId : null, '', includeArchived)
+  // 2026-10-01: 管理者（canManage）は、新設の/materials/sharedで「実際に共有している（却下済みを
+  // 除く）教材のみ」に絞り込む。以前は検索セクション（ShareSearchSection）と同じ/materials/shareable
+  // （候補検索用、共有の有無を問わず全教材を返す）をそのまま流用していたため、「このプロジェクトから
+  // 申請した共有」という見出しなのに共有先が空欄の行が並んでしまっていた（ユーザー指摘により発見）。
+  // 新規申請は上のShareSearchSectionで行えるため、この一覧を候補検索と同じ範囲にする必要はない。
+  // 編集者（!canManage）には検索セクション自体が無く、この一覧が唯一の新規申請経路のため、従来どおり
+  // A-21（useMaterials、自分の教材を候補として全件表示）のままにする（絞り込むと新規共有の手段が
+  // 無くなってしまうため）。
+  const shared = useOutgoingSharedMaterials(canManage ? projectId : null, includeArchived)
   const own = useMaterials(canManage ? null : projectId, includeArchived)
-  const isLoading = canManage ? shareable.isLoading : own.isLoading
+  const isLoading = canManage ? shared.isLoading : own.isLoading
   const rows: { id: number; title: string; status: MaterialSource['status']; is_archived: boolean; extraInfo?: string }[] =
     canManage
-      ? shareable.items.map((m) => ({
+      ? shared.items.map((m) => ({
           id: m.id,
           title: m.title,
           status: 'published',
@@ -1215,7 +1225,9 @@ function OutgoingSharesSection({ projectId, canManage }: { projectId: number; ca
     <div>
       <h3 className="mb-2 text-sm font-semibold text-slate-700">このプロジェクトから申請した共有</h3>
       <p className="mb-3 text-xs text-slate-500">
-        申請しただけでは何も起きません。共有先プロジェクトの管理者が承認すると、その時点の教材内容（目次・全ページ・問題・添付ファイル）で複製が共有先プロジェクトに新規作成されます。複製後は共有先プロジェクトの独立した教材として、内容編集・配信設定・公開状態はすべて共有先プロジェクトの管理者・編集者が管理します（元教材を更新しても複製には反映されません）。下書きの教材は共有申請できません。
+        {canManage
+          ? '実際に共有申請している（却下済みを除く）教材の一覧です。新規に共有を申請するには上の「教材を検索して共有」を使ってください。承認されると、その時点の教材内容（目次・全ページ・問題・添付ファイル）で複製が共有先プロジェクトに新規作成されます。複製後は共有先プロジェクトの独立した教材として、内容編集・配信設定・公開状態はすべて共有先プロジェクトの管理者・編集者が管理します（元教材を更新しても複製には反映されません）。'
+          : '申請しただけでは何も起きません。共有先プロジェクトの管理者が承認すると、その時点の教材内容（目次・全ページ・問題・添付ファイル）で複製が共有先プロジェクトに新規作成されます。複製後は共有先プロジェクトの独立した教材として、内容編集・配信設定・公開状態はすべて共有先プロジェクトの管理者・編集者が管理します（元教材を更新しても複製には反映されません）。下書きの教材は共有申請できません。'}
       </p>
       <label className="mb-3 flex items-center gap-1.5 text-xs text-slate-600">
         <input
@@ -1236,8 +1248,12 @@ function OutgoingSharesSection({ projectId, canManage }: { projectId: number; ca
               <tr className="border-b border-slate-100 bg-slate-50 text-left text-xs text-slate-500">
                 <th className="px-3 py-2 font-normal">教材名</th>
                 <th className="px-3 py-2 font-normal">状態</th>
-                <th className="px-3 py-2 font-normal">共有先プロジェクト</th>
-                <th className="px-3 py-2 font-normal">操作</th>
+                <th className="px-3 py-2 font-normal">共有先</th>
+                {/* 管理者は上の「教材を検索して共有」から新規申請できるため、この一覧では
+                    新規申請ボタンを重複して出さない（2026-10-01、ユーザー指摘）。取り下げ操作は
+                    「共有先」列内に残す。管理者でない編集者には検索セクション自体が無いため、
+                    この一覧が唯一の申請経路となり、従来どおり操作列を出す。 */}
+                {!canManage && <th className="px-3 py-2 font-normal">操作</th>}
               </tr>
             </thead>
             <tbody>
@@ -1248,6 +1264,7 @@ function OutgoingSharesSection({ projectId, canManage }: { projectId: number; ca
                   material={m}
                   canManage={canManage}
                   extraInfo={m.extraInfo}
+                  showInitiateColumn={!canManage}
                 />
               ))}
             </tbody>
@@ -1263,6 +1280,7 @@ function OutgoingShareRow({
   material,
   canManage,
   extraInfo,
+  showInitiateColumn = true,
 }: {
   // ShareSearchSection（検索結果）・OutgoingSharesSection（このプロジェクトの教材一覧）の
   // どちらからも使う共通行。両者ともsourceProjectId＝現在のプロジェクト自身なので、共有先
@@ -1272,6 +1290,10 @@ function OutgoingShareRow({
   canManage: boolean
   // 検索結果からの利用時のみ、誰が作った教材かを併記する
   extraInfo?: string
+  // falseの場合、新規申請ボタンの列自体を描画しない（OutgoingSharesSectionの管理者表示で、
+  // 上のShareSearchSectionと重複する新規申請導線を省くために使う。取り下げ操作は「共有先」列に
+  // 残るため影響しない。既定true＝ShareSearchSection・編集者向け表示は従来どおり）
+  showInitiateColumn?: boolean
 }) {
   const { shares, mutate } = useMaterialShares(material.id)
   const { projects } = useProjects('learner')
@@ -1309,7 +1331,7 @@ function OutgoingShareRow({
   }
 
   return (
-    <tr className="border-b border-slate-50 align-top last:border-0">
+    <tr className="border-b border-slate-100 align-top last:border-0">
       <td className="px-3 py-2 text-slate-800">
         {material.title}
         {extraInfo && <div className="text-xs font-normal text-slate-400">{extraInfo}</div>}
@@ -1344,46 +1366,48 @@ function OutgoingShareRow({
           ))}
         </div>
       </td>
-      <td className="px-3 py-2">
-        {!canManage ? (
-          <span className="text-xs text-slate-300">—</span>
-        ) : material.status === 'draft' ? (
-          <span className="text-xs text-slate-300" title="下書きのため共有申請できません">
-            共有を申請
-          </span>
-        ) : adding ? (
-          <div className="flex flex-col gap-1.5">
-            <Select
-              value={targetProjectId !== null ? String(targetProjectId) : ''}
-              onChange={(v) => setTargetProjectId(v ? Number(v) : null)}
-              options={[
-                { value: '', label: '共有先プロジェクトを選択...' },
-                ...candidateProjects.map((p) => ({ value: String(p.id), label: p.name })),
-              ]}
-            />
-            <div className="flex gap-2">
-              <Button variant="secondary" onClick={handleAdd} disabled={targetProjectId === null}>
-                申請を送る
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  setAdding(false)
-                  setTargetProjectId(null)
-                  setError(null)
-                }}
-              >
-                キャンセル
-              </Button>
+      {showInitiateColumn && (
+        <td className="px-3 py-2">
+          {!canManage ? (
+            <span className="text-xs text-slate-300">—</span>
+          ) : material.status === 'draft' ? (
+            <span className="text-xs text-slate-300" title="下書きのため共有申請できません">
+              共有を申請
+            </span>
+          ) : adding ? (
+            <div className="flex flex-col gap-1.5">
+              <Select
+                value={targetProjectId !== null ? String(targetProjectId) : ''}
+                onChange={(v) => setTargetProjectId(v ? Number(v) : null)}
+                options={[
+                  { value: '', label: '共有先プロジェクトを選択...' },
+                  ...candidateProjects.map((p) => ({ value: String(p.id), label: p.name })),
+                ]}
+              />
+              <div className="flex gap-2">
+                <Button variant="secondary" onClick={handleAdd} disabled={targetProjectId === null}>
+                  申請を送る
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setAdding(false)
+                    setTargetProjectId(null)
+                    setError(null)
+                  }}
+                >
+                  キャンセル
+                </Button>
+              </div>
+              {error && <span className="text-xs text-red-600">{error}</span>}
             </div>
-            {error && <span className="text-xs text-red-600">{error}</span>}
-          </div>
-        ) : (
-          <button type="button" onClick={() => setAdding(true)} className="text-xs font-semibold text-blue-700 hover:underline">
-            共有を申請
-          </button>
-        )}
-      </td>
+          ) : (
+            <button type="button" onClick={() => setAdding(true)} className="text-xs font-semibold text-blue-700 hover:underline">
+              共有を申請
+            </button>
+          )}
+        </td>
+      )}
     </tr>
   )
 }
@@ -1430,7 +1454,7 @@ function IncomingSharesSection({ projectId, canManage }: { projectId: number; ca
             </thead>
             <tbody>
               {incomingShares.map((s) => (
-                <tr key={s.id} className="border-b border-slate-50 last:border-0">
+                <tr key={s.id} className="border-b border-slate-100 last:border-0">
                   <td className="px-3 py-2 text-slate-800">{s.material_title}</td>
                   <td className="px-3 py-2 text-slate-500">{s.shared_by_project_name}</td>
                   <td className="px-3 py-2 text-slate-500">{formatDateJst(s.shared_at)}</td>
