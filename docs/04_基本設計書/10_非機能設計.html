@@ -47,7 +47,7 @@
       <tr><td>秘密情報</td><td>秘密情報（<code>DATABASE_URL</code>, <code>GOOGLE_CLIENT_SECRET</code>, <code>JWT_SECRET</code>, <code>ANTHROPIC_API_KEY</code>, <code>SLACK_WEBHOOK_URL</code>等）は環境変数管理とし、リポジトリに含めない（2.3節）</td></tr>
       <tr><td>XSS対策</td><td>教材本文のHTMLサニタイズを許可リスト方式で提供時に適用する（8.6節）</td></tr>
       <tr><td>DB</td><td>全テーブルRLS有効（6章参照）</td></tr>
-      <tr><td>学習記録の不利益利用防止（REQ-N-03）</td><td>学習記録・個人レポートの参照範囲を本人・対象者が所属するプロジェクトの管理者・adminに限定する（7.2.7節）。人事評価への利用は対象外機能とする（5.24節）</td></tr>
+      <tr><td>学習記録の不利益利用防止（REQ-N-03）</td><td>個人学習レポート（設問ごとの回答内容を含む）の参照範囲を本人のみに限定する（7.2.7節、1.71）。プロジェクト管理者・adminが参照できるのはS-08・7.3節の集計値（受講率・合格率・未受講者）までとする。人事評価への利用は対象外機能とする（5.24節）</td></tr>
     </tbody>
   </table>
 

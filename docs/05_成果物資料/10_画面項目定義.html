@@ -161,7 +161,7 @@
 
   <h3>10.8 S-09 個人学習レポート（<code>/reports/:userId</code>）</h3>
   <div class="callout">
-    <strong>実装済み（2026-09-02）。</strong>新規<code>backend/routers/reports.py</code>にA-50〜A-52を実装し、T-17 <code>ai_personal_feedback</code>を新設した。「対象者が所属するプロジェクトの管理者」判定（5.4節<code>is_manager_of_target_user</code>）を<code>auth_helpers.py</code>に実装し、本人以外に管理者が閲覧できるアクセス制御を実現した。<br>
+    <strong>実装済み（2026-09-02）。</strong>新規<code>backend/routers/reports.py</code>にA-50〜A-52を実装し、T-17 <code>ai_personal_feedback</code>を新設した。「対象者が所属するプロジェクトの管理者」判定（5.4節<code>is_manager_of_target_user</code>）を<code>auth_helpers.py</code>に実装し、本人以外に管理者が閲覧できるアクセス制御を実現した。<span class="rev-new">この管理者アクセスは2026-10-01（1.96）に廃止し、本人限定に変更した。画面側に対象者の個人レポートを開く導線が一度も実装されず実質未使用のまま残っていたことが判明し、本来は本人限定で意図していたと確認が取れたため、要求仕様書REQ-F-18の記述に合わせて修正した（5.4節参照）。</span><br>
     <strong>AI個人フィードバックの生成トリガーを設計と変えた:</strong> 基本設計書9.1節の元の仕様は「S-09を開いたとき自動でリクエスト」だったが、そのままだと画面を開くたびにAI呼び出しの課金が発生する（複数人のレポートを見て回る管理者は特に影響が大きい）ため、S-09に新設した「生成する」ボタンを押したときのみA-51をリクエストする方式に変更した（ユーザー判断、2026-09-02）。生成中はSWRの3秒間隔ポーリング（8.2節）でA-52を再検証し、結果が現れたら停止する。3分経っても現れない場合は「生成に時間がかかっています」の案内を表示する。<br>
     フロントエンドは新規<code>usePersonalReport</code>・<code>usePersonalAiFeedback</code>フック、<code>reportActions.ts</code>、<code>PersonalReport.tsx</code>を実装し、Sidebarの「個人学習レポート」ナビ項目を有効化した。学習履歴の「結果」列表示用に<code>Badge</code>コンポーネントへ<code>passed</code>/<code>failed</code>/<code>in-progress</code>variantを追加した。<br>
     curlで対象者情報・サマリー・学習履歴の集計値、および本人・管理者・無関係な第三者（403）の権限境界を実機検証した（検証用データ・ユーザーは確認後削除）。<strong>AI呼び出しを伴うA-51は、開発段階での従量課金を避けるためユーザーの指示により実機検証（実際のClaude API呼び出し）を行っていない</strong>（コードレビュー・型チェックのみで確認）。ヘッドレスEdgeで画面表示（未生成状態の「生成する」ボタン）を確認した。画面モックアップ<code>S-09_my-report.html</code>に手動トリガーである旨の注記を追加した。<br>

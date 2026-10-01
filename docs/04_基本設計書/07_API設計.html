@@ -157,7 +157,7 @@
   <table>
     <thead><tr><th>API ID</th><th>メソッド</th><th>パス</th><th>権限</th><th>概要</th></tr></thead>
     <tbody>
-      <tr><td>A-50</td><td><span class="badge badge-get">GET</span></td><td><code>/api/reports/personal/{user_id}</code></td><td>本人、対象者が所属するプロジェクトの<span class="badge badge-projrole">管理者</span> <span class="badge badge-admin">admin</span></td><td>個人学習レポート取得（REQ-N-03）</td></tr>
+      <tr><td>A-50</td><td><span class="badge badge-get">GET</span></td><td><code>/api/reports/personal/{user_id}</code></td><td>本人</td><td>個人学習レポート取得（REQ-N-03。1.71で本人限定に修正、旧「対象者が所属するプロジェクトの管理者, admin」は廃止）</td></tr>
       <tr><td>A-51</td><td><span class="badge badge-post">POST</span></td><td><code>/api/reports/personal/{user_id}/ai-feedback</code></td><td>同上</td><td>AI個人フィードバック生成（非同期、9.2節）</td></tr>
       <tr><td>A-52</td><td><span class="badge badge-get">GET</span></td><td><code>/api/reports/personal/{user_id}/ai-feedback</code></td><td>同上</td><td>AI個人フィードバック取得</td></tr>
     </tbody>
@@ -196,7 +196,7 @@
       <tr><td><span class="badge badge-projrole">対象プロジェクトの管理者・編集者</span></td><td><code>require_project_role(project_id, user, min_role='editor')</code></td></tr>
       <tr><td>対象教材の受講対象者</td><td><span class="rev-old"><code>require_project_role(materials.project_id, user, min_role='learner')</code> を満たすプロジェクトメンバー、<strong>または</strong> 配信設定（T-11 assignments、F-09）でその教材の対象者として個別に指定されている者、<strong>または</strong> <code>T-22 material_project_shares で status='accepted' として共有された先のプロジェクトについて require_project_role(shared_to_project_id, user, min_role='learner') を満たす者（F-26、5.27節）</code>、のいずれかを満たす</span><span class="rev-new"><code>require_project_role(materials.project_id, user, min_role='learner')</code> を満たすプロジェクトメンバー、<strong>または</strong> 配信設定（T-11 assignments、F-09）でその教材の対象者として個別に指定されている者、のいずれかを満たす（2条件。F-26〔教材共有〕は承認時に共有先プロジェクトへ教材の複製を新規作成する方式〔5.27節〕のため、複製後の教材は共有先プロジェクト自身のproject_idを持つ独立レコードとなり、共有専用の第3条件は不要）</span></td></tr>
       <tr><td>本人</td><td>パス上の <code>user_id</code>／対象 <code>attempt_id</code> の所有者がログインユーザー自身と一致する。<span class="rev-new">A-04・A-75〜A-77のようにパスにIDを取らずJWTのユーザーIDのみを対象とするAPIも同様に「本人」と表記する</span></td></tr>
-      <tr><td>対象者が所属するプロジェクトの管理者</td><td>対象ユーザー（<code>user_id</code>）が現役メンバーであるいずれかのプロジェクトについて <code>require_project_role(project_id, user=リクエスト者, min_role='admin')</code> を満たす（5.19節と同じ判定）</td></tr>
+      <tr><td>対象者が所属するプロジェクトの管理者</td><td>廃止（1.71）。A-50〜A-52（個人学習レポート）のみで使っていた判定だったが、本人限定への変更に伴い不要になった。</td></tr>
     </tbody>
   </table>
   <div class="callout">
