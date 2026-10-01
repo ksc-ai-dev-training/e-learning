@@ -24,6 +24,7 @@ import { ApiError } from '../lib/api'
 import { formatDateJst } from '../lib/datetime'
 import {
   changeMemberRole,
+  changeProjectStatus,
   deleteProject,
   inviteMember,
   removeMember,
@@ -84,13 +85,13 @@ export default function ProjectManagement() {
       <div className="flex flex-1 flex-col">
         <PageHeader title="プロジェクト管理" />
         <div className="px-8 py-6">
-          <p className="mb-4 text-[11.5px] text-slate-400">
-            自分が参加している全プロジェクト（停止中も含む）を一覧できます。管理者ロールの行のみ、状態の変更と管理画面への遷移ができます。{' '}
+          <p className="mb-4 text-sm text-slate-500">
+            自分が参加している全プロジェクト（停止中も含む）を一覧できます。管理者ロールのプロジェクトのみ、状態の変更と管理画面への遷移ができます。{' '}
             <Link to="/projects/new" className="font-semibold text-blue-700 hover:underline">
               新しいプロジェクトを作成する
             </Link>
           </p>
-          <div className="max-w-2xl overflow-hidden rounded-md border border-slate-200">
+          <div className="max-w-3xl">
             <MyProjectsPanel
               memberships={memberships}
               isLoading={false}
@@ -167,6 +168,10 @@ function ProjectManagementBody({
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [stopModalOpen, setStopModalOpen] = useState(false)
+  const [stopping, setStopping] = useState(false)
+  const [reactivating, setReactivating] = useState(false)
+  const [stopError, setStopError] = useState<string | null>(null)
   const [reminding, setReminding] = useState(false)
   const [remindResult, setRemindResult] = useState<string | null>(null)
   const [remindError, setRemindError] = useState<string | null>(null)
@@ -245,6 +250,43 @@ function ProjectManagementBody({
     }
   }
 
+  // 削除できないプロジェクト（全社ライブラリ・受講記録あり・他のメンバーあり）の代替手段として、
+  // 既存のA-92（プロジェクトの状態変更）を「プロジェクトを停止」として「プロジェクトの状態」欄
+  // から直接実行できるようにした。バックエンドのcannot_delete_reasonがいずれも「停止のみ可能です」
+  // と案内しているにもかかわらず、従来のUIは状態変更が「プロジェクト情報」フォーム内の地味な
+  // セレクトボックスに埋もれており、削除ボタンが押せないことに気づいた利用者がこの代替手段へ
+  // たどり着きにくいという指摘を受けて統合した（2026-10-01）。
+  const doStop = async () => {
+    if (!project) return
+    setStopError(null)
+    setStopping(true)
+    try {
+      await changeProjectStatus(project.id, 'completed')
+      await mutateProject()
+      await onDeleted()
+      setStopModalOpen(false)
+    } catch (e) {
+      setStopError(e instanceof ApiError ? e.message : '停止に失敗しました')
+    } finally {
+      setStopping(false)
+    }
+  }
+
+  const doReactivate = async () => {
+    if (!project) return
+    setStopError(null)
+    setReactivating(true)
+    try {
+      await changeProjectStatus(project.id, 'active')
+      await mutateProject()
+      await onDeleted()
+    } catch (e) {
+      setStopError(e instanceof ApiError ? e.message : '再開に失敗しました')
+    } finally {
+      setReactivating(false)
+    }
+  }
+
   // memberships（自分のこのプロジェクトでのロール判定に使う）の読み込み中もここで待つ。
   // 待たずにisProjectAdmin等を計算すると、memberships取得が完了するまでの一瞬、実際は管理者の
   // ユーザーにも「閲覧のみ」表示（フィールドdisabled・保存ボタン非表示等）がちらついてしまう
@@ -319,63 +361,62 @@ function ProjectManagementBody({
         </div>
 
         {activeTab === 'info' && (
-          <div className="max-w-xl">
-            <div className="flex flex-col gap-4 rounded-md border border-slate-200 p-4">
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-semibold text-slate-500">プロジェクト名</label>
+          <div className="max-w-2xl">
+            <div className="flex flex-col gap-5 rounded-lg border border-slate-200 p-6 dark:border-neutral-700">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-semibold text-slate-600 dark:text-neutral-300">プロジェクト名</label>
                 <TextInput
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
                   disabled={!isProjectAdmin}
                   maxLength={100}
+                  className="text-base"
                 />
               </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-semibold text-slate-500">説明</label>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-semibold text-slate-600 dark:text-neutral-300">説明</label>
                 <TextArea
                   rows={4}
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
                   disabled={!isProjectAdmin}
+                  className="text-base"
                 />
               </div>
-              <div className="flex gap-4">
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs font-semibold text-slate-500">状態</label>
-                  <Select
-                    value={form.status}
-                    onChange={(v) => setForm({ ...form, status: v as 'active' | 'completed' })}
-                    disabled={!isProjectAdmin}
-                    options={[
-                      { value: 'active', label: '進行中' },
-                      { value: 'completed', label: '停止' },
-                    ]}
-                  />
+              <div className="flex flex-wrap gap-8">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-sm font-semibold text-slate-600 dark:text-neutral-300">状態</label>
+                  <div className="flex h-9 items-center">
+                    <Badge variant={project.status === 'completed' ? 'project-stopped' : 'project-active'} />
+                  </div>
                 </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs font-semibold text-slate-500">作成日</label>
-                  <div className="flex h-9 items-center text-sm text-slate-500">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-sm font-semibold text-slate-600 dark:text-neutral-300">作成日</label>
+                  <div className="flex h-9 items-center text-base text-slate-700 dark:text-neutral-200">
                     {formatDateJst(project.created_at)}
                   </div>
                 </div>
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-semibold text-slate-500">作成者</label>
-                <div className="text-sm text-slate-700">
-                  {project.created_by_name}
-                  <span className="ml-2 text-xs text-slate-400">（作成者は自動的に管理者になります）</span>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-sm font-semibold text-slate-600 dark:text-neutral-300">作成者</label>
+                  <div className="flex h-9 items-center text-base text-slate-700 dark:text-neutral-200">
+                    {project.created_by_name}
+                  </div>
                 </div>
               </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-semibold text-slate-500">Slack Webhook URL</label>
+              <p className="-mt-3 text-xs text-slate-400">
+                状態の変更（停止・再開）は下部の「プロジェクトの状態」から行えます。作成者は自動的に管理者になります。
+              </p>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-semibold text-slate-600 dark:text-neutral-300">Slack Webhook URL</label>
                 {isProjectAdmin ? (
                   <>
                     <TextInput
                       value={form.slackWebhookUrl}
                       onChange={(e) => setForm({ ...form, slackWebhookUrl: e.target.value })}
                       placeholder="https://hooks.slack.com/services/..."
+                      className="text-base"
                     />
-                    <p className="text-[11px] text-slate-400">
+                    <p className="text-xs text-slate-400">
                       必修教材の未受講リマインドを送るSlackチャンネルのIncoming Webhook URL（任意）。
                       個人ごとの催促は行わず、教材単位の未受講人数のみを通知します。
                     </p>
@@ -384,12 +425,12 @@ function ProjectManagementBody({
                   // URLの値自体はSlackへ直接投稿できてしまう秘密情報相当のため、管理者以外には
                   // バックエンドがnullで返す（値を見せない）。空欄に見えて「未設定」と誤解されない
                   // よう、専用の注記だけを表示する（2026-09-09）。
-                  <p className="text-xs text-slate-400">（管理者のみ閲覧・編集できます）</p>
+                  <p className="text-sm text-slate-400">（管理者のみ閲覧・編集できます）</p>
                 )}
               </div>
             </div>
             {isProjectAdmin && (
-              <div className="mt-3 flex items-center gap-3">
+              <div className="mt-4 flex items-center gap-3">
                 <Button onClick={handleSave}>保存する</Button>
                 {saved && <span className="text-sm text-green-700">保存しました</span>}
                 {saveError && <span className="text-sm text-red-600">{saveError}</span>}
@@ -397,7 +438,7 @@ function ProjectManagementBody({
             )}
 
             {isProjectAdmin && (
-              <div className="mt-4 flex flex-col gap-2 rounded-md border border-slate-200 p-4">
+              <div className="mt-5 flex flex-col gap-2 rounded-lg border border-slate-200 p-5 dark:border-neutral-700">
                 <div className="flex items-center gap-3">
                   <button
                     type="button"
@@ -418,18 +459,47 @@ function ProjectManagementBody({
             )}
 
             {isProjectAdmin && (
-              <div className="mt-6 border-t border-slate-200 pt-4">
-                <Button
-                  variant="danger-ghost"
-                  onClick={() => setDeleteModalOpen(true)}
-                  disabled={!project.can_delete}
-                  title={project.can_delete ? undefined : project.cannot_delete_reason ?? undefined}
-                >
-                  プロジェクトを削除
-                </Button>
-                {!project.can_delete && (
-                  <p className="mt-1.5 text-xs text-slate-400">{project.cannot_delete_reason}</p>
+              <div className="mt-6 rounded-lg border border-red-200 bg-red-50/40 p-5 dark:border-red-900 dark:bg-red-950/20">
+                <h3 className="mb-1 text-sm font-semibold text-slate-700 dark:text-neutral-200">プロジェクトの状態</h3>
+                {project.status === 'completed' ? (
+                  <>
+                    <p className="mb-3 text-xs text-slate-500">
+                      このプロジェクトは停止中です。一覧の既定表示から外れていますが、教材・メンバーはそのまま残っています。
+                    </p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button variant="secondary" onClick={() => void doReactivate()} disabled={reactivating}>
+                        {reactivating ? '再開中...' : 'プロジェクトを再開'}
+                      </Button>
+                      {project.can_delete && (
+                        <Button variant="danger-ghost" onClick={() => setDeleteModalOpen(true)}>
+                          プロジェクトを削除
+                        </Button>
+                      )}
+                    </div>
+                  </>
+                ) : project.can_delete ? (
+                  <>
+                    <p className="mb-3 text-xs text-slate-500">
+                      教材・受講記録・他のメンバーが無いプロジェクトのため、完全に削除できます。残しておきたい場合は、削除の代わりに停止することもできます。
+                    </p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button variant="danger-ghost" onClick={() => setDeleteModalOpen(true)}>
+                        プロジェクトを削除
+                      </Button>
+                      <Button variant="secondary" onClick={() => setStopModalOpen(true)}>
+                        プロジェクトを停止
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="mb-3 text-xs text-slate-500">{project.cannot_delete_reason}</p>
+                    <Button variant="danger-ghost" onClick={() => setStopModalOpen(true)}>
+                      プロジェクトを停止
+                    </Button>
+                  </>
                 )}
+                {stopError && <p className="mt-2 text-xs text-red-600">{stopError}</p>}
               </div>
             )}
           </div>
@@ -458,6 +528,35 @@ function ProjectManagementBody({
                 </Button>
                 <Button variant="danger-ghost" onClick={doDelete} disabled={deleting}>
                   {deleting ? '削除中...' : '削除する'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {stopModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+            <div className="w-full max-w-md rounded-md bg-white p-5 shadow-lg">
+              <div className="mb-3 flex items-center justify-between">
+                <span className="text-base font-semibold text-slate-800">プロジェクトを停止しますか？</span>
+                <button
+                  type="button"
+                  onClick={() => setStopModalOpen(false)}
+                  className="text-slate-400 hover:text-slate-600"
+                >
+                  ×
+                </button>
+              </div>
+              <p className="mb-3 text-sm leading-relaxed text-slate-600">
+                「{project.name}」を停止します。教材・メンバー・学習記録はそのまま残り、プロジェクト一覧の既定表示から外れるだけです。いつでも「プロジェクトを再開」で元に戻せます。
+              </p>
+              {stopError && <p className="mb-3 text-sm text-red-600">{stopError}</p>}
+              <div className="flex justify-end gap-2">
+                <Button variant="secondary" onClick={() => setStopModalOpen(false)} disabled={stopping}>
+                  キャンセル
+                </Button>
+                <Button variant="danger-ghost" onClick={doStop} disabled={stopping}>
+                  {stopping ? '停止中...' : '停止する'}
                 </Button>
               </div>
             </div>

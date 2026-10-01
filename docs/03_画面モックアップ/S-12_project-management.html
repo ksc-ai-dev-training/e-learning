@@ -108,30 +108,37 @@
           <div class="panel-title">プロジェクト管理（projectId未指定時の既定表示）</div>
         </div>
         <div class="panel-body">
-          <p class="field-help" style="margin-bottom:10px">自分が参加している全プロジェクト（停止中も含む）を一覧できます。管理者ロールの行のみ、状態の変更と管理画面への遷移ができます。 <a href="S-11_project-create.html">新しいプロジェクトを作成する</a></p>
-          <div class="table-wrap" style="box-shadow:none">
-            <table class="table">
-              <thead>
-                <tr><th>プロジェクト名</th><th style="width:120px">あなたのロール</th><th style="width:110px">状態</th><th style="width:90px">操作</th></tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td class="cell-main">LCC CRM刷新</td>
-                  <td><span class="badge badge-projrole projrole-admin">管理者</span></td>
-                  <td style="display:flex;align-items:center;gap:6px">
-                    <select style="width:100px"><option selected>進行中</option><option>停止</option></select>
-                    <span class="badge badge-status-on">進行中</span>
-                  </td>
-                  <td><button class="btn btn-ghost btn-sm" type="button">管理する</button></td>
-                </tr>
-                <tr>
-                  <td class="cell-main">介護クラウド保守</td>
-                  <td><span class="badge badge-projrole projrole-member">受講者</span></td>
-                  <td><span class="badge badge-status-on">進行中</span></td>
-                  <td><button class="btn btn-ghost btn-sm" type="button" disabled title="管理者ではないため管理画面は開けません">-</button></td>
-                </tr>
-              </tbody>
-            </table>
+          <p class="field-help" style="margin-bottom:10px">自分が参加している全プロジェクト（停止中も含む）を一覧できます。管理者ロールのプロジェクトのみ、状態の変更と管理画面への遷移ができます。 <a href="S-11_project-create.html">新しいプロジェクトを作成する</a></p>
+          <!-- 2026-10-01: 1行がただのテーブル行で、プロジェクトごとの境界が分かりづらく、「管理する」も
+               ただの青文字リンクで押せるボタンだと気づきにくいという指摘を受け、プロジェクト1件＝
+               1枚のカード（枠線・角丸・内側余白）に変更し、「管理する」もボタン見た目（btn-secondary）に
+               変更した。状態セレクトはカード内の操作列にそのまま残す。 -->
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;border:1px solid var(--border-strong);border-radius:var(--radius-lg);padding:14px 16px">
+              <div>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span style="font-size:15px;font-weight:600">LCC CRM刷新</span>
+                  <span class="badge badge-status-on">進行中</span>
+                </div>
+                <div style="margin-top:4px;font-size:12.5px;color:var(--text-subtle)">あなたのロール: 管理者</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;flex-shrink:0">
+                <select style="width:100px"><option selected>進行中</option><option>停止</option></select>
+                <button class="btn btn-secondary btn-sm" type="button">管理する</button>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;border:1px solid var(--border-strong);border-radius:var(--radius-lg);padding:14px 16px">
+              <div>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span style="font-size:15px;font-weight:600">介護クラウド保守</span>
+                  <span class="badge badge-status-on">進行中</span>
+                </div>
+                <div style="margin-top:4px;font-size:12.5px;color:var(--text-subtle)">あなたのロール: 受講者</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;flex-shrink:0">
+                <span style="font-size:12px;color:var(--text-subtle)" title="管理者ではないため管理画面は開けません">—</span>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -146,50 +153,59 @@
       </div>
 
       <!-- プロジェクト情報タブ -->
+      <!-- 2026-10-01: 「状態」セレクトはこのフォームからは削除し、バッジの読み取り専用表示に変更した。
+           状態変更（停止・再開）は下部の「プロジェクトの状態」ブロックの専用ボタンに一本化した
+           （削除・停止・再開という削除に準じる重い操作を1箇所にまとめ、誤ってこの保存ボタンで状態まで
+           一緒に変わってしまう混乱を避けるため）。あわせて幅・余白・文字サイズを少し広げ、狭い割に
+           文字が小さく読みにくいという指摘に対応した。 -->
       <div class="tab-panel active" id="panel-info">
-        <div class="panel" style="max-width:680px">
+        <div class="panel" style="max-width:760px">
           <div class="panel-header">
             <div class="panel-title">基本情報</div>
           </div>
-          <div class="panel-body">
+          <div class="panel-body" style="padding:20px">
             <div class="field">
               <label>プロジェクト名</label>
-              <input type="text" value="LCC CRM刷新" maxlength="100">
+              <input type="text" value="LCC CRM刷新" maxlength="100" style="font-size:14px">
             </div>
             <div class="field">
               <label>説明</label>
-              <textarea rows="4">既存のLCC CRMをReact 19 + FastAPI構成へ刷新するプロジェクト。営業部・開発部混成チームで、新機能開発と並行して段階的に移行する。</textarea>
+              <textarea rows="4" style="font-size:14px">既存のLCC CRMをReact 19 + FastAPI構成へ刷新するプロジェクト。営業部・開発部混成チームで、新機能開発と並行して段階的に移行する。</textarea>
             </div>
             <div class="field-row">
               <div class="field">
                 <label>状態</label>
-                <select style="max-width:160px">
-                  <option selected>進行中</option>
-                  <option>停止</option>
-                </select>
+                <div style="display:flex;align-items:center;height:36px"><span class="badge badge-status-on">進行中</span></div>
               </div>
               <div class="field">
                 <label>作成日</label>
-                <div style="display:flex;align-items:center;height:36px;font-size:13px;color:var(--text-subtle)">2026-03-01</div>
+                <div style="display:flex;align-items:center;height:36px;font-size:14px;color:var(--text-subtle)">2026-03-01</div>
+              </div>
+              <div class="field">
+                <label>作成者</label>
+                <div style="display:flex;align-items:center;height:36px;font-size:14px">山田 花子</div>
               </div>
             </div>
-            <div class="field" style="margin-bottom:0">
-              <label>作成者</label>
-              <div style="font-size:13px">
-                山田 花子
-                <span class="field-help" style="margin:0">（作成者は自動的に管理者になります）</span>
-              </div>
-            </div>
+            <p class="field-help" style="margin-top:-6px">状態の変更（停止・再開）は下部の「プロジェクトの状態」から行えます。作成者は自動的に管理者になります。</p>
           </div>
         </div>
-        <div class="form-actions" style="position:static;background:none;border-top:none;padding-top:0;max-width:680px">
+        <div class="form-actions" style="position:static;background:none;border-top:none;padding-top:0;max-width:760px">
           <button class="btn btn-primary" type="button">保存する</button>
           <span style="color:#15803d;font-size:12.5px;font-weight:600">保存しました</span>
         </div>
 
-        <div style="max-width:680px;margin-top:22px;padding-top:16px;border-top:1px solid var(--border-strong)">
-          <button class="btn btn-danger-ghost" type="button" disabled title="下書き以外の教材、または他のメンバーが所属しているため削除できません">プロジェクトを削除</button>
-          <p style="margin-top:6px;font-size:11.5px;color:var(--text-subtle)">下書き以外の教材、または他のメンバーが所属しているため削除できません</p>
+        <!-- 2026-10-01: 「プロジェクトを削除」の無効化＋理由の注記だけだったブロックを、
+             cannot_delete_reason（いずれも文末が「停止のみ可能です」）に沿って、削除できない
+             プロジェクトでは実際に押せる「プロジェクトを停止」ボタンへ置き換えた。全社ライブラリ・
+             受講記録あり・他のメンバーありのどの理由でも停止は可能なため、この3パターンいずれでも
+             「削除は不可、停止は可」の案内＋停止ボタンという同じ形になる。削除可能なプロジェクトでは
+             削除・停止の両方を、既に停止中のプロジェクトでは再開（＋削除可能ならあわせて削除）を出す。 -->
+        <div class="panel" style="max-width:760px;margin-top:18px;border-color:#fecaca;background:#fef2f2">
+          <div class="panel-body" style="padding:18px">
+            <div style="font-size:13px;font-weight:600;margin-bottom:4px">プロジェクトの状態</div>
+            <p style="margin:0 0 10px;font-size:12px;color:var(--text-subtle)">このプロジェクトの教材には受講記録が残っているため削除できません。停止のみ可能です。</p>
+            <button class="btn btn-danger-ghost" type="button">プロジェクトを停止</button>
+          </div>
         </div>
       </div>
 
@@ -206,6 +222,23 @@
           <div class="modal-footer">
             <button class="btn btn-secondary" type="button">キャンセル</button>
             <button class="btn btn-danger-ghost" type="button">削除する</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- プロジェクト停止確認モーダル（2026-10-01新設、「プロジェクトを停止」押下時に表示） -->
+      <div class="modal-overlay" id="stop-project-modal">
+        <div class="modal" style="width:440px">
+          <div class="modal-header">
+            <span class="modal-title">プロジェクトを停止しますか？</span>
+            <button class="modal-close" type="button" onclick="document.getElementById('stop-project-modal').classList.remove('open')">×</button>
+          </div>
+          <div class="modal-body">
+            <p style="margin:0;font-size:13px;line-height:1.6">「LCC CRM刷新」を停止します。教材・メンバー・学習記録はそのまま残り、プロジェクト一覧の既定表示から外れるだけです。いつでも「プロジェクトを再開」で元に戻せます。</p>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" type="button">キャンセル</button>
+            <button class="btn btn-danger-ghost" type="button">停止する</button>
           </div>
         </div>
       </div>
