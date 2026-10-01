@@ -13,20 +13,19 @@ import { ApiError } from '../lib/api'
 import { restoreMaterial } from '../lib/materialActions'
 import type { MaterialStatus } from '../types'
 
-// 2026-10-01: 「アーカイブ済み」を独立した絞り込み値として持つと、アーカイブ済み教材を見るためだけに
-// 専用の状態を選ばなければならず分かりにくいという指摘を受け廃止した。既定の挙動（「すべて」は
-// アーカイブ済みを除く）は変えず、共有タブ（ShareSearchSection等）と同じ「アーカイブ済みの教材も
-// 含める」チェックボックスを状態セレクトとは別に設け、既定オフ（除外）にした。復元操作はチェック
-// オンで一覧にアーカイブ済みが混在しているときだけ、アーカイブ済みの行にのみ出す（下記filtered・
-// 操作列を参照）。
+// 2026-10-01: 独立した絞り込み値だった「アーカイブ済み」（アーカイブ済みのみを表示）を廃止し、
+// 代わりに「すべて（アーカイブ済みを含む）」を追加した。既定は従来どおり「すべて（アーカイブ済みを
+// 除く）」で、公開中・下書きもアーカイブ済みは含めない。4択のセレクト1つで完結させ、チェック
+// ボックス等は使わない。
 const STATUS_OPTIONS = [
-  { value: 'all', label: 'すべて' },
+  { value: 'all', label: 'すべて（アーカイブ済みを除く）' },
+  { value: 'all_with_archived', label: 'すべて（アーカイブ済みを含む）' },
   { value: 'published', label: '公開中' },
   { value: 'draft', label: '下書き' },
 ]
 
-type FilterForm = { keyword: string; status: string; month: string; includeArchived: boolean }
-const EMPTY_FILTER: FilterForm = { keyword: '', status: 'all', month: 'all', includeArchived: false }
+type FilterForm = { keyword: string; status: string; month: string }
+const EMPTY_FILTER: FilterForm = { keyword: '', status: 'all', month: 'all' }
 
 // S-14 教材編集：教材一覧（詳細設計書10.13節）。
 export default function MaterialsList() {
@@ -42,7 +41,7 @@ export default function MaterialsList() {
   // 反映されない」という分かりにくさの指摘を受けて変更した。2026-08-28）
   const [form, setForm] = useState<FilterForm>(EMPTY_FILTER)
   const [filter, setFilter] = useState<FilterForm>(EMPTY_FILTER)
-  const { materials, error, isLoading, mutate } = useMaterials(id, filter.includeArchived)
+  const { materials, error, isLoading, mutate } = useMaterials(id, filter.status === 'all_with_archived')
   const project = projects.find((p) => p.id === id)
 
   const applyImmediate = (patch: Partial<FilterForm>) => {
@@ -88,7 +87,12 @@ export default function MaterialsList() {
           const tagMatch = m.tags.some((t) => t.toLowerCase().includes(kw))
           if (!titleMatch && !tagMatch) return false
         }
-        if (filter.status !== 'all' && m.status !== (filter.status as MaterialStatus)) return false
+        if (
+          filter.status !== 'all' &&
+          filter.status !== 'all_with_archived' &&
+          m.status !== (filter.status as MaterialStatus)
+        )
+          return false
         if (filter.month !== 'all' && formatYearMonthJst(m.updated_at) !== filter.month) return false
         return true
       }),
@@ -155,14 +159,6 @@ export default function MaterialsList() {
                 />
               </div>
             </div>
-            <label className="mt-3 flex items-center gap-1.5 text-xs text-slate-600 dark:text-neutral-300">
-              <input
-                type="checkbox"
-                checked={form.includeArchived}
-                onChange={(e) => applyImmediate({ includeArchived: e.target.checked })}
-              />
-              アーカイブ済みの教材も含める
-            </label>
             <div className="mt-3.5 flex items-center gap-2.5 border-t border-slate-100 pt-3.5 dark:border-neutral-800">
               <Button variant="primary" onClick={applyFilter}>
                 絞り込む
