@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 import ai_client
-from auth_helpers import CurrentUser, is_manager_of_target_user, require_auth
+from auth_helpers import CurrentUser, require_auth
 from database import get_pool
 from routers.dashboard import _aggregate_dashboard_stats, _parse_scope, require_dashboard_scope
 
@@ -19,10 +19,12 @@ logger = logging.getLogger("manabi.reports")
 
 
 async def _require_report_access(user_id: int, user: CurrentUser) -> None:
-    """本人、または対象者が所属するプロジェクトの管理者・システムadminのみ許可する（詳細設計書5.4節）。"""
-    if user.id == user_id:
-        return
-    if not await is_manager_of_target_user(user_id, user):
+    """本人のみ許可する（詳細設計書5.4節、2026-10-01改定）。以前はプロジェクト管理者も対象者の
+    レポートを閲覧できる設計だったが、画面側にその導線が一つも実装されておらず
+    （URLを直接叩かない限り誰も使えない状態だった）、ユーザー確認の結果「システムadminだけを
+    締め出すつもりで、プロジェクト管理者まで見られる設計にするつもりは無かった」と判明したため、
+    本人以外は（プロジェクト管理者・システムadmin含め）一律で閲覧不可にした。"""
+    if user.id != user_id:
         raise HTTPException(403, detail="この学習レポートを閲覧する権限がありません")
 
 

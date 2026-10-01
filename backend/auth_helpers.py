@@ -154,26 +154,6 @@ async def check_project_role(
         raise HTTPException(403, detail="この操作を行う権限がありません")
 
 
-async def is_manager_of_target_user(target_user_id: int, requester: CurrentUser) -> bool:
-    """「対象者が所属するプロジェクトの管理者」判定（詳細設計書5.4節）。S-09個人学習レポート・
-    A-50〜A-52で、本人以外に対象者の上長として閲覧できる相手を判定するのに使う。
-
-    システムadminの無条件バイパスは廃止した（2026-09-17、権限モデル整理）。個人の学習記録は
-    プロジェクトのローカル管理者（対象者の上長として実際に管理している相手）のみが閲覧できる
-    べきで、プロジェクトに一切関与していないシステムadminにまで無条件で開放する理由は無いという
-    判断による。システムadminであっても、対象者のプロジェクトの実際のローカル管理者であれば
-    下記のループで許可される。"""
-    target_project_ids = await get_pool().fetch(
-        """SELECT project_id FROM project_memberships
-           WHERE user_id = $1 AND status = 'active' AND left_at IS NULL""",
-        target_user_id,
-    )
-    for row in target_project_ids:
-        if await has_active_project_role(row["project_id"], requester.id, min_role="admin"):
-            return True
-    return False
-
-
 def require_project_role(min_role: str):
     """プロジェクトのローカルロールを判定する（詳細設計書5.2節）。
 
