@@ -11,6 +11,7 @@ import TextInput from '../components/ui/TextInput'
 import { useIncomingShares } from '../hooks/useIncomingShares'
 import { useMaterials } from '../hooks/useMaterials'
 import { useMaterialShares } from '../hooks/useMaterialShares'
+import { useOutgoingSharedMaterials } from '../hooks/useOutgoingSharedMaterials'
 import { useShareableMaterials } from '../hooks/useShareableMaterials'
 import { useMe } from '../hooks/useMe'
 import { useMemberAttemptStatus } from '../hooks/useMemberAttemptStatus'
@@ -1198,21 +1199,20 @@ function OutgoingSharesSection({ projectId, canManage }: { projectId: number; ca
   // 一覧に出てこず実質共有できないという不一致があったための対応、2026-09-02）、通常時は非表示にしたい
   // というユーザー要望を受けてトグル化した（2026-09-18）。
   const [includeArchived, setIncludeArchived] = useState(false)
-  // 2026-09-24: 実プロジェクト管理者（canManage）は検索セクション（ShareSearchSection）と同じ
-  // /api/materials/shareable（作成者・必修/任意を問わずこのプロジェクトの全教材が対象）を使い、
-  // このタブ内の2つの一覧の対象範囲を揃える（以前はここだけA-21〔useMaterials〕を使っており、
-  // 全社ライブラリで「自分が作成した教材＋必修教材」しか出ず、検索セクションより狭い範囲に
-  // なっていた不一致をユーザーが発見）。ただし/api/materials/shareableは実プロジェクト管理者
-  // のみ許可するAPIのため、このタブを閲覧できる編集者（canViewSharing、SharingTab呼び出し元
-  // 参照）向けには従来どおりA-21を使う（編集者は元々自分が作成した教材しか見えない設計のため、
-  // ここだけ範囲を広げると編集者の閲覧権限を超えてしまう）。projectIdにnullを渡す方は
-  // フックが取得自体を行わないため、片方だけが実際にAPIを呼ぶ。
-  const shareable = useShareableMaterials(canManage ? projectId : null, '', includeArchived)
+  // 2026-10-01: 管理者（canManage）は、新設の/materials/sharedで「実際に共有している（却下済みを
+  // 除く）教材のみ」に絞り込む。以前は検索セクション（ShareSearchSection）と同じ/materials/shareable
+  // （候補検索用、共有の有無を問わず全教材を返す）をそのまま流用していたため、「このプロジェクトから
+  // 申請した共有」という見出しなのに共有先が空欄の行が並んでしまっていた（ユーザー指摘により発見）。
+  // 新規申請は上のShareSearchSectionで行えるため、この一覧を候補検索と同じ範囲にする必要はない。
+  // 編集者（!canManage）には検索セクション自体が無く、この一覧が唯一の新規申請経路のため、従来どおり
+  // A-21（useMaterials、自分の教材を候補として全件表示）のままにする（絞り込むと新規共有の手段が
+  // 無くなってしまうため）。
+  const shared = useOutgoingSharedMaterials(canManage ? projectId : null, includeArchived)
   const own = useMaterials(canManage ? null : projectId, includeArchived)
-  const isLoading = canManage ? shareable.isLoading : own.isLoading
+  const isLoading = canManage ? shared.isLoading : own.isLoading
   const rows: { id: number; title: string; status: MaterialSource['status']; is_archived: boolean; extraInfo?: string }[] =
     canManage
-      ? shareable.items.map((m) => ({
+      ? shared.items.map((m) => ({
           id: m.id,
           title: m.title,
           status: 'published',
@@ -1225,7 +1225,9 @@ function OutgoingSharesSection({ projectId, canManage }: { projectId: number; ca
     <div>
       <h3 className="mb-2 text-sm font-semibold text-slate-700">このプロジェクトから申請した共有</h3>
       <p className="mb-3 text-xs text-slate-500">
-        申請しただけでは何も起きません。共有先プロジェクトの管理者が承認すると、その時点の教材内容（目次・全ページ・問題・添付ファイル）で複製が共有先プロジェクトに新規作成されます。複製後は共有先プロジェクトの独立した教材として、内容編集・配信設定・公開状態はすべて共有先プロジェクトの管理者・編集者が管理します（元教材を更新しても複製には反映されません）。下書きの教材は共有申請できません。
+        {canManage
+          ? '実際に共有申請している（却下済みを除く）教材の一覧です。新規に共有を申請するには上の「教材を検索して共有」を使ってください。承認されると、その時点の教材内容（目次・全ページ・問題・添付ファイル）で複製が共有先プロジェクトに新規作成されます。複製後は共有先プロジェクトの独立した教材として、内容編集・配信設定・公開状態はすべて共有先プロジェクトの管理者・編集者が管理します（元教材を更新しても複製には反映されません）。'
+          : '申請しただけでは何も起きません。共有先プロジェクトの管理者が承認すると、その時点の教材内容（目次・全ページ・問題・添付ファイル）で複製が共有先プロジェクトに新規作成されます。複製後は共有先プロジェクトの独立した教材として、内容編集・配信設定・公開状態はすべて共有先プロジェクトの管理者・編集者が管理します（元教材を更新しても複製には反映されません）。下書きの教材は共有申請できません。'}
       </p>
       <label className="mb-3 flex items-center gap-1.5 text-xs text-slate-600">
         <input

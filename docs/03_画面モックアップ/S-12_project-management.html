@@ -462,10 +462,16 @@
            出す必要が無いため）。取り下げ（×）操作は引き続き共有先列に残す。 -->
       <div class="tab-panel" id="panel-sharing">
 
+        <!-- 2026-10-01追記: このセクションは実際に共有している（却下済みを除く）教材のみを表示する
+             よう修正した（新規バックエンドAPI GET /api/projects/{project_id}/materials/shared）。
+             以前は候補検索用のAPIをそのまま流用していたため、一度も申請していない・却下済みのみの
+             教材まで「共有先: —」として一覧に出てしまっていた（ユーザー指摘により発見）。そのため
+             本モックアップの例でも「共有先が空欄の行」は置かない。新規に共有を申請するには上の
+             「教材を検索して共有」を使う。 -->
         <section class="panel" style="margin-bottom:18px">
           <div class="panel-body">
             <h3 style="font-size:13px;margin:0 0 8px">このプロジェクトから申請した共有</h3>
-            <p class="field-help" style="margin:0 0 10px">申請しただけでは何も起きません。共有先プロジェクトの管理者が承認すると、その時点の教材内容（目次・全ページ・問題・添付ファイル）で複製が共有先プロジェクトに新規作成されます。複製後は共有先プロジェクトの独立した教材として、内容編集・配信設定・公開状態はすべて共有先プロジェクトの管理者・編集者が管理します（元教材を更新しても複製には反映されません）。下書きの教材は共有申請できません。</p>
+            <p class="field-help" style="margin:0 0 10px">実際に共有申請している（却下済みを除く）教材の一覧です。新規に共有を申請するには上の「教材を検索して共有」を使ってください。承認されると、その時点の教材内容（目次・全ページ・問題・添付ファイル）で複製が共有先プロジェクトに新規作成されます。複製後は共有先プロジェクトの独立した教材として、内容編集・配信設定・公開状態はすべて共有先プロジェクトの管理者・編集者が管理します（元教材を更新しても複製には反映されません）。</p>
             <div class="table-wrap">
               <table class="table">
                 <thead>
@@ -481,11 +487,6 @@
                     <td class="cell-main">セキュアコーディング入門</td>
                     <td><span class="badge badge-status-on">公開中</span></td>
                     <td><span class="chip">情報セキュリティ委員会 <span style="color:#15803d;font-size:10.5px">複製済み</span></span></td>
-                  </tr>
-                  <tr>
-                    <td class="cell-main" style="color:var(--text-subtle)">DB移行手順（下書き）</td>
-                    <td><span class="badge badge-status-off">下書き</span></td>
-                    <td><span style="color:var(--text-subtle);font-size:12px">—</span></td>
                   </tr>
                 </tbody>
               </table>
