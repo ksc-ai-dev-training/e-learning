@@ -1164,13 +1164,15 @@ function ShareSearchSection({ currentProjectId }: { currentProjectId: number }) 
       ) : items.length === 0 ? (
         <p className="text-sm text-slate-400">{query ? '該当する教材がありません。' : '検索対象の教材がありません。'}</p>
       ) : (
+        // 2026-10-01: 「共有先プロジェクト」列は出さない（ユーザー指摘）。このセクションは新規申請の
+        // 入口であり、既存の共有状況の確認・取り下げは下の「このプロジェクトから申請した共有」の
+        // 役割にする（showDestinationColumn={false}）。
         <div className="overflow-x-auto rounded-md border border-slate-200">
           <table className="w-full text-sm max-sm:whitespace-nowrap">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50 text-left text-xs text-slate-500">
                 <th className="px-3 py-2 font-normal">教材名</th>
                 <th className="px-3 py-2 font-normal">状態</th>
-                <th className="px-3 py-2 font-normal">共有先プロジェクト</th>
                 <th className="px-3 py-2 font-normal">操作</th>
               </tr>
             </thead>
@@ -1182,6 +1184,7 @@ function ShareSearchSection({ currentProjectId }: { currentProjectId: number }) 
                   material={{ id: m.id, title: m.title, status: 'published', is_archived: m.is_archived }}
                   canManage
                   extraInfo={`作成者: ${m.created_by_name} ／ ${m.is_required ? '必修' : '任意'}`}
+                  showDestinationColumn={false}
                 />
               ))}
             </tbody>
@@ -1281,6 +1284,7 @@ function OutgoingShareRow({
   canManage,
   extraInfo,
   showInitiateColumn = true,
+  showDestinationColumn = true,
 }: {
   // ShareSearchSection（検索結果）・OutgoingSharesSection（このプロジェクトの教材一覧）の
   // どちらからも使う共通行。両者ともsourceProjectId＝現在のプロジェクト自身なので、共有先
@@ -1294,6 +1298,12 @@ function OutgoingShareRow({
   // 上のShareSearchSectionと重複する新規申請導線を省くために使う。取り下げ操作は「共有先」列に
   // 残るため影響しない。既定true＝ShareSearchSection・編集者向け表示は従来どおり）
   showInitiateColumn?: boolean
+  // falseの場合、共有先・状態を表示する列自体を描画しない（ShareSearchSectionでの利用時に指定。
+  // 2026-10-01、ユーザー指摘: 検索して新規申請するだけのセクションに現在の共有状況を出す必要は
+  // なく、共有状況の確認・取り下げは「このプロジェクトから申請した共有」側の役割にすべき、という
+  // 整理を受けて追加。activeShares/candidateProjectsの算出自体は「操作」列の候補絞り込みに
+  // 引き続き必要なため、ここでは表示のみを省く）。既定true＝従来どおり表示する。
+  showDestinationColumn?: boolean
 }) {
   const { shares, mutate } = useMaterialShares(material.id)
   const { projects } = useProjects('learner')
@@ -1342,30 +1352,32 @@ function OutgoingShareRow({
             分岐しており、アーカイブ済み教材も常に「公開中」表示になっていた不具合を含んでいた） */}
         <Badge variant={material.is_archived ? 'archived' : material.status === 'published' ? 'published' : 'draft'} />
       </td>
-      <td className="px-3 py-2">
-        <div className="flex flex-wrap items-center gap-1.5">
-          {activeShares.length === 0 && <span className="text-xs text-slate-300">—</span>}
-          {activeShares.map((s) => (
-            <span
-              key={s.id}
-              className="inline-flex items-center gap-1 rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-xs text-slate-600"
-            >
-              {s.shared_to_project_name}
-              <Badge variant={s.status === 'pending' ? 'share-pending' : 'share-accepted'} />
-              {canManage && s.status === 'pending' && (
-                <button
-                  type="button"
-                  onClick={() => handleWithdraw(s.id)}
-                  className="text-slate-400 hover:text-red-600"
-                  title="申請を取り下げる"
-                >
-                  ×
-                </button>
-              )}
-            </span>
-          ))}
-        </div>
-      </td>
+      {showDestinationColumn && (
+        <td className="px-3 py-2">
+          <div className="flex flex-wrap items-center gap-1.5">
+            {activeShares.length === 0 && <span className="text-xs text-slate-300">—</span>}
+            {activeShares.map((s) => (
+              <span
+                key={s.id}
+                className="inline-flex items-center gap-1 rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-xs text-slate-600"
+              >
+                {s.shared_to_project_name}
+                <Badge variant={s.status === 'pending' ? 'share-pending' : 'share-accepted'} />
+                {canManage && s.status === 'pending' && (
+                  <button
+                    type="button"
+                    onClick={() => handleWithdraw(s.id)}
+                    className="text-slate-400 hover:text-red-600"
+                    title="申請を取り下げる"
+                  >
+                    ×
+                  </button>
+                )}
+              </span>
+            ))}
+          </div>
+        </td>
+      )}
       {showInitiateColumn && (
         <td className="px-3 py-2">
           {!canManage ? (
