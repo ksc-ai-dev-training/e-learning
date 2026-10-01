@@ -14,17 +14,19 @@ import { restoreMaterial } from '../lib/materialActions'
 import type { MaterialStatus } from '../types'
 
 // 2026-10-01: 「アーカイブ済み」を独立した絞り込み値として持つと、アーカイブ済み教材を見るためだけに
-// 専用の状態を選ばなければならず分かりにくいという指摘を受け廃止した。「すべて」がアーカイブ済みも
-// 含む唯一の選択肢になり、復元操作は「すべて」表示時にアーカイブ済みの行にだけ出す（下記filtered・
+// 専用の状態を選ばなければならず分かりにくいという指摘を受け廃止した。既定の挙動（「すべて」は
+// アーカイブ済みを除く）は変えず、共有タブ（ShareSearchSection等）と同じ「アーカイブ済みの教材も
+// 含める」チェックボックスを状態セレクトとは別に設け、既定オフ（除外）にした。復元操作はチェック
+// オンで一覧にアーカイブ済みが混在しているときだけ、アーカイブ済みの行にのみ出す（下記filtered・
 // 操作列を参照）。
 const STATUS_OPTIONS = [
-  { value: 'all', label: 'すべて（アーカイブ済みを含む）' },
+  { value: 'all', label: 'すべて' },
   { value: 'published', label: '公開中' },
   { value: 'draft', label: '下書き' },
 ]
 
-type FilterForm = { keyword: string; status: string; month: string }
-const EMPTY_FILTER: FilterForm = { keyword: '', status: 'all', month: 'all' }
+type FilterForm = { keyword: string; status: string; month: string; includeArchived: boolean }
+const EMPTY_FILTER: FilterForm = { keyword: '', status: 'all', month: 'all', includeArchived: false }
 
 // S-14 教材編集：教材一覧（詳細設計書10.13節）。
 export default function MaterialsList() {
@@ -40,7 +42,7 @@ export default function MaterialsList() {
   // 反映されない」という分かりにくさの指摘を受けて変更した。2026-08-28）
   const [form, setForm] = useState<FilterForm>(EMPTY_FILTER)
   const [filter, setFilter] = useState<FilterForm>(EMPTY_FILTER)
-  const { materials, error, isLoading, mutate } = useMaterials(id, filter.status === 'all')
+  const { materials, error, isLoading, mutate } = useMaterials(id, filter.includeArchived)
   const project = projects.find((p) => p.id === id)
 
   const applyImmediate = (patch: Partial<FilterForm>) => {
@@ -153,6 +155,14 @@ export default function MaterialsList() {
                 />
               </div>
             </div>
+            <label className="mt-3 flex items-center gap-1.5 text-xs text-slate-600 dark:text-neutral-300">
+              <input
+                type="checkbox"
+                checked={form.includeArchived}
+                onChange={(e) => applyImmediate({ includeArchived: e.target.checked })}
+              />
+              アーカイブ済みの教材も含める
+            </label>
             <div className="mt-3.5 flex items-center gap-2.5 border-t border-slate-100 pt-3.5 dark:border-neutral-800">
               <Button variant="primary" onClick={applyFilter}>
                 絞り込む
