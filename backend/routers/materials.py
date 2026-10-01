@@ -114,7 +114,7 @@ async def _require_view_access(pool, id: int, user: CurrentUser) -> dict:
 async def search_materials(
     q: str | None = None,
     tags: str | None = None,
-    project_id: int | None = None,
+    project_ids: str | None = None,
     required: bool | None = None,
     incomplete_only: bool = False,
     page: int = 1,
@@ -143,6 +143,10 @@ async def search_materials(
     システムadminに限り、project_idを明示的に指定した場合はこの絞り込みを適用しない
     （S-03の「その他のプロジェクト」タブから、所属していないプロジェクトに何があるかを
     確認できるようにするため。実際に受講できるかは_require_view_accessが別途判定する）。
+
+    project_idsはtagsと同じカンマ区切りの複数値指定に対応する（2026-10-01、ユーザー要望。
+    プロジェクトのボタンが単一選択（押すたびに切り替わる）だったのを、複数同時選択できる
+    トグル式に変更）。
     """
     if per_page not in (20, 50, 100):
         raise HTTPException(422, detail="per_pageは20/50/100のいずれかを指定してください")
@@ -167,9 +171,10 @@ async def search_materials(
     if tag_list:
         ph = add_param(tag_list)
         conditions.append(f"m.tags ?| {ph}::text[]")
-    if project_id is not None:
-        ph = add_param(project_id)
-        conditions.append(f"m.project_id = {ph}")
+    project_id_list = [int(p) for p in project_ids.split(",") if p.strip()] if project_ids else []
+    if project_id_list:
+        ph = add_param(project_id_list)
+        conditions.append(f"m.project_id = ANY({ph}::bigint[])")
     if required is not None:
         ph = add_param(required)
         conditions.append(
@@ -185,7 +190,7 @@ async def search_materials(
             f"NOT EXISTS (SELECT 1 FROM enrollment_progress ep "
             f"WHERE ep.user_id = {ph} AND ep.material_id = m.id AND ep.status != 'not_started')"
         )
-    admin_browsing_other_project = user.role == "admin" and project_id is not None
+    admin_browsing_other_project = user.role == "admin" and len(project_id_list) > 0
     if not admin_browsing_other_project:
         ph = add_param(user.id)
         grace_ph = add_param(await get_setting_int("project_leave_grace_period_days", DEFAULT_GRACE_PERIOD_DAYS))
