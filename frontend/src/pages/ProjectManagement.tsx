@@ -1331,7 +1331,7 @@ function OutgoingShareRow({
   }
 
   return (
-    <tr className="border-b border-slate-50 align-top last:border-0">
+    <tr className="border-b border-slate-100 align-top last:border-0">
       <td className="px-3 py-2 text-slate-800">
         {material.title}
         {extraInfo && <div className="text-xs font-normal text-slate-400">{extraInfo}</div>}
@@ -1454,7 +1454,7 @@ function IncomingSharesSection({ projectId, canManage }: { projectId: number; ca
             </thead>
             <tbody>
               {incomingShares.map((s) => (
-                <tr key={s.id} className="border-b border-slate-50 last:border-0">
+                <tr key={s.id} className="border-b border-slate-100 last:border-0">
                   <td className="px-3 py-2 text-slate-800">{s.material_title}</td>
                   <td className="px-3 py-2 text-slate-500">{s.shared_by_project_name}</td>
                   <td className="px-3 py-2 text-slate-500">{formatDateJst(s.shared_at)}</td>
